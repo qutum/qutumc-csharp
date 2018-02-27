@@ -174,7 +174,7 @@ namespace qutum
 			return tree;
 		}
 
-		class Tree : LinkTree<Tree>
+		internal class Tree : LinkTree<Tree>
 		{
 			internal string name, text;
 			internal int from, to;
