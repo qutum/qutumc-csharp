@@ -20,7 +20,7 @@ namespace qutum
 		List<Match> matchs;
 		List<int> locs;
 		HashSet<int> errs;
-		int loc;
+		int loc, largest, largestLoc;
 		internal string start = "Start";
 		internal bool treeSingle = false;
 		internal bool treeText = false;
@@ -98,10 +98,13 @@ namespace qutum
 			locs.Add(loc = 0);
 			foreach (var x in prods[start].s)
 				Add(x, loc, 0, -1, -1);
+			largest = largestLoc = 0;
 			do
 			{
 				Complete();
 				Predict();
+				if (matchs.Count - locs[loc] > largest)
+					largest = matchs.Count - locs[largestLoc = loc];
 			} while (Shift());
 			for (int x = locs[loc]; x < matchs.Count; x++)
 			{
