@@ -14,29 +14,30 @@ namespace qutum
 {
 	class Earley<T> where T : IEquatable<T>
 	{
-		Dictionary<string, string[]> grammar;
-		Dictionary<string, Alt> rules;
-		string start;
+		Dictionary<string, Alt> prods;
 		IEnumerable<T> tokens;
 		IEnumerator<T> token;
 		List<Match> matchs;
 		List<int> locs;
+		HashSet<int> errs;
 		int loc;
+		internal string start = "Start";
 		internal bool treeSingle = false;
 		internal bool treeText = false;
 
 		sealed class Alt
 		{
 			internal string name;
-			internal Con[] cons;
-
-			public override string ToString() => string.Join(" | ", (object[])cons);
+			internal Con[] s;
 		}
 
 		sealed class Con
 		{
 			internal string name;
-			internal object[] s; // Alt or char or null
+			internal object[] s; // Alt or T or null
+
+			internal Con() { }
+			internal Con(params object[] s) => this.s = s;
 
 			public override string ToString() => name + "="
 				+ string.Join(' ', s.Where(x => x != null).Select(x => x is Alt a ? a.name : x.ToString()));
@@ -46,53 +47,56 @@ namespace qutum
 		{
 			internal Con con;
 			internal int from, to, step;
-			internal int prev, last; // both >=0 for completion, only prev >=0 for prediction
+			internal int prev, last; // completed: both >=0, predicted: only prev >=0 
 
 			public override string ToString() => $"{from}:{to}#{step} {con}";
 		}
 
-		internal Earley(Dictionary<string, string[]> grammar, string start = "Start")
+		Earley()
 		{
-			this.grammar = grammar;
-			this.start = start;
-			rules = new Dictionary<string, Alt>();
+			prods = new Dictionary<string, Alt>();
+			matchs = new List<Match>();
+			locs = new List<int>();
+			errs = new HashSet<int>();
+		}
+
+		internal Earley(Dictionary<string, string[]> grammar) : this()
+		{
 			foreach (var kv in grammar)
-				rules[kv.Key] = new Alt { name = kv.Key };
+				prods[kv.Key] = new Alt { name = kv.Key };
 			foreach (var kv in grammar)
-				rules[kv.Key].cons = kv.Value.Select(alt => new Con
+				prods[kv.Key].s = kv.Value.Select(alt => new Con
 				{
 					name = kv.Key,
 					s = alt.Split(' ', StringSplitOptions.RemoveEmptyEntries).SelectMany(
-						cat => rules.TryGetValue(cat, out Alt g) ? new object[] { g } :
+						cat => prods.TryGetValue(cat, out Alt g) ? new object[] { g } :
 							cat.Select(t => (object)t).ToArray()).Append(null).ToArray()
 				}).ToArray();
-			matchs = new List<Match>();
-			locs = new List<int>();
 		}
 
 		internal Tree Parse(IEnumerable<T> tokens)
 		{
-			int m = Accept(tokens);
-			Tree s = Build(m);
+			int m = Parsing(tokens);
+			Tree s = m >= 0 ? Accepted(m) : Rejected();
 			this.tokens = null; token = null;
-			matchs.Clear(); locs.Clear();
+			matchs.Clear(); locs.Clear(); errs.Clear();
 			return s;
 		}
 
 		internal bool Check(IEnumerable<T> tokens)
 		{
-			int m = Accept(tokens);
+			int m = Parsing(tokens);
 			this.tokens = null; token = null;
-			matchs.Clear(); locs.Clear();
+			matchs.Clear(); locs.Clear(); errs.Clear();
 			return m >= 0;
 		}
 
-		int Accept(IEnumerable<T> tokens)
+		int Parsing(IEnumerable<T> tokens)
 		{
 			this.tokens = tokens;
 			token = tokens.GetEnumerator();
 			locs.Add(loc = 0);
-			foreach (var x in rules[start].cons)
+			foreach (var x in prods[start].s)
 				Add(x, loc, 0, -1, -1);
 			do
 			{
@@ -108,26 +112,12 @@ namespace qutum
 			return -1;
 		}
 
-		void Add(Con gram, int from, int step, int prev, int last)
+		void Add(Con con, int from, int step, int prev, int last)
 		{
 			for (int x = locs[loc]; x < matchs.Count; x++)
-				if (matchs[x].con == gram && matchs[x].from == from && matchs[x].step == step)
+				if (matchs[x].con == con && matchs[x].from == from && matchs[x].step == step)
 					return;
-			matchs.Add(new Match { con = gram, from = from, to = loc, step = step, prev = prev, last = last });
-		}
-
-		bool Shift()
-		{
-			if (!token.MoveNext())
-				return false;
-			locs.Add(matchs.Count);
-			for (int x = locs[loc], y = locs[++loc]; x < y; x++)
-			{
-				var m = matchs[x];
-				if (m.con.s[m.step] is T t && t.Equals(token.Current))
-					Add(m.con, m.from, m.step + 1, m.prev, m.last);
-			}
-			return true;
+			matchs.Add(new Match { con = con, from = from, to = loc, step = step, prev = prev, last = last });
 		}
 
 		void Complete()
@@ -151,35 +141,66 @@ namespace qutum
 			{
 				var m = matchs[x];
 				if (m.con.s[m.step] is Alt s)
-					foreach (var g in s.cons)
+					foreach (var g in s.s)
 						Add(g, loc, 0, x, -1);
 			}
 		}
 
-		Tree Build(int match)
+		bool Shift()
+		{
+			if (!token.MoveNext())
+				return false;
+			locs.Add(matchs.Count);
+			for (int x = locs[loc], y = locs[++loc]; x < y; x++)
+			{
+				var m = matchs[x];
+				if (m.con.s[m.step] is T t && t.Equals(token.Current))
+					Add(m.con, m.from, m.step + 1, m.prev, m.last);
+			}
+			return locs[loc] < matchs.Count;
+		}
+
+		Tree Accepted(int match)
 		{
 			var m = matchs[match];
 			if (!treeSingle && m.con.s.Length == 2 && m.last >= 0)
-				return Build(m.last);
-			var tree = new Tree
-			{
-				name = m.con.name,
-				text = !treeText ? "" : m.con.ToString() + " : " +
-					(tokens.ToString() is string s && s.Length >= m.to ? s.Substring(m.from, m.to - m.from) : ""),
-				from = m.from,
-				to = m.to
-			};
+				return Accepted(m.last);
+			var t = new Tree { name = m.con.name, text = TreeText(m), from = m.from, to = m.to };
 			for (; m.last >= 0; m = m = matchs[m.prev])
-				tree.Insert(Build(m.last));
-			return tree;
+				t.Insert(Accepted(m.last));
+			return t;
 		}
+
+		Tree Rejected()
+		{
+			int to = locs[loc] < matchs.Count ? loc : loc - 1, x = locs[to];
+			var t = new Tree { name = "", text = "", from = 0, to = to, err = 1 };
+			for (int y = matchs.Count - 1, z; (z = y) >= x; y--)
+			{
+				Prev: var m = matchs[z];
+				if (m.con.s[m.step] != null && !errs.Contains(z))
+					if (m.step > 0)
+					{
+						t.Insert(new Tree { name = m.con.name, text = TreeText(m), from = m.from, to = m.to, err = m.step });
+						errs.Add(z);
+					}
+					else if ((z = m.prev) >= 0)
+						goto Prev;
+			}
+			return t;
+		}
+
+		string TreeText(Match m) => !treeText ? "" : m.con + " : " +
+			(tokens.ToString() is string s && s.Length >= m.to ? s.Substring(m.from, m.to - m.from) : "");
 
 		internal class Tree : LinkTree<Tree>
 		{
 			internal string name, text;
 			internal int from, to;
+			internal int err; // step expected: > 0
 
-			internal override string DumpSelf(string ind, string pos) => $"{ind}{pos}{from}:{to} {text}";
+			internal override string DumpSelf(string ind, string pos) =>
+				$"{ind}{pos}{from}:{to}{(err > 0 ? "!" + err : "")} {text}";
 		}
 	}
 
@@ -191,7 +212,8 @@ namespace qutum
 
 		internal T Add(T sub)
 		{
-			if (sub == null) return (T)this;
+			if (sub == null)
+				return (T)this;
 			Debug.Assert(sub.up == null);
 			var end = sub;
 			for (end.up = (T)this; end.next != null; end.up = (T)this)
@@ -206,7 +228,8 @@ namespace qutum
 
 		internal T Insert(T sub)
 		{
-			if (sub == null) return (T)this;
+			if (sub == null)
+				return (T)this;
 			Debug.Assert(sub.up == null);
 			var end = sub;
 			for (end.up = (T)this; end.next != null; end.up = (T)this)
@@ -221,7 +244,8 @@ namespace qutum
 
 		internal T Append(T next)
 		{
-			if (next == null) return (T)this;
+			if (next == null)
+				return (T)this;
 			Debug.Assert(up == null && next.up == null && next.prev == null);
 			var end = (T)this;
 			while (end.next != null)
@@ -244,7 +268,7 @@ namespace qutum
 			return (T)this;
 		}
 
-		internal void Dump(string ind = "", int pos = 0)
+		internal T Dump(string ind = "", int pos = 0)
 		{
 			int f = 1, fix = 1;
 			for (var x = first; ; x = x.next, f++)
@@ -256,6 +280,7 @@ namespace qutum
 				x.Dump(pos == 0 ? ind : ind + (pos == (f < fix ? -2 : 2) ? "  " : "| "),
 					f < fix ? x == first ? -2 : -1 : x == last ? 2 : 1);
 			}
+			return (T)this;
 		}
 
 		internal virtual string DumpSelf(string ind, string pos) => $"{ind}{pos} dump";

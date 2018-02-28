@@ -123,13 +123,13 @@ namespace qutum.test
 		{
 			var p = new Earley<char>(new Dictionary<string, string[]>
 			{
-				{ "Start", new[]{ "Start + Mul", "Mul" } },
+				{ "Expr", new[]{ "Expr + Mul", "Mul" } },
 				{ "Mul",   new[]{ "Mul * Value", "Value" } },
-				{ "Value", new[]{ "( Start )", "Num" } },
+				{ "Value", new[]{ "( Expr )", "Num" } },
 				{ "Num",   new[]{ "Num Digi", "Digi" } },
 				{ "Digi",  new[]{ "0", "1", "2", "3", "4", "5", "6", "7", "8", "9" } },
 			})
-			{ treeText = true };
+			{ start = "Expr", treeText = true };
 			IsTrue(p.Check("1")); IsTrue(p.Check("07")); IsTrue(p.Check("(3)")); IsTrue(p.Check("(298)"));
 			IsFalse(p.Check("1 3")); IsFalse(p.Check("(2")); IsFalse(p.Check("39210)"));
 			IsTrue(p.Check("1*2")); IsTrue(p.Check("073*32")); IsTrue(p.Check("86*1231*787*99"));
@@ -143,7 +143,21 @@ namespace qutum.test
 			IsTrue(p.Check("(1*(2+5)+2)+3")); IsTrue(p.Check("53+((((1))))+2*3"));
 			IsFalse(p.Check("1*(3+)")); IsFalse(p.Check("(3))*2")); IsFalse(p.Check("(5*(2)(6)+8)"));
 			IsFalse(p.Check("1*()3+5")); IsFalse(p.Check("(3))*2")); IsFalse(p.Check("(5*(2)(6)+8)"));
-			p.Parse("(7+58)*((23+882))*7+(5*23)+(15*33+89)*0").Dump();
+			var e = p.Parse("").Dump(); IsNull(e.first);
+			e = p.Parse("(1+2*").Dump();
+			AreEqual(e.first.name, "Mul"); AreEqual(e.first.to, 5); AreEqual(e.first.err, 2);
+			e = p.Parse("(*1*2+3)*4").Dump();
+			AreEqual(e.first.name, "Value"); AreEqual(e.first.to, 1); AreEqual(e.first.err, 1);
+			e = p.Parse("(1+2*3))*4").Dump();
+			AreEqual(e.first.name, "Mul"); AreEqual(e.first.to, 7); AreEqual(e.first.err, 1);
+			AreEqual(e.first.next, e.last);
+			AreEqual(e.last.name, "Expr"); AreEqual(e.last.to, 7); AreEqual(e.last.err, 1);
+			e = p.Parse("(1*2+3").Dump();
+			AreEqual(e.first.name, "Mul"); AreEqual(e.first.to, 6); AreEqual(e.first.err, 1);
+			AreEqual(e.first.next.name, "Value"); AreEqual(e.first.next.to, 6); AreEqual(e.first.next.err, 2);
+			AreEqual(e.first.next.next, e.last.prev);
+			AreEqual(e.last.prev.name, "Expr"); AreEqual(e.last.prev.to, 6); AreEqual(e.last.prev.err, 1);
+			AreEqual(e.last.name, "Num"); AreEqual(e.last.to, 6); AreEqual(e.last.err, 1);
 		}
 	}
 }
