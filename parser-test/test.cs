@@ -117,6 +117,31 @@ namespace qutum.test
 			IsTrue(p.Check("a")); IsTrue(p.Check("aa")); IsTrue(p.Check("aaa")); IsTrue(p.Check("aaaa"));
 		}
 
+		[TestMethod]
+		public void Greedy()
+		{
+			var p = new Earley<char>(new Dictionary<string, string[]>
+			{
+				{ "Start", new[]{ "A B" } },
+				{ "A",    new[]{ "A 1", "1" } },
+				{ "B",    new[]{ "1", "B 1" } },
+			})
+			{ treeText = true };
+			AreEqual(p.Parse("111").Dump().first.to, 2);
+		}
+
+		[TestMethod]
+		public void GreedyNo()
+		{
+			var p = new Earley<char>(new Dictionary<string, string[]>
+			{
+				{ "Start", new[]{ "A B" } },
+				{ "A",    new[]{ "A 1", "1" } },
+				{ "B",    new[]{ "1", "B 1" } },
+			})
+			{ treeGreedy = false, treeText = true };
+			AreEqual(p.Parse("111").Dump().first.to, 1);
+		}
 
 		[TestMethod]
 		public void AddMul()

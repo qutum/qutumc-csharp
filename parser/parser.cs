@@ -22,7 +22,8 @@ namespace qutum
 		HashSet<int> errs;
 		int loc, largest, largestLoc;
 		internal string start = "Start";
-		internal bool treeSingle = false;
+		internal bool treeGreedy = true; // S=AB A=1|A1 B=1|B1  gready: (11)1  no: 1(11) (mostly?)
+		internal bool treeThru = true; // S=A2 A=B B=1  thru: S=12 B=1  no: S=12 A=1 B=1
 		internal bool treeText = false;
 
 		sealed class Alt
@@ -85,9 +86,12 @@ namespace qutum
 
 		internal bool Check(IEnumerable<T> tokens)
 		{
+			bool greedy = treeGreedy;
+			treeGreedy = false;
 			int m = Parsing(tokens);
 			this.tokens = null; token = null;
 			matchs.Clear(); locs.Clear(); errs.Clear();
+			treeGreedy = greedy;
 			return m >= 0;
 		}
 
@@ -118,8 +122,15 @@ namespace qutum
 		void Add(Con con, int from, int step, int prev, int last)
 		{
 			for (int x = locs[loc]; x < matchs.Count; x++)
-				if (matchs[x].con == con && matchs[x].from == from && matchs[x].step == step)
+			{
+				var m = matchs[x];
+				if (m.con == con && m.from == from && m.step == step)
+				{
+					if (treeGreedy && last >= 0 && m.last >= 0 && matchs[last].from > matchs[m.last].from)
+						matchs[x] = new Match { con = con, from = from, to = loc, step = step, prev = prev, last = last };
 					return;
+				}
+			}
 			matchs.Add(new Match { con = con, from = from, to = loc, step = step, prev = prev, last = last });
 		}
 
@@ -166,7 +177,7 @@ namespace qutum
 		Tree Accepted(int match)
 		{
 			var m = matchs[match];
-			if (!treeSingle && m.con.s.Length == 2 && m.last >= 0)
+			if (treeThru && m.con.s.Length == 2 && m.last >= 0)
 				return Accepted(m.last);
 			var t = new Tree { name = m.con.name, text = TreeText(m), from = m.from, to = m.to };
 			for (; m.last >= 0; m = m = matchs[m.prev])
