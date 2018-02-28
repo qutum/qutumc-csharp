@@ -20,8 +20,9 @@ namespace qutum
 		List<Match> matchs;
 		List<int> locs;
 		HashSet<int> errs;
-		int loc, largest, largestLoc;
+		int loc;
 		internal string start = "Start";
+		internal int largest, largestLoc;
 		internal bool treeGreedy = true; // S=AB A=1|A1 B=1|B1  gready: (11)1  no: 1(11) (mostly?)
 		internal bool treeThru = true; // S=A2 A=B B=1  thru: S=12 B=1  no: S=12 A=1 B=1
 		internal bool treeText = false;
@@ -36,6 +37,7 @@ namespace qutum
 		{
 			internal string name;
 			internal object[] s; // Alt or T or null
+			internal byte[] reps; // 1: 1, 1 or more: 3
 
 			internal Con() { }
 			internal Con(params object[] s) => this.s = s;
@@ -66,12 +68,19 @@ namespace qutum
 			foreach (var kv in grammar)
 				prods[kv.Key] = new Alt { name = kv.Key };
 			foreach (var kv in grammar)
-				prods[kv.Key].s = kv.Value.Select(alt => new Con
+				prods[kv.Key].s = kv.Value.Select(alt =>
 				{
-					name = kv.Key,
-					s = alt.Split(' ', StringSplitOptions.RemoveEmptyEntries).SelectMany(
+					var s = alt.Split(' ', StringSplitOptions.RemoveEmptyEntries).SelectMany(
 						cat => prods.TryGetValue(cat, out Alt g) ? new object[] { g } :
-							cat.Select(t => (object)t).ToArray()).Append(null).ToArray()
+							cat.Select(t => (object)t).ToArray()).Append(null).ToArray();
+					var rs = Enumerable.Repeat<byte>(1, s.Length).ToArray();
+					if (Array.IndexOf(s, '~') >= 0)
+					{
+						rs = rs.Select((r, x) => (byte)(x+1 < s.Length && s[x+1] as char? == '~' ? 3 : 1))
+							.Where((r, x) => s[x] as char? != '~').ToArray();
+						s = s.Where((r, x) => s[x] as char? != '~').ToArray();
+					}
+					return new Con { name = kv.Key, s = s, reps = rs };
 				}).ToArray();
 		}
 
@@ -132,6 +141,8 @@ namespace qutum
 				}
 			}
 			matchs.Add(new Match { con = con, from = from, to = loc, step = step, prev = prev, last = last });
+			if (step > 0 && con.reps[step - 1] > 1)
+				matchs.Add(new Match { con = con, from = from, to = loc, step = step - 1, prev = prev, last = last });
 		}
 
 		void Complete()
@@ -177,7 +188,7 @@ namespace qutum
 		Tree Accepted(int match)
 		{
 			var m = matchs[match];
-			if (treeThru && m.con.s.Length == 2 && m.last >= 0)
+			if (treeThru && m.last >= 0 && m.con.s.Length == 2 && m.con.reps[0] <= 1)
 				return Accepted(m.last);
 			var t = new Tree { name = m.con.name, text = TreeText(m), from = m.from, to = m.to };
 			for (; m.last >= 0; m = m = matchs[m.prev])
@@ -220,9 +231,7 @@ namespace qutum
 
 	class LinkTree<T> where T : LinkTree<T>
 	{
-		internal T up;
-		internal T prev, next;
-		internal T first, last;
+		internal T up, prev, next, head, tail;
 
 		internal T Add(T sub)
 		{
@@ -232,11 +241,11 @@ namespace qutum
 			var end = sub;
 			for (end.up = (T)this; end.next != null; end.up = (T)this)
 				end = end.next;
-			if (first == null)
-				first = sub;
+			if (head == null)
+				head = sub;
 			else
-				(sub.prev = last).next = sub;
-			last = end;
+				(sub.prev = tail).next = sub;
+			tail = end;
 			return (T)this;
 		}
 
@@ -248,11 +257,11 @@ namespace qutum
 			var end = sub;
 			for (end.up = (T)this; end.next != null; end.up = (T)this)
 				end = end.next;
-			if (first == null)
-				last = end;
+			if (head == null)
+				tail = end;
 			else
-				(end.next = first).prev = end;
-			first = sub;
+				(end.next = head).prev = end;
+			head = sub;
 			return (T)this;
 		}
 
@@ -274,10 +283,10 @@ namespace qutum
 				prev.next = next;
 			if (next != null)
 				next.prev = prev;
-			if (up != null && up.first == this)
-				up.first = next;
-			if (up != null && up.last == this)
-				up.last = prev;
+			if (up != null && up.head == this)
+				up.head = next;
+			if (up != null && up.tail == this)
+				up.tail = prev;
 			up = prev = next = null;
 			return (T)this;
 		}
@@ -285,14 +294,14 @@ namespace qutum
 		internal T Dump(string ind = "", int pos = 0)
 		{
 			int f = 1, fix = 1;
-			for (var x = first; ; x = x.next, f++)
+			for (var x = head; ; x = x.next, f++)
 			{
 				if (f == fix)
 					Console.WriteLine(DumpSelf(ind, pos < 0 ? "/ " : pos > 0 ? "\\ " : ""));
 				if (x == null)
 					break;
 				x.Dump(pos == 0 ? ind : ind + (pos == (f < fix ? -2 : 2) ? "  " : "| "),
-					f < fix ? x == first ? -2 : -1 : x == last ? 2 : 1);
+					f < fix ? x == head ? -2 : -1 : x == tail ? 2 : 1);
 			}
 			return (T)this;
 		}

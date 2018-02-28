@@ -84,9 +84,19 @@ namespace qutum.test
 				{ "Start", new[]{ "aa B" } },
 				{ "B",     new[]{ "A a" } },
 				{ "A",     new[]{ "a A", "a" } },
-			});
+			})
+			{ treeText = true };
 			IsFalse(p.Check("aa")); IsFalse(p.Check("aaa"));
-			IsTrue(p.Check("aaaa")); IsTrue(p.Check("aaaaa")); IsTrue(p.Check("aaaaaa")); IsTrue(p.Check("aaaaaaa"));
+			IsTrue(p.Check("aaaa")); IsTrue(p.Check("aaaaa")); IsTrue(p.Check("aaaaaa"));
+			AreEqual(p.Parse("aaaaaaa").Dump().err, 0); AreEqual(p.largest, 11);
+			p = new Earley<char>(new Dictionary<string, string[]>
+			{
+				{ "Start", new[]{ "aa B" } },
+				{ "B",     new[]{ "A a" } },
+				{ "A",     new[]{ "A a", "a" } },
+			})
+			{ treeText = true };
+			AreEqual(p.Parse("aaaaaaa").Dump().err, 0); AreEqual(p.largest, 5);
 		}
 
 		[TestMethod]
@@ -127,22 +137,48 @@ namespace qutum.test
 				{ "B",    new[]{ "1", "B 1" } },
 			})
 			{ treeText = true };
-			AreEqual(p.Parse("111").Dump().first.to, 2);
-		}
-
-		[TestMethod]
-		public void GreedyNo()
-		{
-			var p = new Earley<char>(new Dictionary<string, string[]>
+			AreEqual(p.Parse("111").Dump().head.to, 2);
+			p = new Earley<char>(new Dictionary<string, string[]>
 			{
 				{ "Start", new[]{ "A B" } },
 				{ "A",    new[]{ "A 1", "1" } },
 				{ "B",    new[]{ "1", "B 1" } },
 			})
 			{ treeGreedy = false, treeText = true };
-			AreEqual(p.Parse("111").Dump().first.to, 1);
+			AreEqual(p.Parse("111").Dump().head.to, 1);
 		}
 
+
+		[TestMethod]
+		public void RepPlus1()
+		{
+			var p = new Earley<char>(new Dictionary<string, string[]>
+			{
+				{ "Start", new[]{ "a~" } },
+			})
+			{ treeText = true };
+			IsFalse(p.Check("")); IsTrue(p.Check("a")); IsTrue(p.Check("aaaaaa"));
+			IsTrue(p.Check("aaaaaaa")); AreEqual(p.largest, 2);
+		}
+
+		[TestMethod]
+		public void RepPlus2()
+		{
+			var p = new Earley<char>(new Dictionary<string, string[]>
+			{
+				{ "Start", new[]{ "A B" } },
+				{ "A",     new[]{ "a P ~" } },
+				{ "B",     new[]{ "P ~ b" } },
+				{ "P",     new[]{ "pq" } },
+			})
+			{ treeText = true };
+			IsFalse(p.Check("apqb")); IsTrue(p.Check("apqpqb"));
+			var t = p.Parse("apqpqpqb").Dump();
+			AreEqual(t.err, 0); AreEqual(p.largest, 10);
+			AreEqual(t.head.head.from, 1); AreEqual(t.head.head.to, 3);
+			AreEqual(t.head.tail.from, 3); AreEqual(t.head.tail.to, 5);
+			AreEqual(t.tail.head.from, 5); AreEqual(t.tail.head.to, 7);
+		}
 		[TestMethod]
 		public void AddMul()
 		{
@@ -168,21 +204,21 @@ namespace qutum.test
 			IsTrue(p.Check("(1*(2+5)+2)+3")); IsTrue(p.Check("53+((((1))))+2*3"));
 			IsFalse(p.Check("1*(3+)")); IsFalse(p.Check("(3))*2")); IsFalse(p.Check("(5*(2)(6)+8)"));
 			IsFalse(p.Check("1*()3+5")); IsFalse(p.Check("(3))*2")); IsFalse(p.Check("(5*(2)(6)+8)"));
-			var e = p.Parse("").Dump(); IsNull(e.first);
+			var e = p.Parse("").Dump(); IsNull(e.head);
 			e = p.Parse("(1+2*").Dump();
-			AreEqual(e.first.name, "Mul"); AreEqual(e.first.to, 5); AreEqual(e.first.err, 2);
+			AreEqual(e.head.name, "Mul"); AreEqual(e.head.to, 5); AreEqual(e.head.err, 2);
 			e = p.Parse("(*1*2+3)*4").Dump();
-			AreEqual(e.first.name, "Value"); AreEqual(e.first.to, 1); AreEqual(e.first.err, 1);
+			AreEqual(e.head.name, "Value"); AreEqual(e.head.to, 1); AreEqual(e.head.err, 1);
 			e = p.Parse("(1+2*3))*4").Dump();
-			AreEqual(e.first.name, "Mul"); AreEqual(e.first.to, 7); AreEqual(e.first.err, 1);
-			AreEqual(e.first.next, e.last);
-			AreEqual(e.last.name, "Expr"); AreEqual(e.last.to, 7); AreEqual(e.last.err, 1);
+			AreEqual(e.head.name, "Mul"); AreEqual(e.head.to, 7); AreEqual(e.head.err, 1);
+			AreEqual(e.head.next, e.tail);
+			AreEqual(e.tail.name, "Expr"); AreEqual(e.tail.to, 7); AreEqual(e.tail.err, 1);
 			e = p.Parse("(1*2+3").Dump();
-			AreEqual(e.first.name, "Mul"); AreEqual(e.first.to, 6); AreEqual(e.first.err, 1);
-			AreEqual(e.first.next.name, "Value"); AreEqual(e.first.next.to, 6); AreEqual(e.first.next.err, 2);
-			AreEqual(e.first.next.next, e.last.prev);
-			AreEqual(e.last.prev.name, "Expr"); AreEqual(e.last.prev.to, 6); AreEqual(e.last.prev.err, 1);
-			AreEqual(e.last.name, "Num"); AreEqual(e.last.to, 6); AreEqual(e.last.err, 1);
+			AreEqual(e.head.name, "Mul"); AreEqual(e.head.to, 6); AreEqual(e.head.err, 1);
+			AreEqual(e.head.next.name, "Value"); AreEqual(e.head.next.to, 6); AreEqual(e.head.next.err, 2);
+			AreEqual(e.head.next.next, e.tail.prev);
+			AreEqual(e.tail.prev.name, "Expr"); AreEqual(e.tail.prev.to, 6); AreEqual(e.tail.prev.err, 1);
+			AreEqual(e.tail.name, "Num"); AreEqual(e.tail.to, 6); AreEqual(e.tail.err, 1);
 		}
 	}
 }
