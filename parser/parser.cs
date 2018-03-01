@@ -29,33 +29,29 @@ namespace qutum
 
 		sealed class Alt
 		{
-			internal int id;
 			internal string name;
 			internal Con[] s;
-			internal bool empty;
 		}
 
 		sealed class Con
 		{
-			internal int id;
 			internal string name;
 			internal object[] s; // Alt or T or null
 			internal byte[] reps; // ?: 0, once: 1, *: 2, +: 3
-			internal bool empty;
 
 			internal Con() { }
 			internal Con(params object[] s) => this.s = s;
 
 			public override string ToString() => name + "=" + string.Join(' ',
 				s.Where(v => v != null).Select((v, x) => (v is Alt a ? a.name : v.ToString())
-					+ (reps[x] == 3 ? "+" : "")));
+					+ (reps[x] == 3 ? "+" : reps[x] == 2 ? "*" : reps[x] == 0 ? "?" : "")));
 		}
 
 		struct Match
 		{
 			internal Con con;
 			internal int from, to, step; // empty (always predicted): from==to (step could be 0 in repeatition)
-			internal int prev, tail; // completed: both >=0, predicted: only prev >=0
+			internal int prev, tail; // completed: both >=0, predicted: only prev >=0, T? predicted: prev==tail
 
 			public override string ToString() => $"{from}:{to}#{step} {con}";
 		}
@@ -79,51 +75,12 @@ namespace qutum
 						cat => prods.TryGetValue(cat, out Alt a) ? new object[] { a } :
 							cat.Select(t => (object)t).ToArray()).Append(null).ToArray();
 					var rs = Enumerable.Repeat<byte>(1, s.Length).ToArray();
-					if (Array.IndexOf(s, '~') >= 0)
-					{
-						rs = rs.Select((r, x) => (byte)(x + 1 < s.Length && s[x + 1] as char? == '~' ? 3 : 1))
-							.Where((r, x) => s[x] as char? != '~').ToArray();
-						s = s.Where((r, x) => s[x] as char? != '~').ToArray();
-					}
+					rs = rs.Select((r, x) => (byte)(x + 1 >= s.Length ? 1 :
+						s[x + 1] as char? == '~' ? 3 : s[x + 1] as char? == '#' ? 2 : s[x + 1] as char? == '?' ? 0 : 1))
+						.Where((r, x) => s[x] as char? != '~' && s[x] as char? != '#' && s[x] as char? != '?').ToArray();
+					s = s.Where((r, x) => s[x] as char? != '~' && s[x] as char? != '#' && s[x] as char? != '?').ToArray();
 					return new Con { name = kv.Key, s = s, reps = rs };
 				}).ToArray();
-			Empty();
-		}
-
-		void Empty()
-		{
-			int id = 0;
-			foreach (var a in prods.Values)
-			{
-				a.id = id++;
-				foreach (var c in a.s)
-					c.id = id++;
-			}
-			var alts = new Alt[id]; var cons = new Con[id, id];
-			var emptys = new Alt[id]; var n = 0;
-			foreach (var a in prods.Values)
-				foreach (var c in a.s)
-				{
-					alts[c.id] = a;
-					foreach (var v in c.s)
-						if (v is T) goto Next;
-					for (int x = 0; x < c.s.Length - 1; x++)
-						cons[((Alt)c.s[x]).id, c.id] = c;
-					Next: if (c.s.Length == 1 && a.empty != (a.empty = c.empty = true))
-						emptys[n++] = a;
-				}
-			for (int x = 0; x < n; x++)
-			{
-				var a = emptys[x];
-				for (int y = 0; y < id; y++)
-				{
-					var c = cons[a.id, y];
-					if (c == null || c.empty) continue;
-					var b = alts[c.id];
-					if (b.empty != (b.empty = c.empty = true))
-						emptys[n++] = b;
-				}
-			}
 		}
 
 		internal Tree Parse(IEnumerable<T> tokens)
@@ -152,12 +109,17 @@ namespace qutum
 			token = tokens.GetEnumerator();
 			locs.Add(loc = 0);
 			foreach (var x in prods[start].s)
-				Add(x, loc, 0, -1, -1);
+				Add(x, loc, 0, -2, -1);
 			largest = largestLoc = 0;
 			do
 			{
-				Complete();
-				Predict();
+				Complete(locs[loc]);
+				Predict(locs[loc]);
+				for (int c = matchs.Count, p = c; ; )
+				{
+					Complete(c); if (c == (c = matchs.Count)) break;
+					Predict(p); if (p == (p = matchs.Count)) break;
+				}
 				if (matchs.Count - locs[loc] > largest)
 					largest = matchs.Count - locs[largestLoc = loc];
 			} while (Shift());
@@ -170,14 +132,60 @@ namespace qutum
 			return -1;
 		}
 
-		int Add(Con c, int from, int step, int prev, int tail)
+		void Predict(int x)
+		{
+			for (; x < matchs.Count; x++)
+			{
+				var m = matchs[x]; bool opt = (m.con.reps[m.step] & 1) == 0;
+				if (m.con.s[m.step] is Alt a)
+				{
+					foreach (var con in a.s)
+						Add(con, loc, 0, x, -1);
+					if (opt)
+						Add(a.s[0], loc, a.s[0].s.Length - 1, x, -1);
+				}
+				else if (opt && m.con.s[m.step] is T)
+					Add(m.con, m.from, m.step + 1, x, x); // like completed alt?
+			}
+		}
+
+		void Complete(int empty)
 		{
 			for (int x = locs[loc]; x < matchs.Count; x++)
 			{
 				var m = matchs[x];
+				if ((x >= empty || m.from == loc) && m.con.s[m.step] == null)
+					for (int px = locs[m.from], py = m.from < loc ? locs[m.from + 1] : matchs.Count; px < py; px++)
+					{
+						var pm = matchs[px];
+						if (pm.con.s[pm.step] is Alt a && a.name == m.con.name)
+							Add(pm.con, pm.from, pm.step + 1, px, x);
+					}
+			}
+		}
+
+		bool Shift()
+		{
+			if (!token.MoveNext()) return false;
+			locs.Add(matchs.Count);
+			for (int x = locs[loc], y = locs[++loc]; x < y; x++)
+			{
+				var m = matchs[x];
+				if (m.con.s[m.step] is T t && t.Equals(token.Current))
+					Add(m.con, m.from, m.step + 1, m.prev, m.tail);
+			}
+			return locs[loc] < matchs.Count;
+		}
+
+		int Add(Con c, int from, int step, int prev, int tail)
+		{
+			for (int x = locs[loc]; x < matchs.Count; x++)
+			{
+				var m = matchs[x]; Match t, mt;
 				if (m.con == c && m.from == from && m.step == step)
 				{
-					if (treeGreedy && tail >= 0 && m.tail >= 0 && matchs[tail].from > matchs[m.tail].from)
+					if (treeGreedy && tail >= 0 && m.tail >= 0 &&
+						((t = matchs[tail]).to > (mt = matchs[m.tail]).to || t.to == mt.to && t.from > mt.from))
 						matchs[x] = new Match { con = c, from = from, to = loc, step = step, prev = prev, tail = tail };
 					return x;
 				}
@@ -189,62 +197,13 @@ namespace qutum
 			return y;
 		}
 
-		void Complete()
-		{
-			for (int x = locs[loc]; x < matchs.Count; x++)
-			{
-				var m = matchs[x];
-				if (m.con.s[m.step] == null)
-					for (int px = locs[m.from], py = locs[m.from + 1]; px < py; px++)
-					{
-						var pm = matchs[px];
-						if (pm.con.s[pm.step] is Alt a && a.name == m.con.name)
-							Add(pm.con, pm.from, pm.step + 1, px, x);
-					}
-			}
-		}
-
-		void Predict()
-		{
-			for (int x = locs[loc]; x < matchs.Count; x++)
-			{
-				var m = matchs[x];
-				if (m.con.s[m.step] is Alt a)
-				{
-					int empty = -1;
-					foreach (var con in a.s)
-					{
-						int y = Add(con, loc, 0, x, -1);
-						if (con.empty)
-							empty = y;
-					}
-					if (empty >= 0)
-						Add(m.con, m.from, m.step + 1, x, empty);
-				}
-			}
-		}
-
-		bool Shift()
-		{
-			if (!token.MoveNext())
-				return false;
-			locs.Add(matchs.Count);
-			for (int x = locs[loc], y = locs[++loc]; x < y; x++)
-			{
-				var m = matchs[x];
-				if (m.con.s[m.step] is T t && t.Equals(token.Current))
-					Add(m.con, m.from, m.step + 1, m.prev, m.tail);
-			}
-			return locs[loc] < matchs.Count;
-		}
-
 		Tree Accepted(int match)
 		{
 			var m = matchs[match];
-			if (treeThru && m.tail >= 0 && m.con.s.Length == 2 && m.con.reps[0] <= 1)
+			if (treeThru && m.tail >= 0 && m.prev != m.tail && m.con.s.Length == 2 && m.con.reps[0] <= 1)
 				return Accepted(m.tail);
 			var t = new Tree { name = m.con.name, text = TreeText(m), from = m.from, to = m.to };
-			for (; m.tail >= 0; m = matchs[m.prev])
+			for (m = m.prev != m.tail ? m : matchs[m.prev]; m.tail >= 0; m = matchs[m.prev])
 				t.Insert(Accepted(m.tail));
 			return t;
 		}
