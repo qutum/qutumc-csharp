@@ -88,7 +88,7 @@ namespace qutum.test
 			{ treeText = true };
 			IsFalse(p.Check("aa")); IsFalse(p.Check("aaa"));
 			IsTrue(p.Check("aaaa")); IsTrue(p.Check("aaaaa")); IsTrue(p.Check("aaaaaa"));
-			AreEqual(p.Parse("aaaaaaa").Dump().err, 0); AreEqual(p.largest, 11);
+			IsTrue(p.Check("aaaaaaa")); AreEqual(p.largest, 11);
 			p = new Earley<char>(new Dictionary<string, string[]>
 			{
 				{ "Start", new[]{ "aa B" } },
@@ -96,7 +96,15 @@ namespace qutum.test
 				{ "A",     new[]{ "A a", "a" } },
 			})
 			{ treeText = true };
-			AreEqual(p.Parse("aaaaaaa").Dump().err, 0); AreEqual(p.largest, 5);
+			IsTrue(p.Check("aaaaaaa")); AreEqual(p.largest, 5);
+			p = new Earley<char>(new Dictionary<string, string[]>
+			{
+				{ "Start", new[]{ "aa B" } },
+				{ "B",     new[]{ "A a" } },
+				{ "A",     new[]{ "a a~" } },
+			})
+			{ treeText = true };
+			IsTrue(p.Check("aaaaaaa")); AreEqual(p.largest, 5);
 		}
 
 		[TestMethod]
@@ -127,58 +135,6 @@ namespace qutum.test
 			IsTrue(p.Check("a")); IsTrue(p.Check("aa")); IsTrue(p.Check("aaa")); IsTrue(p.Check("aaaa"));
 		}
 
-		[TestMethod]
-		public void Greedy()
-		{
-			var p = new Earley<char>(new Dictionary<string, string[]>
-			{
-				{ "Start", new[]{ "A B" } },
-				{ "A",    new[]{ "A 1", "1" } },
-				{ "B",    new[]{ "1", "B 1" } },
-			})
-			{ treeText = true };
-			AreEqual(p.Parse("111").Dump().head.to, 2);
-			p = new Earley<char>(new Dictionary<string, string[]>
-			{
-				{ "Start", new[]{ "A B" } },
-				{ "A",    new[]{ "A 1", "1" } },
-				{ "B",    new[]{ "1", "B 1" } },
-			})
-			{ treeGreedy = false, treeText = true };
-			AreEqual(p.Parse("111").Dump().head.to, 1);
-		}
-
-
-		[TestMethod]
-		public void RepPlus1()
-		{
-			var p = new Earley<char>(new Dictionary<string, string[]>
-			{
-				{ "Start", new[]{ "a~" } },
-			})
-			{ treeText = true };
-			IsFalse(p.Check("")); IsTrue(p.Check("a")); IsTrue(p.Check("aaaaaa"));
-			IsTrue(p.Check("aaaaaaa")); AreEqual(p.largest, 2);
-		}
-
-		[TestMethod]
-		public void RepPlus2()
-		{
-			var p = new Earley<char>(new Dictionary<string, string[]>
-			{
-				{ "Start", new[]{ "A B" } },
-				{ "A",     new[]{ "a P ~" } },
-				{ "B",     new[]{ "P ~ b" } },
-				{ "P",     new[]{ "pq" } },
-			})
-			{ treeText = true };
-			IsFalse(p.Check("apqb")); IsTrue(p.Check("apqpqb"));
-			var t = p.Parse("apqpqpqb").Dump();
-			AreEqual(t.err, 0); AreEqual(p.largest, 10);
-			AreEqual(t.head.head.from, 1); AreEqual(t.head.head.to, 3);
-			AreEqual(t.head.tail.from, 3); AreEqual(t.head.tail.to, 5);
-			AreEqual(t.tail.head.from, 5); AreEqual(t.tail.head.to, 7);
-		}
 		[TestMethod]
 		public void AddMul()
 		{
@@ -219,6 +175,72 @@ namespace qutum.test
 			AreEqual(e.head.next.next, e.tail.prev);
 			AreEqual(e.tail.prev.name, "Expr"); AreEqual(e.tail.prev.to, 6); AreEqual(e.tail.prev.err, 1);
 			AreEqual(e.tail.name, "Num"); AreEqual(e.tail.to, 6); AreEqual(e.tail.err, 1);
+		}
+
+		[TestMethod]
+		public void Greedy()
+		{
+			var p = new Earley<char>(new Dictionary<string, string[]>
+			{
+				{ "Start", new[]{ "A B" } },
+				{ "A",     new[]{ "A 1", "1" } },
+				{ "B",     new[]{ "1", "B 1" } },
+			})
+			{ treeText = true };
+			AreEqual(p.Parse("111").Dump().head.to, 2);
+			p = new Earley<char>(new Dictionary<string, string[]>
+			{
+				{ "Start", new[]{ "A B" } },
+				{ "A",     new[]{ "A 1", "1" } },
+				{ "B",     new[]{ "1", "B 1" } },
+			})
+			{ treeGreedy = false, treeText = true };
+			AreEqual(p.Parse("111").Dump().head.to, 1);
+		}
+
+		[TestMethod]
+		public void RepPlus1()
+		{
+			var p = new Earley<char>(new Dictionary<string, string[]>
+			{
+				{ "Start", new[]{ "a~" } },
+			})
+			{ treeText = true };
+			IsFalse(p.Check("")); IsTrue(p.Check("a")); IsTrue(p.Check("aaaaaa"));
+			IsTrue(p.Check("aaaaaaa")); AreEqual(p.largest, 2);
+		}
+
+		[TestMethod]
+		public void RepPlus2()
+		{
+			var p = new Earley<char>(new Dictionary<string, string[]>
+			{
+				{ "Start", new[]{ "A B" } },
+				{ "A",     new[]{ "a P ~" } },
+				{ "B",     new[]{ "P ~ b" } },
+				{ "P",     new[]{ "pq" } },
+			})
+			{ treeText = true };
+			IsFalse(p.Check("apqb")); IsTrue(p.Check("apqpqb"));
+			var t = p.Parse("apqpqpqb").Dump();
+			AreEqual(t.err, 0); AreEqual(p.largest, 10);
+			AreEqual(t.head.head.from, 1); AreEqual(t.head.head.to, 3);
+			AreEqual(t.head.tail.from, 3); AreEqual(t.head.tail.to, 5);
+			AreEqual(t.tail.head.from, 5); AreEqual(t.tail.head.to, 7);
+		}
+
+		[TestMethod]
+		public void Empty()
+		{
+			var p = new Earley<char>(new Dictionary<string, string[]>
+			{
+				{ "Start", new[]{ "a A B" } },
+				{ "A",     new[]{ "", "a~" } },
+				{ "B",     new[]{ "A" } },
+			})
+			{ treeGreedy = false, treeText = true };
+			IsTrue(p.Check("a")); IsTrue(p.Check("aa"));
+			AreEqual(p.Parse("aaa").Dump().err, 0);
 		}
 	}
 }
