@@ -6,6 +6,8 @@
 //
 
 using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.Diagnostics;
 
 namespace qutum
@@ -16,7 +18,7 @@ namespace qutum
 		void Load(T tokens);
 		bool Next();
 		bool Is(K key);
-		string Text(string rule, int from, int to);
+		string Text(int from, int to);
 		void Unload();
 	}
 
@@ -33,12 +35,12 @@ namespace qutum
 
 		public virtual bool Is(char key) => text[x] == key;
 
-		public string Text(string rule, int from, int to) => rule + " :: " + text.Substring(from, to - from);
+		public string Text(int from, int to) => text.Substring(from, to - from);
 
 		public void Unload() => text = null;
 	}
 
-	class LinkTree<T> where T : LinkTree<T>
+	class LinkTree<T> : IEnumerable<T> where T : LinkTree<T>
 	{
 		internal T up, prev, next, head, tail;
 
@@ -116,5 +118,13 @@ namespace qutum
 		}
 
 		internal virtual string DumpSelf(string ind, string pos) => $"{ind}{pos} dump";
+
+		public IEnumerator<T> GetEnumerator()
+		{
+			for (var x = head; x != null; x = x.next)
+				yield return x;
+		}
+
+		IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 	}
 }

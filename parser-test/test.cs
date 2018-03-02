@@ -85,7 +85,7 @@ namespace qutum.test
 				{ "B",     new[]{ "A a" } },
 				{ "A",     new[]{ "a A", "a" } },
 			})
-			{ treeText = true };
+			{ treeDump = true };
 			IsFalse(p.Check("aa")); IsFalse(p.Check("aaa"));
 			IsTrue(p.Check("aaaa")); IsTrue(p.Check("aaaaa")); IsTrue(p.Check("aaaaaa"));
 			IsTrue(p.Check("aaaaaaa")); AreEqual(11, p.largest);
@@ -95,7 +95,7 @@ namespace qutum.test
 				{ "B",     new[]{ "A a" } },
 				{ "A",     new[]{ "A a", "a" } },
 			})
-			{ treeText = true };
+			{ treeDump = true };
 			IsTrue(p.Check("aaaaaaa")); AreEqual(5, p.largest);
 			p = new ParserStr(new Dictionary<string, string[]>
 			{
@@ -103,7 +103,7 @@ namespace qutum.test
 				{ "B",     new[]{ "A a" } },
 				{ "A",     new[]{ "a a~" } },
 			})
-			{ treeText = true };
+			{ treeDump = true };
 			IsTrue(p.Check("aaaaaaa")); AreEqual(5, p.largest);
 		}
 
@@ -146,7 +146,7 @@ namespace qutum.test
 				{ "Num",   new[]{ "Num Digi", "Digi" } },
 				{ "Digi",  new[]{ "0", "1", "2", "3", "4", "5", "6", "7", "8", "9" } },
 			}, "Expr")
-			{ treeText = true };
+			{ treeDump = true };
 			IsTrue(p.Check("1")); IsTrue(p.Check("07")); IsTrue(p.Check("(3)")); IsTrue(p.Check("(298)"));
 			IsFalse(p.Check("1 3")); IsFalse(p.Check("(2")); IsFalse(p.Check("39210)"));
 			IsTrue(p.Check("1*2")); IsTrue(p.Check("073*32")); IsTrue(p.Check("86*1231*787*99"));
@@ -186,7 +186,7 @@ namespace qutum.test
 				{ "A",     new[]{ "A 1", "1" } },
 				{ "B",     new[]{ "1", "B 1" } },
 			})
-			{ treeText = true };
+			{ treeDump = true };
 			AreEqual(2, p.Parse("111").Dump().head.to);
 			p = new ParserStr(new Dictionary<string, string[]>
 			{
@@ -194,7 +194,7 @@ namespace qutum.test
 				{ "A",     new[]{ "A 1", "1" } },
 				{ "B",     new[]{ "1", "B 1" } },
 			})
-			{ treeGreedy = false, treeText = true };
+			{ greedy = false, treeDump = true };
 			AreEqual(1, p.Parse("111").Dump().head.to);
 		}
 
@@ -205,7 +205,7 @@ namespace qutum.test
 			{
 				{ "Start", new[]{ "a~" } },
 			})
-			{ treeText = true };
+			{ treeDump = true };
 			IsFalse(p.Check("")); IsTrue(p.Check("a")); IsTrue(p.Check("aaaaaa"));
 			IsTrue(p.Check("aaaaaaa")); AreEqual(2, p.largest);
 		}
@@ -220,7 +220,7 @@ namespace qutum.test
 				{ "B",     new[]{ "P ~ b" } },
 				{ "P",     new[]{ "pq" } },
 			})
-			{ treeText = true };
+			{ treeDump = true };
 			IsFalse(p.Check("apqb")); IsTrue(p.Check("apqpqb"));
 			var t = p.Parse("apqpqpqb").Dump();
 			AreEqual(0, t.err); AreEqual(10, p.largest);
@@ -238,7 +238,7 @@ namespace qutum.test
 				{ "A",     new[]{ "", "a~" } },
 				{ "B",     new[]{ "A" } },
 			})
-			{ treeGreedy = true, treeText = true };
+			{ greedy = true, treeDump = true };
 			IsTrue(p.Check("a")); IsTrue(p.Check("aa"));
 			var t = p.Parse("aaa").Dump();
 			AreEqual(0, t.err); AreEqual(1, t.head.from); AreEqual(3, t.head.to);
@@ -255,7 +255,7 @@ namespace qutum.test
 				{ "B",     new[]{ "P b" } },
 				{ "P",     new[]{ "", "pq" } },
 			})
-			{ treeText = true };
+			{ treeDump = true };
 			IsTrue(p.Check("ab")); IsTrue(p.Check("apqb")); IsTrue(p.Check("apqpqb")); IsFalse(p.Check("apqpqpqb"));
 		}
 
@@ -268,7 +268,7 @@ namespace qutum.test
 				{ "A",     new[]{ "a", "aa" } },
 				{ "B",     new[]{ "a" } },
 			})
-			{ treeText = true };
+			{ treeDump = true };
 			IsFalse(p.Check("")); IsTrue(p.Check("a")); IsTrue(p.Check("aaaa"));
 			var t = p.Parse("aa").Dump();
 			AreEqual(0, t.err); AreEqual(2, t.head.to);
@@ -296,7 +296,7 @@ namespace qutum.test
 			{
 				{ "Start", new[]{ "a#" } },
 			})
-			{ treeText = true };
+			{ treeDump = true };
 			IsTrue(p.Check("")); IsTrue(p.Check("a")); IsTrue(p.Check("aaaaaa"));
 			IsTrue(p.Check("aaaaaaa")); AreEqual(2, p.largest);
 		}
@@ -311,12 +311,12 @@ namespace qutum.test
 				{ "B",     new[]{ "P # b" } },
 				{ "P",     new[]{ "p", "q" } },
 			})
-			{ treeText = true };
+			{ treeDump = true };
 			IsTrue(p.Check("ab")); IsTrue(p.Check("apqb")); IsTrue(p.Check("apqpqb"));
 			var t = p.Parse("apqpqpqb").Dump();
 			AreEqual(0, t.err); AreEqual(20, p.largest);
 			AreEqual(1, t.head.head.from); AreEqual(2, t.head.head.to);
-			AreEqual(7, t.head.tail.from); AreEqual(7, t.head.tail.to);
+			AreEqual(6, t.head.tail.from); AreEqual(7, t.head.tail.to);
 			AreEqual(7, t.tail.from); AreEqual(8, t.tail.to);
 		}
 	}

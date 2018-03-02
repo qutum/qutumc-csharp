@@ -21,9 +21,10 @@ namespace qutum
 		HashSet<int> errs;
 		int loc;
 		internal int largest, largestLoc, total;
-		internal bool treeGreedy = true; // S=AB A=1|A1 B=1|B1  gready: (11)1  no: 1(11) (mostly?)
-		internal bool treeThru = true; // S=A2 A=B B=1  thru: S=12 B=1  no: S=12 A=1 B=1
+		internal bool greedy = true; // S=AB A=1|A1 B=1|B1  gready: (11)1  no: 1(11) (mostly?)
+		internal bool treeThru = false;
 		internal bool treeText = false;
+		internal bool treeDump = false;
 
 		sealed class Alt
 		{
@@ -36,7 +37,7 @@ namespace qutum
 			internal string name;
 			internal object[] s; // Alt or K or null
 			internal byte[] reps; // ?: 0, once: 1, *: 2, +: 3
-			internal bool tree = true;
+			internal int tree; // default: 0, treeThru: -1, treeKeep: 1
 
 			public override string ToString() => name + "=" + string.Join(' ',
 				s.Where(v => v != null).Select((v, x) => (v is Alt a ? a.name : v.ToString())
@@ -91,11 +92,10 @@ namespace qutum
 
 		internal bool Check(T tokens)
 		{
-			bool greedy = treeGreedy;
-			treeGreedy = false;
+			bool greedy = this.greedy; this.greedy = false;
 			int m = Parsing(tokens);
 			scan.Unload(); matchs.Clear(); locs.Clear(); errs.Clear();
-			treeGreedy = greedy;
+			this.greedy = greedy;
 			return m >= 0;
 		}
 
@@ -106,6 +106,7 @@ namespace qutum
 			foreach (var x in start.s)
 				Add(x, 0, 0, 0, -2, -1);
 			largest = largestLoc = 0;
+			if (treeDump) treeText = true;
 			do
 			{
 				int c; Complete(locs[loc]); c = matchs.Count;
@@ -182,7 +183,7 @@ namespace qutum
 				var m = matchs[x]; Match t, mt;
 				if (m.con == c && m.from == from && m.step == step)
 				{
-					if (treeGreedy && tail >= 0 && m.tail >= 0 &&
+					if (greedy && tail >= 0 && m.tail >= 0 &&
 						((t = matchs[tail]).to > (mt = matchs[m.tail]).to || t.to == mt.to && t.from > mt.from))
 						matchs[x] = new Match { con = c, from = from, to = loc, step = step, prev = prev, tail = tail };
 					return x;
@@ -198,27 +199,27 @@ namespace qutum
 		Tree Accepted(int match, Tree insert)
 		{
 			var m = matchs[match];
-			if (!m.con.tree && insert != null)
+			if (m.from == m.to && m.step == 0 && m.con.s.Length > 1)
 				return null;
-			if (treeThru && m.tail >= 0 && m.prev != m.tail && m.con.s.Length == 2 && m.con.reps[0] <= 1)
-				return Accepted(m.tail, insert);
-			var t = new Tree { name = m.con.name, text = TreeText(m), from = m.from, to = m.to };
-			for (m = m.prev != m.tail ? m : matchs[m.prev]; m.tail >= 0; m = matchs[m.prev])
-				Accepted(m.tail, t);
-			return insert == null ? t : insert.Insert(t);
+			var t = (m.con.tree < 0 || m.con.tree == 0 && treeThru ? insert : null) ??
+				TreeText(new Tree { name = m.con.name, from = m.from, to = m.to }, match, m);
+			for (; m.tail >= 0; m = matchs[m.prev])
+				if (m.prev != m.tail)
+					Accepted(m.tail, t);
+			return insert == null || insert == t ? t : insert.Insert(t);
 		}
 
 		Tree Rejected()
 		{
 			int to = locs[loc] < matchs.Count ? loc : loc - 1, x = locs[to];
-			var t = new Tree { name = "", text = treeText ? scan.Text("", 0, to) : "", from = 0, to = to, err = -1 };
+			var t = new Tree { name = "", text = treeText ? scan.Text(0, to) : "", from = 0, to = to, err = -1 };
 			for (int y = matchs.Count - 1, z; (z = y) >= x; y--)
 			{
 				Prev: var m = matchs[z];
 				if (m.con.s[m.step] != null && !errs.Contains(z))
 					if (m.step > 0)
 					{
-						t.Insert(new Tree { name = m.con.name, text = TreeText(m), from = m.from, to = m.to, err = m.step });
+						t.Insert(TreeText(new Tree { name = m.con.name, from = m.from, to = m.to, err = m.step }, z, m));
 						errs.Add(z);
 					}
 					else if ((z = m.prev) >= 0)
@@ -227,17 +228,21 @@ namespace qutum
 			return t;
 		}
 
-		string TreeText(Match m) => treeText ? scan.Text(m.con.ToString(), m.from, m.to) : "";
+		Tree TreeText(Tree t, int x, Match m)
+		{
+			if (treeText) t.text = scan.Text(m.from, m.to);
+			if (treeDump) { t.dump = m.con.ToString() + " :: "; t.text = t.text.Replace("\n", "\\n").Replace("\r", "\\r"); }
+			return t;
+		}
 
 		internal class Tree : LinkTree<Tree>
 		{
-			internal string name, text;
+			internal string name, text, dump;
 			internal int from, to;
 			internal int err; // step expected: > 0
 
 			internal override string DumpSelf(string ind, string pos) =>
-				$"{ind}{pos}{from}:{to}{(err != 0 ? "!" + err : "")} {text}";
-		}
+				$"{ind}{pos}{from}:{to}{(err != 0 ? "!" + err : "")} {dump}{text}";
 		}
 	}
 
