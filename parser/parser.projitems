@@ -7,7 +7,8 @@
   </PropertyGroup>
   <PropertyGroup Label="Configuration" />
   <ItemGroup>
-    <Compile Include="$(MSBuildThisFileDirectory)parser.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)console.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)parser.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)scan.cs" />
   </ItemGroup>
 </Project>

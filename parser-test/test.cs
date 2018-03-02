@@ -15,7 +15,7 @@ namespace qutum.test
 		[TestMethod]
 		public void Term()
 		{
-			var p = new Earley<char>(new Dictionary<string, string[]>
+			var p = new ParserStr(new Dictionary<string, string[]>
 			{
 				{ "Start", new[]{ "a" } },
 			});
@@ -26,7 +26,7 @@ namespace qutum.test
 		[TestMethod]
 		public void Alt()
 		{
-			var p = new Earley<char>(new Dictionary<string, string[]>
+			var p = new ParserStr(new Dictionary<string, string[]>
 			{
 				{ "Start", new[]{ "A" } },
 				{ "A",     new[]{ "a", "1" } },
@@ -38,7 +38,7 @@ namespace qutum.test
 		[TestMethod]
 		public void Con()
 		{
-			var p = new Earley<char>(new Dictionary<string, string[]>
+			var p = new ParserStr(new Dictionary<string, string[]>
 			{
 				{ "Start", new[]{ "A B", "B A" } },
 				{ "A",     new[]{ "a", "1" } },
@@ -55,7 +55,7 @@ namespace qutum.test
 		[TestMethod]
 		public void LeftRecu()
 		{
-			var p = new Earley<char>(new Dictionary<string, string[]>
+			var p = new ParserStr(new Dictionary<string, string[]>
 			{
 				{ "Start", new[]{ "Start s", "A" } },
 				{ "A",     new[]{ "a" } },
@@ -67,7 +67,7 @@ namespace qutum.test
 		[TestMethod]
 		public void RightRecu()
 		{
-			var p = new Earley<char>(new Dictionary<string, string[]>
+			var p = new ParserStr(new Dictionary<string, string[]>
 			{
 				{ "Start", new[]{ "a Start", "S" } },
 				{ "S",     new[]{ "s" } },
@@ -79,7 +79,7 @@ namespace qutum.test
 		[TestMethod]
 		public void RightRecuUnopt()
 		{
-			var p = new Earley<char>(new Dictionary<string, string[]>
+			var p = new ParserStr(new Dictionary<string, string[]>
 			{
 				{ "Start", new[]{ "aa B" } },
 				{ "B",     new[]{ "A a" } },
@@ -89,7 +89,7 @@ namespace qutum.test
 			IsFalse(p.Check("aa")); IsFalse(p.Check("aaa"));
 			IsTrue(p.Check("aaaa")); IsTrue(p.Check("aaaaa")); IsTrue(p.Check("aaaaaa"));
 			IsTrue(p.Check("aaaaaaa")); AreEqual(11, p.largest);
-			p = new Earley<char>(new Dictionary<string, string[]>
+			p = new ParserStr(new Dictionary<string, string[]>
 			{
 				{ "Start", new[]{ "aa B" } },
 				{ "B",     new[]{ "A a" } },
@@ -97,7 +97,7 @@ namespace qutum.test
 			})
 			{ treeText = true };
 			IsTrue(p.Check("aaaaaaa")); AreEqual(5, p.largest);
-			p = new Earley<char>(new Dictionary<string, string[]>
+			p = new ParserStr(new Dictionary<string, string[]>
 			{
 				{ "Start", new[]{ "aa B" } },
 				{ "B",     new[]{ "A a" } },
@@ -110,7 +110,7 @@ namespace qutum.test
 		[TestMethod]
 		public void MidRecu()
 		{
-			var p = new Earley<char>(new Dictionary<string, string[]>
+			var p = new ParserStr(new Dictionary<string, string[]>
 			{
 				{ "Start", new[]{ "If", "X" } },
 				{ "If",    new[]{ "if . Start . then . Start", "if . Start . then . Start . else . Start" } },
@@ -127,7 +127,7 @@ namespace qutum.test
 		[TestMethod]
 		public void DoubleRecu()
 		{
-			var p = new Earley<char>(new Dictionary<string, string[]>
+			var p = new ParserStr(new Dictionary<string, string[]>
 			{
 				{ "Start", new[]{ "Start Start", "a" } },
 			});
@@ -138,15 +138,15 @@ namespace qutum.test
 		[TestMethod]
 		public void AddMul()
 		{
-			var p = new Earley<char>(new Dictionary<string, string[]>
+			var p = new ParserStr(new Dictionary<string, string[]>
 			{
 				{ "Expr", new[]{ "Expr + Mul", "Mul" } },
 				{ "Mul",   new[]{ "Mul * Value", "Value" } },
 				{ "Value", new[]{ "( Expr )", "Num" } },
 				{ "Num",   new[]{ "Num Digi", "Digi" } },
 				{ "Digi",  new[]{ "0", "1", "2", "3", "4", "5", "6", "7", "8", "9" } },
-			})
-			{ start = "Expr", treeText = true };
+			}, "Expr")
+			{ treeText = true };
 			IsTrue(p.Check("1")); IsTrue(p.Check("07")); IsTrue(p.Check("(3)")); IsTrue(p.Check("(298)"));
 			IsFalse(p.Check("1 3")); IsFalse(p.Check("(2")); IsFalse(p.Check("39210)"));
 			IsTrue(p.Check("1*2")); IsTrue(p.Check("073*32")); IsTrue(p.Check("86*1231*787*99"));
@@ -180,7 +180,7 @@ namespace qutum.test
 		[TestMethod]
 		public void Greedy()
 		{
-			var p = new Earley<char>(new Dictionary<string, string[]>
+			var p = new ParserStr(new Dictionary<string, string[]>
 			{
 				{ "Start", new[]{ "A B" } },
 				{ "A",     new[]{ "A 1", "1" } },
@@ -188,7 +188,7 @@ namespace qutum.test
 			})
 			{ treeText = true };
 			AreEqual(2, p.Parse("111").Dump().head.to);
-			p = new Earley<char>(new Dictionary<string, string[]>
+			p = new ParserStr(new Dictionary<string, string[]>
 			{
 				{ "Start", new[]{ "A B" } },
 				{ "A",     new[]{ "A 1", "1" } },
@@ -201,7 +201,7 @@ namespace qutum.test
 		[TestMethod]
 		public void RepPlus1()
 		{
-			var p = new Earley<char>(new Dictionary<string, string[]>
+			var p = new ParserStr(new Dictionary<string, string[]>
 			{
 				{ "Start", new[]{ "a~" } },
 			})
@@ -213,7 +213,7 @@ namespace qutum.test
 		[TestMethod]
 		public void RepPlus2()
 		{
-			var p = new Earley<char>(new Dictionary<string, string[]>
+			var p = new ParserStr(new Dictionary<string, string[]>
 			{
 				{ "Start", new[]{ "A B" } },
 				{ "A",     new[]{ "a P ~" } },
@@ -232,7 +232,7 @@ namespace qutum.test
 		[TestMethod]
 		public void Empty1()
 		{
-			var p = new Earley<char>(new Dictionary<string, string[]>
+			var p = new ParserStr(new Dictionary<string, string[]>
 			{
 				{ "Start", new[]{ "a A B" } },
 				{ "A",     new[]{ "", "a~" } },
@@ -248,7 +248,7 @@ namespace qutum.test
 		[TestMethod]
 		public void Empty2()
 		{
-			var p = new Earley<char>(new Dictionary<string, string[]>
+			var p = new ParserStr(new Dictionary<string, string[]>
 			{
 				{ "Start", new[]{ "A B" } },
 				{ "A",     new[]{ "a P" } },
@@ -262,7 +262,7 @@ namespace qutum.test
 		[TestMethod]
 		public void Option()
 		{
-			var p = new Earley<char>(new Dictionary<string, string[]>
+			var p = new ParserStr(new Dictionary<string, string[]>
 			{
 				{ "Start", new[]{ "A B ? a?" } },
 				{ "A",     new[]{ "a", "aa" } },
@@ -279,7 +279,7 @@ namespace qutum.test
 		[TestMethod]
 		public void RepStar1()
 		{
-			var p = new Earley<char>(new Dictionary<string, string[]>
+			var p = new ParserStr(new Dictionary<string, string[]>
 			{
 				{ "Start", new[]{ "a#" } },
 			})
@@ -291,18 +291,18 @@ namespace qutum.test
 		[TestMethod]
 		public void RepStar2()
 		{
-			var p = new Earley<char>(new Dictionary<string, string[]>
+			var p = new ParserStr(new Dictionary<string, string[]>
 			{
 				{ "Start", new[]{ "A B" } },
 				{ "A",     new[]{ "a P #" } },
 				{ "B",     new[]{ "P # b" } },
-				{ "P",     new[]{ "pq" } },
+				{ "P",     new[]{ "p", "q" } },
 			})
 			{ treeText = true };
 			IsTrue(p.Check("ab")); IsTrue(p.Check("apqb")); IsTrue(p.Check("apqpqb"));
 			var t = p.Parse("apqpqpqb").Dump();
-			AreEqual(0, t.err); AreEqual(15, p.largest);
-			AreEqual(1, t.head.head.from); AreEqual(3, t.head.head.to);
+			AreEqual(0, t.err); AreEqual(22, p.largest);
+			AreEqual(1, t.head.head.from); AreEqual(2, t.head.head.to);
 			AreEqual(7, t.head.tail.from); AreEqual(7, t.head.tail.to);
 			AreEqual(7, t.tail.from); AreEqual(8, t.tail.to);
 		}
