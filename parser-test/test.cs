@@ -260,7 +260,7 @@ namespace qutum.test
 		}
 
 		[TestMethod]
-		public void Option()
+		public void Option1()
 		{
 			var p = new ParserStr(new Dictionary<string, string[]>
 			{
@@ -277,6 +277,19 @@ namespace qutum.test
 		}
 
 		[TestMethod]
+		public void Option2()
+		{
+			var p = new ParserStr(new Dictionary<string, string[]>
+			{
+				{ "Start", new[]{ "A ? B ?" } },
+				{ "A",     new[]{ "B a" } },
+				{ "B",     new[]{ "b" } },
+			});
+			IsTrue(p.Check("")); IsTrue(p.Check("ba")); IsTrue(p.Check("b"));
+			IsTrue(p.Check("bab")); IsFalse(p.Check("ab"));
+		}
+
+		[TestMethod]
 		public void RepStar1()
 		{
 			var p = new ParserStr(new Dictionary<string, string[]>
@@ -285,7 +298,7 @@ namespace qutum.test
 			})
 			{ treeText = true };
 			IsTrue(p.Check("")); IsTrue(p.Check("a")); IsTrue(p.Check("aaaaaa"));
-			IsTrue(p.Check("aaaaaaa")); AreEqual(3, p.largest);
+			IsTrue(p.Check("aaaaaaa")); AreEqual(2, p.largest);
 		}
 
 		[TestMethod]
@@ -301,7 +314,7 @@ namespace qutum.test
 			{ treeText = true };
 			IsTrue(p.Check("ab")); IsTrue(p.Check("apqb")); IsTrue(p.Check("apqpqb"));
 			var t = p.Parse("apqpqpqb").Dump();
-			AreEqual(0, t.err); AreEqual(22, p.largest);
+			AreEqual(0, t.err); AreEqual(20, p.largest);
 			AreEqual(1, t.head.head.from); AreEqual(2, t.head.head.to);
 			AreEqual(7, t.head.tail.from); AreEqual(7, t.head.tail.to);
 			AreEqual(7, t.tail.from); AreEqual(8, t.tail.to);

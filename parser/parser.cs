@@ -36,6 +36,7 @@ namespace qutum
 			internal string name;
 			internal object[] s; // Alt or K or null
 			internal byte[] reps; // ?: 0, once: 1, *: 2, +: 3
+			internal bool tree = true;
 
 			public override string ToString() => name + "=" + string.Join(' ',
 				s.Where(v => v != null).Select((v, x) => (v is Alt a ? a.name : v.ToString())
@@ -83,7 +84,7 @@ namespace qutum
 		internal Tree Parse(T tokens)
 		{
 			int m = Parsing(tokens);
-			Tree s = m >= 0 ? Accepted(m) : Rejected();
+			Tree s = m >= 0 ? Accepted(m, null) : Rejected();
 			scan.Unload(); matchs.Clear(); locs.Clear(); errs.Clear();
 			return s;
 		}
@@ -103,13 +104,13 @@ namespace qutum
 			scan.Load(tokens);
 			locs.Add(loc = 0);
 			foreach (var x in start.s)
-				Add(x, loc, 0, -2, -1);
+				Add(x, 0, 0, 0, -2, -1);
 			largest = largestLoc = 0;
 			do
 			{
-				Complete(locs[loc]);
-				Predict(locs[loc]);
-				for (int c = matchs.Count, p = c; ;)
+				int c; Complete(locs[loc]); c = matchs.Count;
+				int p; Predict(locs[loc]); p = matchs.Count;
+				for (; ; )
 				{
 					Complete(c); if (c == (c = matchs.Count)) break;
 					Predict(p); if (p == (p = matchs.Count)) break;
@@ -131,16 +132,17 @@ namespace qutum
 		{
 			for (; x < matchs.Count; x++)
 			{
-				var m = matchs[x]; bool opt = (m.con.reps[m.step] & 1) == 0;
+				var m = matchs[x];
+				bool opt = (m.con.reps[m.step] & 1) == 0; int y = -1;
 				if (m.con.s[m.step] is Alt a)
 				{
 					foreach (var con in a.s)
-						Add(con, loc, 0, x, -1);
+						y = Add(con, loc, loc, 0, x, -1);
 					if (opt)
-						Add(a.s[0], loc, a.s[0].s.Length - 1, x, -1);
+						Add(m.con, m.from, m.to, m.step + 1, x, y);
 				}
 				else if (opt && m.con.s[m.step] is K)
-					Add(m.con, m.from, m.step + 1, x, x); // like completed alt?
+					Add(m.con, m.from, m.to, m.step + 1, x, x); // like completed alt?
 			}
 		}
 
@@ -154,25 +156,26 @@ namespace qutum
 					{
 						var pm = matchs[px];
 						if (pm.con.s[pm.step] is Alt a && a.name == m.con.name)
-							Add(pm.con, pm.from, pm.step + 1, px, x);
+							Add(pm.con, pm.from, pm.to, pm.step + 1, px, x);
 					}
 			}
 		}
 
 		bool Shift()
 		{
-			if (!scan.Next()) return false;
+			if (!scan.Next())
+				return false;
 			locs.Add(matchs.Count);
 			for (int x = locs[loc], y = locs[++loc]; x < y; x++)
 			{
 				var m = matchs[x];
 				if (m.con.s[m.step] is K k && scan.Is(k))
-					Add(m.con, m.from, m.step + 1, m.prev, m.tail);
+					Add(m.con, m.from, m.to, m.step + 1, m.prev, m.tail);
 			}
 			return locs[loc] < matchs.Count;
 		}
 
-		int Add(Con c, int from, int step, int prev, int tail)
+		int Add(Con c, int from, int to, int step, int prev, int tail)
 		{
 			for (int x = locs[loc]; x < matchs.Count; x++)
 			{
@@ -187,26 +190,28 @@ namespace qutum
 			}
 			int y = matchs.Count;
 			matchs.Add(new Match { con = c, from = from, to = loc, step = step, prev = prev, tail = tail });
-			if (step > 0 && c.reps[step - 1] > 1)
+			if (to < loc && step > 0 && c.reps[step - 1] > 1)
 				matchs.Add(new Match { con = c, from = from, to = loc, step = step - 1, prev = prev, tail = tail });
 			return y;
 		}
 
-		Tree Accepted(int match)
+		Tree Accepted(int match, Tree insert)
 		{
 			var m = matchs[match];
+			if (!m.con.tree && insert != null)
+				return null;
 			if (treeThru && m.tail >= 0 && m.prev != m.tail && m.con.s.Length == 2 && m.con.reps[0] <= 1)
-				return Accepted(m.tail);
+				return Accepted(m.tail, insert);
 			var t = new Tree { name = m.con.name, text = TreeText(m), from = m.from, to = m.to };
 			for (m = m.prev != m.tail ? m : matchs[m.prev]; m.tail >= 0; m = matchs[m.prev])
-				t.Insert(Accepted(m.tail));
-			return t;
+				Accepted(m.tail, t);
+			return insert == null ? t : insert.Insert(t);
 		}
 
 		Tree Rejected()
 		{
 			int to = locs[loc] < matchs.Count ? loc : loc - 1, x = locs[to];
-			var t = new Tree { name = "", text = "", from = 0, to = to, err = -1 };
+			var t = new Tree { name = "", text = treeText ? scan.Text("", 0, to) : "", from = 0, to = to, err = -1 };
 			for (int y = matchs.Count - 1, z; (z = y) >= x; y--)
 			{
 				Prev: var m = matchs[z];
@@ -231,7 +236,8 @@ namespace qutum
 			internal int err; // step expected: > 0
 
 			internal override string DumpSelf(string ind, string pos) =>
-				$"{ind}{pos}{from}:{to}{(err > 0 ? "!" + err : "")} {text}";
+				$"{ind}{pos}{from}:{to}{(err != 0 ? "!" + err : "")} {text}";
+		}
 		}
 	}
 

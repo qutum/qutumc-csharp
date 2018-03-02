@@ -24,37 +24,14 @@ namespace qutum
 	{
 		public char Key(string name) => name[0];
 
-		string text;
-		int x;
+		protected string text;
+		protected int x;
 
 		public void Load(string text) { this.text = text; x = -1; }
 
 		public bool Next() => ++x < text.Length;
 
-		public bool Is(char key) => text[x] == key;
-
-		public string Text(string rule, int from, int to) => rule + " :: " + text.Substring(from, to - from);
-
-		public void Unload() => text = null;
-	}
-
-	class ScanChar : Scan<string, char>
-	{
-		public char Key(string name) => name[0];
-
-		string text;
-		int x;
-
-		public void Load(string text) { this.text = text; x = -1; }
-
-		public bool Next() => ++x < text.Length;
-
-		public bool Is(char k) =>
-			k == 'D' ? (k = text[x]) >= '0' && k <= '9' :
-			k == 'H' ? (k = text[x]) >= '0' && k <= '9' || k >= 'a' || k <= 'f' || k >= 'A' && k <= 'F' :
-			k == 'L' ? (k = text[x]) >= 'a' && k <= 'z' || k >= 'A' && k <= 'Z' :
-			k == 'W' ? (k = text[x]) >= '0' && k <= '9' || k >= 'a' && k <= 'z' || k >= 'A' && k <= 'Z' || k == '_' :
-			k == text[x];
+		public virtual bool Is(char key) => text[x] == key;
 
 		public string Text(string rule, int from, int to) => rule + " :: " + text.Substring(from, to - from);
 
