@@ -10,21 +10,21 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 
-namespace qutum
+namespace qutum.parser
 {
-	interface Scan<T, K>
+	public interface Scan<T, K> where T : class
 	{
-		K Key(string name);
+		IEnumerable<K> Key(string name);
 		void Load(T tokens);
 		bool Next();
 		bool Is(K key);
-		string Text(int from, int to);
+		T Tokens(int from, int to);
 		void Unload();
 	}
 
-	class ScanStr : Scan<string, char>
+	public class ScanStr : Scan<string, char>
 	{
-		public char Key(string name) => name[0];
+		public IEnumerable<char> Key(string name) => name;
 
 		protected string text;
 		protected int x;
@@ -35,16 +35,16 @@ namespace qutum
 
 		public virtual bool Is(char key) => text[x] == key;
 
-		public string Text(int from, int to) => text.Substring(from, to - from);
+		public string Tokens(int from, int to) => text.Substring(from, to - from);
 
 		public void Unload() => text = null;
 	}
 
-	class LinkTree<T> : IEnumerable<T> where T : LinkTree<T>
+	public class LinkTree<T> : IEnumerable<T> where T : LinkTree<T>
 	{
-		internal T up, prev, next, head, tail;
+		public T up, prev, next, head, tail;
 
-		internal T Add(T sub)
+		public T Add(T sub)
 		{
 			if (sub == null)
 				return (T)this;
@@ -60,7 +60,7 @@ namespace qutum
 			return (T)this;
 		}
 
-		internal T Insert(T sub)
+		public T Insert(T sub)
 		{
 			if (sub == null)
 				return (T)this;
@@ -76,7 +76,7 @@ namespace qutum
 			return (T)this;
 		}
 
-		internal T Append(T next)
+		public T Append(T next)
 		{
 			if (next == null)
 				return (T)this;
@@ -88,7 +88,7 @@ namespace qutum
 			return (T)this;
 		}
 
-		internal T Remove()
+		public T Remove()
 		{
 			if (prev != null)
 				prev.next = next;
@@ -102,7 +102,7 @@ namespace qutum
 			return (T)this;
 		}
 
-		internal T Dump(string ind = "", int pos = 0)
+		public T Dump(string ind = "", int pos = 0)
 		{
 			int f = 1, fix = 1;
 			for (var x = head; ; x = x.next, f++)
@@ -117,14 +117,27 @@ namespace qutum
 			return (T)this;
 		}
 
-		internal virtual string DumpSelf(string ind, string pos) => $"{ind}{pos} dump";
+		public virtual string DumpSelf(string ind, string pos) => $"{ind}{pos} dump";
 
 		public IEnumerator<T> GetEnumerator()
 		{
 			for (var x = head; x != null; x = x.next)
 				yield return x;
 		}
-
 		IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+
+		class Backwarder : IEnumerable<T>
+		{
+			internal T tail;
+
+			public IEnumerator<T> GetEnumerator()
+			{
+				for (var x = tail; x != null; x = x.prev)
+					yield return x;
+			}
+			IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+		}
+
+		public IEnumerable<T> Backward() => new Backwarder { tail = tail };
 	}
 }

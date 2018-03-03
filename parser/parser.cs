@@ -7,12 +7,46 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 
-namespace qutum
+namespace qutum.parser
 {
-	class QEarley<T, K>
+	public class ParserStr : QEarley<string, char>
+	{
+		public ParserStr(Dictionary<string, string[]> grammar, string start = "Start")
+			: base(grammar, new ScanStr(), start) { }
+	}
+
+	public class Tree<T> : LinkTree<Tree<T>>
+	{
+		public string name, dump;
+		public int from, to;
+		public T tokens;
+		public int err; // step break: > 0
+
+		public override string DumpSelf(string ind, string pos) =>
+			$"{ind}{pos}{from}:{to}{(err != 0 ? "!" + err : "")} {dump}";
+	}
+
+	sealed class Alt
+	{
+		internal string name;
+		internal Con[] s;
+	}
+
+	sealed class Con
+	{
+		internal string name;
+		internal object[] s; // Alt or K or null
+		internal byte[] reps; // ?: 0, once: 1, *: 2, +: 3
+		internal int tree; // default: 0, treeThru: -1, treeKeep: 1
+
+		public override string ToString() => name + "=" + string.Join(' ',
+			s.Where(v => v != null).Select((v, x) => (v is Alt a ? a.name : v.ToString())
+				+ (reps[x] == 3 ? "+" : reps[x] == 2 ? "*" : reps[x] == 0 ? "?" : "")));
+	}
+
+	public class QEarley<T, K> where T : class
 	{
 		Alt start;
 		Scan<T, K> scan;
@@ -20,35 +54,16 @@ namespace qutum
 		List<int> locs;
 		HashSet<int> errs;
 		int loc;
-		internal int largest, largestLoc, total;
-		internal bool greedy = true; // S=AB A=1|A1 B=1|B1  gready: (11)1  no: 1(11) (mostly?)
-		internal bool treeThru = false;
-		internal bool treeText = false;
-		internal bool treeDump = false;
-
-		sealed class Alt
-		{
-			internal string name;
-			internal Con[] s;
-		}
-
-		sealed class Con
-		{
-			internal string name;
-			internal object[] s; // Alt or K or null
-			internal byte[] reps; // ?: 0, once: 1, *: 2, +: 3
-			internal int tree; // default: 0, treeThru: -1, treeKeep: 1
-
-			public override string ToString() => name + "=" + string.Join(' ',
-				s.Where(v => v != null).Select((v, x) => (v is Alt a ? a.name : v.ToString())
-					+ (reps[x] == 3 ? "+" : reps[x] == 2 ? "*" : reps[x] == 0 ? "?" : "")));
-		}
+		public int largest, largestLoc, total;
+		public bool greedy = true; // S=AB A=1|A1 B=1|B1  gready: (11)1  no: 1(11) (mostly?)
+		public bool treeThru = false;
+		public bool treeDump = false;
 
 		struct Match
 		{
 			internal Con con;
 			internal int from, to, step; // empty (always predicted): from==to (step could be 0 in repeatition)
-			internal int prev, tail; // completed: both >=0, predicted: only prev >=0, T? predicted: prev==tail
+			internal int prev, tail; // completed by alt: both >=0, predicted con: only prev >=0, or: prev==tail
 
 			public override string ToString() => $"{from}:{to}#{step} {con}";
 		}
@@ -60,7 +75,7 @@ namespace qutum
 			errs = new HashSet<int>();
 		}
 
-		internal QEarley(Dictionary<string, string[]> grammar, Scan<T, K> scan, string start = "Start") : this()
+		public QEarley(Dictionary<string, string[]> grammar, Scan<T, K> scan, string start = "Start") : this()
 		{
 			var prods = new Dictionary<string, Alt>();
 			foreach (var kv in grammar)
@@ -82,31 +97,32 @@ namespace qutum
 			this.start = prods[start];
 		}
 
-		internal Tree Parse(T tokens)
+		public Tree<T> Parse(T tokens)
 		{
-			int m = Parsing(tokens);
-			Tree s = m >= 0 ? Accepted(m, null) : Rejected();
-			scan.Unload(); matchs.Clear(); locs.Clear(); errs.Clear();
-			return s;
+			if (tokens != null) scan.Load(tokens);
+			int m = Parsing();
+			Tree<T> t = m >= 0 ? Accepted(m, null) : Rejected();
+			matchs.Clear(); locs.Clear(); errs.Clear();
+			if (tokens != null) scan.Unload();
+			return t;
 		}
 
-		internal bool Check(T tokens)
+		public bool Check(T tokens)
 		{
+			if (tokens != null) scan.Load(tokens);
 			bool greedy = this.greedy; this.greedy = false;
-			int m = Parsing(tokens);
-			scan.Unload(); matchs.Clear(); locs.Clear(); errs.Clear();
-			this.greedy = greedy;
+			int m = Parsing();
+			this.greedy = greedy; matchs.Clear(); locs.Clear(); errs.Clear();
+			if (tokens != null) scan.Unload();
 			return m >= 0;
 		}
 
-		int Parsing(T tokens)
+		int Parsing()
 		{
-			scan.Load(tokens);
 			locs.Add(loc = 0);
 			foreach (var x in start.s)
 				Add(x, 0, 0, 0, -2, -1);
 			largest = largestLoc = 0;
-			if (treeDump) treeText = true;
 			do
 			{
 				int c; Complete(locs[loc]); c = matchs.Count;
@@ -134,16 +150,11 @@ namespace qutum
 			for (; x < matchs.Count; x++)
 			{
 				var m = matchs[x];
-				bool opt = (m.con.reps[m.step] & 1) == 0; int y = -1;
 				if (m.con.s[m.step] is Alt a)
-				{
 					foreach (var con in a.s)
-						y = Add(con, loc, loc, 0, x, -1);
-					if (opt)
-						Add(m.con, m.from, m.to, m.step + 1, x, y);
-				}
-				else if (opt && m.con.s[m.step] is K)
-					Add(m.con, m.from, m.to, m.step + 1, x, x); // like completed alt?
+						Add(con, loc, loc, 0, x, -1);
+				if ((m.con.reps[m.step] & 1) == 0 && (m.prev != m.tail || matchs[m.prev].step < m.step))
+					Add(m.con, m.from, m.to, m.step + 1, x, x);
 			}
 		}
 
@@ -171,7 +182,7 @@ namespace qutum
 			{
 				var m = matchs[x];
 				if (m.con.s[m.step] is K k && scan.Is(k))
-					Add(m.con, m.from, m.to, m.step + 1, m.prev, m.tail);
+					Add(m.con, m.from, m.to, m.step + 1, x, x);
 			}
 			return locs[loc] < matchs.Count;
 		}
@@ -180,46 +191,46 @@ namespace qutum
 		{
 			for (int x = locs[loc]; x < matchs.Count; x++)
 			{
-				var m = matchs[x]; Match t, mt;
+				var m = matchs[x];
 				if (m.con == c && m.from == from && m.step == step)
 				{
-					if (greedy && tail >= 0 && m.tail >= 0 &&
-						((t = matchs[tail]).to > (mt = matchs[m.tail]).to || t.to == mt.to && t.from > mt.from))
+					if (greedy && tail >= 0 && m.tail >= 0 && matchs[prev].to > matchs[m.prev].to)
 						matchs[x] = new Match { con = c, from = from, to = loc, step = step, prev = prev, tail = tail };
 					return x;
 				}
 			}
-			int y = matchs.Count;
+			int z = matchs.Count;
 			matchs.Add(new Match { con = c, from = from, to = loc, step = step, prev = prev, tail = tail });
-			if (to < loc && step > 0 && c.reps[step - 1] > 1)
-				matchs.Add(new Match { con = c, from = from, to = loc, step = step - 1, prev = prev, tail = tail });
-			return y;
+			if (to < loc // otherwise already added
+				&& step > 0 && c.reps[step - 1] > 1)
+				matchs.Add(new Match { con = c, from = from, to = loc, step = step - 1, prev = z, tail = z });
+			return z;
 		}
 
-		Tree Accepted(int match, Tree insert)
+		Tree<T> Accepted(int match, Tree<T> insert)
 		{
 			var m = matchs[match];
 			if (m.from == m.to && m.step == 0 && m.con.s.Length > 1)
 				return null;
 			var t = (m.con.tree < 0 || m.con.tree == 0 && treeThru ? insert : null) ??
-				TreeText(new Tree { name = m.con.name, from = m.from, to = m.to }, match, m);
+				new Tree<T> { name = m.con.name, dump = Dump(m), from = m.from, to = m.to };
 			for (; m.tail >= 0; m = matchs[m.prev])
 				if (m.prev != m.tail)
 					Accepted(m.tail, t);
 			return insert == null || insert == t ? t : insert.Insert(t);
 		}
 
-		Tree Rejected()
+		Tree<T> Rejected()
 		{
 			int to = locs[loc] < matchs.Count ? loc : loc - 1, x = locs[to];
-			var t = new Tree { name = "", text = treeText ? scan.Text(0, to) : "", from = 0, to = to, err = -1 };
+			var t = new Tree<T> { name = "", dump = Dump(matchs[0], to), from = 0, to = to, err = -1 };
 			for (int y = matchs.Count - 1, z; (z = y) >= x; y--)
 			{
 				Prev: var m = matchs[z];
 				if (m.con.s[m.step] != null && !errs.Contains(z))
 					if (m.step > 0)
 					{
-						t.Insert(TreeText(new Tree { name = m.con.name, from = m.from, to = m.to, err = m.step }, z, m));
+						t.Insert(new Tree<T> { name = m.con.name, dump = Dump(m), from = m.from, to = m.to, err = m.step });
 						errs.Add(z);
 					}
 					else if ((z = m.prev) >= 0)
@@ -228,27 +239,9 @@ namespace qutum
 			return t;
 		}
 
-		Tree TreeText(Tree t, int x, Match m)
-		{
-			if (treeText) t.text = scan.Text(m.from, m.to);
-			if (treeDump) { t.dump = m.con.ToString() + " :: "; t.text = t.text.Replace("\n", "\\n").Replace("\r", "\\r"); }
-			return t;
-		}
+		string Dump(Match m, int to = -1) => !treeDump ? null : to >= 0 ? scan.Tokens(0, to).ToString() :
+			$"{m.con.ToString()} :: {scan.Tokens(m.from, m.to).ToString().Replace("\n", "\\n").Replace("\r", "\\r")}";
 
-		internal class Tree : LinkTree<Tree>
-		{
-			internal string name, text, dump;
-			internal int from, to;
-			internal int err; // step expected: > 0
-
-			internal override string DumpSelf(string ind, string pos) =>
-				$"{ind}{pos}{from}:{to}{(err != 0 ? "!" + err : "")} {dump}{text}";
-		}
-	}
-
-	class ParserStr : QEarley<string, char>
-	{
-		internal ParserStr(Dictionary<string, string[]> grammar, string start = "Start")
-			: base(grammar, new ScanStr(), start) { }
+		public T Tokens(Tree<T> t) => t.tokens = t.tokens ?? scan.Tokens(t.from, t.to);
 	}
 }
