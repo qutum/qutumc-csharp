@@ -40,7 +40,8 @@ namespace qutum.parser
 		internal string name;
 		internal object[] s; // Alt or K or null
 		internal byte[] reps; // ?: 0, once: 1, *: 2, +: 3
-		internal int tree; // default: 0, treeThru: -1, treeKeep: 1
+		internal byte greedy; // default:0, greedy: 1, back greedy: -1
+		internal byte tree; // default: 0, thru: -1, keep: 1
 
 		public override string ToString() => name + "=" + string.Join(' ',
 			s.Where(v => v != null).Select((v, x) => (v is Alt a ? a.name : v.ToString())
@@ -197,7 +198,7 @@ namespace qutum.parser
 				var m = matchs[x];
 				if (m.con == c && m.from == from && m.step == step)
 				{
-					if (!greedy || m.tail == -1 || a.tail == -1) return;
+					if ((c.greedy == 0 ? !greedy : c.greedy < 0) || m.tail == -1 || a.tail == -1) return;
 					bool g = false; var b = a;
 					for (int mp = m.prev, bp = b.prev; ; )
 					{
@@ -223,7 +224,7 @@ namespace qutum.parser
 			var m = matchs[match];
 			if (m.from == m.to && m.step == 0 && m.con.s.Length > 1)
 				return null;
-			var t = (m.con.tree < 0 || m.con.tree == 0 && treeThru ? insert : null) ??
+			var t = ((m.con.tree == 0 ? treeThru : m.con.tree < 0) ? insert : null) ??
 				new Tree<T> { name = m.con.name, dump = Dump(m), from = m.from, to = m.to };
 			for (; m.tail != -1; m = matchs[m.prev])
 				if (m.tail >= 0)
