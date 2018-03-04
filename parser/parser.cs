@@ -40,8 +40,8 @@ namespace qutum.parser
 		internal string name, tip;
 		internal object[] s; // Alt or K or null
 		internal Rep[] reps;
-		internal byte greedy; // default:0, greedy: 1, back greedy: -1
-		internal byte tree; // default: 0, thru: -1, keep: 1
+		internal sbyte greedy; // default:0, greedy: 1, back greedy: -1
+		internal sbyte keep; // default: 0, thru: -1, keep: 1
 
 		public override string ToString() => name + "=" + string.Join(' ',
 			s.Where(v => v != null).Select((v, x) => (v is Alt a ? a.name : v.ToString())
@@ -60,7 +60,7 @@ namespace qutum.parser
 		int loc;
 		public int largest, largestLoc, total;
 		public bool greedy = false; // S=AB A=1|12 B=23|2  gready: (12)3  back greedy: 1(23)
-		public bool treeThru = false;
+		public bool treeKeep = true;
 		public bool treeDump = false;
 
 		struct Match
@@ -201,7 +201,7 @@ namespace qutum.parser
 			var m = matchs[match];
 			if (m.from == m.to && m.step == 0 && m.con.s.Length > 1)
 				return null;
-			var t = ((m.con.tree == 0 ? treeThru : m.con.tree < 0) ? insert : null) ??
+			var t = ((m.con.keep == 0 ? treeKeep : m.con.keep > 0) ? null : insert) ??
 				new Tree<T> { name = m.con.name, dump = Dump(m), from = m.from, to = m.to };
 			for (; m.tail != -1; m = matchs[m.prev])
 				if (m.tail >= 0)
@@ -234,8 +234,10 @@ namespace qutum.parser
 
 		public T Tokens(Tree<T> t) => t.tokens = t.tokens ?? scan.Tokens(t.from, t.to);
 
+		// bootstrap
+
 		static QEarley<string, char> boot = new QEarley<string, char>()
-		{ scan = new Scan(), greedy = false, treeThru = true, treeDump = false };
+		{ scan = new Scan(), greedy = false, treeKeep = false, treeDump = false };
 
 		static QEarley()
 		{
@@ -248,9 +250,9 @@ namespace qutum.parser
 			{ "name", "W+" },
 			{ "sym",  "O+|R|\\ E|\\ u H H H H" },
 			{ "tipa", "tip? tipe" },
-			{ "tip",  "= tipg? tipt? S* tipw" },
+			{ "tip",  "= tipg? tipk? S* tipw" },
 			{ "tipg", "*" },
-			{ "tipt", "+|-" },
+			{ "tipk", "+|-" },
 			{ "tipw", "T*" },
 			{ "tipe", "eol" },
 			{ "eol",  "S* comm? \r? \n S*" },
@@ -267,21 +269,23 @@ namespace qutum.parser
 			}).ToArray();
 			alt["tip"].s[0].greedy = 1;
 			foreach (var c in alt["prod"].s.Concat(alt["con"].s.Take(1)).Concat(alt["alt"].s).Concat(alt["name"].s)
-			.Concat(alt["sym"].s).Concat(alt["tipg"].s).Concat(alt["tipt"].s).Concat(alt["tipw"].s).Concat(alt["tipe"].s))
-				c.tree = 1;
+			.Concat(alt["sym"].s).Concat(alt["tipg"].s).Concat(alt["tipk"].s).Concat(alt["tipw"].s).Concat(alt["tipe"].s))
+				c.keep = 1;
 			boot.start = alt["gram"];
 		}
 
 		static Alt Boot(string grammar)
 		{
 			boot.scan.Load(grammar);
-			var top = boot.Parse(null);
+			boot.treeDump = true;
+			var top = boot.Parse(null).Dump();
 			if (top.err != 0)
 			{ var e = new Exception(); e.Data["err"] = top; throw e; }
 			var prod = top.Where(t => t.name == "prod");
 			var alt = prod.ToDictionary(t => boot.Tokens(t.head), t => new Alt { name = t.head.tokens });
 			foreach (var p in prod)
-				alt[p.head.tokens].s = p.Where(t => t.name == "alt").Prepend(p).Select(ta =>
+			{
+				var cs = p.Where(t => t.name == "alt").Prepend(p).Select(ta =>
 				{
 					var s = ta.Where(t => (t.name == "con" || t.name == "sym") && boot.Tokens(t) != null).SelectMany
 						(t => t.name == "sym" ? Scan.Rep(t.tokens) ?? Scan.Sym(t.tokens).Cast<object>()
@@ -290,6 +294,19 @@ namespace qutum.parser
 					var rs = s.Select((v, x) => v == null || !(s[x + 1] is Rep r) ? One : r).Where((v, x) => !(s[x] is Rep));
 					return new Con { name = p.head.tokens, s = s.Where(v => !(v is Rep)).ToArray(), reps = rs.ToArray() };
 				}).ToArray();
+				int tx = 0;
+				p.Where(t => t.name == "alt").Prepend(p).Select((a, x) =>
+				{
+					int g = a.Any(t => t.name == "tipg") ? 1 : 0;
+					int k = a.Where(t => t.name == "tipk").Sum(t => boot.Tokens(t) == "+" ? 1 : -1);
+					if (a.Where(t => t.name == "tipw").Select(t => boot.Tokens(t)).FirstOrDefault() is string w)
+						for (x = a.name == "alt" ? x : x + 1; tx < x; tx++)
+						{ cs[tx].greedy = (sbyte)g; cs[tx].keep = (sbyte)k; cs[tx].tip = w != "" ? w : null; }
+					if (a.Any(t => t.name == "tipe")) tx = x;
+					return true;
+				}).Count();
+				alt[p.head.tokens].s = cs;
+			}
 			boot.scan.Unload();
 			return alt[prod.First().head.tokens];
 		}
