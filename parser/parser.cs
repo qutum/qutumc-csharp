@@ -56,7 +56,7 @@ namespace qutum.parser
 		HashSet<int> errs;
 		int loc;
 		public int largest, largestLoc, total;
-		public bool greedy = true; // S=AB A=1|12 B=23|2  gready: (12)3  back greedy: 1(23)
+		public bool greedy = false; // S=AB A=1|12 B=23|2  gready: (12)3  back greedy: 1(23)
 		public bool treeThru = false;
 		public bool treeDump = false;
 

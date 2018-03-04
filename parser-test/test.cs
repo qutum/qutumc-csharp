@@ -200,7 +200,7 @@ namespace qutum.test
 				{ "A",     new[]{ "A 1", "1" } },
 				{ "B",     new[]{ "1", "B 1" } },
 			})
-			{ greedy = false, treeDump = true };
+			{ treeDump = true };
 			AreEqual(1, p.Parse("111").Dump().head.to);
 			p.greedy = true;
 			AreEqual(2, p.Parse("111").Dump().head.to);
@@ -217,7 +217,7 @@ namespace qutum.test
 				{ "C",     new[]{ "5", "4 5 6" } },
 				{ "D",     new[]{ "6 7", "7" } },
 			})
-			{ greedy = false, treeDump = true };
+			{ treeDump = true };
 			AreEqual(1, p.Parse("1234567").Dump().head.to);
 			p.greedy = true;
 			AreEqual(2, p.Parse("1234567").Dump().head.to);
@@ -250,8 +250,11 @@ namespace qutum.test
 			var t = p.Parse("apqpqpqb").Dump();
 			AreEqual(0, t.err); AreEqual(10, p.largest);
 			AreEqual(1, t.head.head.from); AreEqual(3, t.head.head.to);
+			AreEqual(3, t.tail.head.from); AreEqual(5, t.tail.head.to);
+			AreEqual(5, t.tail.tail.from); AreEqual(7, t.tail.tail.to);
+			p.greedy = true;
+			t = p.Parse("apqpqpqb").Dump();
 			AreEqual(3, t.head.tail.from); AreEqual(5, t.head.tail.to);
-			AreEqual(5, t.tail.head.from); AreEqual(7, t.tail.head.to);
 		}
 
 		[TestMethod]
@@ -296,7 +299,10 @@ namespace qutum.test
 			{ treeDump = true };
 			IsFalse(p.Check("")); IsTrue(p.Check("a")); IsTrue(p.Check("aaaa"));
 			var t = p.Parse("aa").Dump();
-			AreEqual(0, t.err); AreEqual(2, t.head.to);
+			AreEqual(0, t.err); AreEqual(1, t.head.to);
+			t = p.Parse("aaa").Dump();
+			AreEqual(0, t.err); AreEqual(1, t.head.to); AreEqual(2, t.tail.to);
+			p.greedy = true;
 			t = p.Parse("aaa").Dump();
 			AreEqual(0, t.err); AreEqual(2, t.head.to); AreEqual(3, t.tail.to);
 		}
@@ -340,9 +346,14 @@ namespace qutum.test
 			IsTrue(p.Check("ab")); IsTrue(p.Check("apqb")); IsTrue(p.Check("apqpqb"));
 			var t = p.Parse("apqpqpqb").Dump();
 			AreEqual(0, t.err); AreEqual(20, p.largest);
+			AreEqual(0, t.head.from); AreEqual(1, t.head.to);
+			AreEqual(1, t.tail.head.from); AreEqual(2, t.tail.head.to);
+			AreEqual(6, t.tail.tail.from); AreEqual(7, t.tail.tail.to);
+			p.greedy = true;
+			t = p.Parse("apqpqpqb").Dump();
+			AreEqual(0, t.err); AreEqual(20, p.largest);
 			AreEqual(1, t.head.head.from); AreEqual(2, t.head.head.to);
 			AreEqual(6, t.head.tail.from); AreEqual(7, t.head.tail.to);
-			AreEqual(7, t.tail.from); AreEqual(8, t.tail.to);
 		}
 	}
 }
