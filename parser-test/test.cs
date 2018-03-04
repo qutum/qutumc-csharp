@@ -161,8 +161,21 @@ namespace qutum.test
 			IsTrue(p.Check("(1*(2+5)+2)+3")); IsTrue(p.Check("53+((((1))))+2*3"));
 			IsFalse(p.Check("1*(3+)")); IsFalse(p.Check("(3))*2")); IsFalse(p.Check("(5*(2)(6)+8)"));
 			IsFalse(p.Check("1*()3+5")); IsFalse(p.Check("(3))*2")); IsFalse(p.Check("(5*(2)(6)+8)"));
-			var t = p.Parse("").Dump(); IsNull(t.head);
-			t = p.Parse("(1+2*").Dump();
+		}
+
+		[TestMethod]
+		public void AddMulErr()
+		{
+			var p = new ParserStr(new Dictionary<string, string[]>
+			{
+				{ "Expr", new[]{ "Expr + Mul", "Mul" } },
+				{ "Mul",   new[]{ "Mul * Value", "Value" } },
+				{ "Value", new[]{ "( Expr )", "Num" } },
+				{ "Num",   new[]{ "Num Digi", "Digi" } },
+				{ "Digi",  new[]{ "0", "1", "2", "3", "4", "5", "6", "7", "8", "9" } },
+			}, "Expr")
+			{ treeDump = true };
+			var t = p.Parse("(1+2*").Dump();
 			AreEqual("Mul", t.head.name); AreEqual(5, t.head.to); AreEqual(2, t.head.err);
 			t = p.Parse("(*1*2+3)*4").Dump();
 			AreEqual("Value", t.head.name); AreEqual(1, t.head.to); AreEqual(1, t.head.err);
@@ -179,7 +192,7 @@ namespace qutum.test
 		}
 
 		[TestMethod]
-		public void Greedy()
+		public void Greedy1()
 		{
 			var p = new ParserStr(new Dictionary<string, string[]>
 			{
@@ -187,16 +200,27 @@ namespace qutum.test
 				{ "A",     new[]{ "A 1", "1" } },
 				{ "B",     new[]{ "1", "B 1" } },
 			})
-			{ treeDump = true };
-			AreEqual(2, p.Parse("111").Dump().head.to);
-			p = new ParserStr(new Dictionary<string, string[]>
-			{
-				{ "Start", new[]{ "A B" } },
-				{ "A",     new[]{ "A 1", "1" } },
-				{ "B",     new[]{ "1", "B 1" } },
-			})
 			{ greedy = false, treeDump = true };
 			AreEqual(1, p.Parse("111").Dump().head.to);
+			p.greedy = true;
+			AreEqual(2, p.Parse("111").Dump().head.to);
+		}
+
+		[TestMethod]
+		public void Greedy2()
+		{
+			var p = new ParserStr(new Dictionary<string, string[]>
+			{
+				{ "Start", new[]{ "A B C D" } },
+				{ "A",     new[]{ "1", "1 2" } },
+				{ "B",     new[]{ "2 3 4", "3" } },
+				{ "C",     new[]{ "5", "4 5 6" } },
+				{ "D",     new[]{ "6 7", "7" } },
+			})
+			{ greedy = false, treeDump = true };
+			AreEqual(1, p.Parse("1234567").Dump().head.to);
+			p.greedy = true;
+			AreEqual(2, p.Parse("1234567").Dump().head.to);
 		}
 
 		[TestMethod]

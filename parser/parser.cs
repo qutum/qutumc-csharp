@@ -7,6 +7,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 
 namespace qutum.parser
@@ -55,7 +56,7 @@ namespace qutum.parser
 		HashSet<int> errs;
 		int loc;
 		public int largest, largestLoc, total;
-		public bool greedy = true; // S=AB A=1|A1 B=1|B1  gready: (11)1  no: 1(11) (mostly?)
+		public bool greedy = true; // S=AB A=1|12 B=23|2  gready: (12)3  back greedy: 1(23)
 		public bool treeThru = false;
 		public bool treeDump = false;
 
@@ -63,7 +64,8 @@ namespace qutum.parser
 		{
 			internal Con con;
 			internal int from, to, step; // empty (always predicted): from==to (step could be 0 in repeatition)
-			internal int prev, tail; // completed by alt: both >=0, predicted con: only prev >=0, or: prev==tail
+			internal int prev; // complete or option: >=0, predict: >=-1, shift: see code, repeat: kept
+			internal int tail; // alt: >=0, predict: -1, shift: -2, option: -3, repeat: kept
 
 			public override string ToString() => $"{from}:{to}#{step} {con}";
 		}
@@ -121,7 +123,7 @@ namespace qutum.parser
 		{
 			locs.Add(loc = 0);
 			foreach (var x in start.s)
-				Add(x, 0, 0, 0, -2, -1);
+				Add(x, 0, 0, 0, -1, -1);
 			largest = largestLoc = 0;
 			do
 			{
@@ -153,8 +155,8 @@ namespace qutum.parser
 				if (m.con.s[m.step] is Alt a)
 					foreach (var con in a.s)
 						Add(con, loc, loc, 0, x, -1);
-				if ((m.con.reps[m.step] & 1) == 0 && (m.prev != m.tail || matchs[m.prev].step < m.step))
-					Add(m.con, m.from, m.to, m.step + 1, x, x);
+				if ((m.con.reps[m.step] & 1) == 0)
+					Add(m.con, m.from, m.to, m.step + 1, x, -3); // m.to == loc
 			}
 		}
 
@@ -168,7 +170,7 @@ namespace qutum.parser
 					{
 						var pm = matchs[px];
 						if (pm.con.s[pm.step] is Alt a && a.name == m.con.name)
-							Add(pm.con, pm.from, pm.to, pm.step + 1, px, x);
+							Add(pm.con, pm.from, pm.to, pm.step + 1, px, x); // pm.to <= loc
 					}
 			}
 		}
@@ -182,29 +184,38 @@ namespace qutum.parser
 			{
 				var m = matchs[x];
 				if (m.con.s[m.step] is K k && scan.Is(k))
-					Add(m.con, m.from, m.to, m.step + 1, x, x);
+					Add(m.con, m.from, m.to, m.step + 1, m.tail != -2 ? x : m.prev, -2); // m.to < loc
 			}
 			return locs[loc] < matchs.Count;
 		}
 
-		int Add(Con c, int from, int to, int step, int prev, int tail)
+		void Add(Con c, int from, int pto, int step, int prev, int tail)
 		{
+			var a = new Match { con = c, from = from, to = loc, step = step, prev = prev, tail = tail };
 			for (int x = locs[loc]; x < matchs.Count; x++)
 			{
 				var m = matchs[x];
 				if (m.con == c && m.from == from && m.step == step)
 				{
-					if (greedy && tail >= 0 && m.tail >= 0 && matchs[prev].to > matchs[m.prev].to)
-						matchs[x] = new Match { con = c, from = from, to = loc, step = step, prev = prev, tail = tail };
-					return x;
+					if (!greedy || m.tail == -1 || a.tail == -1) return;
+					bool g = false; var b = a;
+					for (int mp = m.prev, bp = b.prev; ; )
+					{
+						Debug.Assert(m.tail != -1); Debug.Assert(b.tail != -1);
+						int v = (m.to - matchs[mp].to) - (b.to - matchs[bp].to);
+						if (v != 0) g = v < 0;
+						if (mp == bp) break;
+						v = matchs[mp].to - matchs[bp].to;
+						if (v >= 0) mp = (m = matchs[mp]).tail != -1 ? m.prev : -1;
+						if (v <= 0) bp = (b = matchs[bp]).tail != -1 ? b.prev : -1;
+					}
+					if (g) matchs[x] = a;
+					return;
 				}
 			}
-			int z = matchs.Count;
-			matchs.Add(new Match { con = c, from = from, to = loc, step = step, prev = prev, tail = tail });
-			if (to < loc // otherwise already added
-				&& step > 0 && c.reps[step - 1] > 1)
-				matchs.Add(new Match { con = c, from = from, to = loc, step = step - 1, prev = z, tail = z });
-			return z;
+			matchs.Add(a);
+			if (pto < loc && step > 0 && c.reps[--a.step] > 1)
+				matchs.Add(a); // prev and tail kept
 		}
 
 		Tree<T> Accepted(int match, Tree<T> insert)
@@ -214,8 +225,8 @@ namespace qutum.parser
 				return null;
 			var t = (m.con.tree < 0 || m.con.tree == 0 && treeThru ? insert : null) ??
 				new Tree<T> { name = m.con.name, dump = Dump(m), from = m.from, to = m.to };
-			for (; m.tail >= 0; m = matchs[m.prev])
-				if (m.prev != m.tail)
+			for (; m.tail != -1; m = matchs[m.prev])
+				if (m.tail >= 0)
 					Accepted(m.tail, t);
 			return insert == null || insert == t ? t : insert.Insert(t);
 		}
@@ -223,7 +234,7 @@ namespace qutum.parser
 		Tree<T> Rejected()
 		{
 			int to = locs[loc] < matchs.Count ? loc : loc - 1, x = locs[to];
-			var t = new Tree<T> { name = "", dump = Dump(matchs[0], to), from = 0, to = to, err = -1 };
+			var t = new Tree<T> { name = "", dump = Dump(matchs[0], loc), from = 0, to = to, err = -1 };
 			for (int y = matchs.Count - 1, z; (z = y) >= x; y--)
 			{
 				Prev: var m = matchs[z];
