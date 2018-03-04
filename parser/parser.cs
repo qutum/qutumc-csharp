@@ -9,13 +9,13 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using static qutum.parser.Rep;
 
 namespace qutum.parser
 {
 	public class ParserStr : QEarley<string, char>
 	{
-		public ParserStr(Dictionary<string, string[]> grammar, string start = "Start")
-			: base(grammar, new ScanStr(), start) { }
+		public ParserStr(string grammar) : base(grammar, new ScanStr()) { }
 	}
 
 	public class Tree<T> : LinkTree<Tree<T>>
@@ -37,16 +37,18 @@ namespace qutum.parser
 
 	sealed class Con
 	{
-		internal string name;
+		internal string name, tip;
 		internal object[] s; // Alt or K or null
-		internal byte[] reps; // ?: 0, once: 1, *: 2, +: 3
+		internal Rep[] reps;
 		internal byte greedy; // default:0, greedy: 1, back greedy: -1
 		internal byte tree; // default: 0, thru: -1, keep: 1
 
 		public override string ToString() => name + "=" + string.Join(' ',
 			s.Where(v => v != null).Select((v, x) => (v is Alt a ? a.name : v.ToString())
-				+ (reps[x] == 3 ? "+" : reps[x] == 2 ? "*" : reps[x] == 0 ? "?" : "")));
+				+ (reps[x] == More ? "+" : reps[x] == Any ? "*" : reps[x] == Opt ? "?" : "")));
 	}
+
+	enum Rep : byte { Opt = 0, One = 1, Any = 2, More = 3 };
 
 	public class QEarley<T, K> where T : class
 	{
@@ -71,34 +73,9 @@ namespace qutum.parser
 			public override string ToString() => $"{from}:{to}#{step} {con}";
 		}
 
-		QEarley()
-		{
-			matchs = new List<Match>();
-			locs = new List<int>();
-			errs = new HashSet<int>();
-		}
+		QEarley() { matchs = new List<Match>(); locs = new List<int>(); errs = new HashSet<int>(); }
 
-		public QEarley(Dictionary<string, string[]> grammar, Scan<T, K> scan, string start = "Start") : this()
-		{
-			var prods = new Dictionary<string, Alt>();
-			foreach (var kv in grammar)
-				prods[kv.Key] = new Alt { name = kv.Key };
-			foreach (var kv in grammar)
-				prods[kv.Key].s = kv.Value.Select(alt =>
-				{
-					var s = alt.Split(' ', StringSplitOptions.RemoveEmptyEntries).SelectMany(
-						cat => prods.TryGetValue(cat, out Alt a) ? new object[] { a } :
-							cat.Select(t => (object)t).ToArray()).Append(null).ToArray();
-					var rs = Enumerable.Repeat<byte>(1, s.Length).ToArray();
-					rs = rs.Select((r, x) => (byte)(x + 1 >= s.Length ? 1 :
-						s[x + 1] as char? == '~' ? 3 : s[x + 1] as char? == '#' ? 2 : s[x + 1] as char? == '?' ? 0 : 1))
-						.Where((r, x) => s[x] as char? != '~' && s[x] as char? != '#' && s[x] as char? != '?').ToArray();
-					s = s.Where((r, x) => s[x] as char? != '~' && s[x] as char? != '#' && s[x] as char? != '?').ToArray();
-					return new Con { name = kv.Key, s = s, reps = rs };
-				}).ToArray();
-			this.scan = scan;
-			this.start = prods[start];
-		}
+		public QEarley(string grammar, Scan<T, K> scan) : this() { start = Boot(grammar); this.scan = scan; }
 
 		public Tree<T> Parse(T tokens)
 		{
@@ -156,7 +133,7 @@ namespace qutum.parser
 				if (m.con.s[m.step] is Alt a)
 					foreach (var con in a.s)
 						Add(con, loc, loc, 0, x, -1);
-				if ((m.con.reps[m.step] & 1) == 0)
+				if (((int)m.con.reps[m.step] & 1) == 0)
 					Add(m.con, m.from, m.to, m.step + 1, x, -3); // m.to == loc
 			}
 		}
@@ -200,7 +177,7 @@ namespace qutum.parser
 				{
 					if ((c.greedy == 0 ? !greedy : c.greedy < 0) || m.tail == -1 || a.tail == -1) return;
 					bool g = false; var b = a;
-					for (int mp = m.prev, bp = b.prev; ; )
+					for (int mp = m.prev, bp = b.prev; ;)
 					{
 						Debug.Assert(m.tail != -1); Debug.Assert(b.tail != -1);
 						int v = (m.to - matchs[mp].to) - (b.to - matchs[bp].to);
@@ -215,7 +192,7 @@ namespace qutum.parser
 				}
 			}
 			matchs.Add(a);
-			if (pto < loc && step > 0 && c.reps[--a.step] > 1)
+			if (pto < loc && step > 0 && (int)c.reps[--a.step] > 1)
 				matchs.Add(a); // prev and tail kept
 		}
 
@@ -242,7 +219,8 @@ namespace qutum.parser
 				if (m.con.s[m.step] != null && !errs.Contains(z))
 					if (m.step > 0)
 					{
-						t.Insert(new Tree<T> { name = m.con.name, dump = Dump(m), from = m.from, to = m.to, err = m.step });
+						t.Insert(new Tree<T>
+						{ name = m.con.tip ?? m.con.name, dump = Dump(m), from = m.from, to = m.to, err = m.step });
 						errs.Add(z);
 					}
 					else if ((z = m.prev) >= 0)
@@ -255,5 +233,117 @@ namespace qutum.parser
 			$"{m.con.ToString()} :: {scan.Tokens(m.from, m.to).ToString().Replace("\n", "\\n").Replace("\r", "\\r")}";
 
 		public T Tokens(Tree<T> t) => t.tokens = t.tokens ?? scan.Tokens(t.from, t.to);
+
+		static QEarley<string, char> boot = new QEarley<string, char>()
+		{ scan = new Scan(), greedy = false, treeThru = true, treeDump = false };
+
+		static QEarley()
+		{
+			var grammar = new Dictionary<string, string>() { // \x1:|
+			{ "gram", "eol* prod prods* eol*" },
+			{ "prods","eol+ prod" },
+			{ "prod", "name S* = con* alt* tip?" },
+			{ "con",  "W+|sym|S+" },
+			{ "alt",  "tipa? \x1 S* con*" },
+			{ "name", "W+" },
+			{ "sym",  "O+|R|\\ E|\\ u H H H H" },
+			{ "tipa", "tip? tipe" },
+			{ "tip",  "= tipg? tipt? S* tipw" },
+			{ "tipg", "*" },
+			{ "tipt", "+|-" },
+			{ "tipw", "T*" },
+			{ "tipe", "eol" },
+			{ "eol",  "S* comm? \r? \n S*" },
+			{ "comm", "= = V*" } };
+			var alt = grammar.ToDictionary(kv => kv.Key, kv => new Alt { name = kv.Key });
+			foreach (var kv in grammar) alt[kv.Key].s = kv.Value.Split("|").Select(con =>
+			{
+				var z = con.Replace('\x1', '|').Split(' ', StringSplitOptions.RemoveEmptyEntries);
+				var rs = z.Select(v => (v.Length > 1 && v[v.Length - 1] is char c ?
+					c == '?' ? Opt : c == '*' ? Any : c == '+' ? More : One : One)).Append(One).ToArray();
+				var s = z.Select((v, x) => alt.TryGetValue(v = rs[x] == One ? v : v.Substring(0, v.Length - 1),
+					out Alt a) ? a : boot.scan.Key(v).First()).Append(null).ToArray();
+				return new Con { name = kv.Key, s = s, reps = rs };
+			}).ToArray();
+			alt["tip"].s[0].greedy = 1;
+			foreach (var c in alt["prod"].s.Concat(alt["con"].s.Take(1)).Concat(alt["alt"].s).Concat(alt["name"].s)
+			.Concat(alt["sym"].s).Concat(alt["tipg"].s).Concat(alt["tipt"].s).Concat(alt["tipw"].s).Concat(alt["tipe"].s))
+				c.tree = 1;
+			boot.start = alt["gram"];
+		}
+
+		static Alt Boot(string grammar)
+		{
+			boot.scan.Load(grammar);
+			var top = boot.Parse(null);
+			if (top.err != 0)
+			{ var e = new Exception(); e.Data["err"] = top; throw e; }
+			var prod = top.Where(t => t.name == "prod");
+			var alt = prod.ToDictionary(t => boot.Tokens(t.head), t => new Alt { name = t.head.tokens });
+			foreach (var p in prod)
+				alt[p.head.tokens].s = p.Where(t => t.name == "alt").Prepend(p).Select(ta =>
+				{
+					var s = ta.Where(t => (t.name == "con" || t.name == "sym") && boot.Tokens(t) != null).SelectMany
+						(t => t.name == "sym" ? Scan.Rep(t.tokens) ?? Scan.Sym(t.tokens).Cast<object>()
+							: alt.TryGetValue(t.tokens, out Alt a) ? new object[] { a } : boot.scan.Key(t.tokens)
+						).Append(null).ToArray();
+					var rs = s.Select((v, x) => v == null || !(s[x + 1] is Rep r) ? One : r).Where((v, x) => !(s[x] is Rep));
+					return new Con { name = p.head.tokens, s = s.Where(v => !(v is Rep)).ToArray(), reps = rs.ToArray() };
+				}).ToArray();
+			boot.scan.Unload();
+			return alt[prod.First().head.tokens];
+		}
+
+		class Scan : ScanStr
+		{
+			public override bool Is(char key)
+			{
+				char t = text[x];
+				switch (key)
+				{
+					case 'V': return t >= ' ';
+					case 'S': return t == ' ' || t == '\t';
+					case 'H': return t >= 'a' || t <= 'f' || t >= 'A' && t <= 'F' || t >= '0' && t <= '9';
+					case 'W': return t >= 'a' && t <= 'z' || t >= 'A' && t <= 'Z' || t >= '0' && t <= '9' || t == '_';
+					case 'O': return O.Contains(t);
+					case 'R': return t == '?' || t == '*' || t == '+';
+					case 'T': return t >= ' ' && t != '=';
+					case 'E':
+						switch (t)
+						{
+							case 's': case 't': case 'n': case 'r': case '\\': case '|': case '=': case '?': case '*': case '+': return true;
+						}
+						return false;
+					default: return t == key;
+				}
+			}
+			//	t > ' ' && t < '0' && t != '*' && t != '+' || t > '9' && t < 'A' && t != '=' && t != '?'
+			//		|| t > 'Z' && t < 'a' && t != '\\' && t != '_' || t > 'z' && t <= '~' && t != '|'
+			static HashSet<char> O = "!\"#$%&'(),-./:;<>@[]^`{}~".ToHashSet();
+
+			internal static IEnumerable<object> Rep(string s)
+			{
+				if (s[0] == '?') return new object[] { Opt };
+				if (s[0] == '*') return new object[] { Any };
+				if (s[0] == '+') return new object[] { More };
+				return null;
+			}
+
+			internal static string Sym(string s)
+			{
+				if (s[0] != '\\') return s;
+				switch (s[1])
+				{
+					case 's': return " ";
+					case 't': return "\t";
+					case 'n': return "\n";
+					case 'r': return "\r";
+					case 'u':
+						return ((char)(s[2] - (s[2] < 'a' ? '0' : 87) << 12 | s[3] - (s[3] < 'a' ? '0' : 87) << 8
+							| s[4] - (s[4] < 'a' ? '0' : 87) << 4 | s[5] - (s[5] < 'a' ? '0' : 87))).ToString();
+					default: return s[1].ToString();
+				}
+			}
+		}
 	}
 }

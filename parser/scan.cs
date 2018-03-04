@@ -9,12 +9,13 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 
 namespace qutum.parser
 {
 	public interface Scan<T, K> where T : class
 	{
-		IEnumerable<K> Key(string name);
+		IEnumerable<object> Key(string name);
 		void Load(T tokens);
 		bool Next();
 		bool Is(K key);
@@ -24,7 +25,7 @@ namespace qutum.parser
 
 	public class ScanStr : Scan<string, char>
 	{
-		public IEnumerable<char> Key(string name) => name;
+		public IEnumerable<object> Key(string name) => name.Cast<object>();
 
 		protected string text;
 		protected int x;
