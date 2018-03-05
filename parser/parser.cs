@@ -13,7 +13,7 @@ using static qutum.parser.Rep;
 
 namespace qutum.parser
 {
-	public class ParserStr : QEarley<string, char>
+	public class ParserStr : Earley<string, char>
 	{
 		public ParserStr(string grammar) : base(grammar, new ScanStr()) { }
 	}
@@ -50,7 +50,7 @@ namespace qutum.parser
 
 	enum Rep : byte { Opt = 0, One = 1, Any = 2, More = 3 };
 
-	public class QEarley<T, K> where T : class
+	public class Earley<T, K> where T : class
 	{
 		Alt start;
 		Scan<T, K> scan;
@@ -73,9 +73,9 @@ namespace qutum.parser
 			public override string ToString() => $"{from}:{to}#{step} {con}";
 		}
 
-		QEarley() { matchs = new List<Match>(); locs = new List<int>(); errs = new HashSet<int>(); }
+		Earley() { matchs = new List<Match>(); locs = new List<int>(); errs = new HashSet<int>(); }
 
-		public QEarley(string grammar, Scan<T, K> scan) : this() { start = Boot(grammar); this.scan = scan; }
+		public Earley(string grammar, Scan<T, K> scan) : this() { start = Boot(grammar); this.scan = scan; }
 
 		public Tree<T> Parse(T tokens)
 		{
@@ -237,10 +237,10 @@ namespace qutum.parser
 
 		// bootstrap
 
-		static QEarley<string, char> boot = new QEarley<string, char>()
+		static Earley<string, char> boot = new Earley<string, char>()
 		{ scan = new Scan(), greedy = false, treeKeep = false, treeDump = false };
 
-		static QEarley()
+		static Earley()
 		{
 			var grammar = new Dictionary<string, string>() { // \x1:|
 			{ "gram", "eol* prod prods* eol*" },
@@ -319,7 +319,7 @@ namespace qutum.parser
 				char t = text[x];
 				switch (key)
 				{
-					case 'V': return t >= ' ';
+					case 'V': return t >= ' ' || t == '\t';
 					case 'S': return t == ' ' || t == '\t';
 					case 'H': return t >= 'a' || t <= 'f' || t >= 'A' && t <= 'F' || t >= '0' && t <= '9';
 					case 'W': return t >= 'a' && t <= 'z' || t >= 'A' && t <= 'Z' || t >= '0' && t <= '9' || t == '_';
