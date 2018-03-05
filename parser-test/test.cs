@@ -128,11 +128,11 @@ namespace qutum.test
 		public void AddMulErr()
 		{
 			var p = new ParserStr(@"
-				Expr  = Expr\+Mul | Mul
-				Mul   = Mul\*Value | Value
-				Value = (Expr) | Num
-				Num   = Num Digi | Digi
-				Digi  = 0|1|2|3|4|5|6|7|8|9") { treeDump = true };
+				Expr  = Expr\+Mul | Mul     = expression
+				Mul   = Mul\*Value | Value  = expression
+				Value = (Expr) | Num        = value
+				Num   = Num Digi | Digi     = number
+				Digi  = 0|1|2|3|4|5|6|7|8|9 = digit") { treeDump = true };
 			var t = p.Parse("(1+2*").Dump();
 			AreEqual("Mul", t.head.name); AreEqual(5, t.head.to); AreEqual(2, t.head.err);
 			t = p.Parse("(*1*2+3)*4").Dump();

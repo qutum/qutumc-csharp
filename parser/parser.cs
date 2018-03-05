@@ -26,8 +26,7 @@ namespace qutum.parser
 		public int err; // step break: > 0
 		public object expect; // step expected, Alt tip/name, or Key
 
-		public override string DumpSelf(string ind, string pos) =>
-			$"{ind}{pos}{from}:{to}{(err > 0 ? $"{expect} expected by {name}!{err}" : "")} {dump}";
+		public override string DumpSelf(string ind, string pos) => $"{ind}{pos}{from}:{to} {dump}";
 	}
 
 	sealed class Alt
@@ -213,15 +212,16 @@ namespace qutum.parser
 		Tree<T> Rejected()
 		{
 			int to = locs[loc] < matchs.Count ? loc : loc - 1, x = locs[to];
-			var t = new Tree<T> { name = "", dump = Dump(matchs[0], loc), from = 0, to = to, err = 1 };
+			var t = new Tree<T> { name = "", dump = treeDump ? scan.Tokens(0, loc).ToString() : null, from = 0, to = to, err = 1 };
 			for (int y = matchs.Count - 1, z; (z = y) >= x; y--)
 			{
 				Prev: var m = matchs[z]; var s = m.con.s[m.step];
 				if (s != null && !errs.Contains(z))
 					if (m.step > 0)
 					{
-						var n = m.con.tip ?? m.con.name; var e = s is Alt a ? a.s[0].tip ?? a.name : s;
-						t.Insert(new Tree<T>{ name = n, dump = Dump(m), from = m.from, to = m.to, err = m.step, expect = e });
+						var e = s is Alt a ? a.s[0].tip ?? a.name : s;
+						var d = treeDump ? $" {e} expected by {m.con.tip ?? m.con.name}!{m.step} {Dump(m)}" : m.con.tip;
+						t.Insert(new Tree<T> { name = m.con.name, dump = d, from = m.from, to = m.to, err = m.step, expect = e });
 						errs.Add(z);
 					}
 					else if ((z = m.prev) >= 0)
@@ -230,7 +230,7 @@ namespace qutum.parser
 			return t;
 		}
 
-		string Dump(Match m, int to = -1) => !treeDump ? null : to >= 0 ? scan.Tokens(0, to).ToString() :
+		string Dump(Match m) => !treeDump ? null :
 			$"{m.con.ToString()} :: {scan.Tokens(m.from, m.to).ToString().Replace("\n", "\\n").Replace("\r", "\\r")}";
 
 		public T Tokens(Tree<T> t) => t.tokens = t.tokens ?? scan.Tokens(t.from, t.to);
