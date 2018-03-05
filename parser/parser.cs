@@ -24,9 +24,10 @@ namespace qutum.parser
 		public int from, to;
 		public T tokens;
 		public int err; // step break: > 0
+		public object expect; // step expected, Alt tip/name, or Key
 
 		public override string DumpSelf(string ind, string pos) =>
-			$"{ind}{pos}{from}:{to}{(err > 0 ? $"!{err}{name}" : "")} {dump}";
+			$"{ind}{pos}{from}:{to}{(err > 0 ? $"{expect} expected by {name}!{err}" : "")} {dump}";
 	}
 
 	sealed class Alt
@@ -38,7 +39,7 @@ namespace qutum.parser
 	sealed class Con
 	{
 		internal string name, tip;
-		internal object[] s; // Alt or K or null
+		internal object[] s; // Alt or Key or null
 		internal Rep[] reps;
 		internal sbyte greedy; // default:0, greedy: 1, back greedy: -1
 		internal sbyte keep; // default: 0, thru: -1, keep: 1
@@ -215,12 +216,12 @@ namespace qutum.parser
 			var t = new Tree<T> { name = "", dump = Dump(matchs[0], loc), from = 0, to = to, err = 1 };
 			for (int y = matchs.Count - 1, z; (z = y) >= x; y--)
 			{
-				Prev: var m = matchs[z];
-				if (m.con.s[m.step] != null && !errs.Contains(z))
+				Prev: var m = matchs[z]; var s = m.con.s[m.step];
+				if (s != null && !errs.Contains(z))
 					if (m.step > 0)
 					{
-						t.Insert(new Tree<T>
-						{ name = m.con.tip ?? m.con.name, dump = Dump(m), from = m.from, to = m.to, err = m.step });
+						var n = m.con.tip ?? m.con.name; var e = s is Alt a ? a.s[0].tip ?? a.name : s;
+						t.Insert(new Tree<T>{ name = n, dump = Dump(m), from = m.from, to = m.to, err = m.step, expect = e });
 						errs.Add(z);
 					}
 					else if ((z = m.prev) >= 0)

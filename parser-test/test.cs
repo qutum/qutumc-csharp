@@ -39,6 +39,15 @@ namespace qutum.test
 		}
 
 		[TestMethod]
+		public void ErrTip()
+		{
+			var p = new ParserStr("S=A B =start \n A=1|2 =A12 \n |3 =A3 \n B= =empty \n |4 =B4") { treeDump = true };
+			IsNull(p.Parse("").head);
+			IsNull(p.Parse("4").head);
+			AreEqual("empty", p.Parse("15").head.expect);
+		}
+
+		[TestMethod]
 		public void LeftRecu()
 		{
 			var p = new ParserStr("S = S b|A \nA = a");
