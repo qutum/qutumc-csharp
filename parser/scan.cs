@@ -15,7 +15,7 @@ namespace qutum.parser
 {
 	public interface Scan<T, K> where T : class
 	{
-		IEnumerable<object> Key(string name);
+		IEnumerable<object> Keys(string name);
 		void Load(T tokens);
 		bool Next();
 		bool Is(K key);
@@ -25,7 +25,7 @@ namespace qutum.parser
 
 	public class ScanStr : Scan<string, char>
 	{
-		public IEnumerable<object> Key(string name) => name.Cast<object>();
+		public IEnumerable<object> Keys(string name) => name.Cast<object>();
 
 		protected string text;
 		protected int x;
