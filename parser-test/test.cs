@@ -39,7 +39,7 @@ namespace qutum.test
 		}
 
 		[TestMethod]
-		public void ErrTip()
+		public void ErrHint()
 		{
 			var p = new ParserStr("S=A B =start \n A=1|2 =A12 ==oh||no\n |3 =A3 \n B= =empty \n |4 =B4") { treeDump = true };
 			IsNull(p.Parse("").head);

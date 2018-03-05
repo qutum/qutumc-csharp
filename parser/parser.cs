@@ -24,7 +24,7 @@ namespace qutum.parser
 		public int from, to;
 		public T tokens;
 		public int err; // step break: > 0
-		public object expect; // step expected, Alt tip/name, or Key
+		public object expect; // step expected, Alt hint/name, or Key
 
 		public override string DumpSelf(string ind, string pos) => $"{ind}{pos}{from}:{to} {dump}";
 	}
@@ -37,7 +37,7 @@ namespace qutum.parser
 
 	sealed class Con
 	{
-		internal string name, tip;
+		internal string name, hint;
 		internal object[] s; // Alt or Key or null
 		internal Rep[] reps;
 		internal sbyte greedy; // default:0, greedy: 1, back greedy: -1
@@ -53,11 +53,11 @@ namespace qutum.parser
 	public class Earley<T, K> where T : class
 	{
 		Alt start;
-		Scan<T, K> scan;
 		List<Match> matchs;
 		List<int> locs;
 		HashSet<int> errs;
 		int loc;
+		public Scan<T, K> scan;
 		public int largest, largestLoc, total;
 		public bool greedy = false; // S=AB A=1|12 B=23|2  gready: (12)3  back greedy: 1(23)
 		public bool treeKeep = true;
@@ -219,8 +219,8 @@ namespace qutum.parser
 				if (s != null && !errs.Contains(z))
 					if (m.step > 0)
 					{
-						var e = s is Alt a ? a.s[0].tip ?? a.name : s;
-						var d = treeDump ? $" {e} expected by {m.con.tip ?? m.con.name}!{m.step} {Dump(m)}" : m.con.tip;
+						var e = s is Alt a ? a.s[0].hint ?? a.name : s;
+						var d = treeDump ? $" {e} expected by {m.con.hint ?? m.con.name}!{m.step} {Dump(m)}" : m.con.hint;
 						t.Insert(new Tree<T> { name = m.con.name, dump = d, from = m.from, to = m.to, err = m.step, expect = e });
 						errs.Add(z);
 					}
@@ -245,18 +245,18 @@ namespace qutum.parser
 			var grammar = new Dictionary<string, string>() { // \x1:|
 			{ "gram", "eol* prod prods* eol*" },
 			{ "prods","eol+ prod" },
-			{ "prod", "name S* = con* alt* ptip?" },
+			{ "prod", "name S* = con* alt* phint?" },
 			{ "con",  "W+|sym|S+" },
-			{ "alt",  "atip? \x1 S* con*" },
+			{ "alt",  "ahint? \x1 S* con*" },
 			{ "name", "W+" },
 			{ "sym",  "O+|R|\\ E|\\ u H H H H" },
-			{ "ptip", "tip" },
-			{ "atip", "tip? tipe" },
-			{ "tip",  "= tipg? tipk? S* tipw" },
-			{ "tipg", "*" },
-			{ "tipk", "+|-" },
-			{ "tipw", "T*" },
-			{ "tipe", "eol" },
+			{ "phint","hint" },
+			{ "ahint","hint? hinte" },
+			{ "hint", "= hintg? hintk? S* hintw" },
+			{ "hintg","*" },
+			{ "hintk","+|-" },
+			{ "hintw","T*" },
+			{ "hinte","eol" },
 			{ "eol",  "S* comm? \r? \n S*" },
 			{ "comm", "= = V*" } };
 			var alt = grammar.ToDictionary(kv => kv.Key, kv => new Alt { name = kv.Key });
@@ -269,8 +269,8 @@ namespace qutum.parser
 					out Alt a) ? a : boot.scan.Keys(v).First()).Append(null).ToArray();
 				return new Con { name = kv.Key, s = s, reps = rs };
 			}).ToArray();
-			alt["tip"].s[0].greedy = 1;
-			foreach (var c in new[] { "prod", "alt", "name", "sym", "ptip", "tipg", "tipk", "tipw", "tipe" }
+			alt["hint"].s[0].greedy = 1;
+			foreach (var c in new[] { "prod", "alt", "name", "sym", "phint", "hintg", "hintk", "hintw", "hinte" }
 				.Aggregate(alt["con"].s.Take(1), (x, y) => x.Concat(alt[y].s)))
 				c.keep = 1;
 			boot.start = alt["gram"];
@@ -296,14 +296,14 @@ namespace qutum.parser
 					return new Con { name = p.head.tokens, s = s.Where(v => !(v is Rep)).ToArray(), reps = rs.ToArray() };
 				}).ToArray();
 				int tx = 0;
-				p.Where(t => t.name == "alt" || t.name == "ptip").Select((a, x) =>
+				p.Where(t => t.name == "alt" || t.name == "phint").Select((a, x) =>
 				{
 					sbyte g = 0, k = 0; string w = null; a = a.head;
-					if (a.name == "tipg") { g = 1; a = a.next ?? top; }
-					if (a.name == "tipk") { k = (sbyte)(boot.Tokens(a) == "+" ? 1 : -1); a = a.next ?? top; }
-					if (a.name == "tipw") { w = boot.Tokens(a); a = a.next ?? top; }
-					for (; w != null && tx <= x; tx++) { cs[tx].greedy = g; cs[tx].keep = k; cs[tx].tip = w != "" ? w : null; }
-					if (a.name == "tipe") tx = x + 1;
+					if (a.name == "hintg") { g = 1; a = a.next ?? top; }
+					if (a.name == "hintk") { k = (sbyte)(boot.Tokens(a) == "+" ? 1 : -1); a = a.next ?? top; }
+					if (a.name == "hintw") { w = boot.Tokens(a); a = a.next ?? top; }
+					for (; w != null && tx <= x; tx++) { cs[tx].greedy = g; cs[tx].keep = k; cs[tx].hint = w != "" ? w : null; }
+					if (a.name == "hinte") tx = x + 1;
 					return true;
 				}).Count();
 				alt[p.head.tokens].s = cs;
