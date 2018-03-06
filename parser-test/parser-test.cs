@@ -38,6 +38,13 @@ namespace qutum.test
 		}
 
 		[TestMethod]
+		public void Esc()
+		{
+			var p = new ParserStr(@"S = \ss\tt\r\n\\/|\|or\=eq\*s\+p\?q");
+			IsTrue(p.Check(" s\tt\r\n\\/")); IsTrue(p.Check("|or=eq*s+p?q"));
+		}
+
+		[TestMethod]
 		public void ErrHint()
 		{
 			var p = new ParserStr("S=A B =start \n A=1|2 =A12 ==oh||no\n |3 =A3 \n B= =empty \n |4 =B4") { treeDump = true };
