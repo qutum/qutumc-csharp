@@ -13,7 +13,7 @@ using System.Linq;
 
 namespace qutum.parser
 {
-	public interface Scan<in I, in K, out T, out S> where S : class, IEnumerable<T>
+	public interface Scan<in I, in K, T, out S> where S : class, IEnumerable<T>
 	{
 		IEnumerable<object> Keys(string name);
 		void Load(I input);
@@ -21,6 +21,7 @@ namespace qutum.parser
 		bool Is(K key);
 		T Token();
 		S Tokens(int from, int to);
+		void Tokens(int from, int to, T[] array, int ax);
 		void Unload();
 	}
 
@@ -41,6 +42,8 @@ namespace qutum.parser
 
 		public string Tokens(int from, int to) => input.Substring(from, to - from);
 
+		public void Tokens(int from, int to, char[] array, int ax) => input.CopyTo(from, array, ax, to - from);
+
 		public void Unload() => input = null;
 	}
 
@@ -59,8 +62,19 @@ namespace qutum.parser
 
 		public byte Token() => iter.Current;
 
-		public IEnumerable<byte> Tokens(int from, int to) =>
-			input is List<byte> s ? s.GetRange(from, to - from) : input.Skip(from).Take(to - from);
+		public IEnumerable<byte> Tokens(int from, int to)
+		{
+			if (input is List<byte> l) return l.GetRange(from, to - from);
+			if (input is byte[] a) { var s = new byte[to - from]; Array.Copy(a, from, s, 0, to - from); return s; }
+			return input.Skip(from).Take(to - from);
+		}
+
+		public void Tokens(int from, int to, byte[] array, int ax)
+		{
+			if (input is List<byte> s) s.CopyTo(from, array, ax, to - from);
+			else if (input is byte[] a) Array.Copy(a, from, array, ax, to - from);
+			else foreach (var v in input.Skip(from).Take(to - from)) array[ax++] = v;
+		}
 
 		public void Unload() { input = null; iter = null; }
 	}
