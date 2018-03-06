@@ -29,29 +29,29 @@ namespace qutum.parser
 		public override string DumpSelf(string ind, string pos) => $"{ind}{pos}{from}:{to} {dump}";
 	}
 
-	sealed class Alt
-	{
-		internal string name;
-		internal Con[] s;
-	}
-
-	sealed class Con
-	{
-		internal string name, hint;
-		internal object[] s; // Alt or Key or null
-		internal Rep[] reps;
-		internal sbyte greedy; // default:0, greedy: 1, back greedy: -1
-		internal sbyte keep; // default: 0, thru: -1, keep: 1
-
-		public override string ToString() => name + "=" + string.Join(' ',
-			s.Where(v => v != null).Select((v, x) => (v is Alt a ? a.name : v.ToString())
-				+ (reps[x] == More ? "+" : reps[x] == Any ? "*" : reps[x] == Opt ? "?" : "")));
-	}
-
 	enum Rep : byte { Opt = 0, One = 1, Any = 2, More = 3 };
 
 	public class Earley<I, K, T, S> where S : class, IEnumerable<T>
 	{
+		sealed class Alt
+		{
+			internal string name;
+			internal Con[] s;
+		}
+
+		sealed class Con
+		{
+			internal string name, hint;
+			internal object[] s; // Alt or Key or null
+			internal Rep[] reps;
+			internal sbyte greedy; // default:0, greedy: 1, back greedy: -1
+			internal sbyte keep; // default: 0, thru: -1, keep: 1
+
+			public override string ToString() => name + "=" + string.Join(' ',
+				s.Where(v => v != null).Select((v, x) => (v is Alt a ? a.name : v.ToString())
+					+ (reps[x] == More ? "+" : reps[x] == Any ? "*" : reps[x] == Opt ? "?" : "")));
+		}
+
 		Alt start;
 		List<Match> matchs = new List<Match>();
 		List<int> locs = new List<int>();
@@ -249,25 +249,25 @@ namespace qutum.parser
 			{ "con",  "W+|sym|S+" },
 			{ "alt",  "ahint? \x1 S* con*" },
 			{ "name", "W+" },
-			{ "sym",  "O+|R|\\ E|\\ u H H H H" },
+			{ "sym",  "O+|R|\\ E|\\ u X X X X" },
 			{ "phint","hint" },
 			{ "ahint","hint? hinte" },
 			{ "hint", "= hintg? hintk? S* hintw" },
 			{ "hintg","*" },
 			{ "hintk","+|-" },
-			{ "hintw","T*" },
+			{ "hintw","H*" },
 			{ "hinte","eol" },
 			{ "eol",  "S* comm? \r? \n S*" },
 			{ "comm", "= = V*" } };
-			var alt = grammar.ToDictionary(kv => kv.Key, kv => new Alt { name = kv.Key });
+			var alt = grammar.ToDictionary(kv => kv.Key, kv => new Earley<string, char, char, string>.Alt { name = kv.Key });
 			foreach (var kv in grammar) alt[kv.Key].s = kv.Value.Split("|").Select(con =>
 			{
 				var z = con.Replace('\x1', '|').Split(' ', StringSplitOptions.RemoveEmptyEntries);
 				var rs = z.Select(v => (v.Length > 1 && v[v.Length - 1] is char c ?
 					c == '?' ? Opt : c == '*' ? Any : c == '+' ? More : One : One)).Append(One).ToArray();
 				var s = z.Select((v, x) => alt.TryGetValue(v = rs[x] == One ? v : v.Substring(0, v.Length - 1),
-					out Alt a) ? a : boot.scan.Keys(v).First()).Append(null).ToArray();
-				return new Con { name = kv.Key, s = s, reps = rs };
+					out Earley<string, char, char, string>.Alt a) ? a : boot.scan.Keys(v).First()).Append(null).ToArray();
+				return new Earley<string, char, char, string>.Con { name = kv.Key, s = s, reps = rs };
 			}).ToArray();
 			alt["hint"].s[0].greedy = 1;
 			foreach (var c in new[] { "prod", "alt", "name", "sym", "phint", "hintg", "hintk", "hintw", "hinte" }
@@ -327,19 +327,19 @@ namespace qutum.parser
 				char t = input[loc];
 				switch (key)
 				{
-					case 'V': return t >= ' ' || t == '\t';
 					case 'S': return t == ' ' || t == '\t';
-					case 'H': return t < H.Length && H[t];
 					case 'W': return t < W.Length && W[t];
+					case 'X': return t < X.Length && X[t];
 					case 'O': return t < O.Length && O[t];
 					case 'R': return t == '?' || t == '*' || t == '+';
-					case 'T': return t >= ' ' && t != '=';
+					case 'H': return t >= ' ' && t != 127 && t != '=';
 					case 'E': return t < E.Length && E[t];
+					case 'V': return t >= ' ' && t != 127 || t == '\t';
 					default: return t == key;
 				}
 			}
 
-			static bool[] H = new bool[128], W = new bool[128], O = new bool[128], E = new bool[128];
+			static bool[] W = new bool[128], X = new bool[128], O = new bool[128], E = new bool[128];
 
 			static Scan()
 			{
@@ -347,10 +347,10 @@ namespace qutum.parser
 				//		|| t > 'Z' && t < 'a' && t != '\\' && t != '_' || t > 'z' && t <= '~' && t != '|'
 				"!\"#$%&'(),-./:;<>@[]^`{}~".Select(t => O[t] = true).Count();
 				var s = Enumerable.Range(0, 128);
-				s.Where(t => t >= 'a' || t <= 'f' || t >= 'A' && t <= 'F' || t >= '0' && t <= '9')
-					.Select(t => H[t] = true).Count();
 				s.Where(t => t >= 'a' && t <= 'z' || t >= 'A' && t <= 'Z' || t >= '0' && t <= '9' || t == '_')
 					.Select(t => W[t] = true).Count();
+				s.Where(t => t >= 'a' || t <= 'f' || t >= 'A' && t <= 'F' || t >= '0' && t <= '9')
+					.Select(t => X[t] = true).Count();
 				s.Where(t => t == 's' || t == 't' || t == 'n' || t == 'r' || t == '\\' || t == '|' || t == '=' || t == '?' || t == '*' || t == '+')
 					.Select(t => E[t] = true).Count();
 			}
