@@ -52,7 +52,7 @@ namespace qutum.parser
 
 	public class ScanByte : Scan<IEnumerable<byte>, byte, byte, IEnumerable<byte>>
 	{
-		public IEnumerable<object> Keys(string name) => name.Cast<object>();
+		public IEnumerable<object> Keys(string name) => name.Select(k => (object)(byte)k);
 
 		protected IEnumerable<byte> input;
 		protected IEnumerator<byte> iter;

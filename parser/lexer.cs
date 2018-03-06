@@ -6,7 +6,7 @@ namespace qutum.parser
 {
 	public struct Token<K, V> : IEquatable<K> where K : IEquatable<K>
 	{
-		public K key;
+		public K key; // default: utf-8
 		public int from, to; // input loc
 		public V value;
 
@@ -20,7 +20,7 @@ namespace qutum.parser
 		{
 			internal Tran prev;
 			internal Tran[] next; // utf-8: <=bf: [128], <=df: [129], <=ef: [130], <=f7: [131], ff: [132]
-			internal int mode; // 0: no key, 1: begin, 2: inside, 3: end
+			internal int step = -1; // -1: err, n: begin, (n,1]: inside, 0: end
 			internal K key;
 		}
 
@@ -28,7 +28,7 @@ namespace qutum.parser
 		protected Scan<IEnumerable<byte>, byte, byte, IEnumerable<byte>> scan;
 		protected byte[] buf = new byte[8];
 		protected List<T> tokens = new List<T>();
-		protected int bf, bt, bn, loc = -2;
+		int bf, bt, bn, loc = -2;
 
 		public Lexer(Tran start, Scan<IEnumerable<byte>, byte, byte, IEnumerable<byte>> scan)
 		{ this.start = start; this.scan = scan; }
@@ -58,23 +58,21 @@ namespace qutum.parser
 				t = n; ++bt;
 				if (t.next != null) goto Next;
 			}
-			Do: if (t == start)
+			Do: if (t.step < 0)
 			{
-				Debug.Assert(bf == bt);
-				// Err buf[bf&7]
-				goto Next;
+				if (t != start) { t = t.prev; --bt; goto Do; }
+				Error(buf[bt & 7], bf, ++bt);
+				if (loc == tokens.Count) goto Next;
+				return true;
 			}
-			if (t.mode == 0) { t = t.prev; --bt; goto Do; }
-			// Do buf[bf&7,bt&7)
+			Token(t.key, t.step, bf, bt);
 			if (loc == tokens.Count) goto Start;
 			return true;
 		}
 
-		protected abstract void Err();
+		protected abstract void Error(byte b, int from, int to);
 
-		protected abstract void Token(K key, int mode);
-
-		protected abstract void TokenUtf(K key, int mode, int ucs);
+		protected abstract void Token(K key, int step, int from, int to);
 
 		public bool Is(K key) => tokens[loc].Equals(key);
 
