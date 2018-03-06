@@ -329,23 +329,31 @@ namespace qutum.parser
 				{
 					case 'V': return t >= ' ' || t == '\t';
 					case 'S': return t == ' ' || t == '\t';
-					case 'H': return t >= 'a' || t <= 'f' || t >= 'A' && t <= 'F' || t >= '0' && t <= '9';
-					case 'W': return t >= 'a' && t <= 'z' || t >= 'A' && t <= 'Z' || t >= '0' && t <= '9' || t == '_';
-					case 'O': return O.Contains(t);
+					case 'H': return t < H.Length && H[t];
+					case 'W': return t < W.Length && W[t];
+					case 'O': return t < O.Length && O[t];
 					case 'R': return t == '?' || t == '*' || t == '+';
 					case 'T': return t >= ' ' && t != '=';
-					case 'E':
-						switch (t)
-						{
-							case 's': case 't': case 'n': case 'r': case '\\': case '|': case '=': case '?': case '*': case '+': return true;
-						}
-						return false;
+					case 'E': return t < E.Length && E[t];
 					default: return t == key;
 				}
 			}
-			//	t > ' ' && t < '0' && t != '*' && t != '+' || t > '9' && t < 'A' && t != '=' && t != '?'
-			//		|| t > 'Z' && t < 'a' && t != '\\' && t != '_' || t > 'z' && t <= '~' && t != '|'
-			static HashSet<char> O = "!\"#$%&'(),-./:;<>@[]^`{}~".ToHashSet();
+
+			static bool[] H = new bool[128], W = new bool[128], O = new bool[128], E = new bool[128];
+
+			static Scan()
+			{
+				//	t > ' ' && t < '0' && t != '*' && t != '+' || t > '9' && t < 'A' && t != '=' && t != '?'
+				//		|| t > 'Z' && t < 'a' && t != '\\' && t != '_' || t > 'z' && t <= '~' && t != '|'
+				"!\"#$%&'(),-./:;<>@[]^`{}~".Select(t => O[t] = true).Count();
+				var s = Enumerable.Range(0, 128);
+				s.Where(t => t >= 'a' || t <= 'f' || t >= 'A' && t <= 'F' || t >= '0' && t <= '9')
+					.Select(t => H[t] = true).Count();
+				s.Where(t => t >= 'a' && t <= 'z' || t >= 'A' && t <= 'Z' || t >= '0' && t <= '9' || t == '_')
+					.Select(t => W[t] = true).Count();
+				s.Where(t => t == 's' || t == 't' || t == 'n' || t == 'r' || t == '\\' || t == '|' || t == '=' || t == '?' || t == '*' || t == '+')
+					.Select(t => E[t] = true).Count();
+			}
 
 			internal static string Sym(string s)
 			{
