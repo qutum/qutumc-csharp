@@ -19,6 +19,7 @@ namespace qutum.parser
 		void Load(I input);
 		bool Next();
 		bool Is(K key);
+		int Loc();
 		T Token();
 		S Tokens(int from, int to);
 		void Tokens(int from, int to, T[] array, int ax);
@@ -30,15 +31,17 @@ namespace qutum.parser
 		public IEnumerable<object> Keys(string name) => name.Cast<object>();
 
 		protected string input;
-		protected int x;
+		protected int loc;
 
-		public void Load(string input) { this.input = input; x = -1; }
+		public void Load(string input) { this.input = input; loc = -1; }
 
-		public bool Next() => ++x < input.Length;
+		public bool Next() => ++loc < input.Length;
 
-		public virtual bool Is(char key) => input[x] == key;
+		public virtual bool Is(char key) => input[loc] == key;
 
-		public char Token() => input[x];
+		public int Loc() => loc;
+
+		public char Token() => input[loc];
 
 		public string Tokens(int from, int to) => input.Substring(from, to - from);
 
@@ -53,12 +56,15 @@ namespace qutum.parser
 
 		protected IEnumerable<byte> input;
 		protected IEnumerator<byte> iter;
+		protected int loc;
 
-		public void Load(IEnumerable<byte> input) { this.input = input; iter = this.input.GetEnumerator(); }
+		public void Load(IEnumerable<byte> input) { this.input = input; iter = input.GetEnumerator(); loc = -1; }
 
-		public bool Next() => iter.MoveNext();
+		public bool Next() { loc++; return iter.MoveNext(); }
 
 		public virtual bool Is(byte key) => iter.Current == key;
+
+		public int Loc() => loc;
 
 		public byte Token() => iter.Current;
 

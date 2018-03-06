@@ -25,7 +25,7 @@ namespace qutum.parser
 		protected Scan<IEnumerable<byte>, byte, byte, IEnumerable<byte>> scan;
 		List<byte> buf = new List<byte>();
 		protected List<T> tokens = new List<T>();
-		protected int loc;
+		protected int loc = -2;
 
 		public Lexer(Step start, Scan<IEnumerable<byte>, byte, byte, IEnumerable<byte>> scan)
 		{ this.start = start; this.scan = scan; }
@@ -34,8 +34,9 @@ namespace qutum.parser
 
 		public void Load(IEnumerable<byte> input)
 		{
-			Unload();
+			if (loc > -2) Unload();
 			scan.Load(input);
+			loc = -1;
 		}
 
 		public bool Next()
@@ -47,11 +48,15 @@ namespace qutum.parser
 			return loc < tokens.Count;
 		}
 
+		protected abstract void Err();
+
 		protected abstract void Token(K key, int mode);
 
 		protected abstract void TokenUtf(K key, int mode, int ucs);
 
 		public bool Is(K key) => tokens[loc].Equals(key);
+
+		public int Loc() => loc;
 
 		public T Token() => tokens[loc];
 
@@ -59,7 +64,7 @@ namespace qutum.parser
 
 		public void Tokens(int from, int to, T[] array, int ax) => tokens.CopyTo(from, array, ax, to - from);
 
-		public void Unload() { scan.Unload(); buf.Clear(); tokens.Clear(); loc = -1; }
+		public void Unload() { scan.Unload(); buf.Clear(); tokens.Clear(); loc = -2; }
 	}
 
 	public abstract class LexerEnum<E, T> : Lexer<E, T, List<T>> where E : struct where T : struct, IEquatable<E>

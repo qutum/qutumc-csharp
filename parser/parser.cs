@@ -75,7 +75,7 @@ namespace qutum.parser
 
 		Earley() { }
 
-		public Earley(string grammar, Scan<I, K, T, S> scan) { start = Boot(grammar); this.scan = scan; }
+		public Earley(string grammar, Scan<I, K, T, S> scan) { this.scan = scan; Boot(grammar); }
 
 		public Tree<S> Parse(I input)
 		{
@@ -276,7 +276,7 @@ namespace qutum.parser
 			boot.start = alt["gram"];
 		}
 
-		static Alt Boot(string grammar)
+		void Boot(string grammar)
 		{
 			boot.scan.Load(grammar);
 			var top = boot.Parse(null);
@@ -289,8 +289,8 @@ namespace qutum.parser
 				var cs = p.Where(t => t.name == "alt").Prepend(p).Select(ta =>
 				{
 					var s = ta.Where(t => (t.name == "con" || t.name == "sym") && boot.Tokens(t) != null).SelectMany
-						(t => t.name == "sym" ? BootRep(t.tokens) ?? Scan.Sym(t.tokens).Cast<object>()
-							: alt.TryGetValue(t.tokens, out Alt a) ? new object[] { a } : boot.scan.Keys(t.tokens)
+						(t => t.name == "sym" ? BootRep(t.tokens) ?? scan.Keys(Scan.Sym(t.tokens))
+							: alt.TryGetValue(t.tokens, out Alt a) ? new object[] { a } : scan.Keys(t.tokens)
 						).Append(null).ToArray();
 					var rs = s.Select((v, x) => v == null || !(s[x + 1] is Rep r) ? One : r).Where((v, x) => !(s[x] is Rep));
 					return new Con { name = p.head.tokens, s = s.Where(v => !(v is Rep)).ToArray(), reps = rs.ToArray() };
@@ -309,7 +309,7 @@ namespace qutum.parser
 				alt[p.head.tokens].s = cs;
 			}
 			boot.scan.Unload();
-			return alt[prod.First().head.tokens];
+			start = alt[prod.First().head.tokens];
 		}
 
 		static IEnumerable<object> BootRep(string s)
@@ -324,7 +324,7 @@ namespace qutum.parser
 		{
 			public override bool Is(char key)
 			{
-				char t = input[x];
+				char t = input[loc];
 				switch (key)
 				{
 					case 'V': return t >= ' ' || t == '\t';
