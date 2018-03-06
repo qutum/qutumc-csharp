@@ -13,17 +13,18 @@ using System.Linq;
 
 namespace qutum.parser
 {
-	public interface Scan<in I, out T, in K> where T : class
+	public interface Scan<in I, in K, out T, out S> where S : class, IEnumerable<T>
 	{
 		IEnumerable<object> Keys(string name);
 		void Load(I input);
 		bool Next();
 		bool Is(K key);
-		T Tokens(int from, int to);
+		T Token();
+		S Tokens(int from, int to);
 		void Unload();
 	}
 
-	public class ScanStr : Scan<string, string, char>
+	public class ScanStr : Scan<string, char, char, string>
 	{
 		public IEnumerable<object> Keys(string name) => name.Cast<object>();
 
@@ -36,12 +37,14 @@ namespace qutum.parser
 
 		public virtual bool Is(char key) => input[x] == key;
 
+		public char Token() => input[x];
+
 		public string Tokens(int from, int to) => input.Substring(from, to - from);
 
 		public void Unload() => input = null;
 	}
 
-	public class ScanByte : Scan<IEnumerable<byte>, IEnumerable<byte>, byte>
+	public class ScanByte : Scan<IEnumerable<byte>, byte, byte, IEnumerable<byte>>
 	{
 		public IEnumerable<object> Keys(string name) => name.Cast<object>();
 
@@ -53,6 +56,8 @@ namespace qutum.parser
 		public bool Next() => iter.MoveNext();
 
 		public virtual bool Is(byte key) => iter.Current == key;
+
+		public byte Token() => iter.Current;
 
 		public IEnumerable<byte> Tokens(int from, int to) =>
 			input is List<byte> s ? s.GetRange(from, to - from) : input.Skip(from).Take(to - from);

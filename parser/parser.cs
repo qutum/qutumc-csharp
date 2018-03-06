@@ -13,16 +13,16 @@ using static qutum.parser.Rep;
 
 namespace qutum.parser
 {
-	public class ParserStr : Earley<string, string, char>
+	public class ParserStr : Earley<string, char, char, string>
 	{
 		public ParserStr(string grammar) : base(grammar, new ScanStr()) { }
 	}
 
-	public class Tree<T> : LinkTree<Tree<T>>
+	public class Tree<S> : LinkTree<Tree<S>>
 	{
 		public string name, dump;
 		public int from, to;
-		public T tokens;
+		public S tokens;
 		public int err; // step break: > 0
 		public object expect; // step expected, Alt hint/name, or Key
 
@@ -50,14 +50,14 @@ namespace qutum.parser
 
 	enum Rep : byte { Opt = 0, One = 1, Any = 2, More = 3 };
 
-	public class Earley<I, T, K> where T : class
+	public class Earley<I, K, T, S> where S : class, IEnumerable<T>
 	{
 		Alt start;
 		List<Match> matchs = new List<Match>();
 		List<int> locs = new List<int>();
 		HashSet<int> errs = new HashSet<int>();
 		int loc;
-		protected Scan<I, T, K> scan;
+		protected Scan<I, K, T, S> scan;
 		public int largest, largestLoc, total;
 		public bool greedy = false; // S=AB A=1|12 B=23|2  gready: (12)3  back greedy: 1(23)
 		public bool treeKeep = true;
@@ -75,13 +75,13 @@ namespace qutum.parser
 
 		Earley() { }
 
-		public Earley(string grammar, Scan<I, T, K> scan) { start = Boot(grammar); this.scan = scan; }
+		public Earley(string grammar, Scan<I, K, T, S> scan) { start = Boot(grammar); this.scan = scan; }
 
-		public Tree<T> Parse(I input)
+		public Tree<S> Parse(I input)
 		{
 			if (input != null) scan.Load(input);
 			int m = Parsing();
-			Tree<T> t = m >= 0 ? Accepted(m, null) : Rejected();
+			Tree<S> t = m >= 0 ? Accepted(m, null) : Rejected();
 			matchs.Clear(); locs.Clear(); errs.Clear();
 			if (input != null) scan.Unload();
 			return t;
@@ -196,23 +196,23 @@ namespace qutum.parser
 				matchs.Add(a); // prev and tail kept
 		}
 
-		Tree<T> Accepted(int match, Tree<T> insert)
+		Tree<S> Accepted(int match, Tree<S> insert)
 		{
 			var m = matchs[match];
 			if (m.from == m.to && m.step == 0 && m.con.s.Length > 1)
 				return null;
 			var t = ((m.con.keep == 0 ? treeKeep : m.con.keep > 0) ? null : insert) ??
-				new Tree<T> { name = m.con.name, dump = Dump(m), from = m.from, to = m.to };
+				new Tree<S> { name = m.con.name, dump = Dump(m), from = m.from, to = m.to };
 			for (; m.tail != -1; m = matchs[m.prev])
 				if (m.tail >= 0)
 					Accepted(m.tail, t);
 			return insert == null || insert == t ? t : insert.Insert(t);
 		}
 
-		Tree<T> Rejected()
+		Tree<S> Rejected()
 		{
 			int to = locs[loc] < matchs.Count ? loc : loc - 1, x = locs[to];
-			var t = new Tree<T> { name = "", dump = treeDump ? scan.Tokens(0, loc).ToString() : null, from = 0, to = to, err = 1 };
+			var t = new Tree<S> { name = "", dump = treeDump ? scan.Tokens(0, loc).ToString() : null, from = 0, to = to, err = 1 };
 			for (int y = matchs.Count - 1, z; (z = y) >= x; y--)
 			{
 				Prev: var m = matchs[z]; var s = m.con.s[m.step];
@@ -221,7 +221,7 @@ namespace qutum.parser
 					{
 						var e = s is Alt a ? a.s[0].hint ?? a.name : s;
 						var d = treeDump ? $" {e} expected by {m.con.hint ?? m.con.name}!{m.step} {Dump(m)}" : m.con.hint;
-						t.Insert(new Tree<T> { name = m.con.name, dump = d, from = m.from, to = m.to, err = m.step, expect = e });
+						t.Insert(new Tree<S> { name = m.con.name, dump = d, from = m.from, to = m.to, err = m.step, expect = e });
 						errs.Add(z);
 					}
 					else if ((z = m.prev) >= 0)
@@ -233,11 +233,11 @@ namespace qutum.parser
 		string Dump(Match m) => !treeDump ? null :
 			$"{m.con.ToString()} :: {scan.Tokens(m.from, m.to).ToString().Replace("\n", "\\n").Replace("\r", "\\r")}";
 
-		public T Tokens(Tree<T> t) => t.tokens = t.tokens ?? scan.Tokens(t.from, t.to);
+		public S Tokens(Tree<S> t) => t.tokens = t.tokens ?? scan.Tokens(t.from, t.to);
 
 		// bootstrap
 
-		static Earley<string, string, char> boot = new Earley<string, string, char>()
+		static Earley<string, char, char, string> boot = new Earley<string, char, char, string>()
 		{ scan = new Scan(), greedy = false, treeKeep = false, treeDump = false };
 
 		static Earley()
