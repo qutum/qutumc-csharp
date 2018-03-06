@@ -13,7 +13,7 @@ using static qutum.parser.Rep;
 
 namespace qutum.parser
 {
-	public class ParserStr : Earley<string, char>
+	public class ParserStr : Earley<string, string, char>
 	{
 		public ParserStr(string grammar) : base(grammar, new ScanStr()) { }
 	}
@@ -50,14 +50,14 @@ namespace qutum.parser
 
 	enum Rep : byte { Opt = 0, One = 1, Any = 2, More = 3 };
 
-	public class Earley<T, K> where T : class
+	public class Earley<I, T, K> where T : class
 	{
 		Alt start;
-		List<Match> matchs;
-		List<int> locs;
-		HashSet<int> errs;
+		List<Match> matchs = new List<Match>();
+		List<int> locs = new List<int>();
+		HashSet<int> errs = new HashSet<int>();
 		int loc;
-		public Scan<T, K> scan;
+		protected Scan<I, T, K> scan;
 		public int largest, largestLoc, total;
 		public bool greedy = false; // S=AB A=1|12 B=23|2  gready: (12)3  back greedy: 1(23)
 		public bool treeKeep = true;
@@ -73,27 +73,27 @@ namespace qutum.parser
 			public override string ToString() => $"{from}:{to}#{step} {con}";
 		}
 
-		Earley() { matchs = new List<Match>(); locs = new List<int>(); errs = new HashSet<int>(); }
+		Earley() { }
 
-		public Earley(string grammar, Scan<T, K> scan) : this() { start = Boot(grammar); this.scan = scan; }
+		public Earley(string grammar, Scan<I, T, K> scan) { start = Boot(grammar); this.scan = scan; }
 
-		public Tree<T> Parse(T tokens)
+		public Tree<T> Parse(I input)
 		{
-			if (tokens != null) scan.Load(tokens);
+			if (input != null) scan.Load(input);
 			int m = Parsing();
 			Tree<T> t = m >= 0 ? Accepted(m, null) : Rejected();
 			matchs.Clear(); locs.Clear(); errs.Clear();
-			if (tokens != null) scan.Unload();
+			if (input != null) scan.Unload();
 			return t;
 		}
 
-		public bool Check(T tokens)
+		public bool Check(I input)
 		{
-			if (tokens != null) scan.Load(tokens);
+			if (input != null) scan.Load(input);
 			bool greedy = this.greedy; this.greedy = false;
 			int m = Parsing();
 			this.greedy = greedy; matchs.Clear(); locs.Clear(); errs.Clear();
-			if (tokens != null) scan.Unload();
+			if (input != null) scan.Unload();
 			return m >= 0;
 		}
 
@@ -237,7 +237,7 @@ namespace qutum.parser
 
 		// bootstrap
 
-		static Earley<string, char> boot = new Earley<string, char>()
+		static Earley<string, string, char> boot = new Earley<string, string, char>()
 		{ scan = new Scan(), greedy = false, treeKeep = false, treeDump = false };
 
 		static Earley()
@@ -289,7 +289,7 @@ namespace qutum.parser
 				var cs = p.Where(t => t.name == "alt").Prepend(p).Select(ta =>
 				{
 					var s = ta.Where(t => (t.name == "con" || t.name == "sym") && boot.Tokens(t) != null).SelectMany
-						(t => t.name == "sym" ? Scan.Rep(t.tokens) ?? Scan.Sym(t.tokens).Cast<object>()
+						(t => t.name == "sym" ? BootRep(t.tokens) ?? Scan.Sym(t.tokens).Cast<object>()
 							: alt.TryGetValue(t.tokens, out Alt a) ? new object[] { a } : boot.scan.Keys(t.tokens)
 						).Append(null).ToArray();
 					var rs = s.Select((v, x) => v == null || !(s[x + 1] is Rep r) ? One : r).Where((v, x) => !(s[x] is Rep));
@@ -312,11 +312,19 @@ namespace qutum.parser
 			return alt[prod.First().head.tokens];
 		}
 
+		static IEnumerable<object> BootRep(string s)
+		{
+			if (s[0] == '?') return new object[] { Opt };
+			if (s[0] == '*') return new object[] { Any };
+			if (s[0] == '+') return new object[] { More };
+			return null;
+		}
+
 		class Scan : ScanStr
 		{
 			public override bool Is(char key)
 			{
-				char t = text[x];
+				char t = input[x];
 				switch (key)
 				{
 					case 'V': return t >= ' ' || t == '\t';
@@ -338,14 +346,6 @@ namespace qutum.parser
 			//	t > ' ' && t < '0' && t != '*' && t != '+' || t > '9' && t < 'A' && t != '=' && t != '?'
 			//		|| t > 'Z' && t < 'a' && t != '\\' && t != '_' || t > 'z' && t <= '~' && t != '|'
 			static HashSet<char> O = "!\"#$%&'(),-./:;<>@[]^`{}~".ToHashSet();
-
-			internal static IEnumerable<object> Rep(string s)
-			{
-				if (s[0] == '?') return new object[] { Opt };
-				if (s[0] == '*') return new object[] { Any };
-				if (s[0] == '+') return new object[] { More };
-				return null;
-			}
 
 			internal static string Sym(string s)
 			{

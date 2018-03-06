@@ -13,32 +13,51 @@ using System.Linq;
 
 namespace qutum.parser
 {
-	public interface Scan<T, K> where T : class
+	public interface Scan<in I, out T, in K> where T : class
 	{
 		IEnumerable<object> Keys(string name);
-		void Load(T tokens);
+		void Load(I input);
 		bool Next();
 		bool Is(K key);
 		T Tokens(int from, int to);
 		void Unload();
 	}
 
-	public class ScanStr : Scan<string, char>
+	public class ScanStr : Scan<string, string, char>
 	{
 		public IEnumerable<object> Keys(string name) => name.Cast<object>();
 
-		protected string text;
+		protected string input;
 		protected int x;
 
-		public void Load(string text) { this.text = text; x = -1; }
+		public void Load(string input) { this.input = input; x = -1; }
 
-		public bool Next() => ++x < text.Length;
+		public bool Next() => ++x < input.Length;
 
-		public virtual bool Is(char key) => text[x] == key;
+		public virtual bool Is(char key) => input[x] == key;
 
-		public string Tokens(int from, int to) => text.Substring(from, to - from);
+		public string Tokens(int from, int to) => input.Substring(from, to - from);
 
-		public void Unload() => text = null;
+		public void Unload() => input = null;
+	}
+
+	public class ScanByte : Scan<IEnumerable<byte>, IEnumerable<byte>, byte>
+	{
+		public IEnumerable<object> Keys(string name) => name.Cast<object>();
+
+		protected IEnumerable<byte> input;
+		protected IEnumerator<byte> iter;
+
+		public void Load(IEnumerable<byte> input) { this.input = input; iter = this.input.GetEnumerator(); }
+
+		public bool Next() => iter.MoveNext();
+
+		public virtual bool Is(byte key) => iter.Current == key;
+
+		public IEnumerable<byte> Tokens(int from, int to) =>
+			input is List<byte> s ? s.GetRange(from, to - from) : input.Skip(from).Take(to - from);
+
+		public void Unload() { input = null; iter = null; }
 	}
 
 	public class LinkTree<T> : IEnumerable<T> where T : LinkTree<T>
