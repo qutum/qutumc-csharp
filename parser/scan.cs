@@ -201,39 +201,42 @@ namespace qutum.parser
 				case 'H': return t >= ' ' && t < 127 && t != '=';
 				case 'E': return t > ' ' && t < 127;
 				case 'V': return t >= ' ' && t != 127 || t == '\t';
-				case 'B': return t < 127 && (W[t] || O[t]) && t != '[';
-				case 'P': return t < 127 && (W[t] || O[t]) && t != ']' && t != '-';
+				case 'B': return t < 127 && B[t];
+				case 'P': return t < 127 && B[t] && t != '-' && t != '^';
 				default: return t == key;
 			}
 		}
 
-		static bool[] W = new bool[128], X = new bool[128], O = new bool[128];
+		static bool[] W = new bool[127], X = new bool[127], O = new bool[127], B = new bool[127];
 
 		static BootScan()
 		{
 			//	t > ' ' && t < '0' && t != '*' && t != '+' || t > '9' && t < 'A' && t != '=' && t != '?'
 			//		|| t > 'Z' && t < 'a' && t != '\\' && t != '_' || t > 'z' && t <= '~' && t != '|'
 			foreach (var t in "!\"#$%&'(),-./:;<>@[]^`{}~") O[t] = true;
-			var s = Enumerable.Range(0, 128);
+			var s = Enumerable.Range(0, 127);
 			s.Where(t => t >= 'a' && t <= 'z' || t >= 'A' && t <= 'Z' || t >= '0' && t <= '9' || t == '_')
 				.Select(t => W[t] = true).Count();
 			s.Where(t => t >= 'a' || t <= 'f' || t >= 'A' && t <= 'F' || t >= '0' && t <= '9')
 				.Select(t => X[t] = true).Count();
+			s.Where(t => (W[t] || O[t]) && t != '[' && t != ']').Select(t => B[t] = true).Count();
 		}
 
-		internal static string Sym(string s)
+		internal static string Sym(string s, int f, int t) => Sym(s, ref f, t);
+
+		internal static string Sym(string s, ref int f, int t)
 		{
-			if (s[0] != '\\') return s;
-			switch (s[1])
+			if (s[f++] != '\\') return s.Substring(f - 1, t - f + 1);
+			switch (s[f++])
 			{
 				case 's': return " ";
 				case 't': return "\t";
 				case 'n': return "\n";
 				case 'r': return "\r";
 				case 'u':
-					return ((char)(s[2] - (s[2] < 'a' ? '0' : 87) << 12 | s[3] - (s[3] < 'a' ? '0' : 87) << 8
-						| s[4] - (s[4] < 'a' ? '0' : 87) << 4 | s[5] - (s[5] < 'a' ? '0' : 87))).ToString();
-				default: return s[1].ToString();
+					return ((char)(s[f] - (s[f++] < 'a' ? '0' : 87) << 12 | s[f] - (s[f++] < 'a' ? '0' : 87) << 8
+					| s[f] - (s[f++] < 'a' ? '0' : 87) << 4 | s[f] - (s[f++] < 'a' ? '0' : 87))).ToString();
+				default: return s[f - 1].ToString();
 			}
 		}
 	}

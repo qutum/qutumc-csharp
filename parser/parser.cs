@@ -276,9 +276,9 @@ namespace qutum.parser
 			boot.start = alt["gram"];
 		}
 
-		void Boot(string grammar)
+		void Boot(string gram)
 		{
-			boot.scan.Load(grammar);
+			boot.scan.Load(gram);
 			var top = boot.Parse(null);
 			if (top.err > 0)
 			{ var e = new Exception(); e.Data["err"] = top; throw e; }
@@ -288,9 +288,9 @@ namespace qutum.parser
 			{
 				var cs = p.Where(t => t.name == "alt").Prepend(p).Select(ta =>
 				{
-					var s = ta.Where(t => (t.name == "con" || t.name == "sym") && boot.Tokens(t) != null).SelectMany
-						(t => t.name == "sym" ? BootRep(t.tokens) ?? scan.Keys(BootScan.Sym(t.tokens))
-							: alt.TryGetValue(t.tokens, out Alt a) ? new object[] { a } : scan.Keys(t.tokens)
+					var s = ta.Where(t => t.name == "con" || t.name == "sym").SelectMany
+						(t => t.name == "sym" ? BootRep(gram, t.from) ?? scan.Keys(BootScan.Sym(gram, t.from, t.to))
+							: alt.TryGetValue(boot.Tokens(t), out Alt a) ? new object[] { a } : scan.Keys(t.tokens)
 						).Append(null).ToArray();
 					var rs = s.Select((v, x) => v == null || !(s[x + 1] is Rep r) ? One : r).Where((v, x) => !(s[x] is Rep));
 					return new Con { name = p.head.tokens, s = s.Where(v => !(v is Rep)).ToArray(), reps = rs.ToArray() };
@@ -300,7 +300,7 @@ namespace qutum.parser
 				{
 					sbyte g = 0, k = 0; string w = null; a = a.head;
 					if (a.name == "hintg") { g = 1; a = a.next ?? top; }
-					if (a.name == "hintk") { k = (sbyte)(boot.Tokens(a) == "+" ? 1 : -1); a = a.next ?? top; }
+					if (a.name == "hintk") { k = (sbyte)(gram[a.from] == '+' ? 1 : -1); a = a.next ?? top; }
 					if (a.name == "hintw") { w = boot.Tokens(a); a = a.next ?? top; }
 					for (; w != null && tx <= x; tx++) { cs[tx].greedy = g; cs[tx].keep = k; cs[tx].hint = w != "" ? w : null; }
 					if (a.name == "hinte") tx = x + 1;
@@ -312,11 +312,11 @@ namespace qutum.parser
 			start = alt[prod.First().head.tokens];
 		}
 
-		static IEnumerable<object> BootRep(string s)
+		static IEnumerable<object> BootRep(string s, int x)
 		{
-			if (s[0] == '?') return new object[] { Opt };
-			if (s[0] == '*') return new object[] { Any };
-			if (s[0] == '+') return new object[] { More };
+			if (s[x] == '?') return new object[] { Opt };
+			if (s[x] == '*') return new object[] { Any };
+			if (s[x] == '+') return new object[] { More };
 			return null;
 		}
 	}
