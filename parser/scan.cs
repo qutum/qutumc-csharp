@@ -13,12 +13,12 @@ using System.Linq;
 
 namespace qutum.parser
 {
-	public interface Scan<in I, in K, T, out S> where S : class, IEnumerable<T>
+	public interface Scan<in I, in K, T, out S> where S : IEnumerable<T>
 	{
 		IEnumerable<object> Keys(string name);
 		void Load(I input);
 		bool Next();
-		bool Is(K key);
+		bool Is(K key, object keyo);
 		int Loc();
 		T Token();
 		S Tokens(int from, int to);
@@ -37,7 +37,7 @@ namespace qutum.parser
 
 		public bool Next() => ++loc < input.Length;
 
-		public virtual bool Is(char key) => input[loc] == key;
+		public virtual bool Is(char key, object keyo) => input[loc] == key;
 
 		public int Loc() => loc;
 
@@ -62,7 +62,7 @@ namespace qutum.parser
 
 		public bool Next() { loc++; return iter.MoveNext(); }
 
-		public virtual bool Is(byte key) => iter.Current == key;
+		public virtual bool Is(byte key, object keyo) => iter.Current == key;
 
 		public int Loc() => loc;
 
@@ -184,5 +184,57 @@ namespace qutum.parser
 		}
 
 		public IEnumerable<T> Backward() => new Backwarder { tail = tail };
+	}
+
+	class BootScan : ScanStr
+	{
+		public override bool Is(char key, object keyo)
+		{
+			char t = input[loc];
+			switch (key)
+			{
+				case 'S': return t == ' ' || t == '\t';
+				case 'W': return t < 127 && W[t];
+				case 'X': return t < 127 && X[t];
+				case 'O': return t < 127 && O[t];
+				case 'R': return t == '?' || t == '*' || t == '+';
+				case 'H': return t >= ' ' && t < 127 && t != '=';
+				case 'E': return t > ' ' && t < 127;
+				case 'V': return t >= ' ' && t != 127 || t == '\t';
+				case 'B': return t < 127 && (W[t] || O[t]) && t != '[';
+				case 'P': return t < 127 && (W[t] || O[t]) && t != ']' && t != '-';
+				default: return t == key;
+			}
+		}
+
+		static bool[] W = new bool[128], X = new bool[128], O = new bool[128];
+
+		static BootScan()
+		{
+			//	t > ' ' && t < '0' && t != '*' && t != '+' || t > '9' && t < 'A' && t != '=' && t != '?'
+			//		|| t > 'Z' && t < 'a' && t != '\\' && t != '_' || t > 'z' && t <= '~' && t != '|'
+			foreach (var t in "!\"#$%&'(),-./:;<>@[]^`{}~") O[t] = true;
+			var s = Enumerable.Range(0, 128);
+			s.Where(t => t >= 'a' && t <= 'z' || t >= 'A' && t <= 'Z' || t >= '0' && t <= '9' || t == '_')
+				.Select(t => W[t] = true).Count();
+			s.Where(t => t >= 'a' || t <= 'f' || t >= 'A' && t <= 'F' || t >= '0' && t <= '9')
+				.Select(t => X[t] = true).Count();
+		}
+
+		internal static string Sym(string s)
+		{
+			if (s[0] != '\\') return s;
+			switch (s[1])
+			{
+				case 's': return " ";
+				case 't': return "\t";
+				case 'n': return "\n";
+				case 'r': return "\r";
+				case 'u':
+					return ((char)(s[2] - (s[2] < 'a' ? '0' : 87) << 12 | s[3] - (s[3] < 'a' ? '0' : 87) << 8
+						| s[4] - (s[4] < 'a' ? '0' : 87) << 4 | s[5] - (s[5] < 'a' ? '0' : 87))).ToString();
+				default: return s[1].ToString();
+			}
+		}
 	}
 }

@@ -57,11 +57,11 @@ namespace qutum.parser
 		List<int> locs = new List<int>();
 		HashSet<int> errs = new HashSet<int>();
 		int loc;
-		protected Scan<I, K, T, S> scan;
-		public int largest, largestLoc, total;
-		public bool greedy = false; // S=AB A=1|12 B=23|2  gready: (12)3  back greedy: 1(23)
-		public bool treeKeep = true;
-		public bool treeDump = false;
+		internal Scan<I, K, T, S> scan;
+		internal int largest, largestLoc, total;
+		internal bool greedy = false; // S=AB A=1|12 B=23|2  gready: (12)3  back greedy: 1(23)
+		internal bool treeKeep = true;
+		internal bool treeDump = false;
 
 		struct Match
 		{
@@ -160,8 +160,8 @@ namespace qutum.parser
 			locs.Add(matchs.Count);
 			for (int x = locs[loc], y = locs[++loc]; x < y; x++)
 			{
-				var m = matchs[x];
-				if (m.con.s[m.step] is K k && scan.Is(k))
+				var m = matchs[x]; var v = m.con.s[m.step];
+				if (v is K k && scan.Is(k, v))
 					Add(m.con, m.from, m.to, m.step + 1, m.tail != -2 ? x : m.prev, -2); // m.to < loc
 			}
 			return locs[loc] < matchs.Count;
@@ -220,7 +220,7 @@ namespace qutum.parser
 					if (m.step > 0)
 					{
 						var e = s is Alt a ? a.s[0].hint ?? a.name : s;
-						var d = treeDump ? $" {e} expected by {m.con.hint ?? m.con.name}!{m.step} {Dump(m)}" : m.con.hint;
+						var d = treeDump ? $"{e} expected by {m.con.hint ?? m.con.name}!{m.step} {Dump(m)}" : m.con.hint;
 						t.Insert(new Tree<S> { name = m.con.name, dump = d, from = m.from, to = m.to, err = m.step, expect = e });
 						errs.Add(z);
 					}
@@ -238,7 +238,7 @@ namespace qutum.parser
 		// bootstrap
 
 		static Earley<string, char, char, string> boot = new Earley<string, char, char, string>()
-		{ scan = new Scan(), greedy = false, treeKeep = false, treeDump = false };
+		{ scan = new BootScan(), greedy = false, treeKeep = false, treeDump = false };
 
 		static Earley()
 		{
@@ -289,7 +289,7 @@ namespace qutum.parser
 				var cs = p.Where(t => t.name == "alt").Prepend(p).Select(ta =>
 				{
 					var s = ta.Where(t => (t.name == "con" || t.name == "sym") && boot.Tokens(t) != null).SelectMany
-						(t => t.name == "sym" ? BootRep(t.tokens) ?? scan.Keys(Scan.Sym(t.tokens))
+						(t => t.name == "sym" ? BootRep(t.tokens) ?? scan.Keys(BootScan.Sym(t.tokens))
 							: alt.TryGetValue(t.tokens, out Alt a) ? new object[] { a } : scan.Keys(t.tokens)
 						).Append(null).ToArray();
 					var rs = s.Select((v, x) => v == null || !(s[x + 1] is Rep r) ? One : r).Where((v, x) => !(s[x] is Rep));
@@ -318,58 +318,6 @@ namespace qutum.parser
 			if (s[0] == '*') return new object[] { Any };
 			if (s[0] == '+') return new object[] { More };
 			return null;
-		}
-
-		class Scan : ScanStr
-		{
-			public override bool Is(char key)
-			{
-				char t = input[loc];
-				switch (key)
-				{
-					case 'S': return t == ' ' || t == '\t';
-					case 'W': return t < W.Length && W[t];
-					case 'X': return t < X.Length && X[t];
-					case 'O': return t < O.Length && O[t];
-					case 'R': return t == '?' || t == '*' || t == '+';
-					case 'H': return t >= ' ' && t != 127 && t != '=';
-					case 'E': return t < E.Length && E[t];
-					case 'V': return t >= ' ' && t != 127 || t == '\t';
-					default: return t == key;
-				}
-			}
-
-			static bool[] W = new bool[128], X = new bool[128], O = new bool[128], E = new bool[128];
-
-			static Scan()
-			{
-				//	t > ' ' && t < '0' && t != '*' && t != '+' || t > '9' && t < 'A' && t != '=' && t != '?'
-				//		|| t > 'Z' && t < 'a' && t != '\\' && t != '_' || t > 'z' && t <= '~' && t != '|'
-				"!\"#$%&'(),-./:;<>@[]^`{}~".Select(t => O[t] = true).Count();
-				var s = Enumerable.Range(0, 128);
-				s.Where(t => t >= 'a' && t <= 'z' || t >= 'A' && t <= 'Z' || t >= '0' && t <= '9' || t == '_')
-					.Select(t => W[t] = true).Count();
-				s.Where(t => t >= 'a' || t <= 'f' || t >= 'A' && t <= 'F' || t >= '0' && t <= '9')
-					.Select(t => X[t] = true).Count();
-				s.Where(t => t == 's' || t == 't' || t == 'n' || t == 'r' || t == '\\' || t == '|' || t == '=' || t == '?' || t == '*' || t == '+')
-					.Select(t => E[t] = true).Count();
-			}
-
-			internal static string Sym(string s)
-			{
-				if (s[0] != '\\') return s;
-				switch (s[1])
-				{
-					case 's': return " ";
-					case 't': return "\t";
-					case 'n': return "\n";
-					case 'r': return "\r";
-					case 'u':
-						return ((char)(s[2] - (s[2] < 'a' ? '0' : 87) << 12 | s[3] - (s[3] < 'a' ? '0' : 87) << 8
-							| s[4] - (s[4] < 'a' ? '0' : 87) << 4 | s[5] - (s[5] < 'a' ? '0' : 87))).ToString();
-					default: return s[1].ToString();
-				}
-			}
 		}
 	}
 }

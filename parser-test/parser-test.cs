@@ -40,7 +40,7 @@ namespace qutum.test
 		[TestMethod]
 		public void Esc()
 		{
-			var p = new ParserStr(@"S = \ss\tt\r\n\\/|\|or\=eq\*s\+p\?q");
+			var p = new ParserStr(@"S = \ss\tt\r\n\\/ | \|or\=eq\*s\+p\?q");
 			IsTrue(p.Check(" s\tt\r\n\\/")); IsTrue(p.Check("|or=eq*s+p?q"));
 		}
 
@@ -174,6 +174,15 @@ namespace qutum.test
 		}
 
 		[TestMethod]
+		public void GreedyHint()
+		{
+			var p = new ParserStr("S = A B =*\n A = A 1|1 \n B = 1|B 1") { treeDump = true };
+			AreEqual(2, p.Parse("111").Dump().head.to);
+			p.greedy = true;
+			AreEqual(2, p.Parse("111").Dump().head.to);
+		}
+
+		[TestMethod]
 		public void Empty1()
 		{
 			var p = new ParserStr("S=a A B \n A=|a+ \n B=A") { greedy = true, treeDump = true };
@@ -258,6 +267,17 @@ namespace qutum.test
 			AreEqual(0, t.err); AreEqual(20, p.largest);
 			AreEqual(1, t.head.head.from); AreEqual(2, t.head.head.to);
 			AreEqual(6, t.head.tail.from); AreEqual(7, t.head.tail.to);
+		}
+
+		[TestMethod]
+		public void KeepHint()
+		{
+			var p = new ParserStr("S=A B C\n A=1 =+\n B=1 =-\n C=1") { treeKeep = true, treeDump = true };
+			var t = p.Parse("111").Dump();
+			AreEqual("A", t.head.name); AreEqual("C", t.head.next.name);
+			p.treeKeep = false;
+			t = p.Parse("111").Dump();
+			AreEqual("A", t.head.name); AreEqual(null, t.head.next);
 		}
 	}
 }
