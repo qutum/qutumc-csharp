@@ -222,7 +222,7 @@ namespace qutum.test
 		}
 
 		[TestMethod]
-		public void RepPlus1()
+		public void Plus1()
 		{
 			var p = new ParserStr("S=a+") { treeDump = true };
 			IsFalse(p.Check("")); IsTrue(p.Check("a")); IsTrue(p.Check("aaaaaa"));
@@ -230,7 +230,7 @@ namespace qutum.test
 		}
 
 		[TestMethod]
-		public void RepPlus2()
+		public void Plus2()
 		{
 			var p = new ParserStr("S=A B \n A=a P+ \n B=P+b \n P=pq") { treeDump = true };
 			IsFalse(p.Check("apqb")); IsTrue(p.Check("apqpqb"));
@@ -245,7 +245,7 @@ namespace qutum.test
 		}
 
 		[TestMethod]
-		public void RepStar1()
+		public void Star1()
 		{
 			var p = new ParserStr("S=a*") { treeDump = true };
 			IsTrue(p.Check("")); IsTrue(p.Check("a")); IsTrue(p.Check("aaaaaa"));
@@ -253,7 +253,7 @@ namespace qutum.test
 		}
 
 		[TestMethod]
-		public void RepStar2()
+		public void Star2()
 		{
 			var p = new ParserStr("S=A B \n A=a P* \n B=P* b \n P=p|q") { treeDump = true };
 			IsTrue(p.Check("ab")); IsTrue(p.Check("apqb")); IsTrue(p.Check("apqpqb"));

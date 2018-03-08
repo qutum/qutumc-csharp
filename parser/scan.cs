@@ -18,7 +18,7 @@ namespace qutum.parser
 		IEnumerable<object> Keys(string name);
 		void Load(I input);
 		bool Next();
-		bool Is(K key, object keyo);
+		bool Is(K key);
 		int Loc();
 		T Token();
 		S Tokens(int from, int to);
@@ -37,7 +37,7 @@ namespace qutum.parser
 
 		public bool Next() => ++loc < input.Length;
 
-		public virtual bool Is(char key, object keyo) => input[loc] == key;
+		public virtual bool Is(char key) => input[loc] == key;
 
 		public int Loc() => loc;
 
@@ -62,7 +62,7 @@ namespace qutum.parser
 
 		public bool Next() { loc++; return iter.MoveNext(); }
 
-		public virtual bool Is(byte key, object keyo) => iter.Current == key;
+		public virtual bool Is(byte key) => iter.Current == key;
 
 		public int Loc() => loc;
 
@@ -188,7 +188,7 @@ namespace qutum.parser
 
 	class BootScan : ScanStr
 	{
-		public override bool Is(char key, object keyo)
+		public override bool Is(char key)
 		{
 			char t = input[loc];
 			switch (key)
@@ -197,12 +197,12 @@ namespace qutum.parser
 				case 'W': return t < 127 && W[t];
 				case 'X': return t < 127 && X[t];
 				case 'O': return t < 127 && O[t];
-				case 'R': return t == '?' || t == '*' || t == '+';
+				case 'Q': return t == '?' || t == '*' || t == '+';
 				case 'H': return t >= ' ' && t < 127 && t != '=';
 				case 'E': return t > ' ' && t < 127;
-				case 'V': return t >= ' ' && t != 127 || t == '\t';
+				case 'V': return t >= ' ' && t != 127 || t == '\t'; // also utf
 				case 'B': return t < 127 && B[t];
-				case 'P': return t < 127 && B[t] && t != '-' && t != '^';
+				case 'R': return t < 127 && B[t] && t != '-' && t != '^' || t == ' ';
 				default: return t == key;
 			}
 		}
@@ -224,7 +224,7 @@ namespace qutum.parser
 
 		internal static string Sym(string s, int f, int t) => Sym(s, ref f, t);
 
-		internal static string Sym(string s, ref int f, int t)
+		internal static string Sym(string s, ref int f, int t, bool u = true)
 		{
 			if (s[f++] != '\\') return s.Substring(f - 1, t - f + 1);
 			switch (s[f++])
@@ -234,6 +234,7 @@ namespace qutum.parser
 				case 'n': return "\n";
 				case 'r': return "\r";
 				case 'u':
+					if (!u) return "\x80";
 					return ((char)(s[f] - (s[f++] < 'a' ? '0' : 87) << 12 | s[f] - (s[f++] < 'a' ? '0' : 87) << 8
 					| s[f] - (s[f++] < 'a' ? '0' : 87) << 4 | s[f] - (s[f++] < 'a' ? '0' : 87))).ToString();
 				default: return s[f - 1].ToString();
