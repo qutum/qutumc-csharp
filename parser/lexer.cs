@@ -6,17 +6,21 @@ namespace qutum.parser
 {
 	public abstract class Lexer<K, T, S> : Scan<IEnumerable<byte>, K, T, S> where T : struct where S : IEnumerable<T>
 	{
-		public class Tran
+		sealed class Unit
 		{
-			internal Tran[] next; // utf-8: <=bf: [128], <=df: [129], <=ef: [130], <=f7: [131], ff: [132]
+			internal int id;
+			internal Unit[] next; // utf-8: <=bf: [128], <=df: [129], <=ef: [130], <=f7: [131], ff: [132]
+			internal int pren; // how many bytes to this unit
 			internal K key;
 			internal int step;
-			internal int mode; // err: 0 (next != null), back: 1 (no repeatition), ok: 2
-			internal Tran go; // go.next != null
+			internal int mode; // err: -1, back: 0 (no quantifier), ok: 2
+			internal Unit go; // go.next != null
+
+			internal Unit(Lexer<K, T, S> l) => id = ++l.id;
 		}
 
-		Tran start;
-		int bf, bt, bn;
+		Unit start;
+		int id, bf, bt, bn;
 		internal Scan<IEnumerable<byte>, byte, byte, IEnumerable<byte>> scan;
 		internal byte[] buf = new byte[16];
 		internal List<T> tokens = new List<T>();
@@ -39,33 +43,33 @@ namespace qutum.parser
 		public bool Next()
 		{
 			if (++loc < tokens.Count) return true;
-			var t = start;
+			var u = start;
 			Go: bf = bt;
 			Next: if (bt >= bn)
 				if (scan.Next()) buf[bn++ & 15] = scan.Token();
-				else if (t == start) return false;
+				else if (u == start) return false;
 				else goto Do;
 			var b = buf[bt & 15];
-			if (t.next[b <= 0x7f ? b : b > 0xf7 ? 132 : b > 0xef ? 131 : b > 0xdf ? 130 : b > 0xbf ? 129 : 128] is Tran n)
+			if (u.next[b <= 0x7f ? b : b > 0xf7 ? 132 : b > 0xef ? 131 : b > 0xdf ? 130 : b > 0xbf ? 129 : 128] is Unit n)
 			{
-				t = n; ++bt;
-				if (t.next != null) goto Next;
+				u = n; ++bt;
+				if (u.next != null) goto Next;
 			}
-			Do: switch (t.mode)
+			Do: switch (u.mode)
 			{
-				case 1: t = t.go; --bt; goto Do;
-				case 2: Token(t.key, t.step, bf, bt); break;
-				default: Error(t.key, t.step, buf[bt & 15], bf, ++bt); break;
+				case 0: u = u.go; --bt; goto Do;
+				case 1: Token(u.key, u.step, bf, bt); break;
+				default: Error(u.key, u.step, buf[bt & 15], bf, ++bt); break;
 			}
-			if (t.go == start && loc < tokens.Count) return true;
-			t = t.go; goto Go;
+			if (u.go == start && loc < tokens.Count) return true;
+			u = u.go; goto Go;
 		}
 
-		protected abstract bool Token(K key, int step, int from, int to);
+		protected abstract void Token(K key, int step, int from, int to);
 
 		protected abstract void Error(K key, int step, byte b, int from, int to);
 
-		public abstract bool Is(K key, object keyo);
+		public abstract bool Is(K key);
 
 		public int Loc() => loc;
 
@@ -79,19 +83,125 @@ namespace qutum.parser
 			gram  = eol*lex lexs*eol*
 			lexs  = eol+lex
 			lex   = name S*\=S*step steps* =+
-			steps = S+step
-			step  = byte+ alt* =+
-			alt   = \|byte+
-			byte  = B rep? | [part+]rep? | \\E rep?
+			step  = byte+alt* =+
+			steps = S+opt?rep?byte+alt* =+
+			alt   = \|byte+ =+
+			opt   = \? =+
+			rep   = \+ =+
+			byte  = B\+? | [range*^?range+]\+? | \\E\+? =+
 			name  = W+ =+
-			rep   = R =+
-			part  = ^?P | ^?P-P
+			range = R|R-R =+
 			eol   = S*\r?\nS*", new BootScan()) { greedy = false, treeKeep = false, treeDump = false };
 
-		void Boot(string grammar)
+		static IEnumerable<int> bootRange = Enumerable.Range(32, 127 - 32).Concat(new int[] { '\t', '\n', '\r' }).ToArray();
+
+		void Boot(string gram)
 		{
-			boot.treeDump = true;
-			var t = boot.Parse(grammar).Dump();
+			boot.scan.Load(gram);
+			var top = boot.Parse(null);
+			if (top.err > 0)
+			{
+				boot.scan.Unload(); boot.treeDump = true; boot.Parse(gram).Dump(); boot.treeDump = false;
+				var e = new Exception(); e.Data["err"] = top; throw e;
+			}
+			start = new Unit(this) { mode = -1 };
+			foreach (var l in top)
+			{
+				var k = (K)Keys(boot.Tokens(l.head)).Single();
+				var ust = l.Select((z, x) => x < 2 ? start : new Unit(this) { key = k, step = x })
+					.Append(start).ToArray();
+				var step = 0; var b1 = new int[1];
+				foreach (var st in l.Skip(1))
+				{
+					++step;
+					foreach (var a in st.Where(t => t.name == "alt").Prepend(st))
+					{
+						var u = ust[step];
+						var opt = a.head.name == "opt" ? u : start;
+						var rep = a.Any(t => t.name == "rep") ? u : ust[step + 1];
+						var ab = a.Where(t => t.name == "byte");
+						if (ab.Count() > 15) throw new Exception($"{k}.{step} exceeds 15 bytes");
+						if (step > 1)
+							BootMode(u, k, step, opt == start ? -1 : 1, opt == start ? opt : ust[step + 1]);
+						foreach (var b in ab)
+						{
+							var x = b.from; var bs = b1;
+							if (gram[x] == '\\')
+								b1[0] = BootScan.Sym(gram, ref x, b.to, false)[0];
+							else if (gram[x] == '[')
+							{
+								++x; bool ex = false;
+								bs = b.Aggregate(x != b.head.from ? bootRange : Array.Empty<int>(),
+									(s, p) => (ex |= x != p.from) ?
+									s.Except(Enumerable.Range(gram[p.from], gram[(x = p.to) - 1] - gram[p.from] + 1))
+									: s.Union(Enumerable.Range(gram[p.from], gram[(x = p.to) - 1] - gram[p.from] + 1))
+								).Distinct().ToArray();
+								if (bs.Length == 0) throw new Exception($"No byte in {k}.{step}");
+								++x;
+							}
+							else
+								b1[0] = gram[x++];
+							var ok = b.next == null || b.next.name != "byte";
+							u = BootNext(u, bs, k, step, false);
+							if (x != b.to)
+								BootNext(u, bs, k, step, true);
+							BootMode(u, k, step, ok ? 1 : x != b.to ? -1 : 0, ok ? rep : x != b.to ? opt : u);
+							x = b.to;
+						}
+					}
+				}
+			}
+			if (boot.treeDump) BootDump(start, "", "");
+		}
+
+		Unit BootNext(Unit u, int[] s, K key, int step, bool qua)
+		{
+			if (s.Length == 0) return null;
+			if (u.next == null)
+				u.next = new Unit[133];
+			var ns = s.Select(b => u.next[b]).Distinct();
+			if (ns.Count() > 1)
+				throw new Exception($"Prefix of {key}.{step} and {u.key}.{u.step} must be same or distinct");
+			var n = ns.FirstOrDefault();
+			if (n != null)
+				return n.pren == s.Length ? qua == (u.next[s[0]] == u) ? n :
+					throw new Exception($"{key}.{step} and {u.key}.{u.step} conflict") :
+					throw new Exception($"Prefix of {key}.{step} and {u.key}.{u.step} must be same or distinct");
+			n = qua ? u : new Unit(this) { pren = s.Length };
+			foreach (var b in s)
+				u.next[b] = n;
+			return n;
+		}
+
+		Unit BootMode(Unit u, K key, int step, int mode, Unit go)
+		{
+			if (u.mode != 0)
+				if (mode == 0) return null;
+				else throw new Exception($"{key}.{step} and {u.key}.{u.step} conflicted");
+			u.key = key; u.step = step; u.mode = mode; u.go = go;
+			return go;
+		}
+
+		void BootDump(Unit u, string ind, string pre, Dictionary<Unit, bool> us = null)
+		{
+			var uz = us ?? new Dictionary<Unit, bool> { };
+			uz[u] = false;
+			Console.WriteLine($"{ind}{u.id}: {u.key}.{u.step}" +
+				$" {(u.mode < 0 ? "err" : u.mode > 0 ? "ok" : "back")}.{u.go?.id ?? 0} < {pre}");
+			if (u.go != null && !uz.ContainsKey(u.go)) uz[u.go] = true;
+			if (u.next == null) return;
+			var i = ind + "  ";
+			foreach (var n in u.next.Distinct())
+				if (n != null)
+					if (n != u)
+						BootDump(n, i, string.Join(' ', u.next.Select((nn, b) => nn != n ? null : b >= 128 ? "\\U"
+							: b == ' ' ? "\\s" : b == '\t' ? "\\t" : b == '\n' ? "\\n" : b == '\r' ? "\\r"
+							: b > ' ' && b < 127 ? ((char)b).ToString() : $"\\x{b:x}").Where(x => x != null)), uz);
+					else
+						Console.WriteLine($"{i}+");
+			Go: if (us == null)
+				foreach (var go in uz)
+					if (go.Value) { BootDump(go.Key, ind, "", uz); goto Go; }
 		}
 	}
 
@@ -119,13 +229,14 @@ namespace qutum.parser
 		protected override void Error(K key, int step, byte b, int from, int to)
 			=> tokens.Add(new Token<K> { key = key, from = from, to = to, err = true, value = b });
 
-		protected override bool Token(K key, int step, int from, int to)
+		protected override void Token(K key, int step, int from, int to)
 		{
 			//TODO
-			return false;
 		}
 
-		public override bool Is(K key, object keyo) => tokens[loc].key.Equals(keyo);
+		static EqualityComparer<K> eq = EqualityComparer<K>.Default;
+
+		public override bool Is(K key) => eq.Equals(tokens[loc].key, key);
 
 		public override List<Token<K>> Tokens(int from, int to) => tokens.GetRange(from, to - from);
 	}

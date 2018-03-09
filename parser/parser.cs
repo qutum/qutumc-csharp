@@ -263,11 +263,11 @@ namespace qutum.parser
 			foreach (var kv in grammar) alt[kv.Key].s = kv.Value.Split("|").Select(con =>
 			{
 				var z = con.Replace('\x1', '|').Split(' ', StringSplitOptions.RemoveEmptyEntries);
-				var rs = z.Select(v => (v.Length > 1 && v[v.Length - 1] is char c ?
+				var qs = z.Select(v => (v.Length > 1 && v[v.Length - 1] is char c ?
 					c == '?' ? Opt : c == '*' ? Any : c == '+' ? More : One : One)).Append(One).ToArray();
-				var s = z.Select((v, x) => alt.TryGetValue(v = rs[x] == One ? v : v.Substring(0, v.Length - 1),
+				var s = z.Select((v, x) => alt.TryGetValue(v = qs[x] == One ? v : v.Substring(0, v.Length - 1),
 					out Earley<string, char, char, string>.Alt a) ? a : boot.scan.Keys(v).First()).Append(null).ToArray();
-				return new Earley<string, char, char, string>.Con { name = kv.Key, s = s, qs = rs };
+				return new Earley<string, char, char, string>.Con { name = kv.Key, s = s, qs = qs };
 			}).ToArray();
 			alt["hint"].s[0].greedy = 1;
 			foreach (var c in new[] { "prod", "alt", "name", "sym", "phint", "hintg", "hintk", "hintw", "hinte" }
@@ -295,8 +295,8 @@ namespace qutum.parser
 						(t => t.name == "sym" ? BootQua(gram, t.from) ?? scan.Keys(BootScan.Sym(gram, t.from, t.to))
 							: alt.TryGetValue(boot.Tokens(t), out Alt a) ? new object[] { a } : scan.Keys(t.tokens)
 						).Append(null).ToArray();
-					var rs = s.Select((v, x) => v == null || !(s[x + 1] is Qua r) ? One : r).Where((v, x) => !(s[x] is Qua));
-					return new Con { name = p.head.tokens, s = s.Where(v => !(v is Qua)).ToArray(), qs = rs.ToArray() };
+					var qs = s.Select((v, x) => v == null || !(s[x + 1] is Qua r) ? One : r).Where((v, x) => !(s[x] is Qua));
+					return new Con { name = p.head.tokens, s = s.Where(v => !(v is Qua)).ToArray(), qs = qs.ToArray() };
 				}).ToArray();
 				int tx = 0;
 				p.Where(t => t.name == "alt" || t.name == "phint").Select((a, x) =>
