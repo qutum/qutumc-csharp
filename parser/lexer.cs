@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 
 namespace qutum.parser
 {
@@ -58,16 +59,16 @@ namespace qutum.parser
 			Do: switch (u.mode)
 			{
 				case 0: u = u.go; --bt; goto Do;
-				case 1: Token(u.key, u.step, bf, bt); break;
-				default: Error(u.key, u.step, buf[bt & 15], bf, ++bt); break;
+				case 1: Token(u.key, u.step, u.go == start, bf, bt); break;
+				default: Error(u.key, u.step, u.go == start, buf[bt & 15], bf, ++bt); break;
 			}
 			if (u.go == start && loc < tokens.Count) return true;
 			u = u.go; goto Go;
 		}
 
-		protected abstract void Token(K key, int step, int from, int to);
+		protected abstract void Token(K key, int step, bool end, int from, int to);
 
-		protected abstract void Error(K key, int step, byte b, int from, int to);
+		protected abstract void Error(K key, int step, bool end, byte b, int from, int to);
 
 		public abstract bool Is(K key);
 
@@ -104,7 +105,7 @@ namespace qutum.parser
 				boot.scan.Unload(); boot.treeDump = true; boot.Parse(gram).Dump(); boot.treeDump = false;
 				var e = new Exception(); e.Data["err"] = top; throw e;
 			}
-			start = new Unit(this) { mode = -1 };
+			start = new Unit(this) { mode = -1 }; start.go = start;
 			foreach (var l in top)
 			{
 				var k = (K)Keys(boot.Tokens(l.head)).Single();
@@ -127,7 +128,7 @@ namespace qutum.parser
 						{
 							var x = b.from; var bs = b1;
 							if (gram[x] == '\\')
-								b1[0] = BootScan.Sym(gram, ref x, b.to, false)[0];
+								b1[0] = BootScan.Sym(gram, ref x, b.to, false)[0]; // TODO utf
 							else if (gram[x] == '[')
 							{
 								++x; bool ex = false;
@@ -211,6 +212,8 @@ namespace qutum.parser
 		public int from, to; // input loc
 		public bool err;
 		public object value;
+
+		public string Dump() => $"{key}{(err ? "!" : ":")} {value}";
 	}
 
 	// utf key: Utf, error key: Err
@@ -226,12 +229,25 @@ namespace qutum.parser
 
 		public override IEnumerable<object> Keys(string name) => new object[] { Enum.Parse<K>(name) };
 
-		protected override void Error(K key, int step, byte b, int from, int to)
-			=> tokens.Add(new Token<K> { key = key, from = from, to = to, err = true, value = b });
+		int from = -1;
 
-		protected override void Token(K key, int step, int from, int to)
+		protected override void Error(K key, int step, bool end, byte b, int f, int to)
 		{
-			//TODO
+			if (from < 0) from = f;
+			tokens.Add(new Token<K> { key = key, from = f, to = to, err = true, value = (char)b });
+			if (end) from = -1;
+		}
+
+		protected override void Token(K key, int step, bool end, int f, int to)
+		{
+			if (from < 0) from = f;
+			if (end)
+			{
+				var bs = new byte[to - from];
+				scan.Tokens(from, to, bs, 0);
+				tokens.Add(new Token<K> { key = key, from = from, to = to, value = Encoding.UTF8.GetString(bs) });
+				from = -1;
+			}
 		}
 
 		static EqualityComparer<K> eq = EqualityComparer<K>.Default;
