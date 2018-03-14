@@ -23,7 +23,7 @@ namespace qutum.parser
 		Unit start;
 		int id, bf, bt, bn;
 		internal Scan<IEnumerable<byte>, byte, byte, IEnumerable<byte>> scan;
-		internal byte[] buf = new byte[16];
+		internal byte[] bytes = new byte[16];
 		internal List<T> tokens = new List<T>();
 		internal int loc = -2;
 
@@ -47,10 +47,10 @@ namespace qutum.parser
 			var u = start;
 			Go: bf = bt;
 			Next: if (bt >= bn)
-				if (scan.Next()) buf[bn++ & 15] = scan.Token();
-				else if (u == start) return false;
+				if (scan.Next()) bytes[bn++ & 15] = scan.Token();
+				else if (u == start || bt > bn) return loc < tokens.Count;
 				else goto Do;
-			var b = buf[bt & 15];
+			var b = bytes[bt & 15];
 			if (u.next[b <= 0x7f ? b : b > 0xf7 ? 132 : b > 0xef ? 131 : b > 0xdf ? 130 : b > 0xbf ? 129 : 128] is Unit n)
 			{
 				u = n; ++bt;
@@ -60,7 +60,7 @@ namespace qutum.parser
 			{
 				case 0: u = u.go; --bt; goto Do;
 				case 1: Token(u.key, u.step, u.go == start, bf, bt); break;
-				default: Error(u.key, u.step, u.go == start, buf[bt & 15], bf, ++bt); break;
+				default: Error(u.key, u.step, u.go == start, bt < bn ? bytes[bt & 15] : (byte)0, bf, ++bt, bn); break;
 			}
 			if (u.go == start && loc < tokens.Count) return true;
 			u = u.go; goto Go;
@@ -68,7 +68,7 @@ namespace qutum.parser
 
 		protected abstract void Token(K key, int step, bool end, int from, int to);
 
-		protected abstract void Error(K key, int step, bool end, byte b, int from, int to);
+		protected abstract void Error(K key, int step, bool end, byte b, int from, int to, int eof);
 
 		public abstract bool Is(K key);
 
@@ -85,9 +85,10 @@ namespace qutum.parser
 			lexs  = eol+lex
 			lex   = name S*\=S*step steps* =+
 			step  = byte+alt* =+
-			steps = S+opt?rep?byte+alt* =+
 			alt   = \|byte+ =+
-			opt   = \? =+
+			steps = S+err?rep?byte+alts* =+
+			alts  = \|rep?byte+ =+
+			err   = \? =+
 			rep   = \+ =+
 			byte  = B\+? | [range*^?range+]\+? | \\E\+? =+
 			name  = W+ =+
@@ -109,21 +110,19 @@ namespace qutum.parser
 			foreach (var l in top)
 			{
 				var k = (K)Keys(boot.Tokens(l.head)).Single();
-				var ust = l.Select((z, x) => x < 2 ? start : new Unit(this) { key = k, step = x })
+				var ust = l.Select((z, x) => x < 2 ? start : new Unit(this) { key = k, step = x, mode = -1, go = start })
 					.Append(start).ToArray();
 				var step = 0; var b1 = new int[1];
 				foreach (var st in l.Skip(1))
 				{
 					++step;
-					foreach (var a in st.Where(t => t.name == "alt").Prepend(st))
+					foreach (var a in st.Where(t => t.name.StartsWith("alt")).Prepend(st))
 					{
-						var u = ust[step];
-						var opt = a.head.name == "opt" ? u : start;
+						var uu = ust[step]; var u = uu;
 						var rep = a.Any(t => t.name == "rep") ? u : ust[step + 1];
 						var ab = a.Where(t => t.name == "byte");
 						if (ab.Count() > 15) throw new Exception($"{k}.{step} exceeds 15 bytes");
-						if (step > 1)
-							BootMode(u, k, step, opt == start ? -1 : 1, opt == start ? opt : ust[step + 1]);
+						if (a.head.name == "err") u.go = u;
 						foreach (var b in ab)
 						{
 							var x = b.from; var bs = b1;
@@ -143,11 +142,11 @@ namespace qutum.parser
 							else
 								b1[0] = gram[x++];
 							var ok = b.next == null || b.next.name != "byte";
-							u = BootNext(u, bs, k, step, false);
+							var n = BootNext(u, bs, k, step, false);
 							if (x != b.to)
-								BootNext(u, bs, k, step, true);
-							BootMode(u, k, step, ok ? 1 : x != b.to ? -1 : 0, ok ? rep : x != b.to ? opt : u);
-							x = b.to;
+								BootNext(n, bs, k, step, true);
+							BootMode(n, k, step, ok ? 1 : x != b.to ? -1 : 0, ok ? rep : x != b.to ? uu.go : u);
+							u = n; x = b.to;
 						}
 					}
 				}
@@ -213,7 +212,7 @@ namespace qutum.parser
 		public bool err;
 		public object value;
 
-		public string Dump() => $"{key}{(err ? "!" : ":")} {value}";
+		public string Dump() => $"{key}{(err ? "!" : "=")}{value}";
 	}
 
 	// utf key: Utf, error key: Err
@@ -231,10 +230,10 @@ namespace qutum.parser
 
 		int from = -1;
 
-		protected override void Error(K key, int step, bool end, byte b, int f, int to)
+		protected override void Error(K key, int step, bool end, byte b, int f, int to, int eof)
 		{
 			if (from < 0) from = f;
-			tokens.Add(new Token<K> { key = key, from = f, to = to, err = true, value = (char)b });
+			tokens.Add(new Token<K> { key = key, from = f, to = to, err = true, value = to <= eof ? (char)b : (object)null });
 			if (end) from = -1;
 		}
 
