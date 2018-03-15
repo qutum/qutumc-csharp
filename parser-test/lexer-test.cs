@@ -14,9 +14,11 @@ namespace qutum.test
 
 		enum Tag { Utf = 1, A, B, BB, C, CC, D };
 
-		void Check(LexerEnum<Tag> l, string input, string s)
+		void Check(LexerEnum<Tag> l, string input, string s) => Check(l, Encoding.UTF8.GetBytes(input), s);
+
+		void Check(LexerEnum<Tag> l, byte[] input, string s)
 		{
-			l.Load(Encoding.UTF8.GetBytes(input));
+			l.Load(input);
 			while (l.Next()) ;
 			var z = string.Join(" ", l.Tokens(0, l.Loc()).Select(t => t.Dump()).ToArray());
 			Console.WriteLine(z);
@@ -205,6 +207,27 @@ namespace qutum.test
 		}
 
 		[TestMethod]
+		[ExpectedException(typeof(Exception))]
+		public void LexPlus4()
+		{
+			new LexerEnum<Tag>("A=b+b");
+		}
+
+		[TestMethod]
+		[ExpectedException(typeof(Exception))]
+		public void LexPlus5()
+		{
+			new LexerEnum<Tag>("A=b+c \n B=bb");
+		}
+
+		[TestMethod]
+		[ExpectedException(typeof(Exception))]
+		public void LexPlus6()
+		{
+			new LexerEnum<Tag>("A=bb \n B=b+");
+		}
+
+		[TestMethod]
 		public void LexStep1()
 		{
 			var l = new LexerEnum<Tag>("A=aa b c \n B=ab \n C=bc");
@@ -261,6 +284,52 @@ namespace qutum.test
 			Check(l, "abed", "A=abed"); Check(l, "abbed", "A=abbed");
 			Check(l, "aebed", "A!e A=aebed"); Check(l, "abbcbed", "A!c A=abbcbed");
 			Check(l, "acd", "A!d A!"); Check(l, "acbed", "A=acbed");
+		}
+
+		[TestMethod]
+		[ExpectedException(typeof(Exception))]
+		public void LexEsc1()
+		{
+			new LexerEnum<Tag>("A=[\\^]");
+		}
+
+		[TestMethod]
+		public void LexEsc2()
+		{
+			var l = new LexerEnum<Tag>("A=\\[\\]");
+			Check(l, "[]", "A=[]");
+		}
+
+		[TestMethod]
+		[ExpectedException(typeof(Exception))]
+		public void LexUtf1()
+		{
+			new LexerEnum<Tag>("A=[\\U]");
+		}
+
+		[TestMethod]
+		[ExpectedException(typeof(Exception))]
+		public void LexUtf2()
+		{
+			new LexerEnum<Tag>("A=\\U+ \n B=\\U\\U");
+		}
+
+		[TestMethod]
+		public void LexUtf3()
+		{
+			var l = new LexerEnum<Tag>("A=a\\U\\Uz \n B=a");
+			Check(l, "a你好za很好z", "A=a你好z A=a很好z");
+			Check(l, "a\x80\x100z", "A=a\x80\x100z");
+			Check(l, "a\u0080aa", "A!a B=a");
+		}
+
+		[TestMethod]
+		public void LexUtf4()
+		{
+			var l = new LexerEnum<Tag>("A=a\\U+z");
+			Check(l, "a好za大家都好z", "A=a好z A=a大家都好z");
+			var bs = Encoding.UTF8.GetBytes("a好"); bs[2] = 0;
+			Check(l, bs, "A!\0 0!\xbd");
 		}
 	}
 }

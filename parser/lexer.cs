@@ -51,7 +51,7 @@ namespace qutum.parser
 				else if (u == start || bt > bn) return loc < tokens.Count;
 				else goto Do;
 			var b = bytes[bt & 15];
-			if (u.next[b <= 0x7f ? b : b > 0xf7 ? 132 : b > 0xef ? 131 : b > 0xdf ? 130 : b > 0xbf ? 129 : 128] is Unit n)
+			if (u.next[b < 128 ? b : b > 0xf7 ? 132 : b > 0xef ? 131 : b > 0xdf ? 130 : b > 0xbf ? 129 : 128] is Unit n)
 			{
 				u = n; ++bt;
 				if (u.next != null) goto Next;
@@ -127,7 +127,7 @@ namespace qutum.parser
 						{
 							var x = b.from; var bs = b1;
 							if (gram[x] == '\\')
-								b1[0] = BootScan.Sym(gram, ref x, b.to, false)[0]; // TODO utf
+								b1[0] = BootScan.Sym(gram, ref x, b.to, false)[0];
 							else if (gram[x] == '[')
 							{
 								++x; bool ex = false;
@@ -141,11 +141,11 @@ namespace qutum.parser
 							}
 							else
 								b1[0] = gram[x++];
-							var ok = b.next == null || b.next.name != "byte";
-							var n = BootNext(u, bs, k, step, false);
+							var ok = b.next == null || b.next.name != "byte"; var err = x != b.to || bs[0] > 127;
+							var n = BootNext(u, bs, k, step, uu.go);
 							if (x != b.to)
-								BootNext(n, bs, k, step, true);
-							BootMode(n, k, step, ok ? 1 : x != b.to ? -1 : 0, ok ? rep : x != b.to ? uu.go : u);
+								BootNext(n, bs, k, step, uu.go, u);
+							BootMode(n, k, step, ok ? 1 : err ? -1 : 0, ok ? rep : err ? uu.go : u);
 							u = n; x = b.to;
 						}
 					}
@@ -154,23 +154,45 @@ namespace qutum.parser
 			if (boot.treeDump) BootDump(start, "", "");
 		}
 
-		Unit BootNext(Unit u, int[] s, K key, int step, bool qua)
+		Unit BootNext(Unit u, int[] s, K key, int step, Unit err, Unit qua = null)
 		{
 			if (s.Length == 0) return null;
 			if (u.next == null)
 				u.next = new Unit[133];
+			if (s[0] > 127) return BootNextU(u, key, step, err, qua);
 			var ns = s.Select(b => u.next[b]).Distinct();
 			if (ns.Count() > 1)
 				throw new Exception($"Prefix of {key}.{step} and {u.key}.{u.step} must be same or distinct");
 			var n = ns.FirstOrDefault();
 			if (n != null)
-				return n.pren == s.Length ? qua == (u.next[s[0]] == u) ? n :
-					throw new Exception($"{key}.{step} and {u.key}.{u.step} conflict") :
-					throw new Exception($"Prefix of {key}.{step} and {u.key}.{u.step} must be same or distinct");
-			n = qua ? u : new Unit(this) { pren = s.Length };
+				return n.pren == s.Length ? qua != null == (n == u) ? n
+					: throw new Exception($"{key}.{step} and {u.key}.{u.step} conflict")
+					: throw new Exception($"Prefix of {key}.{step} and {u.key}.{u.step} must be same or distinct");
+			n = qua?.next[s[0]] ?? new Unit(this) { pren = s.Length };
 			foreach (var b in s)
 				u.next[b] = n;
 			return n;
+		}
+
+		Unit BootNextU(Unit u, K key, int step, Unit err, Unit qua)
+		{
+			var n = u.next[129]?.next[128];
+			if (n != null)
+				return qua != null == (n == u) ? n : throw new Exception($"{key}.{step} and {u.key}.{u.step} conflict");
+			if (qua != null)
+			{ u.next[129] = qua.next[129]; u.next[130] = qua.next[130]; u.next[131] = qua.next[131]; }
+			else
+			{
+				u.next[129] = new Unit(this) { pren = 1, key = key, step = step, mode = -1, go = err, next = new Unit[133] };
+				u.next[130] = new Unit(this) { pren = 1, key = key, step = step, mode = -1, go = err, next = new Unit[133] };
+				u.next[131] = new Unit(this) { pren = 1, key = key, step = step, mode = -1, go = err, next = new Unit[133] };
+				var u130a = new Unit(this) { pren = 1, key = key, step = step, mode = -1, go = err, next = new Unit[133] };
+				var u131a = new Unit(this) { pren = 1, key = key, step = step, mode = -1, go = err, next = new Unit[133] };
+				var u131b = new Unit(this) { pren = 1, key = key, step = step, mode = -1, go = err, next = new Unit[133] };
+				u.next[129].next[128] = (u.next[130].next[128] = u130a).next[128]
+				= ((u.next[131].next[128] = u131a).next[128] = u131b).next[128] = new Unit(this) { pren = 1 };
+			}
+			return u.next[129].next[128];
 		}
 
 		Unit BootMode(Unit u, K key, int step, int mode, Unit go)
@@ -215,20 +237,14 @@ namespace qutum.parser
 		public string Dump() => $"{key}{(err ? "!" : "=")}{value}";
 	}
 
-	// utf key: Utf, error key: Err
 	public class LexerEnum<K> : Lexer<K, Token<K>, List<Token<K>>> where K : struct
 	{
-		K kutf;
-
 		public LexerEnum(string grammar, Scan<IEnumerable<byte>, byte, byte, IEnumerable<byte>> scan = null)
-			: base(grammar, scan ?? new ScanByte())
-		{
-			kutf = (K)Keys("Utf").First();
-		}
+			: base(grammar, scan ?? new ScanByte()) { }
 
 		public override IEnumerable<object> Keys(string name) => new object[] { Enum.Parse<K>(name) };
 
-		int from = -1;
+		protected int from = -1;
 
 		protected override void Error(K key, int step, bool end, byte b, int f, int to, int eof)
 		{
@@ -249,9 +265,9 @@ namespace qutum.parser
 			}
 		}
 
-		static EqualityComparer<K> eq = EqualityComparer<K>.Default;
+		protected static EqualityComparer<K> Eq = EqualityComparer<K>.Default;
 
-		public override bool Is(K key) => eq.Equals(tokens[loc].key, key);
+		public override bool Is(K key) => Eq.Equals(tokens[loc].key, key);
 
 		public override List<Token<K>> Tokens(int from, int to) => tokens.GetRange(from, to - from);
 	}

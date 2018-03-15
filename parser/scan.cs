@@ -233,10 +233,10 @@ namespace qutum.parser
 				case 't': return "\t";
 				case 'n': return "\n";
 				case 'r': return "\r";
+				case 'U': return u ? "U" : "\x81";
 				case 'u':
-					if (!u) return "\x80";
-					return ((char)(s[f] - (s[f++] < 'a' ? '0' : 87) << 12 | s[f] - (s[f++] < 'a' ? '0' : 87) << 8
-					| s[f] - (s[f++] < 'a' ? '0' : 87) << 4 | s[f] - (s[f++] < 'a' ? '0' : 87))).ToString();
+					return u ? ((char)(s[f] - (s[f++] < 'a' ? '0' : 87) << 12 | s[f] - (s[f++] < 'a' ? '0' : 87) << 8
+						| s[f] - (s[f++] < 'a' ? '0' : 87) << 4 | s[f] - (s[f++] < 'a' ? '0' : 87))).ToString() : "u";
 				default: return s[f - 1].ToString();
 			}
 		}
