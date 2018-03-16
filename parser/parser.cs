@@ -62,7 +62,7 @@ namespace qutum.parser
 		internal Scan<I, K, T, S> scan;
 		internal int largest, largestLoc, total;
 		internal bool greedy = false; // S=AB A=1|12 B=23|2  gready: (12)3  back greedy: 1(23)
-		internal bool recovery = true;
+		internal int recovery = 10; // no recovery: 0, how many times to recover at eof: > 0
 		internal bool treeKeep = true;
 		internal bool treeDump = false;
 
@@ -98,13 +98,13 @@ namespace qutum.parser
 			if (input != null) scan.Load(input);
 			bool gre = greedy; greedy = false;
 			Tree<S> recos = null;
-			int m = Parsing(ref recos, false);
+			int m = Parsing(ref recos, 0);
 			greedy = gre; matchs.Clear(); locs.Clear();
 			if (input != null) scan.Unload();
 			return m >= 0;
 		}
 
-		int Parsing(ref Tree<S> recos, bool reco)
+		int Parsing(ref Tree<S> recos, int reco)
 		{
 			locs.Add(loc = 0);
 			foreach (var x in start.s)
@@ -130,17 +130,18 @@ namespace qutum.parser
 				if (m.con.name == start.name && m.from == 0 && m.con.s[m.step] == null)
 					return x;
 			}
-			if (recok.Length > 0 && reco)
+			if (recok.Length > 0 && reco > 0)
 			{
 				if (recos == null) recos = new Tree<S> { name = "", from = 0, to = 0, err = 1 };
 				recos.Add(Rejected());
-				for (reco = shift == 0; reco;)
+				if (shift == 0)
 				{
-					if (Recovery(false)) goto Loop;
-					if (scan.Next()) { locs.Add(matchs.Count); ++loc; }
-					else reco = false;
+					Reco: if (Recover(false)) goto Loop;
+					if (!scan.Next()) goto Eof;
+					locs.Add(matchs.Count); ++loc; goto Reco;
 				}
-				if (Recovery(true)) goto Loop;
+				Eof: reco--;
+				if (Recover(true)) goto Loop;
 			}
 			recos = null;
 			return -1;
@@ -217,7 +218,7 @@ namespace qutum.parser
 				matchs.Add(a); // prev and tail kept
 		}
 
-		bool Recovery(bool eof)
+		bool Recover(bool eof)
 		{
 			for (int r = 0; r < recok.Length; r++)
 				if (eof || scan.Is(recok[r]))

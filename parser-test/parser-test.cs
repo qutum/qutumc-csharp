@@ -360,5 +360,33 @@ namespace qutum.test
 			AreEqual("M", r.head.head.name); AreEqual(2, r.head.head.err);
 			IsNull(r.head.next);
 		}
+
+		[TestMethod]
+		public void Recovery5()
+		{
+			var p = new ParserStr("|=)}\n P=S+ \n S={A}|{S+} \n A=V|A\\+V \n V=(A)|N \n N=0|1|2|3|4|5")
+			{ treeDump = true };
+			Tree<string> r;
+			var t = p.Parse("{()", out r).Dump(); r.Dump();
+			AreEqual(0, t.head.err); AreEqual(1, t.head.head.from); IsTrue(t.head.head.head.head.err > 0);
+			AreEqual(2, r.head.from); AreEqual("V", r.head.head.name); AreEqual(1, r.head.head.err);
+			AreEqual(3, r.tail.from); AreEqual("S", r.tail.head.name); AreEqual(2, r.tail.head.err);
+			p.recovery = 1;
+			t = p.Parse("{{", out r).Dump(); IsNull(r);
+			p.recovery = 3;
+			t = p.Parse("{{0}{", out r).Dump(); r.Dump();
+			AreEqual(0, t.head.head.err); AreEqual(1, t.head.head.from); AreEqual(4, t.head.head.to);
+			AreEqual(0, t.head.head.next.err); AreEqual(5, t.head.head.next.to);
+			IsTrue(t.head.tail.err > 0); AreEqual(5, t.head.tail.to);
+			AreEqual(4, r.head.tail.from); AreEqual("S", r.head.tail.name); AreEqual(1, r.head.tail.err);
+			AreEqual(0, r.tail.tail.prev.from); AreEqual(2, r.tail.tail.prev.err);
+			t = p.Parse("{{0}}}{1}", out r).Dump(); r.Dump();
+			AreEqual(0, t.head.err); AreEqual(6, t.head.to);
+			AreEqual(1, t.head.head.from); AreEqual(4, t.head.head.to);
+			IsTrue(t.head.tail.err > 0); AreEqual(6, t.head.tail.to);
+			AreEqual(0, t.tail.err); AreEqual(6, t.tail.from); AreEqual(9, t.tail.to);
+			AreEqual(5, r.head.from); AreEqual(6, r.head.to);
+			IsNull(r.head.head); IsNull(r.head.next);
+		}
 	}
 }
