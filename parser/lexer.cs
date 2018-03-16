@@ -72,6 +72,8 @@ namespace qutum.parser
 
 		public abstract bool Is(K key);
 
+		public abstract bool Is(K key1, K key);
+
 		public int Loc() => loc;
 
 		public T Token() => tokens[loc];
@@ -268,6 +270,8 @@ namespace qutum.parser
 		protected static EqualityComparer<K> Eq = EqualityComparer<K>.Default;
 
 		public override bool Is(K key) => Eq.Equals(tokens[loc].key, key);
+
+		public override bool Is(K key1, K key) => Eq.Equals(key1, key);
 
 		public override List<Token<K>> Tokens(int from, int to) => tokens.GetRange(from, to - from);
 	}

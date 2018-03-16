@@ -1,5 +1,6 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using qutum.parser;
+using System.Collections.Generic;
 using static Microsoft.VisualStudio.TestTools.UnitTesting.Assert;
 
 namespace qutum.test
@@ -48,9 +49,9 @@ namespace qutum.test
 		public void ErrHint()
 		{
 			var p = new ParserStr("S=A B =start \n A=1|2 =A12 ==oh||no\n |3 =A3 \n B= =empty \n |4 =B4") { treeDump = true };
-			IsNull(p.Parse("").head);
-			IsNull(p.Parse("4").head);
-			AreEqual("empty", p.Parse("15").head.expect);
+			IsNull(p.Parse("").Dump().head);
+			IsNull(p.Parse("4").Dump().head);
+			AreEqual("empty", p.Parse("15").Dump().head.expect);
 		}
 
 		[TestMethod]
@@ -157,6 +158,9 @@ namespace qutum.test
 			AreEqual("Num", t.tail.name); AreEqual(6, t.tail.to); AreEqual(1, t.tail.err);
 			t = p.Parse("(1*2+)").Dump();
 			AreEqual("Expr", t.head.name); AreEqual(5, t.head.to); AreEqual(2, t.head.err);
+			IsNull(t.head.next);
+			t = p.Parse("()").Dump();
+			AreEqual("Value", t.head.name); AreEqual(1, t.head.to); AreEqual(1, t.head.err);
 			IsNull(t.head.next);
 		}
 
@@ -283,6 +287,78 @@ namespace qutum.test
 			p.treeKeep = false;
 			t = p.Parse("111").Dump();
 			AreEqual("A", t.head.name); AreEqual(null, t.head.next);
+		}
+
+		[TestMethod]
+		public void Recovery1()
+		{
+			var p = new ParserStr("|=,\n S=A|S,A? \n A=M|A\\+M \n M=V|M\\*V \n V=0|1|2|3|4|5") { treeDump = true };
+			Tree<string> r;
+			var t = p.Parse("0", out r).Dump(); AreEqual(0, t.err);
+			t = p.Parse("0+", out r).Dump(); r.Dump();
+			AreEqual(0, t.head.err); AreEqual("S", t.head.name); AreEqual("A", t.head.head.name);
+			IsTrue(t.tail.err > 0); IsNull(r.head.next);
+			AreEqual(2, r.head.head.err); AreEqual("A", r.head.head.name); AreEqual("M", r.head.head.expect);
+			t = p.Parse("0*", out r).Dump(); r.Dump();
+			AreEqual(0, t.head.err); AreEqual("S", t.head.name); AreEqual("A", t.head.head.name);
+			IsTrue(t.tail.err > 0); IsNull(r.head.next);
+			AreEqual(2, r.head.head.err); AreEqual("M", r.head.head.name); AreEqual("V", r.head.head.expect);
+		}
+
+		[TestMethod]
+		public void Recovery2()
+		{
+			var p = new ParserStr("|=,\n S=A|S,A? \n A=M|A\\+M \n M=V|M\\*V \n V=0|1|2|3|4|5") { treeDump = true };
+			Tree<string> r;
+			var t = p.Parse("+", out r).Dump();
+			IsTrue(t.err > 0); IsNull(r);
+			t = p.Parse("+0", out r).Dump();
+			IsTrue(t.err > 0); IsNull(r);
+			t = p.Parse("0#", out r).Dump(); r.Dump();
+			AreEqual(0, t.head.err); AreEqual("S", t.head.name); AreEqual("A", t.head.head.name);
+			IsTrue(t.tail.err > 0); IsNull(r.head.next);
+			AreEqual("M", r.head.head.name); AreEqual('*', r.head.head.expect);
+			t = p.Parse("0+1*2+", out r).Dump(); r.Dump();
+			AreEqual(0, t.head.err); AreEqual("S", t.head.name); AreEqual(5, t.head.head.to);
+			IsTrue(t.tail.err > 0); IsNull(r.head.next);
+			AreEqual("A", r.head.head.name); AreEqual("M", r.head.head.expect);
+		}
+
+		[TestMethod]
+		public void Recovery3()
+		{
+			var p = new ParserStr("|=,\n S=A|S,A? \n A=M|A\\+M \n M=V|M\\*V \n V=0|1|2|3|4|5") { treeDump = true };
+			Tree<string> r;
+			var t = p.Parse("0+1*2+,1", out r).Dump(); r.Dump();
+			AreEqual(0, t.head.err); AreEqual("S", t.head.name); AreEqual(5, t.head.head.to);
+			IsTrue(t.head.next.err > 0); AreEqual(7, t.head.next.to); AreEqual(0, t.tail.err);
+			AreEqual("A", r.head.head.name); AreEqual("M", r.head.head.expect); AreEqual(6, r.head.head.to);
+		}
+
+		[TestMethod]
+		public void Recovery4()
+		{
+			var p = new ParserStr("|=),\n S=A|S,A? \n A=M|A\\+M \n M=V|M\\*V \n V=(A)|N \n N=0|1|2|3|4|5")
+			{ treeDump = true };
+			Tree<string> r;
+			var t = p.Parse("()", out r).Dump(); r.Dump();
+			AreEqual(0, t.head.err); AreEqual("A", t.head.name); IsTrue(t.head.head.head.head.err > 0);
+			AreEqual(1, r.head.from); AreEqual("V", r.head.head.name); AreEqual(1, r.head.head.err);
+			IsNull(r.head.next);
+			t = p.Parse("0+(),1", out r).Dump(); r.Dump();
+			AreEqual(0, t.head.head.head.err); AreEqual(1, t.head.head.head.to);
+			AreEqual(0, t.head.head.tail.err); AreEqual(4, t.head.head.tail.to);
+			IsTrue(t.head.head.tail.head.head.err > 0); AreEqual(4, t.head.head.tail.head.head.to);
+			AreEqual(3, r.head.from); AreEqual("V", r.head.head.name); AreEqual(1, r.head.head.err);
+			IsNull(r.head.next);
+			t = p.Parse("0,1+(1*),2+3", out r).Dump(); r.Dump();
+			AreEqual(8, t.head.to); AreEqual(2, t.head.tail.from); AreEqual(8, t.head.tail.tail.to);
+			AreEqual(0, t.head.tail.tail.head.head.err); AreEqual(6, t.head.tail.tail.head.head.to);
+			IsTrue(t.head.tail.tail.head.tail.err > 0);
+			AreEqual(9, t.tail.from); AreEqual(12, t.tail.tail.to);
+			AreEqual(7, r.head.from); AreEqual(7, r.head.head.to);
+			AreEqual("M", r.head.head.name); AreEqual(2, r.head.head.err);
+			IsNull(r.head.next);
 		}
 	}
 }

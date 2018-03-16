@@ -19,6 +19,7 @@ namespace qutum.parser
 		void Load(I input);
 		bool Next();
 		bool Is(K key);
+		bool Is(K key1, K key);
 		int Loc();
 		T Token();
 		S Tokens(int from, int to);
@@ -38,6 +39,8 @@ namespace qutum.parser
 		public bool Next() => ++loc < input.Length;
 
 		public virtual bool Is(char key) => input[loc] == key;
+
+		public virtual bool Is(char key1, char key) => key1 == key;
 
 		public int Loc() => loc;
 
@@ -63,6 +66,8 @@ namespace qutum.parser
 		public bool Next() { loc++; return iter.MoveNext(); }
 
 		public virtual bool Is(byte key) => iter.Current == key;
+
+		public virtual bool Is(byte key1, byte key) => key1 == key;
 
 		public int Loc() => loc;
 
