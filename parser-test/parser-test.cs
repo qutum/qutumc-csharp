@@ -1,9 +1,15 @@
+//
+// Qutum 10 Compiler
+// Copyright 2008-2018 Qianyan Cai
+// Under the terms of the GNU General Public License version 3
+// http://qutum.com
+//
+
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using qutum.parser;
-using System.Collections.Generic;
 using static Microsoft.VisualStudio.TestTools.UnitTesting.Assert;
 
-namespace qutum.test
+namespace qutum.test.parser
 {
 	[TestClass]
 	public class TestParser
