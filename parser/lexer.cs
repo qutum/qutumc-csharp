@@ -94,7 +94,7 @@ namespace qutum.parser
 			rep   = \+ =+
 			byte  = B\+? | [range*^?range+]\+? | \\E\+? =+
 			name  = W+ =+
-			range = R|R-R =+
+			range = R|R-R|\\E =+
 			eol   = S*\r?\nS*", new BootScan()) { greedy = false, treeKeep = false, treeDump = false };
 
 		static IEnumerable<int> bootRange = Enumerable.Range(32, 127 - 32).Concat(new int[] { '\t', '\n', '\r' }).ToArray();
@@ -129,15 +129,17 @@ namespace qutum.parser
 						{
 							var x = b.from; var bs = b1;
 							if (gram[x] == '\\')
-								b1[0] = BootScan.Sym(gram, ref x, b.to, false)[0];
+								b1[0] = BootScan.Sym(gram, ref x, b.to, -1)[0];
 							else if (gram[x] == '[')
 							{
 								++x; bool ex = false;
-								bs = b.Aggregate(x != b.head.from ? bootRange : Array.Empty<int>(),
-									(s, p) => (ex |= x != p.from) ?
-									s.Except(Enumerable.Range(gram[p.from], gram[(x = p.to) - 1] - gram[p.from] + 1))
-									: s.Union(Enumerable.Range(gram[p.from], gram[(x = p.to) - 1] - gram[p.from] + 1))
-								).Distinct().ToArray();
+								bs = b.Aggregate(x != b.head.from ? bootRange : Array.Empty<int>(), (s, r) =>
+								{
+									ex |= x != (x = r.from);
+									var e = gram[x] == '\\' ? new int[] { BootScan.Sym(gram, ref x, r.to, 0)[0] }
+										: Enumerable.Range(gram[x], 1 - gram[x] + gram[(x = r.to) - 1]);
+									return ex ? s.Except(e) : s.Union(e);
+								}).Distinct().ToArray();
 								if (bs.Length == 0) throw new Exception($"No byte in {k}.{step}");
 								++x;
 							}

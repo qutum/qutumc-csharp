@@ -229,7 +229,7 @@ namespace qutum.parser
 
 		internal static string Sym(string s, int f, int t) => Sym(s, ref f, t);
 
-		internal static string Sym(string s, ref int f, int t, bool u = true)
+		internal static string Sym(string s, ref int f, int t, int u = 1)
 		{
 			if (s[f++] != '\\') return s.Substring(f - 1, t - f + 1);
 			switch (s[f++])
@@ -238,9 +238,9 @@ namespace qutum.parser
 				case 't': return "\t";
 				case 'n': return "\n";
 				case 'r': return "\r";
-				case 'U': return u ? "U" : "\x81";
+				case 'U': return u < 0 ? "\x81" : "U";
 				case 'u':
-					return u ? ((char)(s[f] - (s[f++] < 'a' ? '0' : 87) << 12 | s[f] - (s[f++] < 'a' ? '0' : 87) << 8
+					return u > 0 ? ((char)(s[f] - (s[f++] < 'a' ? '0' : 87) << 12 | s[f] - (s[f++] < 'a' ? '0' : 87) << 8
 						| s[f] - (s[f++] < 'a' ? '0' : 87) << 4 | s[f] - (s[f++] < 'a' ? '0' : 87))).ToString() : "u";
 				default: return s[f - 1].ToString();
 			}

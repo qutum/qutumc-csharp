@@ -12,7 +12,7 @@ namespace qutum.test
 	{
 		public TestLexer() { DebugWriter.ConsoleBegin(); }
 
-		enum Tag { Utf = 1, A, B, BB, C, CC, D };
+		enum Tag { A = 1, B, BB, C, CC, D };
 
 		void Check(LexerEnum<Tag> l, string input, string s) => Check(l, Encoding.UTF8.GetBytes(input), s);
 
@@ -287,16 +287,17 @@ namespace qutum.test
 		}
 
 		[TestMethod]
-		[ExpectedException(typeof(Exception))]
 		public void LexEsc1()
 		{
-			new LexerEnum<Tag>("A=[\\^]");
+			var l = new LexerEnum<Tag>(@"A=[\^\-\[\]\\\U]");
+			Check(l, "^", "A=^"); Check(l, "-", "A=-"); Check(l, "[", "A=["); Check(l, "]", "A=]");
+			Check(l, "\\", "A=\\"); Check(l, "U", "A=U");
 		}
 
 		[TestMethod]
 		public void LexEsc2()
 		{
-			var l = new LexerEnum<Tag>("A=\\[\\]");
+			var l = new LexerEnum<Tag>(@"A=\[\]");
 			Check(l, "[]", "A=[]");
 		}
 
@@ -304,18 +305,11 @@ namespace qutum.test
 		[ExpectedException(typeof(Exception))]
 		public void LexUtf1()
 		{
-			new LexerEnum<Tag>("A=[\\U]");
-		}
-
-		[TestMethod]
-		[ExpectedException(typeof(Exception))]
-		public void LexUtf2()
-		{
 			new LexerEnum<Tag>("A=\\U+ \n B=\\U\\U");
 		}
 
 		[TestMethod]
-		public void LexUtf3()
+		public void LexUtf2()
 		{
 			var l = new LexerEnum<Tag>("A=a\\U\\Uz \n B=a");
 			Check(l, "a你好za很好z", "A=a你好z A=a很好z");
@@ -324,7 +318,7 @@ namespace qutum.test
 		}
 
 		[TestMethod]
-		public void LexUtf4()
+		public void LexUtf3()
 		{
 			var l = new LexerEnum<Tag>("A=a\\U+z");
 			Check(l, "a好za大家都好z", "A=a好z A=a大家都好z");
