@@ -23,7 +23,7 @@ namespace qutum.parser
 		Unit start;
 		int id, bf, bt, bn;
 		internal Scan<IEnumerable<byte>, byte, byte, IEnumerable<byte>> scan;
-		internal byte[] bytes = new byte[16];
+		internal byte[] bytes = new byte[17];
 		internal List<T> tokens = new List<T>();
 		internal int loc = -2;
 
@@ -60,7 +60,7 @@ namespace qutum.parser
 			{
 				case 0: u = u.go; --bt; goto Do;
 				case 1: Token(u.key, u.step, u.go == start, bf, bt); break;
-				default: Error(u.key, u.step, u.go == start, bt < bn ? bytes[bt & 15] : (byte)0, bf, ++bt, bn); break;
+				default: Error(u.key, u.step, u.go == start || bt >= bn, bytes[bt < bn ? bt & 15 : 16], bf, ++bt, bn); break;
 			}
 			if (u.go == start && loc < tokens.Count) return true;
 			u = u.go; goto Go;
@@ -253,7 +253,7 @@ namespace qutum.parser
 		protected override void Error(K key, int step, bool end, byte b, int f, int to, int eof)
 		{
 			if (from < 0) from = f;
-			tokens.Add(new Token<K> { key = key, from = f, to = to, err = true, value = to <= eof ? (char)b : (object)null });
+			Add(key, f, to, to <= eof ? (char)b : (object)null, true);
 			if (end) from = -1;
 		}
 
@@ -264,10 +264,13 @@ namespace qutum.parser
 			{
 				var bs = new byte[to - from];
 				scan.Tokens(from, to, bs, 0);
-				tokens.Add(new Token<K> { key = key, from = from, to = to, value = Encoding.UTF8.GetString(bs) });
+				Add(key, from, to, Encoding.UTF8.GetString(bs));
 				from = -1;
 			}
 		}
+
+		protected void Add(K key, int f, int to, object value, bool err = false)
+			=> tokens.Add(new Token<K> { key = key, from = f, to = to, value = value, err = err });
 
 		protected static EqualityComparer<K> Eq = EqualityComparer<K>.Default;
 

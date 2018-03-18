@@ -154,12 +154,12 @@ namespace qutum.test.parser
 			IsNull(t.head.next);
 			t = p.Parse("(1+2*3))*4").Dump();
 			AreEqual("Mul", t.head.name); AreEqual(7, t.head.to); AreEqual(1, t.head.err);
-			AreEqual(t.tail, t.head.next);
+			AreSame(t.tail, t.head.next);
 			AreEqual("Expr", t.tail.name); AreEqual(7, t.tail.to); AreEqual(1, t.tail.err);
 			t = p.Parse("(1*2+3").Dump();
 			AreEqual("Mul", t.head.name); AreEqual(6, t.head.to); AreEqual(1, t.head.err);
 			AreEqual("Value", t.head.next.name); AreEqual(6, t.head.next.to); AreEqual(2, t.head.next.err);
-			AreEqual(t.tail.prev, t.head.next.next);
+			AreSame(t.tail.prev, t.head.next.next);
 			AreEqual("Expr", t.tail.prev.name); AreEqual(6, t.tail.prev.to); AreEqual(1, t.tail.prev.err);
 			AreEqual("Num", t.tail.name); AreEqual(6, t.tail.to); AreEqual(1, t.tail.err);
 			t = p.Parse("(1*2+)").Dump();
