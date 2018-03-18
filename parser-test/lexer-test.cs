@@ -116,9 +116,9 @@ namespace qutum.test.parser
 		[TestMethod]
 		public void LexRange3()
 		{
-			var l = new LexerEnum<Tag>("A=[^ab]c");
+			var l = new LexerEnum<Tag>("A=[^abAB]c \n B=[AB][]");
 			Check(l, "ac", "0!a 0!c"); Check(l, "bc", "0!b 0!c");
-			Check(l, "cccc", "A=cc A=cc"); Check(l, "\nc", "A=\nc");
+			Check(l, "cccc", "A=cc A=cc"); Check(l, "\nc", "A=\nc"); Check(l, "A~", "B=A~");
 			Check(l, "acc", "0!a A=cc");
 		}
 

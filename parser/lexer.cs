@@ -56,17 +56,18 @@ namespace qutum.parser
 				u = n; ++bt;
 				if (u.next != null) goto Next;
 			}
-			Do: switch (u.mode)
+			Do: n = u.go;
+			switch (u.mode)
 			{
-				case 0: u = u.go; --bt; goto Do;
-				case 1: Token(u.key, u.step, u.go == start, bf, bt); break;
-				default: Error(u.key, u.step, u.go == start || bt >= bn, bytes[bt < bn ? bt & 15 : 16], bf, ++bt, bn); break;
+				case 0: u = n; --bt; goto Do;
+				case 1: var e = n == start; Token(u.key, u.step, ref e, bf, bt); if (e) n = start; break;
+				default: Error(u.key, u.step, n == start || bt >= bn, bytes[bt < bn ? bt & 15 : 16], bf, ++bt, bn); break;
 			}
-			if (u.go == start && loc < tokens.Count) return true;
-			u = u.go; goto Go;
+			if (n == start && loc < tokens.Count) return true;
+			u = n; goto Go;
 		}
 
-		protected abstract void Token(K key, int step, bool end, int from, int to);
+		protected abstract void Token(K key, int step, ref bool end, int from, int to);
 
 		protected abstract void Error(K key, int step, bool end, byte b, int from, int to, int eof);
 
@@ -92,7 +93,7 @@ namespace qutum.parser
 			alts  = \|rep?byte+ =+
 			err   = \? =+
 			rep   = \+ =+
-			byte  = B\+? | [range*^?range+]\+? | \\E\+? =+
+			byte  = B\+? | [range*^?range*]\+? | \\E\+? =+
 			name  = W+ =+
 			range = R|R-R|\\E =+
 			eol   = S*\r?\nS*", new BootScan()) { greedy = false, treeKeep = false, treeDump = false };
@@ -133,7 +134,7 @@ namespace qutum.parser
 							else if (gram[x] == '[')
 							{
 								++x; bool ex = false;
-								bs = b.Aggregate(x != b.head.from ? bootRange : Array.Empty<int>(), (s, r) =>
+								bs = b.Aggregate(x != (b.head?.from ?? -1) ? bootRange : Array.Empty<int>(), (s, r) =>
 								{
 									ex |= x != (x = r.from);
 									var e = gram[x] == '\\' ? new int[] { BootScan.Sym(gram, ref x, r.to, 0)[0] }
@@ -250,14 +251,7 @@ namespace qutum.parser
 
 		protected int from = -1;
 
-		protected override void Error(K key, int step, bool end, byte b, int f, int to, int eof)
-		{
-			if (from < 0) from = f;
-			Add(key, f, to, to <= eof ? (char)b : (object)null, true);
-			if (end) from = -1;
-		}
-
-		protected override void Token(K key, int step, bool end, int f, int to)
+		protected override void Token(K key, int step, ref bool end, int f, int to)
 		{
 			if (from < 0) from = f;
 			if (end)
@@ -267,6 +261,13 @@ namespace qutum.parser
 				Add(key, from, to, Encoding.UTF8.GetString(bs));
 				from = -1;
 			}
+		}
+
+		protected override void Error(K key, int step, bool end, byte b, int f, int to, int eof)
+		{
+			if (from < 0) from = f;
+			Add(key, f, to, to <= eof ? (char)b : (object)null, true);
+			if (end) from = -1;
 		}
 
 		protected void Add(K key, int f, int to, object value, bool err = false)
