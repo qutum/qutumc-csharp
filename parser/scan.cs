@@ -23,7 +23,7 @@ namespace qutum.parser
 		int Loc();
 		T Token();
 		S Tokens(int from, int to);
-		void Tokens(int from, int to, T[] array, int ax);
+		T[] Tokens(int from, int to, T[] array, int index = 0);
 		void Unload();
 	}
 
@@ -48,7 +48,7 @@ namespace qutum.parser
 
 		public string Tokens(int from, int to) => input.Substring(from, to - from);
 
-		public void Tokens(int from, int to, char[] array, int ax) => input.CopyTo(from, array, ax, to - from);
+		public char[] Tokens(int from, int to, char[] s, int x) { input.CopyTo(from, s, x, to - from); return s; }
 
 		public void Unload() => input = null;
 	}
@@ -80,11 +80,12 @@ namespace qutum.parser
 			return input.Skip(from).Take(to - from);
 		}
 
-		public void Tokens(int from, int to, byte[] array, int ax)
+		public byte[] Tokens(int from, int to, byte[] bs, int x)
 		{
-			if (input is List<byte> s) s.CopyTo(from, array, ax, to - from);
-			else if (input is byte[] a) Array.Copy(a, from, array, ax, to - from);
-			else foreach (var v in input.Skip(from).Take(to - from)) array[ax++] = v;
+			if (input is List<byte> s) s.CopyTo(from, bs, x, to - from);
+			else if (input is byte[] a) Array.Copy(a, from, bs, x, to - from);
+			else foreach (var v in input.Skip(from).Take(to - from)) bs[x++] = v;
+			return bs;
 		}
 
 		public void Unload() { input = null; iter = null; }

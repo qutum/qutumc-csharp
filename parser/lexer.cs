@@ -5,6 +5,56 @@ using System.Text;
 
 namespace qutum.parser
 {
+	public struct Token<K> where K : struct
+	{
+		public K key;
+		public int from, to; // input loc
+		public bool err;
+		public object value;
+
+		public string Dump() => $"{key}{(err ? "!" : "=")}{value}";
+	}
+
+	public class LexerEnum<K> : Lexer<K, Token<K>, List<Token<K>>> where K : struct
+	{
+		public LexerEnum(string grammar, Scan<IEnumerable<byte>, byte, byte, IEnumerable<byte>> scan = null)
+			: base(grammar, scan ?? new ScanByte()) { }
+
+		public override IEnumerable<object> Keys(string name) => new object[] { Enum.Parse<K>(name) };
+
+		protected int from = -1;
+
+		protected override void Token(K key, int step, ref bool end, int f, int to)
+		{
+			if (from < 0) from = f;
+			if (end)
+			{
+				var bs = new byte[to - from];
+				scan.Tokens(from, to, bs);
+				Add(key, from, to, Encoding.UTF8.GetString(bs));
+				from = -1;
+			}
+		}
+
+		protected override void Error(K key, int step, bool end, byte b, int f, int to, int eof)
+		{
+			if (from < 0) from = f;
+			Add(key, f, to, to <= eof ? (char)b : (object)null, true);
+			if (end) from = -1;
+		}
+
+		protected void Add(K key, int f, int to, object value, bool err = false)
+			=> tokens.Add(new Token<K> { key = key, from = f, to = to, value = value, err = err });
+
+		protected static EqualityComparer<K> Eq = EqualityComparer<K>.Default;
+
+		public override bool Is(K key) => Eq.Equals(tokens[loc].key, key);
+
+		public override bool Is(K key1, K key) => Eq.Equals(key1, key);
+
+		public override List<Token<K>> Tokens(int from, int to) => tokens.GetRange(from, to - from);
+	}
+
 	public abstract class Lexer<K, T, S> : Scan<IEnumerable<byte>, K, T, S> where T : struct where S : IEnumerable<T>
 	{
 		sealed class Unit
@@ -26,6 +76,7 @@ namespace qutum.parser
 		internal byte[] bytes = new byte[17];
 		internal List<T> tokens = new List<T>();
 		internal int loc = -2;
+		internal List<int> lines = new List<int>();
 
 		public Lexer(string grammar, Scan<IEnumerable<byte>, byte, byte, IEnumerable<byte>> scan)
 		{ this.scan = scan; Boot(grammar); }
@@ -36,10 +87,11 @@ namespace qutum.parser
 		{
 			if (loc > -2) Unload();
 			scan.Load(input);
-			bf = bt = bn = scan.Loc() + 1; loc = -1;
+			bf = bt = bn = scan.Loc() + 1;
+			loc = -1; lines.Add(-1); lines.Add(0);
 		}
 
-		public void Unload() { scan.Unload(); tokens.Clear(); loc = -2; }
+		public void Unload() { scan.Unload(); tokens.Clear(); loc = -2; lines.Clear(); }
 
 		public bool Next()
 		{
@@ -47,7 +99,7 @@ namespace qutum.parser
 			var u = start;
 			Go: bf = bt;
 			Next: if (bt >= bn)
-				if (scan.Next()) bytes[bn++ & 15] = scan.Token();
+				if (scan.Next()) { if ((bytes[bn++ & 15] = scan.Token()) == '\n') lines.Add(bn); }
 				else if (u == start || bt > bn) return loc < tokens.Count;
 				else goto Do;
 			var b = bytes[bt & 15];
@@ -81,7 +133,9 @@ namespace qutum.parser
 
 		public abstract S Tokens(int from, int to);
 
-		public void Tokens(int from, int to, T[] array, int ax) => tokens.CopyTo(from, array, ax, to - from);
+		public T[] Tokens(int from, int to, T[] s, int x) { tokens.CopyTo(from, s, x, to - from); return s; }
+
+		public int Line(int loc) { var l = lines.BinarySearch(loc); return (l ^ l >> 31) + (l >> 31); }
 
 		static Earley<string, char, char, string> boot = new Earley<string, char, char, string>(@"
 			gram  = eol*lex lexs*eol*
@@ -230,55 +284,5 @@ namespace qutum.parser
 				foreach (var go in uz)
 					if (go.Value) { BootDump(go.Key, ind, "", uz); goto Go; }
 		}
-	}
-
-	public struct Token<K> where K : struct
-	{
-		public K key;
-		public int from, to; // input loc
-		public bool err;
-		public object value;
-
-		public string Dump() => $"{key}{(err ? "!" : "=")}{value}";
-	}
-
-	public class LexerEnum<K> : Lexer<K, Token<K>, List<Token<K>>> where K : struct
-	{
-		public LexerEnum(string grammar, Scan<IEnumerable<byte>, byte, byte, IEnumerable<byte>> scan = null)
-			: base(grammar, scan ?? new ScanByte()) { }
-
-		public override IEnumerable<object> Keys(string name) => new object[] { Enum.Parse<K>(name) };
-
-		protected int from = -1;
-
-		protected override void Token(K key, int step, ref bool end, int f, int to)
-		{
-			if (from < 0) from = f;
-			if (end)
-			{
-				var bs = new byte[to - from];
-				scan.Tokens(from, to, bs, 0);
-				Add(key, from, to, Encoding.UTF8.GetString(bs));
-				from = -1;
-			}
-		}
-
-		protected override void Error(K key, int step, bool end, byte b, int f, int to, int eof)
-		{
-			if (from < 0) from = f;
-			Add(key, f, to, to <= eof ? (char)b : (object)null, true);
-			if (end) from = -1;
-		}
-
-		protected void Add(K key, int f, int to, object value, bool err = false)
-			=> tokens.Add(new Token<K> { key = key, from = f, to = to, value = value, err = err });
-
-		protected static EqualityComparer<K> Eq = EqualityComparer<K>.Default;
-
-		public override bool Is(K key) => Eq.Equals(tokens[loc].key, key);
-
-		public override bool Is(K key1, K key) => Eq.Equals(key1, key);
-
-		public override List<Token<K>> Tokens(int from, int to) => tokens.GetRange(from, to - from);
 	}
 }
