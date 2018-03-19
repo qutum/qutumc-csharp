@@ -246,13 +246,13 @@ namespace qutum.test.parser
 		[ExpectedException(typeof(Exception))]
 		public void LexStep2()
 		{
-			new LexerEnum<Tag>("A=?a b c");
+			new LexerEnum<Tag>("A=*a b c");
 		}
 
 		[TestMethod]
 		public void LexStep3()
 		{
-			var l = new LexerEnum<Tag>("A=a ?b c \n B=d \n C=cd");
+			var l = new LexerEnum<Tag>("A=a *b c \n B=d \n C=cd");
 			Check(l, "abcd", "A=abc B=d"); Check(l, "acbc", "A!c A=acbc");
 			Check(l, "acd", "A!c A!d A!"); Check(l, "adbccd", "A!d A=adbc C=cd");
 		}
@@ -278,7 +278,7 @@ namespace qutum.test.parser
 		[TestMethod]
 		public void LexStep6()
 		{
-			var l = new LexerEnum<Tag>("A=a ?c|b+e d");
+			var l = new LexerEnum<Tag>("A=a *c|b+e d");
 			Check(l, "abed", "A=abed"); Check(l, "abbed", "A=abbed");
 			Check(l, "aecd", "A!e A=aecd"); Check(l, "abbcbed", "A!c A=abbcbed");
 			Check(l, "acd", "A=acd"); Check(l, "acbd", "A!b 0!d");
@@ -287,10 +287,19 @@ namespace qutum.test.parser
 		[TestMethod]
 		public void LexStep7()
 		{
-			var l = new LexerEnum<Tag>("A=a ?+c|b+e d");
+			var l = new LexerEnum<Tag>("A=a *+c|b+e d");
 			Check(l, "abed", "A=abed"); Check(l, "abbed", "A=abbed");
 			Check(l, "aebed", "A!e A=aebed"); Check(l, "abbcbed", "A!c A=abbcbed");
 			Check(l, "acd", "A!d A!"); Check(l, "acbed", "A=acbed");
+		}
+
+		[TestMethod]
+		public void LexStep8()
+		{
+			var l = new LexerEnum<Tag>("A=a ?+c|b+e d");
+			Check(l, "abed", "A=abed"); Check(l, "abbed", "A=abbed");
+			Check(l, "aebed", "A!e 0!b 0!e 0!d"); Check(l, "abbcbed", "A!c A=abbcbed");
+			Check(l, "acd", "A=acd"); Check(l, "acbed", "A=acbed"); Check(l, "ad", "A=ad");
 		}
 
 		[TestMethod]

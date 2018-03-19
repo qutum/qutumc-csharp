@@ -145,7 +145,7 @@ namespace qutum.parser
 			alt   = \|byte+ =+
 			steps = S+err?rep?byte+alts* =+
 			alts  = \|rep?byte+ =+
-			err   = \? =+
+			err   = \?|\* =+
 			rep   = \+ =+
 			byte  = B\+? | [range*^?range*]\+? | \\E\+? =+
 			name  = W+ =+
@@ -175,11 +175,12 @@ namespace qutum.parser
 					++step;
 					foreach (var a in st.Where(t => t.name.StartsWith("alt")).Prepend(st))
 					{
-						var uu = ust[step]; var u = uu;
+						var u = ust[step];
 						var rep = a.Any(t => t.name == "rep") ? u : ust[step + 1];
 						var ab = a.Where(t => t.name == "byte");
 						if (ab.Count() > 15) throw new Exception($"{k}.{step} exceeds 15 bytes");
-						if (a.head.name == "err") u.go = u;
+						var errgo = a.head.name == "err" ? u.go = u : u.mode > 0 ? u : u.go;
+						if (a.head.name == "err" && gram[a.head.from] == '?') { u.mode = 1; u.go = ust[step + 1]; }
 						foreach (var b in ab)
 						{
 							var x = b.from; var bs = b1;
@@ -200,11 +201,11 @@ namespace qutum.parser
 							}
 							else
 								b1[0] = gram[x++];
-							var ok = b.next == null || b.next.name != "byte"; var err = x != b.to || bs[0] > 127;
-							var n = BootNext(u, bs, k, step, uu.go);
+							var ok = b.next?.name != "byte"; var err = x != b.to || bs[0] > 127;
+							var n = BootNext(u, bs, k, step, errgo);
 							if (x != b.to)
-								BootNext(n, bs, k, step, uu.go, u);
-							BootMode(n, k, step, ok ? 1 : err ? -1 : 0, ok ? rep : err ? uu.go : u);
+								BootNext(n, bs, k, step, errgo, u);
+							BootMode(n, k, step, ok ? 1 : err ? -1 : 0, ok ? rep : err ? errgo : u);
 							u = n; x = b.to;
 						}
 					}
