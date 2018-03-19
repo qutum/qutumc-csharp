@@ -258,7 +258,7 @@ namespace qutum.parser
 		Unit BootMode(Unit u, K key, int step, int mode, Unit go)
 		{
 			if (u.mode != 0)
-				if (mode == 0 || mode == -1 && u.mode == -1 && go == start && u.go == start) return null;
+				if (mode == 0 || (mode & u.mode) == -1 && go == u.go) return null;
 				else throw new Exception($"{key}.{step} and {u.key}.{u.step} conflicted");
 			u.key = key; u.step = step; u.mode = mode; u.go = go;
 			return go;

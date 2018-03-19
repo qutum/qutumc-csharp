@@ -235,6 +235,20 @@ namespace qutum.test.parser
 		}
 
 		[TestMethod]
+		[ExpectedException(typeof(Exception))]
+		public void LexPlus7()
+		{
+			new LexerEnum<Tag>("A=b+ \n B=b+d");
+		}
+
+		[TestMethod]
+		public void LexPlus8()
+		{
+			var l = new LexerEnum<Tag>("A=b+a \n B=b+d");
+			Check(l, "babbd", "A=ba B=bbd"); Check(l, "a", "0!a"); Check(l, "d", "0!d");
+		}
+
+		[TestMethod]
 		public void LexStep1()
 		{
 			var l = new LexerEnum<Tag>("A=aa b c \n B=ab \n C=bc");
