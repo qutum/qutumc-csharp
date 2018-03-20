@@ -19,9 +19,11 @@ namespace qutum.test.syntax
 	{
 		public TestLexer() { DebugWriter.ConsoleBegin(); }
 
-		void Check(Lexer l, string input, string s) => Check(l, Encoding.UTF8.GetBytes(input), s);
+		Lexer l = new Lexer();
 
-		void Check(Lexer l, byte[] input, string s)
+		void Check(string input, string s) => Check(Encoding.UTF8.GetBytes(input), s);
+
+		void Check(byte[] input, string s)
 		{
 			l.Load(input);
 			while (l.Next()) ;
@@ -32,46 +34,81 @@ namespace qutum.test.syntax
 		}
 
 		[TestMethod]
+		public void Space()
+		{
+			Check(@"\####\ ", "_=Bcomm _=");
+		}
+
+		[TestMethod]
+		public void Eol()
+		{
+			Check("\\####\\\t \r\n\\####\\ \t \n", @"_=Bcomm _= Eol!use \n instead of \r\n Eol= _=Bcomm _= Eol=");
+		}
+
+		[TestMethod]
+		public void Indent1()
+		{
+			Check("    \n\t\t\t\n\t\n", "Ind=1 Eol= Ind=2 Ind=3 Eol= Ded=2 Ded=1 Eol= Ded=0");
+		}
+
+		[TestMethod]
+		public void Indent2()
+		{
+			Check(" \t", "Ind!do not mix tabs and spaces for indent _=");
+			Check("\t    ", "Ind!do not mix tabs and spaces for indent _=");
+			Check(" ", "Ind!4 spaces expected _="); Check("       ", "Ind!8 spaces expected _=");
+		}
+
+		[TestMethod]
+		public void Indent3()
+		{
+			Check("\n\t\t\n\t\n\n", "Eol= Ind=1 Ind=2 Eol= Ded=1 Eol= Ded=0 Eol=");
+			Check("\t\t####\n", "Ind=1 Ind=2 _=Comm Eol= Ded=1 Ded=0");
+		}
+
+		[TestMethod]
+		public void Utf()
+		{
+			Check(@"好", "0!\xe5 0!\xa5 0!\xbd");
+			Check(@"""abc你好def""", "Str=abc你好def");
+		}
+
+		[TestMethod]
 		public void String1()
 		{
-			var l = new Lexer();
-			Check(l, @"""abc你好def""", "Str=abc你好def");
-			Check(l, @"""a", "Str!"); Check(l, "\"a\nb\"", "Str!\n Str=ab");
+			Check(@"""abc  def""", "Str=abc  def");
+			Check(@"""a", "Str!"); Check("\"a\nb\"", "Str!\n Str=ab");
 		}
 
 		[TestMethod]
 		public void String2()
 		{
-			var l = new Lexer();
-			Check(l, @"""\tabc\r\ndef""", "Str=\tabc\r\ndef");
-			Check(l, @"""\x09abc\x0d\x0adef""", "Str=\tabc\r\ndef");
-			Check(l, @"""\abc\\\0\x7edef\""\u597d吗""", "Str=abc\\\0~def\"好吗");
-			Check(l, @"""\x0\uaa""", "Str!\\ Str!\\ Str=x0uaa");
+			Check(@"""\tabc\r\ndef""", "Str=\tabc\r\ndef");
+			Check(@"""\x09abc\x0d\x0adef""", "Str=\tabc\r\ndef");
+			Check(@"""\abc\\\0\x7edef\""\u597d吗""", "Str=abc\\\0~def\"好吗");
+			Check(@"""\x0\uaa""", "Str!\\ Str!\\ Str=x0uaa");
 		}
 
 		[TestMethod]
 		public void BlockString1()
 		{
-			var l = new Lexer();
-			Check(l, @"\""abcdef""\", "Bstr=abcdef"); Check(l, @"\\""abcdef""\\", "Bstr=abcdef");
-			Check(l, "\\\"a\\tc\ndef\"\\", "Bstr=a\\tc\ndef");
+			Check(@"\""abcdef""\", "Bstr=abcdef"); Check(@"\\""abcdef""\\", "Bstr=abcdef");
+			Check("\\\"a\\tc\ndef\"\\", "Bstr=a\\tc\ndef");
 		}
 
 		[TestMethod]
 		public void BlockString2()
 		{
-			var l = new Lexer();
-			Check(l, @"\""ab""cdef""\", "Bstr=ab\"cdef");
-			Check(l, @"\""""abcdef""\", "Bstr=\"abcdef");
-			Check(l, @"\""abcdef""""\", "Bstr=abcdef\"");
+			Check(@"\""ab""cdef""\", "Bstr=ab\"cdef");
+			Check(@"\""""abcdef""\", "Bstr=\"abcdef");
+			Check(@"\""abcdef""""\", "Bstr=abcdef\"");
 		}
 
 		[TestMethod]
 		public void BlockString3()
 		{
-			var l = new Lexer();
-			Check(l, @"\""""\\abc""\\def""\\""\", "Bstr=\"\\\\abc\"\\\\def\"\\\\");
-			Check(l, @"\\""""\abc""\def""\""\\", "Bstr=\"\\abc\"\\def\"\\");
+			Check(@"\""""\\abc""\\def""\\""\", "Bstr=\"\\\\abc\"\\\\def\"\\\\");
+			Check(@"\\""""\abc""\def""\""\\", "Bstr=\"\\abc\"\\def\"\\");
 		}
 	}
 }
