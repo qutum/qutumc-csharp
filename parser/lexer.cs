@@ -36,10 +36,10 @@ namespace qutum.parser
 			}
 		}
 
-		protected override void Error(K key, int step, bool end, byte b, int f, int to, int eof)
+		protected override void Error(K key, int step, bool end, byte? b, int f, int to)
 		{
 			if (from < 0) from = f;
-			Add(key, f, to, to <= eof ? (char)b : (object)null, true);
+			if (step >= 0) Add(key, f, to, (char?)b ?? (object)"", true);
 			if (end) from = -1;
 		}
 
@@ -83,7 +83,7 @@ namespace qutum.parser
 
 		public abstract IEnumerable<object> Keys(string name);
 
-		public void Load(IEnumerable<byte> input)
+		public virtual void Load(IEnumerable<byte> input)
 		{
 			if (loc > -2) Unload();
 			scan.Load(input);
@@ -91,7 +91,7 @@ namespace qutum.parser
 			loc = -1; lines.Add(-1); lines.Add(0);
 		}
 
-		public void Unload() { scan.Unload(); tokens.Clear(); loc = -2; lines.Clear(); }
+		public virtual void Unload() { scan.Unload(); tokens.Clear(); loc = -2; lines.Clear(); }
 
 		public bool Next()
 		{
@@ -100,7 +100,8 @@ namespace qutum.parser
 			Go: bf = bt;
 			Next: if (bt >= bn)
 				if (scan.Next()) { if ((bytes[bn++ & 15] = scan.Token()) == '\n') lines.Add(bn); }
-				else if (u == start || bt > bn) return loc < tokens.Count;
+				else if (u == start || bt > bn)
+				{ if (bn >= 0) Error(start.key, -1, true, null, bn, bn = -1); return loc < tokens.Count; }
 				else goto Do;
 			var b = bytes[bt & 15];
 			if (u.next[b < 128 ? b : b > 0xf7 ? 132 : b > 0xef ? 131 : b > 0xdf ? 130 : b > 0xbf ? 129 : 128] is Unit n)
@@ -113,7 +114,7 @@ namespace qutum.parser
 			{
 				case 0: u = n; --bt; goto Do;
 				case 1: var e = n == start; Token(u.key, u.step, ref e, bf, bt); if (e) n = start; break;
-				default: Error(u.key, u.step, n == start || bt >= bn, bytes[bt < bn ? bt & 15 : 16], bf, ++bt, bn); break;
+				default: Error(u.key, u.step, n == start || bt >= bn, bt < bn ? bytes[bt & 15] : (byte?)null, bf, ++bt); break;
 			}
 			if (n == start && loc < tokens.Count) return true;
 			u = n; goto Go;
@@ -121,7 +122,7 @@ namespace qutum.parser
 
 		protected abstract void Token(K key, int step, ref bool end, int from, int to);
 
-		protected abstract void Error(K key, int step, bool end, byte b, int from, int to, int eof);
+		protected abstract void Error(K key, int step, bool end, byte? b, int from, int to);
 
 		public abstract bool Is(K key);
 
