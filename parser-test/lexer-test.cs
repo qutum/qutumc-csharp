@@ -217,35 +217,44 @@ namespace qutum.test.parser
 		[ExpectedException(typeof(Exception))]
 		public void LexPlus4()
 		{
-			new LexerEnum<Tag>("A=b+b");
+			new LexerEnum<Tag>("A=a+a");
 		}
 
 		[TestMethod]
 		[ExpectedException(typeof(Exception))]
 		public void LexPlus5()
 		{
-			new LexerEnum<Tag>("A=b+c \n B=bb");
+			new LexerEnum<Tag>("A=a+c \n B=aa");
 		}
 
 		[TestMethod]
 		[ExpectedException(typeof(Exception))]
 		public void LexPlus6()
 		{
-			new LexerEnum<Tag>("A=bb \n B=b+");
+			new LexerEnum<Tag>("A=aa \n B=a+");
 		}
 
 		[TestMethod]
 		[ExpectedException(typeof(Exception))]
 		public void LexPlus7()
 		{
-			new LexerEnum<Tag>("A=b+ \n B=b+d");
+			new LexerEnum<Tag>("A=a+b \n B=abc");
 		}
 
 		[TestMethod]
 		public void LexPlus8()
 		{
-			var l = new LexerEnum<Tag>("A=b+a \n B=b+d");
-			Check(l, "babbd", "A=ba B=bbd"); Check(l, "a", "0!a"); Check(l, "d", "0!d");
+			var l = new LexerEnum<Tag>("A=a+ \n B=a+b");
+			Check(l, "a", "A=a"); Check(l, "ab", "B=ab");
+			Check(l, "aa", "A=aa"); Check(l, "aab", "B=aab");
+			Check(l, "aaa", "A=aaa"); Check(l, "aaab", "B=aaab");
+		}
+
+		[TestMethod]
+		public void LexPlus9()
+		{
+			var l = new LexerEnum<Tag>("A=a+b \n B=a+c");
+			Check(l, "abaac", "A=ab B=aac"); Check(l, "b", "0!b"); Check(l, "c", "0!c");
 		}
 
 		[TestMethod]

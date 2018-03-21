@@ -64,7 +64,7 @@ namespace qutum.parser
 			internal int pren; // how many bytes to this unit
 			internal K key;
 			internal int step;
-			internal int mode; // err: -1, back: 0 (no quantifier), ok: 2
+			internal int mode; // no quantifer: err: -2, back: 0, ok: 2; quantifier: err: -1, ok: 3
 			internal Unit go; // go.next != null
 
 			internal Unit(Lexer<K, T, S> l) => id = ++l.id;
@@ -110,12 +110,9 @@ namespace qutum.parser
 				if (u.next != null) goto Next;
 			}
 			Do: n = u.go;
-			switch (u.mode)
-			{
-				case 0: u = n; --bt; goto Do;
-				case 1: var e = n == start; Token(u.key, u.step, ref e, bf, bt); if (e) n = start; break;
-				default: Error(u.key, u.step, n == start || bt >= bn, bt < bn ? bytes[bt & 15] : (byte?)null, bf, ++bt); break;
-			}
+			if (u.mode == 0) { u = n; --bt; goto Do; }
+			else if (u.mode > 0) { var e = n == start; Token(u.key, u.step, ref e, bf, bt); if (e) n = start; }
+			else Error(u.key, u.step, n == start || bt >= bn, bt < bn ? bytes[bt & 15] : (byte?)null, bf, ++bt);
 			if (n == start && loc < tokens.Count) return true;
 			u = n; goto Go;
 		}
@@ -181,7 +178,7 @@ namespace qutum.parser
 						var ab = a.Where(t => t.name == "byte");
 						if (ab.Count() > 15) throw new Exception($"{k}.{step} exceeds 15 bytes");
 						var errgo = a.head.name == "err" ? u.go = u : u.mode > 0 ? u : u.go;
-						if (a.head.name == "err" && gram[a.head.from] == '?') { u.mode = 1; u.go = ust[step + 1]; }
+						if (a.head.name == "err" && gram[a.head.from] == '?') BootMode(u, k, step, 1, ust[step + 1]);
 						foreach (var b in ab)
 						{
 							var x = b.from; var bs = b1;
@@ -202,11 +199,11 @@ namespace qutum.parser
 							}
 							else
 								b1[0] = gram[x++];
-							var ok = b.next?.name != "byte"; var err = x != b.to || bs[0] > 127;
+							var ok = b.next?.name != "byte"; var q = x != b.to; var err = q || bs[0] > 127;
 							var n = BootNext(u, bs, k, step, errgo);
-							if (x != b.to)
+							if (q)
 								BootNext(n, bs, k, step, errgo, u);
-							BootMode(n, k, step, ok ? 1 : err ? -1 : 0, ok ? rep : err ? errgo : u);
+							BootMode(n, k, step, ok ? q ? 3 : 2 : err ? q ? -1 : -2 : 0, ok ? rep : err ? errgo : u);
 							u = n; x = b.to;
 						}
 					}
@@ -256,13 +253,12 @@ namespace qutum.parser
 			return u.next[129].next[128];
 		}
 
-		Unit BootMode(Unit u, K key, int step, int mode, Unit go)
+		void BootMode(Unit u, K key, int step, int mode, Unit go)
 		{
-			if (u.mode != 0)
-				if (mode == 0 || (mode & u.mode) == -1 && go == u.go) return null;
-				else throw new Exception($"{key}.{step} and {u.key}.{u.step} conflicted");
+			if (u.mode + mode >= 4 || (u.mode & 1) != (mode & 1) && u.go != null || (u.mode & mode) < 0 && u.go != go)
+				throw new Exception($"{key}.{step} and {u.key}.{u.step} conflicted");
+			if (u.mode != 0 && mode <= 0) return;
 			u.key = key; u.step = step; u.mode = mode; u.go = go;
-			return go;
 		}
 
 		void BootDump(Unit u, string ind, string pre, Dictionary<Unit, bool> us = null)
