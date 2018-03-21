@@ -208,7 +208,7 @@ namespace qutum.parser
 				case 'E': return t > ' ' && t < 127;
 				case 'V': return t >= ' ' && t != 127 || t == '\t'; // also utf
 				case 'B': return t < 127 && B[t];
-				case 'R': return t < 127 && B[t] && t != '-' && t != '^' || t == ' ';
+				case 'R': return t < 127 && B[t] && t != '-' && t != '^';
 				default: return t == key;
 			}
 		}

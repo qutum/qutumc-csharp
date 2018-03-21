@@ -17,9 +17,9 @@ namespace qutum.test.syntax
 	[TestClass]
 	public class TestLexer
 	{
-		public TestLexer() { DebugWriter.ConsoleBegin(); }
+		public TestLexer() { DebugWriter.ConsoleBegin(); l = new Lexer(); }
 
-		Lexer l = new Lexer();
+		Lexer l;
 
 		void Check(string input, string s) => Check(Encoding.UTF8.GetBytes(input), s);
 
@@ -36,7 +36,7 @@ namespace qutum.test.syntax
 		[TestMethod]
 		public void Space()
 		{
-			Check(@"\####\ ", "_=Bcomm _=");
+			Check(@"\####\\####\ ", "_=Bcomm _=");
 		}
 
 		[TestMethod]
