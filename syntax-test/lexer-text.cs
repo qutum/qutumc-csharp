@@ -110,5 +110,76 @@ namespace qutum.test.syntax
 			Check(@"\""""\\abc""\\def""\\""\", "Bstr=\"\\\\abc\"\\\\def\"\\\\");
 			Check(@"\\""""\abc""\def""\""\\", "Bstr=\"\\abc\"\\def\"\\");
 		}
+
+		[TestMethod]
+		public void Word()
+		{
+			Check("abc", "Word=abc"); Check("Abc123", "Word=Abc123");
+			Check("_123", "Word=_123"); Check("__a4", "Word=__a4"); Check("_A__b_", "Word=_A__b_");
+			Check("_123 __", "Word=_123 _= Word=__");
+		}
+
+		[TestMethod]
+		public void Hex1()
+		{
+			Check("0x0", "Int=0"); Check("0xF", "Int=15");
+			Check("+0x0A", "Int=10");
+			Check("0x7fffffff", "Int=2147483647"); Check("0x80000000", "Int=-2147483648");
+			Check("0xfffffffe", "Int=-2");
+		}
+
+		[TestMethod]
+		public void Hex2()
+		{
+			Check("-0x0", "Int=0"); Check("-0xF", "Int=-15");
+			Check("-0x7fffffff", "Int=-2147483647"); Check("-0x80000000", "Int=-2147483648");
+			Check("-0xfffffffe", "Int=2");
+		}
+
+		[TestMethod]
+		public void Int1()
+		{
+			Check("0", "Int=0"); Check("1x1", "Int=1 Word=x1"); Check("0a", "Int=0 Word=a");
+			Check("+09", "Int=9"); Check("9876", "Int=9876");
+			Check("2_", "Int=2 Word=_"); Check("23_", "Int=23 Word=_");
+			Check("2_14_7483_647", "Int=2147483647");
+			Check("+214_7483_648", "Int!integer out of range Int=0");
+		}
+
+		[TestMethod]
+		public void Int2()
+		{
+			Check("-000", "Int=0"); Check("-1x1", "Int=-1 Word=x1"); Check("-0a", "Int=0 Word=a");
+			Check("-09", "Int=-9"); Check("-2_", "Int=-2 Word=_");
+			Check("-2_14_7483_647", "Int=-2147483647"); Check("-2147483648", "Int=-2147483648");
+		}
+
+		[TestMethod]
+		public void Float1()
+		{
+			Check("0f", "Float=0"); Check("00.0x", "Float=0 Word=x"); Check("0.000f", "Float=0");
+			Check("340282347999999999999999999999999999999.99999", "Float=3.402823E+38");
+			Check("340282430000000000000000000000000000000.5", "Float!float out of range Float=0");
+		}
+
+		[TestMethod]
+		public void Float2()
+		{
+			Check("1234.0", "Float=1234"); Check("553.2", "Float=553.2"); Check("34_8.5", "Float=348.5");
+			Check("1.0000100000000000000000000000000000000000000000000000000000000001", "Float=1.00001");
+		}
+
+		[TestMethod]
+		public void Float3()
+		{
+			Check("1e38", "Float=1E+38"); Check("1e+38", "Float=1E+38");
+			Check("5e38", "Float!float out of range Float=0");
+			Check("1e88", "Float!float out of range Float=0");
+			Check("1e999999", "Float!float out of range Float=0");
+			Check("0.0000034e44", "Float=3.4E+38");
+			Check("0.0000035e44", "Float!float out of range Float=0");
+			Check("1e-39", "Float=1E-39"); Check("1e-45", "Float=1.401298E-45");
+			Check("1e-46", "Float=0"); Check("1e-83787", "Float=0");
+		}
 	}
 }
