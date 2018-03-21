@@ -30,13 +30,13 @@ namespace qutum.syntax
 		Bstr  = \\+"" *+""\\+|+""|+[^""]+|+\U+
 		Word  = [a-zA-Z_]|[a-zA-Z_][0-9a-zA-Z_]+
 		Hex   = 0[xX]|[\+\-]0[xX] ?+[0-9a-fA-F]+|+_[0-9a-fA-F]+
-		Num   = 0|[1-9]|[\+\-]0|[\+\-][1-9] ?+[0-9]+|+_[0-9]+ ?.[0-9]+ ?[eE][0-9]+|[eE][\+\-][0-9]+ ?[fF]
+		Num   = 0|[1-9]|[\+\-]0|[\+\-][1-9] ?+[0-9]+|+_[0-9]+ ?.[0-9]+ ?+_[0-9]+ ?[eE][0-9]+|[eE][\+\-][0-9]+ ?[fF]
 		";
 
 		public Lexer() : base(Grammar, null) { }
 
 		byte[] bs = new byte[4096];
-		int bn, b1, b2, b3, b4, indLast;
+		int bn, nn, nf, ne, indLast;
 		char[] us = new char[1];
 
 		public override void Unload() { base.Unload(); indLast = 0; }
@@ -69,26 +69,26 @@ namespace qutum.syntax
 				case Lex.Comm:
 					key = Lex._; v = nameof(Lex.Comm); break;
 				case Lex.Bcomm:
-					if (step == 1) { b1 = to - from; return; }
-					if (to - f != b1 || scan.Tokens(f, f + 1, bs)[0] != '#') return;
+					if (step == 1) { bn = to - from; return; }
+					if (to - f != bn || scan.Tokens(f, f + 1, bs)[0] != '#') return;
 					end = true; key = Lex._; v = nameof(Lex.Bcomm); break;
 				case Lex.Str:
 					if (step == 1 || end) break;
 					ScanBs(f, to, bn);
 					if (bs[bn] != '\\') bn += to - f; else Escape(); return;
 				case Lex.Bstr:
-					if (step == 1) { b1 = to; return; }
-					if (to - f != b1 - from || scan.Tokens(f, f + 1, bs)[0] != '"') return;
-					end = true; bn = ScanBs(b1, f, 0); break;
+					if (step == 1) { bn = to; return; }
+					if (to - f != bn - from || scan.Tokens(f, f + 1, bs)[0] != '"') return;
+					end = true; bn = ScanBs(bn, f, 0); break;
 				case Lex.Word:
 					bn = ScanBs(from, to, 0); break;
 				case Lex.Hex:
 					if (!end) return;
 					bn = ScanBs(from, to, 0); key = Lex.Int; v = Hex(); break;
 				case Lex.Num:
-					if (step == 2) b2 = to - from;
-					else if (step == 3) b3 = to - from;
-					else if (step == 4) b4 = to - from;
+					if (step == 2) nn = to - from;
+					else if (step == 4) nf = to - from;
+					else if (step == 5) ne = to - from;
 					if (!end) return;
 					bn = ScanBs(from, to, 0); v = Num(ref key); break;
 			}
@@ -143,29 +143,29 @@ namespace qutum.syntax
 		object Num(ref Lex key)
 		{
 			var neg = bs[0] == '-'; int x = neg || bs[0] == '+' ? 1 : 0; uint v = 0;
-			if (b2 == bn)
+			if (nn == bn)
 			{
 				key = Lex.Int;
-				for (; x < b2; x++)
+				for (; x < nn; x++)
 					if (bs[x] == '_') continue;
 					else if (v < 214748364 || v == 214748364 && bs[x] < (neg ? '9' : '8')) v = v * 10 + bs[x] - '0';
-					else { Add(key, from, from + b2, "integer out of range", true); return 0; }
+					else { Add(key, from, from + nn, "integer out of range", true); return 0; }
 				return neg ? (int)-v : (int)v;
 			}
 			key = Lex.Float; float d = bs[x] - '0';
-			while (++x < b2)
+			while (++x < nn)
 				if (bs[x] != '_')
-					if (bs[x] > '9') { Add(key, from, from + b2, "invalid float", true); return 0; }
+					if (bs[x] > '9') { Add(key, from, from + nn, "invalid float", true); return 0; }
 					else if (float.IsInfinity(d = d * 10 + (bs[x] - '0')))
-					{ Add(key, from, from + b2, "float out of range", true); return 0f; }
-			if (b2 < b3)
-				for (float f = 1; ++x < b3;)
-					d = d + (bs[x] - '0') * (f /= 10);
+					{ Add(key, from, from + nn, "float out of range", true); return 0f; }
+			if (nn < nf)
+				for (float f = 1; ++x < nf;)
+					if (bs[x] != '_') d = d + (bs[x] - '0') * (f /= 10);
 			if (neg) d = -d;
-			if (d != 0 && b3 < b4)
+			if (d != 0 && nf < ne)
 			{
 				if ((neg = bs[++x] == '-') || bs[x] == '+') ++x;
-				for (; x < b4; x++)
+				for (; x < ne; x++)
 					if (v <= 8) v = v * 10 + bs[x] - '0';
 					else if (neg) { v = 89; break; }
 					else { Add(key, from, from + bn, "float out of range", true); return 0f; }

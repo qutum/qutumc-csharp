@@ -124,8 +124,9 @@ namespace qutum.test.syntax
 		{
 			Check("0x0", "Int=0"); Check("0xF", "Int=15");
 			Check("+0x0A", "Int=10");
-			Check("0x7fffffff", "Int=2147483647"); Check("0x80000000", "Int=-2147483648");
+			Check("0x7fffffff", "Int=2147483647"); Check("0x8000_0000", "Int=-2147483648");
 			Check("0xfffffffe", "Int=-2");
+			Check("0x_0", "Int=0"); Check("0x__0", "Int=0 Word=__0"); Check("1x1", "Int=1 Word=x1");
 		}
 
 		[TestMethod]
@@ -133,15 +134,15 @@ namespace qutum.test.syntax
 		{
 			Check("-0x0", "Int=0"); Check("-0xF", "Int=-15");
 			Check("-0x7fffffff", "Int=-2147483647"); Check("-0x80000000", "Int=-2147483648");
-			Check("-0xfffffffe", "Int=2");
+			Check("-0xff_ff_ff_fe", "Int=2");
 		}
 
 		[TestMethod]
 		public void Int1()
 		{
-			Check("0", "Int=0"); Check("1x1", "Int=1 Word=x1"); Check("0a", "Int=0 Word=a");
+			Check("0", "Int=0"); Check("0a", "Int=0 Word=a");
 			Check("+09", "Int=9"); Check("9876", "Int=9876");
-			Check("2_", "Int=2 Word=_"); Check("23_", "Int=23 Word=_");
+			Check("2_", "Int=2 Word=_"); Check("23__3", "Int=23 Word=__3");
 			Check("2_14_7483_647", "Int=2147483647");
 			Check("+214_7483_648", "Int!integer out of range Int=0");
 		}
@@ -166,7 +167,8 @@ namespace qutum.test.syntax
 		public void Float2()
 		{
 			Check("1234.0", "Float=1234"); Check("553.2", "Float=553.2"); Check("34_8.5", "Float=348.5");
-			Check("1.0000100000000000000000000000000000000000000000000000000000000001", "Float=1.00001");
+			Check("1.00_0_0100000000000000000000000000000000000000000000000000000000001", "Float=1.00001");
+			Check("1.0__0", "Float=1 Word=__0");
 		}
 
 		[TestMethod]
