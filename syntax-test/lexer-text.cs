@@ -183,5 +183,26 @@ namespace qutum.test.syntax
 			Check("1e-39", "Float=1E-39"); Check("1e-45", "Float=1.401298E-45");
 			Check("1e-46", "Float=0"); Check("1e-83787", "Float=0");
 		}
+
+		[TestMethod]
+		public void Symbol1()
+		{
+			Check("a`b.0'c", "Word=a In= Word=b Out= Int=0 Wire= Word=c");
+		}
+
+		[TestMethod]
+		public void Symbol2()
+		{
+			Check("([{)]}", "Pl= Sbl= Cbl= Pr= Sbr= Cbr=");
+			Check("*/%", "Mul= Div= Mod="); Check("<<>>", "Shl= Shr=");
+			Check("+5-5+_5-_5", "Int=5 Int=-5 Add= Word=_5 Sub= Word=_5");
+		}
+
+		[TestMethod]
+		public void Symbol3()
+		{
+			Check("==-=<<=<=<>=>", "Eq= Eq= Ineq= Shl= Eq= Leq= Less= Geq= Gre=");
+			Check("---++&&||", "Not= Sub= Xor= And= Or=");
+		}
 	}
 }

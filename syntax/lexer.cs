@@ -17,6 +17,11 @@ namespace qutum.syntax
 		_ = 1, Eol, Ind, Ded, Comm, Bcomm,
 		Str, Bstr,
 		Word, Hex, Num, Int, Float,
+		In, Out, Wire,
+		Pl, Pr, Sbl, Sbr, Cbl, Cbr,
+		Mul, Div, Mod, Shl, Shr, Add, Sub,
+		Eq, Ineq, Leq, Geq, Less, Gre,
+		Not, Xor, And, Or,
 	}
 
 	class Lexer : LexerEnum<Lex>
@@ -29,8 +34,34 @@ namespace qutum.syntax
 		Str   = "" *""|+[^""\\\n\r]+|+\U+|+\\[\s!-~^ux]|+\\x[0-9a-fA-F][0-9a-fA-F]|+\\u[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]
 		Bstr  = \\+"" *+""\\+|+""|+[^""]+|+\U+
 		Word  = [a-zA-Z_]|[a-zA-Z_][0-9a-zA-Z_]+
-		Hex   = 0[xX]|[\+\-]0[xX] ?+[0-9a-fA-F]+|+_[0-9a-fA-F]+
-		Num   = 0|[1-9]|[\+\-]0|[\+\-][1-9] ?+[0-9]+|+_[0-9]+ ?.[0-9]+ ?+_[0-9]+ ?[eE][0-9]+|[eE][\+\-][0-9]+ ?[fF]
+		Hex   = 0[xX]|\+0[xX]|-0[xX] ?+[0-9a-fA-F]+|+_[0-9a-fA-F]+
+		Num   = 0|\+0|-0|[1-9]|\+[1-9]|-[1-9] ?+[0-9]+|+_[0-9]+ ?.[0-9]+ ?+_[0-9]+ ?[eE][0-9]+|[eE][\+\-][0-9]+ ?[fF]
+		In    = `
+		Out   = .
+		Wire  = '
+		Pl    = (
+		Pr    = )
+		Sbl   = \[
+		Sbr   = \]
+		Cbl   = {
+		Cbr   = }
+		Mul   = \*
+		Div   = /
+		Mod   = %
+		Shl   = <<
+		Shr   = >>
+		Add   = \+
+		Sub   = -
+		Eq    = =
+		Ineq  = -=
+		Leq   = <=
+		Geq   = >=
+		Less  = <
+		Gre   = >
+		Not   = --
+		Xor   = \+\+
+		And   = &&
+		Or    = \|\|
 		";
 
 		public Lexer() : base(Grammar, null) { }

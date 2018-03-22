@@ -225,7 +225,7 @@ namespace qutum.parser
 				.Select(t => W[t] = true).Count();
 			s.Where(t => t >= 'a' || t <= 'f' || t >= 'A' && t <= 'F' || t >= '0' && t <= '9')
 				.Select(t => X[t] = true).Count();
-			s.Where(t => (W[t] || O[t]) && t != '[' && t != ']').Select(t => B[t] = true).Count();
+			s.Where(t => (W[t] || O[t]) && t != '[' && t != ']' || t == '=').Select(t => B[t] = true).Count();
 		}
 
 		internal static string Sym(string s, int f, int t) => Sym(s, ref f, t);
