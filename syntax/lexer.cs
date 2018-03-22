@@ -14,8 +14,8 @@ namespace qutum.syntax
 {
 	enum Lex
 	{
-		_ = 1, Eol, Ind, Ded, Comm, Bcomm,
-		Str, Bstr,
+		_ = 1, Eol, Ind, Ded, Comm, Commb,
+		Str, Strb,
 		Word, Hex, Num, Int, Float,
 		In, Out, Wire,
 		Pl, Pr, Sbl, Sbr, Cbl, Cbr,
@@ -30,9 +30,9 @@ namespace qutum.syntax
 		_     = \s|\t ?+\s+|+\t+
 		Eol   = \n|\r\n
 		Comm  = ## ?+[^\n]+|+\U+
-		Bcomm = \\+## *+##\\+|+#|+[^#]+|+\U+
+		Commb = \\+## *+##\\+|+#|+[^#]+|+\U+
 		Str   = "" *""|+[^""\\\n\r]+|+\U+|+\\[\s!-~^ux]|+\\x[0-9a-fA-F][0-9a-fA-F]|+\\u[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]
-		Bstr  = \\+"" *+""\\+|+""|+[^""]+|+\U+
+		Strb  = \\+"" *+""\\+|+""|+[^""]+|+\U+
 		Word  = [a-zA-Z_]|[a-zA-Z_][0-9a-zA-Z_]+
 		Hex   = 0[xX]|\+0[xX]|-0[xX] ?+[0-9a-fA-F]+|+_[0-9a-fA-F]+
 		Num   = 0|\+0|-0|[1-9]|\+[1-9]|-[1-9] ?+[0-9]+|+_[0-9]+ ?.[0-9]+ ?+_[0-9]+ ?[eE][0-9]+|[eE][\+\-][0-9]+ ?[fF]
@@ -99,15 +99,15 @@ namespace qutum.syntax
 					break;
 				case Lex.Comm:
 					key = Lex._; v = nameof(Lex.Comm); break;
-				case Lex.Bcomm:
+				case Lex.Commb:
 					if (step == 1) { bn = to - from; return; }
 					if (to - f != bn || scan.Tokens(f, f + 1, bs)[0] != '#') return;
-					end = true; key = Lex._; v = nameof(Lex.Bcomm); break;
+					end = true; key = Lex._; v = nameof(Lex.Commb); break;
 				case Lex.Str:
 					if (step == 1 || end) break;
 					ScanBs(f, to, bn);
 					if (bs[bn] != '\\') bn += to - f; else Escape(); return;
-				case Lex.Bstr:
+				case Lex.Strb:
 					if (step == 1) { bn = to; return; }
 					if (to - f != bn - from || scan.Tokens(f, f + 1, bs)[0] != '"') return;
 					end = true; bn = ScanBs(bn, f, 0); break;

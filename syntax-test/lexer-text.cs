@@ -36,13 +36,13 @@ namespace qutum.test.syntax
 		[TestMethod]
 		public void Space()
 		{
-			Check(@"\####\\####\ ", "_=Bcomm _=");
+			Check(@"\####\\####\ ", "_=Commb _=");
 		}
 
 		[TestMethod]
 		public void Eol()
 		{
-			Check("\\####\\\t \r\n\\####\\ \t \n", @"_=Bcomm _= Eol!use \n instead of \r\n Eol= _=Bcomm _= Eol=");
+			Check("\\####\\\t \r\n\\####\\ \t \n", @"_=Commb _= Eol!use \n instead of \r\n Eol= _=Commb _= Eol=");
 		}
 
 		[TestMethod]
@@ -90,25 +90,25 @@ namespace qutum.test.syntax
 		}
 
 		[TestMethod]
-		public void BlockString1()
+		public void StringBlock1()
 		{
-			Check(@"\""abcdef""\", "Bstr=abcdef"); Check(@"\\""abcdef""\\", "Bstr=abcdef");
-			Check("\\\"a\\tc\ndef\"\\", "Bstr=a\\tc\ndef");
+			Check(@"\""abcdef""\", "Strb=abcdef"); Check(@"\\""abcdef""\\", "Strb=abcdef");
+			Check("\\\"a\\tc\ndef\"\\", "Strb=a\\tc\ndef");
 		}
 
 		[TestMethod]
-		public void BlockString2()
+		public void StringBlock2()
 		{
-			Check(@"\""ab""cdef""\", "Bstr=ab\"cdef");
-			Check(@"\""""abcdef""\", "Bstr=\"abcdef");
-			Check(@"\""abcdef""""\", "Bstr=abcdef\"");
+			Check(@"\""ab""cdef""\", "Strb=ab\"cdef");
+			Check(@"\""""abcdef""\", "Strb=\"abcdef");
+			Check(@"\""abcdef""""\", "Strb=abcdef\"");
 		}
 
 		[TestMethod]
-		public void BlockString3()
+		public void StringBlock3()
 		{
-			Check(@"\""""\\abc""\\def""\\""\", "Bstr=\"\\\\abc\"\\\\def\"\\\\");
-			Check(@"\\""""\abc""\def""\""\\", "Bstr=\"\\abc\"\\def\"\\");
+			Check(@"\""""\\abc""\\def""\\""\", "Strb=\"\\\\abc\"\\\\def\"\\\\");
+			Check(@"\\""""\abc""\def""\""\\", "Strb=\"\\abc\"\\def\"\\");
 		}
 
 		[TestMethod]
