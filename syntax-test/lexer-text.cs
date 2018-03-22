@@ -194,7 +194,7 @@ namespace qutum.test.syntax
 		public void Symbol2()
 		{
 			Check("([{)]}", "Pl= Sbl= Cbl= Pr= Sbr= Cbr=");
-			Check("*/%", "Mul= Div= Mod="); Check("<<>>", "Shl= Shr=");
+			Check("*/%//%%", "Mul= Div= Mod= Divf= Modf="); Check("<<>>", "Shl= Shr=");
 			Check("+5-5+_5-_5", "Int=5 Int=-5 Add= Word=_5 Sub= Word=_5");
 		}
 

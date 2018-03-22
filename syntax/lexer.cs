@@ -19,7 +19,7 @@ namespace qutum.syntax
 		Word, Hex, Num, Int, Float,
 		In, Out, Wire,
 		Pl, Pr, Sbl, Sbr, Cbl, Cbr,
-		Mul, Div, Mod, Shl, Shr, Add, Sub,
+		Mul, Div, Mod, Divf, Modf, Shl, Shr, Add, Sub,
 		Eq, Ineq, Leq, Geq, Less, Gre,
 		Not, Xor, And, Or,
 	}
@@ -48,6 +48,8 @@ namespace qutum.syntax
 		Mul   = \*
 		Div   = /
 		Mod   = %
+		Divf  = //
+		Modf  = %%
 		Shl   = <<
 		Shr   = >>
 		Add   = \+
