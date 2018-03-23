@@ -351,7 +351,7 @@ namespace qutum.test.parser
 		public void LexUtf2()
 		{
 			var l = new LexerEnum<Tag>("A=a\\U\\Uz \n B=a");
-			Check(l, "aÄãºÃzaºÜºÃz", "A=aÄãºÃz A=aºÜºÃz");
+			Check(l, "aä½ å¥½zaå¾ˆå¥½z", "A=aä½ å¥½z A=aå¾ˆå¥½z");
 			Check(l, "a\x80\x100z", "A=a\x80\x100z");
 			Check(l, "a\u0080aa", "A!a B=a");
 		}
@@ -360,8 +360,8 @@ namespace qutum.test.parser
 		public void LexUtf3()
 		{
 			var l = new LexerEnum<Tag>("A=a\\U+z");
-			Check(l, "aºÃza´ó¼Ò¶¼ºÃz", "A=aºÃz A=a´ó¼Ò¶¼ºÃz");
-			var bs = Encoding.UTF8.GetBytes("aºÃ"); bs[2] = 0;
+			Check(l, "aå¥½zaå¤§å®¶éƒ½å¥½z", "A=aå¥½z A=aå¤§å®¶éƒ½å¥½z");
+			var bs = Encoding.UTF8.GetBytes("aå¥½"); bs[2] = 0;
 			Check(l, bs, "A!\0 0!\xbd");
 		}
 	}

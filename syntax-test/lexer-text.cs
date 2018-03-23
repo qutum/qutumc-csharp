@@ -69,8 +69,8 @@ namespace qutum.test.syntax
 		[TestMethod]
 		public void Utf()
 		{
-			Check(@"ºÃ", "0!\xe5 0!\xa5 0!\xbd");
-			Check(@"""abcÄãºÃdef""", "Str=abcÄãºÃdef");
+			Check(@"å¥½", "0!\xe5 0!\xa5 0!\xbd");
+			Check(@"""abcä½ å¥½def""", "Str=abcä½ å¥½def");
 		}
 
 		[TestMethod]
@@ -85,7 +85,7 @@ namespace qutum.test.syntax
 		{
 			Check(@"""\tabc\r\ndef""", "Str=\tabc\r\ndef");
 			Check(@"""\x09abc\x0d\x0adef""", "Str=\tabc\r\ndef");
-			Check(@"""\abc\\\0\x7edef\""\u597dÂğ""", "Str=abc\\\0~def\"ºÃÂğ");
+			Check(@"""\abc\\\0\x7edef\""\u597då—""", "Str=abc\\\0~def\"å¥½å—");
 			Check(@"""\x0\uaa""", "Str!\\ Str!\\ Str=x0uaa");
 		}
 

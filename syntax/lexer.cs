@@ -17,7 +17,7 @@ namespace qutum.syntax
 		_ = 1, Eol, Ind, Ded, Comm, Commb,
 		Str, Strb,
 		Word, Hex, Num, Int, Float,
-		In, Out, Wire,
+		In, Out, Hub, Wire,
 		Pl, Pr, Sbl, Sbr, Cbl, Cbr,
 		Mul, Div, Mod, Divf, Modf, Shl, Shr, Add, Sub,
 		Eq, Ineq, Leq, Geq, Less, Gre,
