@@ -135,7 +135,7 @@ namespace qutum.parser
 
 		public int Line(int loc) { var l = lines.BinarySearch(loc); return (l ^ l >> 31) + (l >> 31); }
 
-		static Earley<string, char, char, string> boot = new Earley<string, char, char, string>(@"
+		static Parser<string, char, char, string> boot = new Parser<string, char, char, string>(@"
 			gram  = eol*lex lexs*eol*
 			lexs  = eol+lex
 			lex   = name S*\=S*step steps* =+

@@ -13,7 +13,7 @@ using static qutum.parser.Qua;
 
 namespace qutum.parser
 {
-	public class ParserStr : Earley<string, char, char, string>
+	public class ParserStr : Parser<string, char, char, string>
 	{
 		public ParserStr(string grammar) : base(grammar, new ScanStr()) { }
 	}
@@ -31,7 +31,7 @@ namespace qutum.parser
 
 	enum Qua : byte { Opt = 0, One = 1, Any = 2, More = 3 };
 
-	public class Earley<I, K, T, S> where S : class, IEnumerable<T>
+	public class Parser<I, K, T, S> where S : class, IEnumerable<T>
 	{
 		sealed class Alt
 		{
@@ -76,9 +76,9 @@ namespace qutum.parser
 			public override string ToString() => $"{from}:{to}#{step} {con}";
 		}
 
-		Earley() { }
+		Parser() { }
 
-		public Earley(string grammar, Scan<I, K, T, S> scan) { this.scan = scan; Boot(grammar); }
+		public Parser(string grammar, Scan<I, K, T, S> scan) { this.scan = scan; Boot(grammar); }
 
 		public Tree<S> Parse(I input) => Parse(input, out Tree<S> recos);
 
@@ -86,7 +86,7 @@ namespace qutum.parser
 		{
 			if (input != null) scan.Load(input);
 			recos = null;
-			int m = Parsing(ref recos, recovery);
+			int m = Earley(ref recos, recovery);
 			Tree<S> t = m >= 0 ? Accepted(m, null) : Rejected();
 			matchs.Clear(); locs.Clear();
 			if (input != null) scan.Unload();
@@ -98,13 +98,13 @@ namespace qutum.parser
 			if (input != null) scan.Load(input);
 			bool gre = greedy; greedy = false;
 			Tree<S> recos = null;
-			int m = Parsing(ref recos, 0);
+			int m = Earley(ref recos, 0);
 			greedy = gre; matchs.Clear(); locs.Clear();
 			if (input != null) scan.Unload();
 			return m >= 0;
 		}
 
-		int Parsing(ref Tree<S> recos, int reco)
+		int Earley(ref Tree<S> recos, int reco)
 		{
 			locs.Add(loc = 0);
 			foreach (var x in start.s)
@@ -281,10 +281,10 @@ namespace qutum.parser
 
 		// bootstrap
 
-		static Earley<string, char, char, string> boot = new Earley<string, char, char, string>()
+		static Parser<string, char, char, string> boot = new Parser<string, char, char, string>()
 		{ scan = new BootScan(), greedy = false, treeKeep = false, treeDump = false };
 
-		static Earley()
+		static Parser()
 		{
 			var grammar = new Dictionary<string, string>() { // \x1 |
 			{ "gram", "reco? eol* prod prods* eol*" },
@@ -306,15 +306,15 @@ namespace qutum.parser
 			{ "reco", "\x1 = recos+" },
 			{ "recos","recok|S+" },
 			{ "recok","W+|O+|\\ E|\\ u X X X X" } };
-			var alt = grammar.ToDictionary(kv => kv.Key, kv => new Earley<string, char, char, string>.Alt { name = kv.Key });
+			var alt = grammar.ToDictionary(kv => kv.Key, kv => new Parser<string, char, char, string>.Alt { name = kv.Key });
 			foreach (var kv in grammar) alt[kv.Key].s = kv.Value.Split("|").Select(con =>
 			{
 				var z = con.Replace('\x1', '|').Split(' ', StringSplitOptions.RemoveEmptyEntries);
 				var qs = z.Select(v => (v.Length > 1 && v[v.Length - 1] is char c ?
 					c == '?' ? Opt : c == '*' ? Any : c == '+' ? More : One : One)).Append(One).ToArray();
 				var s = z.Select((v, x) => alt.TryGetValue(v = qs[x] == One ? v : v.Substring(0, v.Length - 1),
-					out Earley<string, char, char, string>.Alt a) ? a : boot.scan.Keys(v).First()).Append(null).ToArray();
-				return new Earley<string, char, char, string>.Con { name = kv.Key, s = s, qs = qs };
+					out Parser<string, char, char, string>.Alt a) ? a : boot.scan.Keys(v).First()).Append(null).ToArray();
+				return new Parser<string, char, char, string>.Con { name = kv.Key, s = s, qs = qs };
 			}).ToArray();
 			alt["hint"].s[0].greedy = 1;
 			foreach (var c in new[] { "prod", "alt", "name", "sym", "phint", "hintg", "hintk", "hintw", "hinte", "recok" }
