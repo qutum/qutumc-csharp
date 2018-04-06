@@ -8,14 +8,14 @@ namespace qutum.parser
 	public struct Token<K> where K : struct
 	{
 		public K key;
-		public int from, to; // input loc
 		public bool err;
+		public int from, to; // input loc
 		public object value;
 
 		public string Dump() => $"{key}{(err ? "!" : "=")}{value}";
 	}
 
-	public class LexerEnum<K> : Lexer<K, Token<K>, List<Token<K>>> where K : struct
+	public class LexerEnum<K> : Lexer<K, Token<K>> where K : struct
 	{
 		public LexerEnum(string grammar, Scan<IEnumerable<byte>, byte, byte, IEnumerable<byte>> scan = null)
 			: base(grammar, scan ?? new ScanByte()) { }
@@ -44,18 +44,19 @@ namespace qutum.parser
 		}
 
 		protected void Add(K key, int f, int to, object value, bool err = false)
-			=> tokens.Add(new Token<K> { key = key, from = f, to = to, value = value, err = err });
+		{
+			Add();
+			tokens[tokenn++] = new Token<K> { key = key, from = f, to = to, value = value, err = err };
+		}
 
 		protected static EqualityComparer<K> Eq = EqualityComparer<K>.Default;
 
 		public override bool Is(K key) => Eq.Equals(tokens[loc].key, key);
 
 		public override bool Is(K key1, K key) => Eq.Equals(key1, key);
-
-		public override List<Token<K>> Tokens(int from, int to) => tokens.GetRange(from, to - from);
 	}
 
-	public abstract class Lexer<K, T, S> : Scan<IEnumerable<byte>, K, T, S> where T : struct where S : IEnumerable<T>
+	public abstract class Lexer<K, T> : Scan<IEnumerable<byte>, K, T, ArraySegment<T>> where T : struct
 	{
 		sealed class Unit
 		{
@@ -67,15 +68,15 @@ namespace qutum.parser
 			internal int mode; // no quantifer: err: -2, back: 0, ok: 2; quantifier: err: -1, ok: 3
 			internal Unit go; // go.next != null
 
-			internal Unit(Lexer<K, T, S> l) => id = ++l.id;
+			internal Unit(Lexer<K, T> l) => id = ++l.id;
 		}
 
 		Unit start;
 		int id, bf, bt, bn;
 		internal Scan<IEnumerable<byte>, byte, byte, IEnumerable<byte>> scan;
 		internal byte[] bytes = new byte[17];
-		internal List<T> tokens = new List<T>();
-		internal int loc = -2;
+		internal T[] tokens = new T[65536];
+		internal int tokenn, loc = -2;
 		internal List<int> lines = new List<int>();
 
 		public Lexer(string grammar, Scan<IEnumerable<byte>, byte, byte, IEnumerable<byte>> scan)
@@ -91,17 +92,17 @@ namespace qutum.parser
 			loc = -1; lines.Add(-1); lines.Add(0);
 		}
 
-		public virtual void Unload() { scan.Unload(); tokens.Clear(); loc = -2; lines.Clear(); }
+		public virtual void Unload() { scan.Unload(); tokenn = 0; loc = -2; lines.Clear(); }
 
 		public bool Next()
 		{
-			if (++loc < tokens.Count) return true;
+			if (++loc < tokenn) return true;
 			var u = start;
 			Go: bf = bt;
 			Next: if (bt >= bn)
 				if (scan.Next()) { if ((bytes[bn++ & 15] = scan.Token()) == '\n') lines.Add(bn); }
 				else if (u == start || bt > bn)
-				{ if (bn >= 0) Error(start.key, -1, true, null, bn, bn = -1); return loc < tokens.Count; }
+				{ if (bn >= 0) Error(start.key, -1, true, null, bn, bn = -1); return loc < tokenn; }
 				else goto Do;
 			var b = bytes[bt & 15];
 			if (u.next[b < 128 ? b : b > 0xf7 ? 132 : b > 0xef ? 131 : b > 0xdf ? 130 : b > 0xbf ? 129 : 128] is Unit n)
@@ -113,13 +114,15 @@ namespace qutum.parser
 			if (u.mode == 0) { u = n; --bt; goto Do; }
 			else if (u.mode > 0) { var e = n == start; Token(u.key, u.step, ref e, bf, bt); if (e) n = start; }
 			else Error(u.key, u.step, n == start || bt >= bn, bt < bn ? bytes[bt & 15] : (byte?)null, bf, ++bt);
-			if (n == start && loc < tokens.Count) return true;
+			if (n == start && loc < tokenn) return true;
 			u = n; goto Go;
 		}
 
 		protected abstract void Token(K key, int step, ref bool end, int from, int to);
 
 		protected abstract void Error(K key, int step, bool end, byte? b, int from, int to);
+
+		protected void Add() { if (tokens.Length <= tokenn) Array.Resize(ref tokens, tokens.Length << 1); }
 
 		public abstract bool Is(K key);
 
@@ -129,9 +132,9 @@ namespace qutum.parser
 
 		public T Token() => tokens[loc];
 
-		public abstract S Tokens(int from, int to);
+		public ArraySegment<T> Tokens(int from, int to) => new ArraySegment<T>(tokens, from, to - from);
 
-		public T[] Tokens(int from, int to, T[] s, int x) { tokens.CopyTo(from, s, x, to - from); return s; }
+		public T[] Tokens(int from, int to, T[] s, int x) { Array.Copy(tokens, from, s, x, to - from); return s; }
 
 		public int Line(int loc) { var l = lines.BinarySearch(loc); return (l ^ l >> 31) + (l >> 31); }
 

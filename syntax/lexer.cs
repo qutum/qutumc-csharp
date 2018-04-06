@@ -135,7 +135,7 @@ namespace qutum.syntax
 			base.Error(key, step, end, b, f, to);
 		}
 
-		bool LineStart(int f) => f == 0 || tokens.Last().key == Lex.Eol && tokens.Last().to == f;
+		bool LineStart(int f) => f == 0 || tokens[tokenn - 1].key == Lex.Eol && tokens[tokenn - 1].to == f;
 
 		int ScanBs(int f, int to, int x)
 		{
