@@ -31,7 +31,7 @@ namespace qutum.parser
 
 	enum Qua : byte { Opt = 0, One = 1, Any = 2, More = 3 };
 
-	public class Parser<I, K, T, S> where S : class, IEnumerable<T>
+	public class Parser<I, K, T, S> where S : IEnumerable<T>
 	{
 		sealed class Alt
 		{
@@ -277,8 +277,6 @@ namespace qutum.parser
 		string Dump(Match m) => !treeDump ? null :
 			$"{m.con.ToString()} :: {scan.Tokens(m.from, m.to).ToString().Replace("\n", "\\n").Replace("\r", "\\r")}";
 
-		public S Tokens(Tree<S> t) => t.tokens = t.tokens ?? scan.Tokens(t.from, t.to);
-
 		// bootstrap
 
 		static Parser<string, char, char, string> boot = new Parser<string, char, char, string>()
@@ -336,14 +334,14 @@ namespace qutum.parser
 				.Cast<K>().ToArray();
 			if (recok.Length > 4) throw new Exception("too many recovery keys");
 			var prod = top.Where(t => t.name == "prod");
-			var alt = prod.ToDictionary(t => boot.Tokens(t.head), t => new Alt { name = t.head.tokens });
+			var alt = prod.ToDictionary(t => BootTokens(t.head), t => new Alt { name = t.head.tokens });
 			foreach (var p in prod)
 			{
 				var cs = p.Where(t => t.name == "alt").Prepend(p).Select(ta =>
 				{
 					var s = ta.Where(t => t.name == "con" || t.name == "sym").SelectMany
 						(t => t.name == "sym" ? BootQua(gram, t.from) ?? scan.Keys(BootScan.Sym(gram, t.from, t.to))
-							: alt.TryGetValue(boot.Tokens(t), out Alt a) ? new object[] { a } : scan.Keys(t.tokens)
+							: alt.TryGetValue(BootTokens(t), out Alt a) ? new object[] { a } : scan.Keys(t.tokens)
 						).Append(null).ToArray();
 					var qs = s.Select((v, x) => v == null || !(s[x + 1] is Qua r) ? One : r).Where((v, x) => !(s[x] is Qua));
 					var rk = (byte)recok.Select((r, x) => s.Any(v => v is K k && scan.Is(r, k)) ? 1 << x : 0).Sum();
@@ -356,7 +354,7 @@ namespace qutum.parser
 					sbyte g = 0, k = 0; string w = null; a = a.head;
 					if (a.name == "hintg") { g = 1; a = a.next ?? top; }
 					if (a.name == "hintk") { k = (sbyte)(gram[a.from] == '+' ? 1 : -1); a = a.next ?? top; }
-					if (a.name == "hintw") { w = boot.Tokens(a); a = a.next ?? top; }
+					if (a.name == "hintw") { w = BootTokens(a); a = a.next ?? top; }
 					for (; w != null && tx <= x; tx++) { cs[tx].greedy = g; cs[tx].keep = k; cs[tx].hint = w != "" ? w : null; }
 					if (a.name == "hinte") tx = x + 1;
 					return true;
@@ -374,5 +372,7 @@ namespace qutum.parser
 			if (s[x] == '+') return new object[] { More };
 			return null;
 		}
+
+		static string BootTokens(Tree<string> t) => t.tokens ?? (t.tokens = boot.scan.Tokens(t.from, t.to));
 	}
 }

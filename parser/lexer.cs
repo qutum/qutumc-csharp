@@ -167,7 +167,7 @@ namespace qutum.parser
 			start = new Unit(this) { mode = -1 }; start.go = start;
 			foreach (var l in top)
 			{
-				var k = (K)Keys(boot.Tokens(l.head)).Single();
+				var k = (K)Keys(l.head.tokens ?? (l.head.tokens = boot.scan.Tokens(l.head.from, l.head.to))).Single();
 				var ust = l.Select((z, x) => x < 2 ? start : new Unit(this) { key = k, step = x, mode = -1, go = start })
 					.Append(start).ToArray();
 				var step = 0; var b1 = new int[1];
