@@ -77,27 +77,32 @@ namespace qutum.syntax
 		protected override void Token(Lex key, int step, ref bool end, int f, int to)
 		{
 			object v = null;
-			if (from < 0) { from = f; bn = 0; }
+			if (from < 0)
+			{
+				from = f; bn = 0;
+				if (key != Lex._ && LineStart(f)) while (indLast > 0) Add(Lex.Ded, f, f, --indLast);
+			}
+			if (key == Lex._)
+			{
+				if (step == 1)
+					if (LineStart(f)) { scan.Tokens(f, to, bs); return; }
+					else { bs[0] = 0; return; }
+				if (bs[0] != 0)
+					if (f < to && scan.Tokens(f, f + 1, bs, 1)[1] != bs[0])
+					{ bs[0] = 0; Add(Lex.Ind, f, to, "do not mix tabs and spaces for indent", true); }
+					else if (bs[0] == ' ' && (to - from & 3) != 0)
+					{ bs[0] = 0; Add(Lex.Ind, f, to, $"{to - from + 3 >> 2 << 2} spaces expected", true); }
+				if (!end) return;
+				if (bs[0] == 0) { Add(key, from, to, null); from = -1; return; }
+				bn = to - from >> (bs[0] == ' ' ? 2 : 0);
+				while (bn > indLast) Add(Lex.Ind, from, to, ++indLast);
+				while (bn < indLast) Add(Lex.Ded, from, to, --indLast);
+				from = -1; return;
+			}
 			switch (key)
 			{
-				case Lex._:
-					if (step == 1)
-						if (LineStart(f)) { scan.Tokens(f, to, bs); return; }
-						else { bs[0] = 0; return; }
-					if (bs[0] != 0)
-						if (f < to && scan.Tokens(f, f + 1, bs, 1)[1] != bs[0])
-						{ bs[0] = 0; Add(Lex.Ind, f, to, "do not mix tabs and spaces for indent", true); }
-						else if (bs[0] == ' ' && (to - from & 3) != 0)
-						{ bs[0] = 0; Add(Lex.Ind, f, to, $"{to - from + 3 >> 2 << 2} spaces expected", true); }
-					if (!end) return;
-					if (bs[0] == 0) { Add(key, from, to, null); from = -1; return; }
-					bn = to - from >> (bs[0] == ' ' ? 2 : 0);
-					while (bn > indLast) Add(Lex.Ind, from, to, ++indLast);
-					while (bn < indLast) Add(Lex.Ded, from, to, --indLast);
-					from = -1; return;
 				case Lex.Eol:
 					if (to == f + 2) Add(key, f, to, @"use \n instead of \r\n", true);
-					if (LineStart(f)) while (indLast > 0) Add(Lex.Ded, f, f, --indLast);
 					break;
 				case Lex.Comm:
 					key = Lex._; v = nameof(Lex.Comm); break;
@@ -135,7 +140,7 @@ namespace qutum.syntax
 			base.Error(key, step, end, b, f, to);
 		}
 
-		bool LineStart(int f) => f == 0 || tokens[tokenn - 1].key == Lex.Eol && tokens[tokenn - 1].to == f;
+		bool LineStart(int f) => tokenn == 0 || tokens[tokenn - 1].key == Lex.Eol && tokens[tokenn - 1].to == f;
 
 		int ScanBs(int f, int to, int x)
 		{

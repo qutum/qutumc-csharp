@@ -48,22 +48,28 @@ namespace qutum.test.syntax
 		[TestMethod]
 		public void Indent1()
 		{
-			Check("    \n\t\t\t\n\t\n", "Ind=1 Eol= Ind=2 Ind=3 Eol= Ded=2 Ded=1 Eol= Ded=0");
+			Check("    \n\t\t\t\n\t\n    \n", "Ind=1 Eol= Ind=2 Ind=3 Eol= Ded=2 Ded=1 Eol= Eol= Ded=0");
 		}
 
 		[TestMethod]
 		public void Indent2()
 		{
-			Check(" \t", "Ind!do not mix tabs and spaces for indent _=");
-			Check("\t    ", "Ind!do not mix tabs and spaces for indent _=");
-			Check(" ", "Ind!4 spaces expected _="); Check("       ", "Ind!8 spaces expected _=");
+			Check("\n\t\ta\n\ta\na\na", "Eol= Ind=1 Ind=2 Word=a Eol= Ded=1 Word=a Eol= Ded=0 Word=a Eol= Word=a");
 		}
 
 		[TestMethod]
 		public void Indent3()
 		{
-			Check("\n\t\t\n\t\n\n", "Eol= Ind=1 Ind=2 Eol= Ded=1 Eol= Ded=0 Eol=");
 			Check("\t\t####\n", "Ind=1 Ind=2 _=Comm Eol= Ded=1 Ded=0");
+			Check("\\####\\\t\t\n", "_=Commb _= Eol=");
+		}
+
+		[TestMethod]
+		public void Indent4()
+		{
+			Check(" \t", "Ind!do not mix tabs and spaces for indent _=");
+			Check("\t    ", "Ind!do not mix tabs and spaces for indent _=");
+			Check(" ", "Ind!4 spaces expected _="); Check("       ", "Ind!8 spaces expected _=");
 		}
 
 		[TestMethod]
