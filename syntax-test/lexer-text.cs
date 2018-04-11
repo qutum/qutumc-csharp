@@ -21,11 +21,9 @@ namespace qutum.test.syntax
 
 		Lexer l;
 
-		void Check(string input, string s) => Check(Encoding.UTF8.GetBytes(input), s);
-
-		void Check(byte[] input, string s)
+		void Check(string input, string s)
 		{
-			l.Load(input);
+			l.Load(Encoding.UTF8.GetBytes(input));
 			while (l.Next()) ;
 			var z = string.Join(" ", l.Tokens(0, l.Loc()).Select(t => t.Dump()).ToArray());
 			Console.WriteLine(z);
@@ -34,38 +32,38 @@ namespace qutum.test.syntax
 		}
 
 		[TestMethod]
-		public void Space()
+		public void LexSpace()
 		{
-			Check(@"\####\\####\ ", "_=Commb _=");
+			Check(@"\####\\####\ ", "_=commb _=");
 		}
 
 		[TestMethod]
-		public void Eol()
+		public void LexEol()
 		{
-			Check("\\####\\\t \r\n\\####\\ \t \n", @"_=Commb _= Eol!use \n instead of \r\n Eol= _=Commb _= Eol=");
+			Check("\\####\\\t \r\n\\####\\ \t \n", @"_=commb _= Eol!use \n instead of \r\n Eol= _=commb _= Eol=");
 		}
 
 		[TestMethod]
-		public void Indent1()
+		public void LexIndent1()
 		{
 			Check("    \n\t\t\t\n\t\n    \n", "Ind=1 Eol= Ind=2 Ind=3 Eol= Ded=2 Ded=1 Eol= Eol= Ded=0");
 		}
 
 		[TestMethod]
-		public void Indent2()
+		public void LexIndent2()
 		{
 			Check("\n\t\ta\n\ta\na\na", "Eol= Ind=1 Ind=2 Word=a Eol= Ded=1 Word=a Eol= Ded=0 Word=a Eol= Word=a");
 		}
 
 		[TestMethod]
-		public void Indent3()
+		public void LexIndent3()
 		{
-			Check("\t\t####\n", "Ind=1 Ind=2 _=Comm Eol= Ded=1 Ded=0");
-			Check("\\####\\\t\t\n", "_=Commb _= Eol=");
+			Check("\t\t####\n", "Ind=1 Ind=2 _=comm Eol= Ded=1 Ded=0");
+			Check("\\####\\\t\t\n", "_=commb _= Eol=");
 		}
 
 		[TestMethod]
-		public void Indent4()
+		public void LexIndent4()
 		{
 			Check(" \t", "Ind!do not mix tabs and spaces for indent _=");
 			Check("\t    ", "Ind!do not mix tabs and spaces for indent _=");
@@ -73,21 +71,21 @@ namespace qutum.test.syntax
 		}
 
 		[TestMethod]
-		public void Utf()
+		public void LexUtf()
 		{
 			Check(@"好", "0!\xe5 0!\xa5 0!\xbd");
 			Check(@"""abc你好def""", "Str=abc你好def");
 		}
 
 		[TestMethod]
-		public void String1()
+		public void LexString1()
 		{
 			Check(@"""abc  def""", "Str=abc  def");
 			Check(@"""a", "Str!"); Check("\"a\nb\"", "Str!\n Str=ab");
 		}
 
 		[TestMethod]
-		public void String2()
+		public void LexString2()
 		{
 			Check(@"""\tabc\r\ndef""", "Str=\tabc\r\ndef");
 			Check(@"""\x09abc\x0d\x0adef""", "Str=\tabc\r\ndef");
@@ -96,14 +94,14 @@ namespace qutum.test.syntax
 		}
 
 		[TestMethod]
-		public void StringBlock1()
+		public void LexStringBlock1()
 		{
 			Check(@"\""abcdef""\", "Strb=abcdef"); Check(@"\\""abcdef""\\", "Strb=abcdef");
 			Check("\\\"a\\tc\ndef\"\\", "Strb=a\\tc\ndef");
 		}
 
 		[TestMethod]
-		public void StringBlock2()
+		public void LexStringBlock2()
 		{
 			Check(@"\""ab""cdef""\", "Strb=ab\"cdef");
 			Check(@"\""""abcdef""\", "Strb=\"abcdef");
@@ -111,14 +109,14 @@ namespace qutum.test.syntax
 		}
 
 		[TestMethod]
-		public void StringBlock3()
+		public void LexStringBlock3()
 		{
 			Check(@"\""""\\abc""\\def""\\""\", "Strb=\"\\\\abc\"\\\\def\"\\\\");
 			Check(@"\\""""\abc""\def""\""\\", "Strb=\"\\abc\"\\def\"\\");
 		}
 
 		[TestMethod]
-		public void Word()
+		public void LexWord()
 		{
 			Check("abc", "Word=abc"); Check("Abc123", "Word=Abc123");
 			Check("_123", "Word=_123"); Check("__a4", "Word=__a4"); Check("_A__b_", "Word=_A__b_");
@@ -126,7 +124,7 @@ namespace qutum.test.syntax
 		}
 
 		[TestMethod]
-		public void Hex1()
+		public void LexHex1()
 		{
 			Check("0x0", "Int=0"); Check("0xF", "Int=15");
 			Check("+0x0A", "Int=10");
@@ -136,7 +134,7 @@ namespace qutum.test.syntax
 		}
 
 		[TestMethod]
-		public void Hex2()
+		public void LexHex2()
 		{
 			Check("-0x0", "Int=0"); Check("-0xF", "Int=-15");
 			Check("-0x7fffffff", "Int=-2147483647"); Check("-0x80000000", "Int=-2147483648");
@@ -144,7 +142,7 @@ namespace qutum.test.syntax
 		}
 
 		[TestMethod]
-		public void Int1()
+		public void LexInt1()
 		{
 			Check("0", "Int=0"); Check("0a", "Int=0 Word=a");
 			Check("+09", "Int=9"); Check("9876", "Int=9876");
@@ -154,7 +152,7 @@ namespace qutum.test.syntax
 		}
 
 		[TestMethod]
-		public void Int2()
+		public void LexInt2()
 		{
 			Check("-000", "Int=0"); Check("-1x1", "Int=-1 Word=x1"); Check("-0a", "Int=0 Word=a");
 			Check("-09", "Int=-9"); Check("-2_", "Int=-2 Word=_");
@@ -162,7 +160,7 @@ namespace qutum.test.syntax
 		}
 
 		[TestMethod]
-		public void Float1()
+		public void LexFloat1()
 		{
 			Check("0f", "Float=0"); Check("00.0x", "Float=0 Word=x"); Check("0.000f", "Float=0");
 			Check("340282347999999999999999999999999999999.99999", "Float=3.402823E+38");
@@ -170,7 +168,7 @@ namespace qutum.test.syntax
 		}
 
 		[TestMethod]
-		public void Float2()
+		public void LexFloat2()
 		{
 			Check("1234.0", "Float=1234"); Check("553.2", "Float=553.2"); Check("34_8.5", "Float=348.5");
 			Check("1.00_0_0100000000000000000000000000000000000000000000000000000000001", "Float=1.00001");
@@ -178,7 +176,7 @@ namespace qutum.test.syntax
 		}
 
 		[TestMethod]
-		public void Float3()
+		public void LexFloat3()
 		{
 			Check("1e38", "Float=1E+38"); Check("1e+38", "Float=1E+38");
 			Check("5e38", "Float!float out of range Float=0");
@@ -191,13 +189,13 @@ namespace qutum.test.syntax
 		}
 
 		[TestMethod]
-		public void Symbol1()
+		public void LexSymbol1()
 		{
 			Check("a`b.0'c", "Word=a In= Word=b Out= Int=0 Wire= Word=c");
 		}
 
 		[TestMethod]
-		public void Symbol2()
+		public void LexSymbol2()
 		{
 			Check("([{)]}", "Pl= Sbl= Cbl= Pr= Sbr= Cbr=");
 			Check("*/%//%%", "Mul= Div= Mod= Divf= Modf="); Check("<<>>", "Shl= Shr=");
@@ -205,7 +203,7 @@ namespace qutum.test.syntax
 		}
 
 		[TestMethod]
-		public void Symbol3()
+		public void LexSymbol3()
 		{
 			Check("==-=<<=<=<>=>", "Eq= Eq= Ineq= Shl= Eq= Leq= Less= Geq= Gre=");
 			Check("---++&&||", "Not= Sub= Xor= And= Or=");

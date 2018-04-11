@@ -14,9 +14,9 @@ namespace qutum.syntax
 {
 	enum Lex
 	{
-		_ = 1, Eol, Ind, Ded, Comm, Commb,
+		_ = 1, Eol, Ind, Ded, comm, commb,
 		Str, Strb,
-		Word, Hex, Num, Int, Float,
+		Word, hex, num, Int, Float,
 		In, Out, Hub, Wire,
 		Pl, Pr, Sbl, Sbr, Cbl, Cbr,
 		Mul, Div, Mod, Divf, Modf, Shl, Shr, Add, Sub,
@@ -29,13 +29,13 @@ namespace qutum.syntax
 		static string Grammar = @"
 		_     = \s|\t ?+\s+|+\t+
 		Eol   = \n|\r\n
-		Comm  = ## ?+[^\n]+|+\U+
-		Commb = \\+## *+##\\+|+#|+[^#]+|+\U+
+		comm  = ## ?+[^\n]+|+\U+
+		commb = \\+## *+##\\+|+#|+[^#]+|+\U+
 		Str   = "" *""|+[^""\\\n\r]+|+\U+|+\\[\s!-~^ux]|+\\x[0-9a-fA-F][0-9a-fA-F]|+\\u[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]
 		Strb  = \\+"" *+""\\+|+""|+[^""]+|+\U+
 		Word  = [a-zA-Z_]|[a-zA-Z_][0-9a-zA-Z_]+
-		Hex   = 0[xX]|\+0[xX]|-0[xX] ?+[0-9a-fA-F]+|+_[0-9a-fA-F]+
-		Num   = 0|\+0|-0|[1-9]|\+[1-9]|-[1-9] ?+[0-9]+|+_[0-9]+ ?.[0-9]+ ?+_[0-9]+ ?[eE][0-9]+|[eE][\+\-][0-9]+ ?[fF]
+		hex   = 0[xX]|\+0[xX]|-0[xX] ?+[0-9a-fA-F]+|+_[0-9a-fA-F]+
+		num   = 0|\+0|-0|[1-9]|\+[1-9]|-[1-9] ?+[0-9]+|+_[0-9]+ ?.[0-9]+ ?+_[0-9]+ ?[eE][0-9]+|[eE][\+\-][0-9]+ ?[fF]
 		In    = `
 		Out   = .
 		Wire  = '
@@ -104,12 +104,12 @@ namespace qutum.syntax
 				case Lex.Eol:
 					if (to == f + 2) Add(key, f, to, @"use \n instead of \r\n", true);
 					break;
-				case Lex.Comm:
-					key = Lex._; v = nameof(Lex.Comm); break;
-				case Lex.Commb:
+				case Lex.comm:
+					key = Lex._; v = nameof(Lex.comm); break;
+				case Lex.commb:
 					if (step == 1) { bn = to - from; return; }
 					if (to - f != bn || scan.Tokens(f, f + 1, bs)[0] != '#') return;
-					end = true; key = Lex._; v = nameof(Lex.Commb); break;
+					end = true; key = Lex._; v = nameof(Lex.commb); break;
 				case Lex.Str:
 					if (step == 1 || end) break;
 					ScanBs(f, to, bn);
@@ -120,10 +120,10 @@ namespace qutum.syntax
 					end = true; bn = ScanBs(bn, f, 0); break;
 				case Lex.Word:
 					bn = ScanBs(from, to, 0); break;
-				case Lex.Hex:
+				case Lex.hex:
 					if (!end) return;
 					bn = ScanBs(from, to, 0); key = Lex.Int; v = Hex(); break;
-				case Lex.Num:
+				case Lex.num:
 					if (step == 2) nn = to - from;
 					else if (step == 4) nf = to - from;
 					else if (step == 5) ne = to - from;
