@@ -49,7 +49,7 @@ namespace qutum.parser
 			internal sbyte keep; // default: 0, thru: -1, keep: 1
 
 			public override string ToString() => name + "=" + string.Join(' ',
-				s.Where(v => v != null).Select((v, x) => (v is Alt a ? a.name : v.ToString())
+				s.Where(v => v != null).Select((v, x) => (v is Alt a ? a.name : Esc(v))
 					+ (qs[x] == More ? "+" : qs[x] == Any ? "*" : qs[x] == Opt ? "?" : "")));
 		}
 
@@ -65,6 +65,7 @@ namespace qutum.parser
 		internal int recovery = 10; // no recovery: 0, how many times to recover at eof: > 0
 		internal bool treeKeep = true;
 		internal bool treeDump = false;
+		internal Func<object, string> treeDumper = null;
 
 		struct Match
 		{
@@ -255,7 +256,7 @@ namespace qutum.parser
 		{
 			int to = locs[loc] < matchs.Count ? loc : loc - 1, x = locs[to];
 			var t = new Tree<S>
-			{ name = "", dump = treeDump ? scan.Tokens(0, loc).ToString() : null, from = to, to = loc, err = 1 };
+			{ name = "", dump = treeDump ? Dump(scan.Tokens(0, loc)) : null, from = to, to = loc, err = 1 };
 			for (int y = matchs.Count - 1, z; (z = y) >= x; y--)
 			{
 				Prev: var m = matchs[z]; var s = m.con.s[m.step];
@@ -263,8 +264,9 @@ namespace qutum.parser
 					if (m.step > 0)
 					{
 						var e = s is Alt a ? a.s[0].hint ?? a.name : s;
-						var d = treeDump ? $"{e} expected by {m.con.hint ?? m.con.name}!{m.step} {Dump(m)}" : m.con.hint;
-						t.Insert(new Tree<S> { name = m.con.name, dump = d, from = m.from, to = m.to, err = m.step, expect = e });
+						var d = treeDump ? $"{Esc(e)} expected by {m.con.hint}!{m.step} {Dump(m)}" : m.con.hint;
+						t.Insert(new Tree<S>
+						{ name = m.con.name, dump = d, from = m.from, to = m.to, err = m.step, expect = e });
 						errs.Add(z);
 					}
 					else if ((z = m.prev) >= 0)
@@ -274,8 +276,9 @@ namespace qutum.parser
 			return t;
 		}
 
-		string Dump(Match m) => !treeDump ? null :
-			$"{m.con.ToString()} :: {scan.Tokens(m.from, m.to).ToString().Replace("\n", "\\n").Replace("\r", "\\r")}";
+		string Dump(Match m) => !treeDump ? null : $"{m.con.ToString()} :: {Dump(scan.Tokens(m.from, m.to))}";
+		string Dump(object v) => treeDumper?.Invoke(v) ?? Esc(v.ToString());
+		static string Esc(object v) => v.ToString().Replace("\n", "\\n").Replace("\r", "\\r").Replace("\t", "\\t");
 
 		// bootstrap
 
