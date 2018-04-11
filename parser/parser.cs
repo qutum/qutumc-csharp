@@ -319,6 +319,7 @@ namespace qutum.parser
 				.Aggregate(alt["con"].s.Take(1), (x, y) => x.Concat(alt[y].s)))
 				c.keep = 1;
 			boot.start = alt["gram"];
+			boot.recok = Array.Empty<char>();
 		}
 
 		void Boot(string gram)
