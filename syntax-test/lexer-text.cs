@@ -34,13 +34,13 @@ namespace qutum.test.syntax
 		[TestMethod]
 		public void LexSpace()
 		{
-			Check(@"\####\\####\ ", "_=commb _=");
+			Check(@"\####\\####\ ", "Comm=Commb _=");
 		}
 
 		[TestMethod]
 		public void LexEol()
 		{
-			Check("\\####\\\t \r\n\\####\\ \t \n", @"_=commb _= Eol!use \n instead of \r\n Eol= _=commb _= Eol=");
+			Check("\\####\\\t \r\n\\####\\ \t \n", @"Comm=Commb _= Eol!use \n instead of \r\n Eol= Comm=Commb _= Eol=");
 		}
 
 		[TestMethod]
@@ -58,16 +58,16 @@ namespace qutum.test.syntax
 		[TestMethod]
 		public void LexIndent3()
 		{
-			Check("\t\t####\n", "Ind=1 Ind=2 _=comm Eol= Ded=1 Ded=0");
-			Check("\\####\\\t\t\n", "_=commb _= Eol=");
+			Check("\t\t####\n", "Ind=1 Ind=2 Comm= Eol= Ded=1 Ded=0");
+			Check("\\####\\\t\t\n", "Comm=Commb _= Eol=");
 		}
 
 		[TestMethod]
 		public void LexIndent4()
 		{
-			Check(" \t", "Ind!do not mix tabs and spaces for indent _=");
-			Check("\t    ", "Ind!do not mix tabs and spaces for indent _=");
-			Check(" ", "Ind!4 spaces expected _="); Check("       ", "Ind!8 spaces expected _=");
+			Check(" \t", "_!do not mix tabs and spaces for indent _=");
+			Check("\t    ", "_!do not mix tabs and spaces for indent _=");
+			Check(" ", "_!4 spaces expected _="); Check("       ", "_!8 spaces expected _=");
 		}
 
 		[TestMethod]

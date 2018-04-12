@@ -7,16 +7,18 @@
 
 using qutum.parser;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
 namespace qutum.syntax
 {
-	enum Lex
+	enum Lex : sbyte
 	{
-		_ = 1, Eol, Ind, Ded, comm, commb,
+		__ = -3, Parse = -2, Parse__ = -1,
+		_ = 1, Comm, Commb, Eol, Ind, Ded,
 		Str, Strb,
-		Word, hex, num, Int, Float,
+		Word, Hex, Num, Int, Float,
 		In, Out, Hub, Wire,
 		Pl, Pr, Sbl, Sbr, Cbl, Cbr,
 		Mul, Div, Mod, Divf, Modf, Shl, Shr, Add, Sub,
@@ -29,13 +31,13 @@ namespace qutum.syntax
 		static string Grammar = @"
 		_     = \s|\t ?+\s+|+\t+
 		Eol   = \n|\r\n
-		comm  = ## ?+[^\n]+|+\U+
-		commb = \\+## *+##\\+|+#|+[^#]+|+\U+
+		Comm  = ## ?+[^\n]+|+\U+
+		Commb = \\+## *+##\\+|+#|+[^#]+|+\U+
 		Str   = "" *""|+[^""\\\n\r]+|+\U+|+\\[\s!-~^ux]|+\\x[0-9a-fA-F][0-9a-fA-F]|+\\u[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]
 		Strb  = \\+"" *+""\\+|+""|+[^""]+|+\U+
 		Word  = [a-zA-Z_]|[a-zA-Z_][0-9a-zA-Z_]+
-		hex   = 0[xX]|\+0[xX]|-0[xX] ?+[0-9a-fA-F]+|+_[0-9a-fA-F]+
-		num   = 0|\+0|-0|[1-9]|\+[1-9]|-[1-9] ?+[0-9]+|+_[0-9]+ ?.[0-9]+ ?+_[0-9]+ ?[eE][0-9]+|[eE][\+\-][0-9]+ ?[fF]
+		Hex   = 0[xX]|\+0[xX]|-0[xX] ?+[0-9a-fA-F]+|+_[0-9a-fA-F]+
+		Num   = 0|\+0|-0|[1-9]|\+[1-9]|-[1-9] ?+[0-9]+|+_[0-9]+ ?.[0-9]+ ?+_[0-9]+ ?[eE][0-9]+|[eE][\+\-][0-9]+ ?[fF]
 		In    = `
 		Out   = .
 		Wire  = '
@@ -89,9 +91,9 @@ namespace qutum.syntax
 					else { bs[0] = 0; return; }
 				if (bs[0] != 0)
 					if (f < to && scan.Tokens(f, f + 1, bs, 1)[1] != bs[0])
-					{ bs[0] = 0; Add(Lex.Ind, f, to, "do not mix tabs and spaces for indent", true); }
+					{ bs[0] = 0; Add(Lex._, f, to, "do not mix tabs and spaces for indent", true); }
 					else if (bs[0] == ' ' && (to - from & 3) != 0)
-					{ bs[0] = 0; Add(Lex.Ind, f, to, $"{to - from + 3 >> 2 << 2} spaces expected", true); }
+					{ bs[0] = 0; Add(Lex._, f, to, $"{to - from + 3 >> 2 << 2} spaces expected", true); }
 				if (!end) return;
 				if (bs[0] == 0) { Add(key, from, to, null); from = -1; return; }
 				bn = to - from >> (bs[0] == ' ' ? 2 : 0);
@@ -104,12 +106,10 @@ namespace qutum.syntax
 				case Lex.Eol:
 					if (to == f + 2) Add(key, f, to, @"use \n instead of \r\n", true);
 					break;
-				case Lex.comm:
-					key = Lex._; v = nameof(Lex.comm); break;
-				case Lex.commb:
+				case Lex.Commb:
 					if (step == 1) { bn = to - from; return; }
 					if (to - f != bn || scan.Tokens(f, f + 1, bs)[0] != '#') return;
-					end = true; key = Lex._; v = nameof(Lex.commb); break;
+					end = true; key = Lex.Comm; v = nameof(Lex.Commb); break;
 				case Lex.Str:
 					if (step == 1 || end) break;
 					ScanBs(f, to, bn);
@@ -120,10 +120,10 @@ namespace qutum.syntax
 					end = true; bn = ScanBs(bn, f, 0); break;
 				case Lex.Word:
 					bn = ScanBs(from, to, 0); break;
-				case Lex.hex:
+				case Lex.Hex:
 					if (!end) return;
 					bn = ScanBs(from, to, 0); key = Lex.Int; v = Hex(); break;
-				case Lex.num:
+				case Lex.Num:
 					if (step == 2) nn = to - from;
 					else if (step == 4) nf = to - from;
 					else if (step == 5) ne = to - from;
@@ -217,5 +217,20 @@ namespace qutum.syntax
 
 		static float Ex = 1;
 		static float[] Exs = Enumerable.Range(1, 38).Select(x => Ex *= 10).Prepend(1).ToArray();
+
+		static Lexer() => Eq = new LexEq();
+	}
+
+	class LexEq : EqualityComparer<Lex>
+	{
+		public override bool Equals(Lex x, Lex y)
+		{
+			if (x == y) return true;
+			if ((x ^ y) >= 0) return false;
+			if (x < 0) { var z = x; x = y; y = z; }
+			return x <= Lex.Comm ? (Lex.__ & y) == Lex.__ : x > Lex.Ded && (Lex.Parse & y) == Lex.Parse;
+		}
+
+		public override int GetHashCode(Lex v) => (int)v;
 	}
 }
