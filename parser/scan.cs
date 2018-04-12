@@ -149,9 +149,8 @@ namespace qutum.parser
 			return Add(x);
 		}
 
-		public T Remove()
+		public T Remove(bool clear = true)
 		{
-			var x = prev ?? up;
 			if (prev != null)
 				prev.next = next;
 			if (next != null)
@@ -160,8 +159,8 @@ namespace qutum.parser
 				up.head = next;
 			if (up != null && up.tail == this)
 				up.tail = prev;
-			up = prev = next = null;
-			return x;
+			if (clear) up = prev = next = null;
+			return (T)this;
 		}
 
 		public T Dump(string ind = "", int pos = 0)

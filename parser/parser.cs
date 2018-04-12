@@ -27,7 +27,7 @@ namespace qutum.parser
 		public object expect; // step expected, Alt hint/name, or Key
 
 		public override string DumpSelf(string ind, string pos) =>
-			$"{ind}{pos}{from}:{to}{(err == 0 ? "" : err > 0 ? "!" : "!!")} {dump??name}";
+			$"{ind}{pos}{from}:{to}{(err == 0 ? "" : err > 0 ? "!" : "!!")} {dump ?? expect ?? name}";
 	}
 
 	enum Qua : byte { Opt = 0, One = 1, Any = 2, More = 3 };
@@ -66,6 +66,7 @@ namespace qutum.parser
 		internal int recovery = 10; // no recovery: 0, how many times to recover at eof: > 0
 		internal bool treeKeep = true;
 		internal bool treeDump = false;
+		internal int treeExpect = 1; // no option and key only: 0, no option: 1, more: 2
 		internal Func<object, string> treeDumper = null;
 
 		struct Match
@@ -261,11 +262,14 @@ namespace qutum.parser
 				if (s != null && !errs.Contains(z))
 					if (m.step > 0)
 					{
-						var e = s is Alt a ? a.s[0].hint ?? a.name : s;
-						var d = treeDump ? $"{Esc(e)} expected by {m.con.hint}!{m.step} {Dump(m)}" : m.con.hint;
-						t.Insert(new Tree<S>
-						{ name = m.con.name, dump = d, from = m.from, to = m.to, err = m.step, expect = e });
 						errs.Add(z);
+						if (treeExpect >= 2 || ((int)m.con.qs[m.step] & 1) != 0 && (treeExpect == 1 || s is K))
+						{
+							var e = s is Alt a ? a.s[0].hint ?? a.name : s;
+							var d = treeDump ? $"{Esc(e)} expected by {m.con.hint}!{m.step} {Dump(m)}" : m.con.hint;
+							t.Insert(new Tree<S>
+							{ name = m.con.name, dump = d, from = m.from, to = m.to, err = m.step, expect = e });
+						}
 					}
 					else if ((z = m.prev) >= 0)
 						goto Prev;
