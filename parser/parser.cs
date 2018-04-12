@@ -23,10 +23,11 @@ namespace qutum.parser
 		public string name, dump;
 		public int from, to;
 		public S tokens;
-		public int err; // step break: > 0
+		public int err; // step break: > 0, recovered: -1
 		public object expect; // step expected, Alt hint/name, or Key
 
-		public override string DumpSelf(string ind, string pos) => $"{ind}{pos}{from}:{to}{(err > 0 ? "!" : "")} {dump}";
+		public override string DumpSelf(string ind, string pos) =>
+			$"{ind}{pos}{from}:{to}{(err == 0 ? "" : err > 0 ? "!" : "!!")} {dump}";
 	}
 
 	enum Qua : byte { Opt = 0, One = 1, Any = 2, More = 3 };
@@ -81,31 +82,28 @@ namespace qutum.parser
 
 		public Parser(string grammar, Scan<I, K, T, S> scan) { this.scan = scan; Boot(grammar); }
 
-		public Tree<S> Parse(I input) => Parse(input, out Tree<S> recos);
-
-		public Tree<S> Parse(I input, out Tree<S> recos)
+		public virtual Tree<S> Parse(I input)
 		{
 			if (input != null) scan.Load(input);
-			recos = null;
-			int m = Earley(ref recos, recovery);
+			int m = Earley(out Tree<S> recos, recovery);
 			Tree<S> t = m >= 0 ? Accepted(m, null) : Rejected();
 			matchs.Clear(); locs.Clear();
 			if (input != null) scan.Unload();
+			if (recos != null) t.Adds(recos);
 			return t;
 		}
 
-		public bool Check(I input)
+		public virtual bool Check(I input)
 		{
 			if (input != null) scan.Load(input);
 			bool gre = greedy; greedy = false;
-			Tree<S> recos = null;
-			int m = Earley(ref recos, 0);
+			int m = Earley(out Tree<S> recos, 0);
 			greedy = gre; matchs.Clear(); locs.Clear();
 			if (input != null) scan.Unload();
 			return m >= 0;
 		}
 
-		int Earley(ref Tree<S> recos, int reco)
+		int Earley(out Tree<S> recos, int reco)
 		{
 			locs.Add(loc = 0);
 			foreach (var x in start.s)
@@ -133,15 +131,15 @@ namespace qutum.parser
 			}
 			if (recok.Length > 0 && reco > 0)
 			{
-				if (recos == null) recos = new Tree<S> { name = "", from = 0, to = 0, err = 1 };
+				if (recos == null) recos = new Tree<S>();
 				recos.Add(Rejected());
-				if (shift == 0)
+				while (shift == 0)
 				{
-					Reco: if (Recover(false)) goto Loop;
-					if (!scan.Next()) goto Eof;
-					locs.Add(matchs.Count); ++loc; goto Reco;
+					if (Recover(false)) goto Loop;
+					if (!scan.Next()) break;
+					locs.Add(matchs.Count); ++loc;
 				}
-				Eof: reco--;
+				reco--;
 				if (Recover(true)) goto Loop;
 			}
 			recos = null;
@@ -248,7 +246,7 @@ namespace qutum.parser
 				if (m.tail >= 0)
 					Accepted(m.tail, t);
 				else if (m.tail == -4)
-					t.Insert(new Tree<S> { name = "", from = m.from, to = m.to, err = 1 });
+					t.Insert(new Tree<S> { name = "", from = m.from, to = m.to, err = -1 });
 			return insert == null || insert == t ? t : insert.Insert(t);
 		}
 
@@ -329,7 +327,7 @@ namespace qutum.parser
 		{
 			boot.scan.Load(gram);
 			var top = boot.Parse(null);
-			if (top.err > 0)
+			if (top.err != 0)
 			{
 				boot.scan.Unload(); boot.treeDump = true; boot.Parse(gram).Dump(); boot.treeDump = false;
 				var e = new Exception(); e.Data["err"] = top; throw e;

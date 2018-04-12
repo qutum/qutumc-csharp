@@ -299,46 +299,42 @@ namespace qutum.test.parser
 		public void Recovery1()
 		{
 			var p = new ParserStr("|=,\n S=A|S,A? \n A=M|A\\+M \n M=V|M\\*V \n V=0|1|2|3|4|5") { treeDump = true };
-			Tree<string> r;
-			var t = p.Parse("0", out r).Dump(); AreEqual(0, t.err);
-			t = p.Parse("0+", out r).Dump(); r.Dump();
+			var t = p.Parse("0").Dump(); AreEqual(0, t.err);
+			t = p.Parse("0+").Dump();
 			AreEqual(0, t.head.err); AreEqual("S", t.head.name); AreEqual("A", t.head.head.name);
-			IsTrue(t.tail.err > 0); IsNull(r.head.next);
-			AreEqual(2, r.head.head.err); AreEqual("A", r.head.head.name); AreEqual("M", r.head.head.expect);
-			t = p.Parse("0*", out r).Dump(); r.Dump();
+			AreEqual(-1, t.tail.prev.err); AreEqual(1, t.tail.err);
+			AreEqual(2, t.tail.head.err); AreEqual("A", t.tail.head.name); AreEqual("M", t.tail.head.expect);
+			t = p.Parse("0*").Dump();
 			AreEqual(0, t.head.err); AreEqual("S", t.head.name); AreEqual("A", t.head.head.name);
-			IsTrue(t.tail.err > 0); IsNull(r.head.next);
-			AreEqual(2, r.head.head.err); AreEqual("M", r.head.head.name); AreEqual("V", r.head.head.expect);
+			AreEqual(-1, t.tail.prev.err); AreEqual(1, t.tail.err);
+			AreEqual(2, t.tail.head.err); AreEqual("M", t.tail.head.name); AreEqual("V", t.tail.head.expect);
 		}
 
 		[TestMethod]
 		public void Recovery2()
 		{
 			var p = new ParserStr("|=,\n S=A|S,A? \n A=M|A\\+M \n M=V|M\\*V \n V=0|1|2|3|4|5") { treeDump = true };
-			Tree<string> r;
-			var t = p.Parse("+", out r).Dump();
-			IsTrue(t.err > 0); IsNull(r);
-			t = p.Parse("+0", out r).Dump();
-			IsTrue(t.err > 0); IsNull(r);
-			t = p.Parse("0#", out r).Dump(); r.Dump();
+			var t = p.Parse("+").Dump(); AreEqual(1, t.err);
+			t = p.Parse("+0").Dump(); AreEqual(1, t.err);
+			t = p.Parse("0#").Dump(); AreEqual(0, t.err);
 			AreEqual(0, t.head.err); AreEqual("S", t.head.name); AreEqual("A", t.head.head.name);
-			IsTrue(t.tail.err > 0); IsNull(r.head.next);
-			AreEqual("M", r.head.head.name); AreEqual('*', r.head.head.expect);
-			t = p.Parse("0+1*2+", out r).Dump(); r.Dump();
+			AreEqual(-1, t.tail.prev.err); AreEqual(1, t.tail.err);
+			AreEqual("M", t.tail.head.name); AreEqual('*', t.tail.head.expect);
+			t = p.Parse("0+1*2+").Dump(); AreEqual(0, t.err);
 			AreEqual(0, t.head.err); AreEqual("S", t.head.name); AreEqual(5, t.head.head.to);
-			IsTrue(t.tail.err > 0); IsNull(r.head.next);
-			AreEqual("A", r.head.head.name); AreEqual("M", r.head.head.expect);
+			AreEqual(-1, t.tail.prev.err); AreEqual(1, t.tail.err);
+			AreEqual("A", t.tail.head.name); AreEqual("M", t.tail.head.expect);
 		}
 
 		[TestMethod]
 		public void Recovery3()
 		{
 			var p = new ParserStr("|=,\n S=A|S,A? \n A=M|A\\+M \n M=V|M\\*V \n V=0|1|2|3|4|5") { treeDump = true };
-			Tree<string> r;
-			var t = p.Parse("0+1*2+,1", out r).Dump(); r.Dump();
+			var t = p.Parse("0+1*2+,1").Dump(); AreEqual(0, t.err);
 			AreEqual(0, t.head.err); AreEqual("S", t.head.name); AreEqual(5, t.head.head.to);
-			IsTrue(t.head.next.err > 0); AreEqual(7, t.head.next.to); AreEqual(0, t.tail.err);
-			AreEqual("A", r.head.head.name); AreEqual("M", r.head.head.expect); AreEqual(6, r.head.head.to);
+			AreEqual(-1, t.head.next.err); AreEqual(7, t.head.next.to);
+			AreEqual(0, t.tail.prev.err); AreEqual(1, t.tail.err);
+			AreEqual("A", t.tail.head.name); AreEqual("M", t.tail.head.expect); AreEqual(6, t.tail.head.to);
 		}
 
 		[TestMethod]
@@ -346,25 +342,23 @@ namespace qutum.test.parser
 		{
 			var p = new ParserStr("|=),\n S=A|S,A? \n A=M|A\\+M \n M=V|M\\*V \n V=(A)|N \n N=0|1|2|3|4|5")
 			{ treeDump = true };
-			Tree<string> r;
-			var t = p.Parse("()", out r).Dump(); r.Dump();
-			AreEqual(0, t.head.err); AreEqual("A", t.head.name); IsTrue(t.head.head.head.head.err > 0);
-			AreEqual(1, r.head.from); AreEqual("V", r.head.head.name); AreEqual(1, r.head.head.err);
-			IsNull(r.head.next);
-			t = p.Parse("0+(),1", out r).Dump(); r.Dump();
+			var t = p.Parse("()").Dump(); AreEqual(0, t.err);
+			AreEqual(0, t.head.err); AreEqual("A", t.head.name); AreEqual(-1, t.head.head.head.head.err);
+			AreEqual(0, t.tail.prev.err); AreEqual(1, t.tail.err);
+			AreEqual(1, t.tail.from); AreEqual("V", t.tail.head.name); AreEqual(1, t.tail.head.err);
+			t = p.Parse("0+(),1").Dump(); AreEqual(0, t.err);
 			AreEqual(0, t.head.head.head.err); AreEqual(1, t.head.head.head.to);
 			AreEqual(0, t.head.head.tail.err); AreEqual(4, t.head.head.tail.to);
-			IsTrue(t.head.head.tail.head.head.err > 0); AreEqual(4, t.head.head.tail.head.head.to);
-			AreEqual(3, r.head.from); AreEqual("V", r.head.head.name); AreEqual(1, r.head.head.err);
-			IsNull(r.head.next);
-			t = p.Parse("0,1+(1*),2+3", out r).Dump(); r.Dump();
+			AreEqual(-1, t.head.head.tail.head.head.err); AreEqual(4, t.head.head.tail.head.head.to);
+			AreEqual(0, t.tail.prev.err); AreEqual(1, t.tail.err);
+			AreEqual(3, t.tail.from); AreEqual("V", t.tail.head.name); AreEqual(1, t.tail.head.err);
+			t = p.Parse("0,1+(1*),2+3").Dump(); AreEqual(0, t.err);
 			AreEqual(8, t.head.to); AreEqual(2, t.head.tail.from); AreEqual(8, t.head.tail.tail.to);
 			AreEqual(0, t.head.tail.tail.head.head.err); AreEqual(6, t.head.tail.tail.head.head.to);
-			IsTrue(t.head.tail.tail.head.tail.err > 0);
-			AreEqual(9, t.tail.from); AreEqual(12, t.tail.tail.to);
-			AreEqual(7, r.head.from); AreEqual(7, r.head.head.to);
-			AreEqual("M", r.head.head.name); AreEqual(2, r.head.head.err);
-			IsNull(r.head.next);
+			AreEqual(-1, t.head.tail.tail.head.tail.err);
+			AreEqual(9, t.head.next.from); AreEqual(12, t.head.next.tail.to);
+			AreEqual(0, t.tail.prev.err); AreEqual(2, t.tail.head.err);
+			AreEqual(7, t.tail.from); AreEqual(7, t.tail.head.to); AreEqual("M", t.tail.head.name);
 		}
 
 		[TestMethod]
@@ -372,27 +366,26 @@ namespace qutum.test.parser
 		{
 			var p = new ParserStr("|=)}\n P=S+ \n S={A}|{S+} \n A=V|A\\+V \n V=(A)|N \n N=0|1|2|3|4|5")
 			{ treeDump = true };
-			Tree<string> r;
-			var t = p.Parse("{()", out r).Dump(); r.Dump();
-			AreEqual(0, t.head.err); AreEqual(1, t.head.head.from); IsTrue(t.head.head.head.head.err > 0);
-			AreEqual(2, r.head.from); AreEqual("V", r.head.head.name); AreEqual(1, r.head.head.err);
-			AreEqual(3, r.tail.from); AreEqual("S", r.tail.head.name); AreEqual(2, r.tail.head.err);
+			var t = p.Parse("{()").Dump(); AreEqual(0, t.err);
+			AreEqual(0, t.head.err); AreEqual(1, t.head.head.from); AreEqual(-1, t.head.head.head.head.err);
+			AreEqual(1, t.tail.prev.head.err); AreEqual(2, t.tail.prev.from); AreEqual("V", t.tail.prev.head.name);
+			AreEqual(2, t.tail.head.err); AreEqual(3, t.tail.from); AreEqual("S", t.tail.head.name);
 			p.recovery = 1;
-			t = p.Parse("{{", out r).Dump(); IsNull(r);
+			t = p.Parse("{{").Dump(); AreEqual(1, t.err);
 			p.recovery = 3;
-			t = p.Parse("{{0}{", out r).Dump(); r.Dump();
+			t = p.Parse("{{0}{").Dump(); AreEqual(0, t.err);
 			AreEqual(0, t.head.head.err); AreEqual(1, t.head.head.from); AreEqual(4, t.head.head.to);
 			AreEqual(0, t.head.head.next.err); AreEqual(5, t.head.head.next.to);
-			IsTrue(t.head.tail.err > 0); AreEqual(5, t.head.tail.to);
-			AreEqual(4, r.head.tail.from); AreEqual("S", r.head.tail.name); AreEqual(1, r.head.tail.err);
-			AreEqual(0, r.tail.tail.prev.from); AreEqual(2, r.tail.tail.prev.err);
-			t = p.Parse("{{0}}}{1}", out r).Dump(); r.Dump();
+			AreEqual(-1, t.head.tail.err); AreEqual(5, t.head.tail.to);
+			AreEqual(1, t.tail.prev.tail.err); AreEqual(4, t.tail.prev.tail.from); AreEqual("S", t.tail.prev.tail.name);
+			AreEqual(2, t.tail.tail.prev.err); AreEqual(0, t.tail.tail.prev.from);
+			t = p.Parse("{{0}}}{1}").Dump(); AreEqual(0, t.err);
 			AreEqual(0, t.head.err); AreEqual(6, t.head.to);
 			AreEqual(1, t.head.head.from); AreEqual(4, t.head.head.to);
-			IsTrue(t.head.tail.err > 0); AreEqual(6, t.head.tail.to);
-			AreEqual(0, t.tail.err); AreEqual(6, t.tail.from); AreEqual(9, t.tail.to);
-			AreEqual(5, r.head.from); AreEqual(6, r.head.to);
-			IsNull(r.head.head); IsNull(r.head.next);
+			AreEqual(-1, t.head.tail.err); AreEqual(6, t.head.tail.to);
+			AreEqual(0, t.head.next.err); AreEqual(6, t.head.next.from); AreEqual(9, t.head.next.to);
+			AreEqual(0, t.tail.prev.err); AreEqual(1, t.tail.err);
+			AreEqual(5, t.tail.from); AreEqual(6, t.tail.to); IsNull(t.tail.head);
 		}
 	}
 }

@@ -159,7 +159,7 @@ namespace qutum.parser
 		{
 			boot.scan.Load(gram);
 			var top = boot.Parse(null);
-			if (top.err > 0)
+			if (top.err != 0)
 			{
 				boot.scan.Unload(); boot.treeDump = true; boot.Parse(gram).Dump(); boot.treeDump = false;
 				var e = new Exception(); e.Data["err"] = top; throw e;

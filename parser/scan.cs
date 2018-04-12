@@ -139,8 +139,19 @@ namespace qutum.parser
 			return (T)this;
 		}
 
+		public T Adds(T sub)
+		{
+			if (sub == null)
+				return (T)this;
+			var x = sub.head;
+			x.up = null;
+			sub.head = sub.tail = null;
+			return Add(x);
+		}
+
 		public T Remove()
 		{
+			var n = next;
 			if (prev != null)
 				prev.next = next;
 			if (next != null)
@@ -150,7 +161,7 @@ namespace qutum.parser
 			if (up != null && up.tail == this)
 				up.tail = prev;
 			up = prev = next = null;
-			return (T)this;
+			return n;
 		}
 
 		public T Dump(string ind = "", int pos = 0)
