@@ -42,7 +42,7 @@ namespace qutum.parser
 
 		public virtual bool Is(char key1, char key) => key1 == key;
 
-		public int Loc() => loc;
+		public int Loc() => Math.Min(loc, input.Length);
 
 		public char Token() => input[loc];
 
@@ -151,7 +151,7 @@ namespace qutum.parser
 
 		public T Remove()
 		{
-			var n = next;
+			var x = prev ?? up;
 			if (prev != null)
 				prev.next = next;
 			if (next != null)
@@ -161,7 +161,7 @@ namespace qutum.parser
 			if (up != null && up.tail == this)
 				up.tail = prev;
 			up = prev = next = null;
-			return n;
+			return x;
 		}
 
 		public T Dump(string ind = "", int pos = 0)

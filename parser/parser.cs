@@ -27,7 +27,7 @@ namespace qutum.parser
 		public object expect; // step expected, Alt hint/name, or Key
 
 		public override string DumpSelf(string ind, string pos) =>
-			$"{ind}{pos}{from}:{to}{(err == 0 ? "" : err > 0 ? "!" : "!!")} {dump}";
+			$"{ind}{pos}{from}:{to}{(err == 0 ? "" : err > 0 ? "!" : "!!")} {dump??name}";
 	}
 
 	enum Qua : byte { Opt = 0, One = 1, Any = 2, More = 3 };

@@ -128,13 +128,19 @@ namespace qutum.parser
 
 		public abstract bool Is(K key1, K key);
 
-		public int Loc() => loc;
+		public int Loc() => Math.Min(loc, tokenn);
 
 		public T Token() => tokens[loc];
 
-		public ArraySegment<T> Tokens(int from, int to) => new ArraySegment<T>(tokens, from, to - from);
+		public ArraySegment<T> Tokens(int from, int to) => to > tokenn ? throw new IndexOutOfRangeException() :
+			new ArraySegment<T>(tokens, from, to - from);
 
-		public T[] Tokens(int from, int to, T[] s, int x) { Array.Copy(tokens, from, s, x, to - from); return s; }
+		public T[] Tokens(int from, int to, T[] s, int x)
+		{
+			if (to > tokenn) throw new IndexOutOfRangeException();
+			Array.Copy(tokens, from, s, x, to - from);
+			return s;
+		}
 
 		public int Line(int loc) { var l = lines.BinarySearch(loc); return (l ^ l >> 31) + (l >> 31); }
 
