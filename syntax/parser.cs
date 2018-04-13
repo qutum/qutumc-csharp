@@ -36,17 +36,11 @@ namespace qutum.syntax
 			var t = base.Parse(null);
 			if (t.head is Trees x)
 			{
-				Loop: if (x.err < 0)
-					x.Remove(false);
-				else if (x.err == 0 && x.name == "empty")
+				Loop: if (x.err == 0 && x.name == "empty" && x.up != t && x.next?.err == 0 && x.next?.name == "empty")
 				{
-					if (x.up != t && x.next?.err == 0 && x.next?.name == "empty")
-					{
-						t.Add(new Trees
-						{ name = x.name, from = x.next.from, to = x.next.to, err = 1, expect = "too many empty lines" });
-						for (var y = x.next; (y = y.Remove(false).next)?.err == 0 && y?.name == "empty";) ;
-					}
-					x.Remove(false);
+					t.Add(new Trees
+					{ name = x.name, from = x.next.from, to = x.next.to, err = 1, expect = "too many empty lines" });
+					while ((x = x.next).next?.err == 0 && x.next?.name == "empty") ;
 				}
 				if (x.head != null) { x = x.head; goto Loop; }
 				else do if (x.next != null) { x = x.next; goto Loop; }

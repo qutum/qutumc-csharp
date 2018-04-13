@@ -242,7 +242,7 @@ namespace qutum.parser
 			if (m.from == m.to && m.step == 0 && m.con.s.Length > 1)
 				return null;
 			var t = ((m.con.keep == 0 ? treeKeep : m.con.keep > 0) ? null : insert) ??
-				new Tree<S> { name = m.con.name, dump = Dump(m), from = m.from, to = m.to };
+				new Tree<S> { name = m.con.name, from = m.from, to = m.to, dump = Dump(m) };
 			for (; m.tail != -1; m = matchs[m.prev])
 				if (m.tail >= 0)
 					Accepted(m.tail, t);
@@ -255,7 +255,7 @@ namespace qutum.parser
 		{
 			int to = locs[loc] < matchs.Count ? loc : loc - 1, x = locs[to];
 			var t = new Tree<S>
-			{ name = "", dump = treeDump ? Dump(scan.Tokens(0, loc)) : null, from = to, to = loc, err = 1 };
+			{ name = "", from = to, to = loc, err = 1, dump = treeDump ? Dump(scan.Tokens(0, loc)) : null };
 			for (int y = matchs.Count - 1, z; (z = y) >= x; y--)
 			{
 				Prev: var m = matchs[z]; var s = m.con.s[m.step];
@@ -268,7 +268,7 @@ namespace qutum.parser
 							var e = s is Alt a ? a.s[0].hint ?? a.name : s;
 							var d = treeDump ? $"{Esc(e)} expected by {m.con.hint}!{m.step} {Dump(m)}" : m.con.hint;
 							t.Insert(new Tree<S>
-							{ name = m.con.name, dump = d, from = m.from, to = m.to, err = m.step, expect = e });
+							{ name = m.con.name, from = m.from, to = m.to, err = m.step, expect = e, dump = d });
 						}
 					}
 					else if ((z = m.prev) >= 0)
