@@ -227,8 +227,9 @@ namespace qutum.syntax
 		{
 			if (x == y) return true;
 			if ((x ^ y) >= 0) return false;
-			if (x < 0) { var z = x; x = y; y = z; }
-			return x <= Lex.Comm ? (Lex.__ & y) == Lex.__ : x > Lex.Ded && (Lex.Parse & y) == Lex.Parse;
+			return x > 0 ?
+				x <= Lex.Comm ? (Lex.__ & y) == Lex.__ : x > Lex.Ded && (Lex.Parse & y) == Lex.Parse :
+				y <= Lex.Comm ? (Lex.__ & x) == Lex.__ : y > Lex.Ded && (Lex.Parse & x) == Lex.Parse;
 		}
 
 		public override int GetHashCode(Lex v) => (int)v;

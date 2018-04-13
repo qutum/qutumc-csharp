@@ -181,11 +181,11 @@ namespace qutum.test.syntax
 		[TestMethod]
 		public void Empty6()
 		{
-			var t = Parses("a\n\taa\n\n\t\taaa\n\n\tab\n", true);
+			var t = Parses("a\n\taa\n\t\n\t\taaa\n\t\t\t\n\tab\n", true);
 			AreEqual(0, t.head.err); AreEqual(0, t.head.from); AreEqual(1, t.head.to);
 			AreEqual(0, t.head.head.err); AreEqual(3, t.head.head.from); AreEqual(4, t.head.head.to);
-			AreEqual(0, t.head.head.head.err); AreEqual(9, t.head.head.head.from); AreEqual(10, t.head.head.head.to);
-			AreEqual(0, t.head.tail.err); AreEqual(15, t.head.tail.from); AreEqual(16, t.head.tail.to);
+			AreEqual(0, t.head.head.head.err); AreEqual(7, t.head.head.head.from); AreEqual(8, t.head.head.head.to);
+			AreEqual(0, t.head.tail.err); AreEqual(13, t.head.tail.from); AreEqual(14, t.head.tail.to);
 		}
 
 		[TestMethod]
@@ -233,14 +233,22 @@ namespace qutum.test.syntax
 		[TestMethod]
 		public void Comm4()
 		{
-			var t = Parses("a\n\n##\n\n\tb\n\n\t\t  ##\n\t\tc\n  ##\n\n\t\td\n", false);
+			var t = Parses("a\n\n##\n\n\tb\n\n\t\t  ##\n\t\tc\n  \\##\n..##\\  \\####\\\n\n\t\td\n", false);
 			AreEqual(0, t.head.err); AreEqual(0, t.head.from); AreEqual(1, t.head.to);
 			AreEqual(0, t.head.head.err); AreEqual(7, t.head.head.from); AreEqual(8, t.head.head.to);
 			AreEqual(0, t.head.head.head.err); AreEqual(17, t.head.head.head.from); AreEqual(18, t.head.head.head.to);
-			AreEqual(0, t.head.head.tail.err); AreEqual(28, t.head.head.tail.from); AreEqual(29, t.head.head.tail.to);
+			AreEqual(0, t.head.head.tail.err); AreEqual(30, t.head.head.tail.from); AreEqual(31, t.head.head.tail.to);
 			AreEqual("empty", t.head.next.name); AreEqual(5, t.head.next.from); AreEqual(6, t.head.next.to);
 			AreEqual("_", t.tail.prev.name); AreEqual(13, t.tail.prev.from); AreEqual(15, t.tail.prev.to);
 			AreEqual("_", t.tail.name); AreEqual(23, t.tail.from); AreEqual(24, t.tail.to);
+		}
+
+		[TestMethod]
+		public void Comm5()
+		{
+			var t = Parses("\\##\\##2##\\a\n\t\\##\n\t##\\ab##\n", true);
+			AreEqual(0, t.head.err); AreEqual(0, t.head.from); AreEqual(2, t.head.to);
+			AreEqual(0, t.head.head.err); AreEqual(4, t.head.head.from); AreEqual(7, t.head.head.to);
 		}
 	}
 }
