@@ -68,7 +68,7 @@ namespace qutum.syntax
 		Or    = \|\|
 		";
 
-		public Lexer() : base(Grammar, null) { }
+		public Lexer() : base(Grammar) { }
 
 		byte[] bs = new byte[4096];
 		int bn, nn, nf, ne, indLast;

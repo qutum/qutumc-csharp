@@ -209,16 +209,16 @@ namespace qutum.parser
 			char t = input[loc];
 			switch (key)
 			{
-				case 'S': return t == ' ' || t == '\t';
-				case 'W': return t < 127 && W[t];
-				case 'X': return t < 127 && X[t];
-				case 'O': return t < 127 && O[t];
-				case 'Q': return t == '?' || t == '*' || t == '+';
-				case 'H': return t >= ' ' && t < 127 && t != '=';
-				case 'E': return t > ' ' && t < 127;
-				case 'V': return t >= ' ' && t != 127 || t == '\t'; // also utf
-				case 'B': return t < 127 && B[t];
-				case 'R': return t < 127 && B[t] && t != '-' && t != '^';
+				case 'S': return t == ' ' || t == '\t'; // space
+				case 'W': return t < 127 && W[t];       // word
+				case 'X': return t < 127 && X[t];       // hexadecimal
+				case 'O': return t < 127 && O[t];       // operator
+				case 'Q': return t == '?' || t == '*' || t == '+';  // quantifier
+				case 'H': return t >= ' ' && t < 127 && t != '=';   // hint
+				case 'E': return t > ' ' && t < 127 && t != 'u';    // escape without \u
+				case 'V': return t >= ' ' && t != 127 || t == '\t'; // comment, also utf
+				case 'B': return t < 127 && B[t];                         // byte
+				case 'R': return t < 127 && B[t] && t != '-' && t != '^'; // range
 				default: return t == key;
 			}
 		}
@@ -238,9 +238,9 @@ namespace qutum.parser
 			s.Where(t => (W[t] || O[t]) && t != '[' && t != ']' || t == '=').Select(t => B[t] = true).Count();
 		}
 
-		internal static string Sym(string s, int f, int t) => Sym(s, ref f, t);
+		internal static string Esc(string s, int f, int t, int u) => Esc(s, ref f, t, u);
 
-		internal static string Sym(string s, ref int f, int t, int u = 1)
+		internal static string Esc(string s, ref int f, int t, int u)
 		{
 			if (s[f++] != '\\') return s.Substring(f - 1, t - f + 1);
 			switch (s[f++])
@@ -249,8 +249,8 @@ namespace qutum.parser
 				case 't': return "\t";
 				case 'n': return "\n";
 				case 'r': return "\r";
-				case 'U': return u < 0 ? "\x81" : "U";
-				case 'u':
+				case 'U': return u < 0 ? "\x81" : "U"; // lexer only
+				case 'u': // parser only
 					return u > 0 ? ((char)(s[f] - (s[f++] < 'a' ? '0' : 87) << 12 | s[f] - (s[f++] < 'a' ? '0' : 87) << 8
 						| s[f] - (s[f++] < 'a' ? '0' : 87) << 4 | s[f] - (s[f++] < 'a' ? '0' : 87))).ToString() : "u";
 				default: return s[f - 1].ToString();

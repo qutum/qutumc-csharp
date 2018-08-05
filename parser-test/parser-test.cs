@@ -19,7 +19,7 @@ namespace qutum.test.parser
 		[TestMethod]
 		public void Term()
 		{
-			var p = new ParserStr("S=a");
+			var p = new ParserStr("S=\\u0061");
 			IsTrue(p.Check("a"));
 			IsFalse(p.Check("")); IsFalse(p.Check("aa")); IsFalse(p.Check("A"));
 		}
