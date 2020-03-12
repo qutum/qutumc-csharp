@@ -134,12 +134,10 @@ namespace qutum.parser
 			{
 				if (recos == null) recos = new Tree<S>();
 				recos.Add(Rejected());
-				while (shift == 0)
-				{
-					if (Recover(false)) goto Loop;
-					if (!scan.Next()) break;
-					locs.Add(matchs.Count); ++loc;
-				}
+				if (shift == 0)
+					for (; ; locs.Add(matchs.Count), ++loc)
+						if (Recover(false)) goto Loop;
+						else if (!scan.Next()) break;
 				reco--;
 				if (Recover(true)) goto Loop;
 			}
