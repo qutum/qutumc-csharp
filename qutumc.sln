@@ -1,6 +1,6 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.27130.2036
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.29911.84
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "qutumc", "qutumc\qutumc.csproj", "{8E770D23-EF44-45B1-92CE-EA2222976693}"
 EndProject
@@ -10,12 +10,17 @@ Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "parser", "parser\parser.shp
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "parser-test", "parser-test\parser-test.csproj", "{4CF28C6F-6AD0-4FB3-8473-8800224DF879}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "syntax-test", "syntax-test\syntax-test.csproj", "{E3D7251A-F9FD-4992-9C7B-7BB7E94EA3F5}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "syntax-test", "syntax-test\syntax-test.csproj", "{E3D7251A-F9FD-4992-9C7B-7BB7E94EA3F5}"
 EndProject
 Global
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution
+		parser\parser.projitems*{4cf28c6f-6ad0-4fb3-8473-8800224df879}*SharedItemsImports = 5
 		parser\parser.projitems*{64dcf327-7366-419b-9ca0-e55413b7aecd}*SharedItemsImports = 13
+		parser\parser.projitems*{8e770d23-ef44-45b1-92ce-ea2222976693}*SharedItemsImports = 5
+		syntax\syntax.projitems*{8e770d23-ef44-45b1-92ce-ea2222976693}*SharedItemsImports = 5
 		syntax\syntax.projitems*{b03c1f0c-12fe-45ce-8387-08794d0b6aec}*SharedItemsImports = 13
+		parser\parser.projitems*{e3d7251a-f9fd-4992-9c7b-7bb7e94ea3f5}*SharedItemsImports = 5
+		syntax\syntax.projitems*{e3d7251a-f9fd-4992-9c7b-7bb7e94ea3f5}*SharedItemsImports = 5
 	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
