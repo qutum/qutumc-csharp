@@ -72,7 +72,6 @@ namespace qutum.syntax
 
 		byte[] bs = new byte[4096];
 		int bn, nn, nf, ne, indLast;
-		char[] us = new char[1];
 
 		public override void Unload() { base.Unload(); indLast = 0; }
 
@@ -160,8 +159,9 @@ namespace qutum.syntax
 				case (byte)'r': bs[bn++] = (byte)'\r'; return;
 				case (byte)'x': bs[bn++] = (byte)(Hex(bn + 1) << 4 | Hex(bn + 2)); return;
 				case (byte)'u':
-					us[0] = (char)(Hex(bn + 2) << 12 | Hex(bn + 3) << 8 | Hex(bn + 4) << 4 | Hex(bn + 5));
-					bn += Encoding.UTF8.GetBytes(us, 0, 1, bs, bn); return;
+					Span<char> u = stackalloc char[1];
+					u[0] = (char)(Hex(bn + 2) << 12 | Hex(bn + 3) << 8 | Hex(bn + 4) << 4 | Hex(bn + 5));
+					bn += Encoding.UTF8.GetBytes(u, bs.AsSpan(bn)); return;
 			}
 			bs[bn++] = bs[bn];
 		}
@@ -172,51 +172,62 @@ namespace qutum.syntax
 		{
 			var neg = bs[0] == '-'; uint v = 0;
 			for (int x = neg || bs[0] == '+' ? 3 : 2; x < bn; x++)
-				if (bs[x] == '_') continue;
-				else if (v < 0x10000000) v = v << 4 | (uint)Hex(x);
-				else { Add(Lex.Int, from, from + bn, "integer out of range", true); return 0; }
+				if (bs[x] != '_')
+					if (v < 0x1000_0000)
+						v = v << 4 | (uint)Hex(x);
+					else
+					{ Add(Lex.Int, from, from + bn, "hexadecimal out of range", true); return 0; }
 			return neg ? (int)-v : (int)v;
 		}
 
 		object Num(ref Lex key)
 		{
-			var neg = bs[0] == '-'; int x = neg || bs[0] == '+' ? 1 : 0; uint v = 0;
+			var neg = bs[0] == '-'; int x = neg || bs[0] == '+' ? 1 : 0;
+			int v = 0, dot = 0, e = 0;
 			if (nn == bn)
 			{
 				key = Lex.Int;
 				for (; x < nn; x++)
-					if (bs[x] == '_') continue;
-					else if (v < 214748364 || v == 214748364 && bs[x] < (neg ? '9' : '8')) v = v * 10 + bs[x] - '0';
-					else { Add(key, from, from + nn, "integer out of range", true); return 0; }
-				return neg ? (int)-v : (int)v;
+					if (bs[x] != '_')
+						if (v < 214748364 || v == 214748364 && bs[x] <= (neg ? '8' : '7'))
+							v = v * 10 + bs[x] - '0';
+						else
+						{ Add(key, from, from + nn, "integer out of range", true); return 0; }
+				return neg ? -v : v;
 			}
-			key = Lex.Float; float d = bs[x] - '0';
-			while (++x < nn)
+			key = Lex.Float;
+			for (; x < nn; x++)
 				if (bs[x] != '_')
-					if (bs[x] > '9') { Add(key, from, from + nn, "invalid float", true); return 0; }
-					else if (float.IsInfinity(d = d * 10 + (bs[x] - '0')))
-					{ Add(key, from, from + nn, "float out of range", true); return 0f; }
+					if (v <= 9999_9999) v = v * 10 + bs[x] - '0';
+					else { dot = nn - x; break; }
 			if (nn < nf)
-				for (float f = 1; ++x < nf;)
-					if (bs[x] != '_') d = d + (bs[x] - '0') * (f /= 10);
-			if (neg) d = -d;
-			if (d != 0 && nf < ne)
+				for (x = nn + 1; x < nf; x++)
+					if (bs[x] != '_')
+						if (v <= 9999_9999) { v = v * 10 + bs[x] - '0'; dot--; }
+						else break;
+			if (v == 0) return 0f;
+			if (neg) v = -v;
+			if (nf < ne)
 			{
-				if ((neg = bs[++x] == '-') || bs[x] == '+') ++x;
-				for (; x < ne; x++)
-					if (v <= 8) v = v * 10 + bs[x] - '0';
-					else if (neg) { v = 89; break; }
-					else { Add(key, from, from + bn, "float out of range", true); return 0f; }
-				float a = Exs[v < 38 ? v : 38], b = Exs[v < 38 ? 0 : v < 76 ? v - 38 : 38], c = Exs[v < 76 ? 0 : v - 76];
-				if (neg) d = d / a / b / c;
-				else if (float.IsInfinity(d = d * a * b * c))
-				{ Add(key, from, from + bn, "float out of range", true); return 0f; }
+				for (x = (neg = bs[nf + 1] == '-') || bs[nf + 1] == '+' ? nf + 1 : nf; ++x < ne;)
+					e = e * 10 + bs[x] - '0';
+				if (neg) e = -e;
 			}
-			return d;
+			e += dot;
+			if (e <= 0)
+				return e < -54 ? 0f : e < -37 ? v / Fes[37] / Fes[-e - 37] : v / Fes[-e];
+			float w = v * Fes[e < 39 ? e : 39];
+			if (float.IsInfinity(w))
+			{ Add(key, from, from + bn, "float out of range", true); return 0f; }
+			return w;
 		}
 
-		static float Ex = 1;
-		static float[] Exs = Enumerable.Range(1, 38).Select(x => Ex *= 10).Prepend(1).ToArray();
+		static readonly float[] Fes = new[] {
+			1e00f, 1e01f, 1e02f, 1e03f, 1e04f, 1e05f, 1e06f, 1e07f, 1e08f, 1e09f,
+			1e10f, 1e11f, 1e12f, 1e13f, 1e14f, 1e15f, 1e16f, 1e17f, 1e18f, 1e19f,
+			1e20f, 1e21f, 1e22f, 1e23f, 1e24f, 1e25f, 1e26f, 1e27f, 1e28f, 1e29f,
+			1e30f, 1e31f, 1e32f, 1e33f, 1e34f, 1e35f, 1e36f, 1e37f, 1e38f, float.PositiveInfinity,
+		};
 
 		static Lexer() => Eq = new LexEq();
 	}

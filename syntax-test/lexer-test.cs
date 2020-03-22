@@ -182,17 +182,19 @@ namespace qutum.test.syntax
 			Check("5e38", "Float!float out of range Float=0");
 			Check("1e88", "Float!float out of range Float=0");
 			Check("1e999999", "Float!float out of range Float=0");
-			Check("0.0000034e44", "Float=3.3999991E+38");
+			Check("0.0000034e44", "Float=3.4E+38");
 			Check("0.0000035e44", "Float!float out of range Float=0");
+			Check("3402.823479E35", "Float=3.4028235E+38");
 		}
 
 		[TestMethod]
 		public void LexFloat4()
 		{
-			Check("1.23456789e-39", "Float=1.234568E-39");
-			Check("1.99999999e-45", "Float=1E-45");
+			Check("1.234567891e-39", "Float=1.234568E-39");
+			Check("1.999999999e-45", "Float=1E-45");
 			Check("1e-46", "Float=0"); Check("1e-83787", "Float=0");
-			Check("0.000000000000000000000000000000000000000000000000000000000034e104f", "Float=3.4E+38");
+			Check("0.0000000000000000000000000000000000000000000000000034e89f", "Float=3.4E+38");
+			Check("0.0000000000000000000000000000000000000000000000000034e90f", "Float!float out of range Float=0");
 		}
 
 		[TestMethod]
