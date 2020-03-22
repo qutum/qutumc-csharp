@@ -20,7 +20,7 @@ namespace qutum.parser
 		public LexerEnum(string grammar, Scan<IEnumerable<byte>, byte, byte, IEnumerable<byte>> scan = null)
 			: base(grammar, scan ?? new ScanByte()) { }
 
-		public override IEnumerable<object> Keys(string name) => new object[] { Enum.Parse<K>(name) };
+		public override IEnumerable<K> Keys(string text) => new[] { Enum.Parse<K>(text) };
 
 		protected int from = -1;
 
@@ -82,7 +82,7 @@ namespace qutum.parser
 		public Lexer(string grammar, Scan<IEnumerable<byte>, byte, byte, IEnumerable<byte>> scan)
 		{ this.scan = scan; Boot(grammar); }
 
-		public abstract IEnumerable<object> Keys(string name);
+		public abstract IEnumerable<K> Keys(string text);
 
 		public virtual void Load(IEnumerable<byte> input)
 		{
@@ -93,6 +93,10 @@ namespace qutum.parser
 		}
 
 		public virtual void Unload() { scan.Unload(); tokenn = 0; loc = -2; lines.Clear(); }
+
+		public int Loc() => Math.Min(loc, tokenn);
+
+		public int Line(int loc) { var l = lines.BinarySearch(loc); return (l ^ l >> 31) + (l >> 31); }
 
 		public bool Next()
 		{
@@ -122,18 +126,17 @@ namespace qutum.parser
 
 		protected abstract void Error(K key, int step, bool end, byte? b, int from, int to);
 
-		protected void Add() { if (tokens.Length <= tokenn) Array.Resize(ref tokens, tokens.Length << 1); }
+		public T Token() => tokens[loc];
 
 		public abstract bool Is(K key);
 
 		public abstract bool Is(K key1, K key);
 
-		public int Loc() => Math.Min(loc, tokenn);
+		protected void Add() { if (tokens.Length <= tokenn) Array.Resize(ref tokens, tokens.Length << 1); }
 
-		public T Token() => tokens[loc];
-
-		public ArraySegment<T> Tokens(int from, int to) => to > tokenn ? throw new IndexOutOfRangeException() :
-			new ArraySegment<T>(tokens, from, to - from);
+		public ArraySegment<T> Tokens(int from, int to) =>
+			to > tokenn ? throw new IndexOutOfRangeException()
+			: new ArraySegment<T>(tokens, from, to - from);
 
 		public T[] Tokens(int from, int to, T[] s, int x)
 		{
@@ -141,8 +144,6 @@ namespace qutum.parser
 			Array.Copy(tokens, from, s, x, to - from);
 			return s;
 		}
-
-		public int Line(int loc) { var l = lines.BinarySearch(loc); return (l ^ l >> 31) + (l >> 31); }
 
 		static Parser<string, char, char, string> boot = new Parser<string, char, char, string>(@"
 			gram  = eol*lex lexs*eol*
@@ -173,7 +174,7 @@ namespace qutum.parser
 			start = new Unit(this) { mode = -1 }; start.go = start;
 			foreach (var l in top)
 			{
-				var k = (K)Keys(l.head.tokens ?? (l.head.tokens = boot.scan.Tokens(l.head.from, l.head.to))).Single();
+				var k = Keys(l.head.tokens ?? (l.head.tokens = boot.scan.Tokens(l.head.from, l.head.to))).Single();
 				var ust = l.Select((z, x) => x < 2 ? start : new Unit(this) { key = k, step = x, mode = -1, go = start })
 					.Append(start).ToArray();
 				var step = 0; var b1 = new int[1];

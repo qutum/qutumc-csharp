@@ -282,44 +282,58 @@ namespace qutum.parser
 
 		// bootstrap
 
-		static Parser<string, char, char, string> boot = new Parser<string, char, char, string>()
-		{ scan = new BootScan(), greedy = false, treeKeep = false, treeDump = false };
+		static readonly Parser<string, char, char, string> boot;
 
 		static Parser()
 		{
-			var grammar = new Dictionary<string, string>() { // \x1 |
-			{ "gram", "reco? eol* prod prods* eol*" },
-			{ "prods","eol+ prod" },
-			{ "prod", "name S* = con* alt* phint?" },
-			{ "con",  "W+|sym|S+" },
-			{ "alt",  "ahint? \x1 S* con*" },
-			{ "name", "W+" },
-			{ "sym",  "O+|Q|\\ E|\\ u X X X X" },
-			{ "phint","hint" },
-			{ "ahint","hint? hinte" },
-			{ "hint", "= hintg? hintk? S* hintw" },
-			{ "hintg","*" },
-			{ "hintk","+|-" },
-			{ "hintw","H*" },
-			{ "hinte","eol" },
-			{ "eol",  "S* comm? \r? \n S*" },
-			{ "comm", "= = V*" },
-			{ "reco", "\x1 = recos+" },
-			{ "recos","recok|S+" },
-			{ "recok","W+|O+|\\ E|\\ u X X X X" } };
-			var prod = grammar.ToDictionary(kv => kv.Key, kv => new Parser<string, char, char, string>.Alt { name = kv.Key });
-			foreach (var kv in grammar) prod[kv.Key].s = kv.Value.Split("|").Select(con =>
-			{
-				var z = con.Replace('\x1', '|').Split(' ', StringSplitOptions.RemoveEmptyEntries);
-				var qs = z.Select(v => v.Length > 1 && v[v.Length - 1] is char c ?
-					c == '?' ? Opt : c == '*' ? Any : c == '+' ? More : One : One).Append(One).ToArray();
-				var s = z.Select((v, x) => prod.TryGetValue(v = qs[x] == One ? v : v.Substring(0, v.Length - 1),
-					out Parser<string, char, char, string>.Alt a) ? a : boot.scan.Keys(v).First()).Append(null).ToArray();
-				return new Parser<string, char, char, string>.Con { name = kv.Key, s = s, qs = qs };
-			}).ToArray();
+			boot = new Parser<string, char, char, string>()
+			{ scan = new BootScan(), greedy = false, treeKeep = false, treeDump = false };
+
+			// prod name, alt-or-key-with-qua1 that2|that3 that4  \x1 is |
+			var grammar = new Dictionary<string, string>() {
+			{ "gram",  "reco? eol* prod prods* eol*" },
+			{ "prods", "eol+ prod" },
+			{ "prod",  "name S* = con* alt* phint?" },
+			{ "con",   "W+|sym|S+" },
+			{ "alt",   "ahint? \x1 S* con*" },
+			{ "name",  "W+" },
+			{ "sym",   "O+|Q|\\ E|\\ u X X X X" },
+			{ "phint", "hint" },
+			{ "ahint", "hint? hinte" },
+			{ "hint",  "= hintg? hintk? S* hintw" },
+			{ "hintg", "*" }, // hint greedy
+			{ "hintk", "+|-" }, // hint keep
+			{ "hintw", "H*" }, // hint words
+			{ "hinte", "eol" },
+			{ "eol",   "S* comm? \r? \n S*" },
+			{ "comm",  "= = V*" },
+			{ "reco",  "\x1 = recos+" },
+			{ "recos", "recok|S+" },
+			{ "recok", "W+|O+|\\ E|\\ u X X X X" } }; // recovery key
+			// build Alt
+			var prod = grammar.ToDictionary(
+				kv => kv.Key,
+				kv => new Parser<string, char, char, string>.Alt { name = kv.Key });
+			// build Con
+			foreach (var kv in grammar)
+				prod[kv.Key].s = kv.Value.Split("|").Select(con =>
+				{
+					var z = con.Replace('\x1', '|').Split(' ', StringSplitOptions.RemoveEmptyEntries);
+					var qs = z.Select(v =>
+						v.Length == 1 || !(v[v.Length - 1] is char c) ? One
+							: c == '?' ? Opt : c == '*' ? Any : c == '+' ? More : One)
+						.Append(One).ToArray();
+					var s = z.Select((v, x) =>
+						prod.TryGetValue(v = qs[x] == One ? v : v.Substring(0, v.Length - 1), out var a)
+							? a : (object)boot.scan.Keys(v).First())
+						.Append(null).ToArray();
+					return new Parser<string, char, char, string>.Con { name = kv.Key, s = s, qs = qs };
+				}).ToArray();
+			// build boot parser
 			prod["hint"].s[0].greedy = 1;
-			foreach (var c in new[] { "prod", "alt", "name", "sym", "phint", "hintg", "hintk", "hintw", "hinte", "recok" }
-				.Aggregate(prod["con"].s.Take(1), (x, y) => x.Concat(prod[y].s)))
+			foreach (var c in prod["con"].s.Take(1).Concat(
+				new[] { "prod", "alt", "name", "sym", "phint", "hintg", "hintk", "hintw", "hinte", "recok" }
+					.SelectMany(x => prod[x].s)))
 				c.keep = 1;
 			boot.start = prod["gram"];
 			boot.recok = Array.Empty<char>();
@@ -332,10 +346,11 @@ namespace qutum.parser
 			if (top.err != 0)
 			{
 				boot.scan.Unload(); boot.treeDump = true; boot.Parse(gram).Dump(); boot.treeDump = false;
-				var e = new Exception(); e.Data["err"] = top; throw e;
+				var e = new Exception(); e.Data["err"] = top;
+				throw e;
 			}
 			recok = top.Where(t => t.name == "recok").SelectMany(t => scan.Keys(BootScan.Esc(gram, t.from, t.to, 1)))
-				.Cast<K>().ToArray();
+				.ToArray();
 			if (recok.Length > 4) throw new Exception("too many recovery keys");
 			var prod = top.Where(t => t.name == "prod");
 			var alt = prod.ToDictionary(t => BootTokens(t.head), t => new Alt { name = t.head.tokens });
@@ -344,8 +359,8 @@ namespace qutum.parser
 				var cs = p.Where(t => t.name == "alt").Prepend(p).Select(ta =>
 				{
 					var s = ta.Where(t => t.name == "con" || t.name == "sym").SelectMany
-						(t => t.name == "sym" ? BootQua(gram, t.from) ?? scan.Keys(BootScan.Esc(gram, t.from, t.to, 1))
-							: alt.TryGetValue(BootTokens(t), out Alt a) ? new object[] { a } : scan.Keys(t.tokens)
+						(t => t.name == "sym" ? BootQua(gram, t.from) ?? scan.Keys(BootScan.Esc(gram, t.from, t.to, 1)).Cast<object>()
+							: alt.TryGetValue(BootTokens(t), out Alt a) ? new object[] { a } : scan.Keys(t.tokens).Cast<object>()
 						).Append(null).ToArray();
 					var qs = s.Select((v, x) => v == null || !(s[x + 1] is Qua r) ? One : r).Where((v, x) => !(s[x] is Qua));
 					var rk = (byte)recok.Select((r, x) => s.Any(v => v is K k && scan.Is(r, k)) ? 1 << x : 0).Sum();
