@@ -8,19 +8,18 @@ namespace qutum.parser
 	public struct Token<K> where K : struct
 	{
 		public K key;
-		public bool err;
-		public int from, to; // input loc
+		public int from, to; // scan.Loc
 		public object value;
+		public bool err;
 
 		public string Dump() => $"{key}{(err ? "!" : "=")}{value}";
 	}
 
 	public class LexerEnum<K> : Lexer<K, Token<K>> where K : struct
 	{
-		public LexerEnum(string grammar, Scan<IEnumerable<byte>, byte, byte, IEnumerable<byte>> scan = null)
+		public LexerEnum(string grammar, Scan<IEnumerable<byte>, byte, byte,
+			IEnumerable<byte>> scan = null)
 			: base(grammar, scan ?? new ScanByte()) { }
-
-		public override IEnumerable<K> Keys(string text) => new[] { Enum.Parse<K>(text) };
 
 		protected int from = -1;
 
@@ -29,7 +28,7 @@ namespace qutum.parser
 			if (from < 0) from = f;
 			if (end)
 			{
-				var bs = new byte[to - from];
+				Span<byte> bs = to - from <= 1024 ? stackalloc byte[to - from] : new byte[to - from];
 				scan.Tokens(from, to, bs);
 				Add(key, from, to, Encoding.UTF8.GetString(bs));
 				from = -1;
@@ -54,6 +53,8 @@ namespace qutum.parser
 		public override bool Is(K key) => Eq.Equals(tokens[loc].key, key);
 
 		public override bool Is(K key1, K key) => Eq.Equals(key1, key);
+
+		public override IEnumerable<K> Keys(string text) => new[] { Enum.Parse<K>(text) };
 	}
 
 	public abstract class Lexer<K, T> : Scan<IEnumerable<byte>, K, T, ArraySegment<T>> where T : struct
@@ -81,8 +82,6 @@ namespace qutum.parser
 
 		public Lexer(string grammar, Scan<IEnumerable<byte>, byte, byte, IEnumerable<byte>> scan)
 		{ this.scan = scan; Boot(grammar); }
-
-		public abstract IEnumerable<K> Keys(string text);
 
 		public virtual void Load(IEnumerable<byte> input)
 		{
@@ -132,16 +131,20 @@ namespace qutum.parser
 
 		public abstract bool Is(K key1, K key);
 
-		public ArraySegment<T> Tokens(int from, int to) =>
-			to > tokenn ? throw new IndexOutOfRangeException()
-			: new ArraySegment<T>(tokens, from, to - from);
-
-		public T[] Tokens(int from, int to, T[] s, int x)
+		public ArraySegment<T> Tokens(int from, int to)
 		{
 			if (to > tokenn) throw new IndexOutOfRangeException();
-			Array.Copy(tokens, from, s, x, to - from);
+			return new ArraySegment<T>(tokens, from, to - from);
+		}
+
+		public Span<T> Tokens(int from, int to, Span<T> s)
+		{
+			if (to > tokenn) throw new IndexOutOfRangeException();
+			tokens.AsSpan(from, to - from).CopyTo(s);
 			return s;
 		}
+
+		public abstract IEnumerable<K> Keys(string text);
 
 		public int Line(int loc) { var l = lines.BinarySearch(loc); return (l ^ l >> 31) + (l >> 31); }
 

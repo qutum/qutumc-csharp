@@ -27,8 +27,8 @@ namespace qutum.test.parser
 		[TestMethod]
 		public void Alt()
 		{
-			var p = new ParserStr("S=A\nA=a|1");
-			IsTrue(p.Check("a")); IsTrue(p.Check("1"));
+			var p = new ParserStr("S=A\nA=a|1|#");
+			IsTrue(p.Check("a")); IsTrue(p.Check("1")); IsTrue(p.Check("#"));
 			IsFalse(p.Check("")); IsFalse(p.Check("a1")); IsFalse(p.Check("A"));
 		}
 

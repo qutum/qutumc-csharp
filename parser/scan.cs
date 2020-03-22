@@ -15,7 +15,6 @@ namespace qutum.parser
 {
 	public interface Scan<in I, K, T, out S> where S : IEnumerable<T>
 	{
-		IEnumerable<K> Keys(string text);
 		void Load(I input);
 		bool Next();
 		// current token index
@@ -23,17 +22,17 @@ namespace qutum.parser
 		T Token();
 		bool Is(K key);
 		bool Is(K key1, K key);
-		// from token index to token index excluded
+		// tokens from index to index excluded
 		S Tokens(int from, int to);
-		// from token index to token index excluded
-		T[] Tokens(int from, int to, T[] array, int index = 0);
+		// tokens from index to index excluded
+		Span<T> Tokens(int from, int to, Span<T> s);
 		void Unload();
+		// text to single or several keys
+		IEnumerable<K> Keys(string text);
 	}
 
 	public class ScanStr : Scan<string, char, char, string>
 	{
-		public IEnumerable<char> Keys(string text) => text;
-
 		protected string input;
 		protected int loc;
 
@@ -55,18 +54,18 @@ namespace qutum.parser
 		public string Tokens(int from, int to)
 			=> input.Substring(from, to - from);
 
-		public char[] Tokens(int from, int to, char[] s, int x)
+		public Span<char> Tokens(int from, int to, Span<char> s)
 		{
-			input.CopyTo(from, s, x, to - from); return s;
+			input.AsSpan(from, to - from).CopyTo(s); return s;
 		}
 
 		public void Unload() => input = null;
+
+		public IEnumerable<char> Keys(string text) => text;
 	}
 
 	public class ScanByte : Scan<IEnumerable<byte>, byte, byte, IEnumerable<byte>>
 	{
-		public IEnumerable<byte> Keys(string text) => text.Select(k => (byte)k);
-
 		protected IEnumerable<byte> input;
 		protected IEnumerator<byte> iter;
 		protected int loc;
@@ -88,26 +87,29 @@ namespace qutum.parser
 
 		public IEnumerable<byte> Tokens(int from, int to)
 		{
-			if (input is List<byte> l)
-				return l.GetRange(from, to - from);
 			if (input is byte[] a)
 				return new ArraySegment<byte>(a, from, to - from);
+			if (input is List<byte> l)
+				return l.GetRange(from, to - from);
 			return input.Skip(from).Take(to - from);
 		}
 
-		public byte[] Tokens(int from, int to, byte[] bs, int x)
+		public Span<byte> Tokens(int from, int to, Span<byte> bs)
 		{
-			if (input is List<byte> s)
-				s.CopyTo(from, bs, x, to - from);
-			else if (input is byte[] a)
-				Array.Copy(a, from, bs, x, to - from);
+			if (input is byte[] a)
+				a.AsSpan(from, to - from).CopyTo(bs);
+			// else if (input is List<byte> s) lack of List.CopyTo(Span)
 			else
-				foreach (var v in input.Skip(from).Take(to - from))
+			{
+				int x = 0; foreach (var v in input.Skip(from).Take(to - from))
 					bs[x++] = v;
+			}
 			return bs;
 		}
 
 		public void Unload() { input = null; iter = null; }
+
+		public IEnumerable<byte> Keys(string text) => text.Select(k => (byte)k);
 	}
 
 	class BootScan : ScanStr

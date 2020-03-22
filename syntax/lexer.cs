@@ -89,7 +89,7 @@ namespace qutum.syntax
 					if (LineStart(f)) { scan.Tokens(f, to, bs); return; }
 					else { bs[0] = 0; return; }
 				if (bs[0] != 0)
-					if (f < to && scan.Tokens(f, f + 1, bs, 1)[1] != bs[0])
+					if (f < to && scan.Tokens(f, f + 1, bs.AsSpan(1))[0] != bs[0])
 					{ bs[0] = 0; Add(Lex._, f, to, "do not mix tabs and spaces for indent", true); }
 					else if (bs[0] == ' ' && (to - from & 3) != 0)
 					{ bs[0] = 0; Add(Lex._, f, to, $"{to - from + 3 >> 2 << 2} spaces expected", true); }
@@ -145,7 +145,7 @@ namespace qutum.syntax
 		{
 			var n = x + to - f;
 			if (bs.Length < n) Array.Resize(ref bs, n + 4095 & ~4095);
-			scan.Tokens(f, to, bs, x);
+			scan.Tokens(f, to, bs.AsSpan(x));
 			return n;
 		}
 
