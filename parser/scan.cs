@@ -164,10 +164,10 @@ namespace qutum.parser
 				case 'U': return u < 0 ? "\x81" : "U"; // lexer only
 				case 'u': // parser only
 					return u <= 0 ? "u" :
-						((char)(s[f] - (s[f++] < 'a' ? '0' : 87) << 12
-						| s[f] - (s[f++] < 'a' ? '0' : 87) << 8
-						| s[f] - (s[f++] < 'a' ? '0' : 87) << 4
-						| s[f] - (s[f++] < 'a' ? '0' : 87))).ToString();
+						((char)((s[f] & 15) + (s[f++] < 'A' ? 0 : 9) << 12
+						| (s[f] & 15) + (s[f++] < 'A' ? 0 : 9) << 8
+						| (s[f] & 15) + (s[f++] < 'A' ? 0 : 9) << 4
+						| (s[f] & 15) + (s[f++] < 'A' ? 0 : 9))).ToString();
 				default: return s[f - 1].ToString();
 			}
 		}
