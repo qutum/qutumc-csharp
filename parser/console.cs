@@ -1,6 +1,6 @@
 //
 // Qutum 10 Compiler
-// Copyright 2008-2018 Qianyan Cai
+// Copyright 2008-2020 Qianyan Cai
 // Under the terms of the GNU General Public License version 3
 // http://qutum.com
 //
@@ -25,8 +25,7 @@ namespace qutum
 
 		internal static void ConsoleEnd()
 		{
-			if (Debugger.IsAttached)
-			{
+			if (Debugger.IsAttached) {
 				Console.WriteLine("Press Enter Key ...");
 				Console.ReadLine();
 			}

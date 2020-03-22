@@ -1,6 +1,6 @@
 //
 // Qutum 10 Compiler
-// Copyright 2008-2018 Qianyan Cai
+// Copyright 2008-2020 Qianyan Cai
 // Under the terms of the GNU General Public License version 3
 // http://qutum.com
 //
@@ -51,8 +51,7 @@ namespace qutum.parser
 
 		public virtual bool Is(char key1, char key) => key1 == key;
 
-		public string Tokens(int from, int to)
-			=> input.Substring(from, to - from);
+		public string Tokens(int from, int to) => input[from..to];
 
 		public Span<char> Tokens(int from, int to, Span<char> s)
 		{
@@ -99,8 +98,7 @@ namespace qutum.parser
 			if (input is byte[] a)
 				a.AsSpan(from, to - from).CopyTo(bs);
 			// else if (input is List<byte> s) lack of List.CopyTo(Span)
-			else
-			{
+			else {
 				int x = 0; foreach (var v in input.Skip(from).Take(to - from))
 					bs[x++] = v;
 			}
@@ -117,20 +115,20 @@ namespace qutum.parser
 		public override bool Is(char key)
 		{
 			char t = input[loc];
-			switch (key)
+			return key switch
 			{
-				case 'S': return t == ' ' || t == '\t'; // space
-				case 'W': return t < 127 && W[t];       // word
-				case 'X': return t < 127 && X[t];       // hexadecimal
-				case 'O': return t < 127 && O[t];       // operator
-				case 'Q': return t == '?' || t == '*' || t == '+'; // quantifier
-				case 'H': return t >= ' ' && t < 127 && t != '=' || t == '\t'; // hint
-				case 'E': return t > ' ' && t < 127 && t != 'u';          // escape except \u
-				case 'V': return t >= ' ' && t != 127 || t == '\t';       // comment, also utf
-				case 'B': return t < 127 && B[t];                         // byte
-				case 'R': return t < 127 && B[t] && t != '-' && t != '^'; // range
-				default: return t == key;
-			}
+				'S' => t == ' ' || t == '\t', // space
+				'W' => t < 127 && W[t],       // word
+				'X' => t < 127 && X[t],       // hexadecimal
+				'O' => t < 127 && O[t],       // operator
+				'Q' => t == '?' || t == '*' || t == '+', // quantifier
+				'H' => t >= ' ' && t < 127 && t != '=' || t == '\t', // hint
+				'E' => t > ' ' && t < 127 && t != 'u',    // escape except \u
+				'V' => t >= ' ' && t != 127 || t == '\t', // comment, also utf
+				'B' => t < 127 && B[t], // byte
+				'R' => t < 127 && B[t] && t != '-' && t != '^', // range
+				_ => t == key,
+			};
 		}
 
 		static bool[] W = new bool[127], X = new bool[127], O = new bool[127], B = new bool[127];
@@ -141,8 +139,7 @@ namespace qutum.parser
 			//		|| t > 'Z' && t < 'a' && t != '\\' && t != '_' || t > 'z' && t <= '~' && t != '|'
 			foreach (var t in "!\"#$%&'(),-./:;<>@[]^`{}~")
 				O[t] = true;
-			for (char t = '\0'; t < 127; t++)
-			{
+			for (char t = '\0'; t < 127; t++) {
 				W[t] = t >= 'a' && t <= 'z' || t >= 'A' && t <= 'Z' || t >= '0' && t <= '9' || t == '_';
 				X[t] = t >= 'a' || t <= 'f' || t >= 'A' && t <= 'F' || t >= '0' && t <= '9';
 				B[t] = (W[t] || O[t]) && t != '[' && t != ']' || t == '=';
@@ -154,22 +151,21 @@ namespace qutum.parser
 		internal static string Esc(string s, ref int f, int t, int u)
 		{
 			if (s[f++] != '\\')
-				return s.Substring(f - 1, t - f + 1);
-			switch (s[f++])
+				return s[(f - 1)..t];
+			return s[f++] switch
 			{
-				case 's': return " ";
-				case 't': return "\t";
-				case 'n': return "\n";
-				case 'r': return "\r";
-				case 'U': return u < 0 ? "\x81" : "U"; // lexer only
-				case 'u': // parser only
-					return u <= 0 ? "u" :
-						((char)((s[f] & 15) + (s[f++] < 'A' ? 0 : 9) << 12
-						| (s[f] & 15) + (s[f++] < 'A' ? 0 : 9) << 8
-						| (s[f] & 15) + (s[f++] < 'A' ? 0 : 9) << 4
-						| (s[f] & 15) + (s[f++] < 'A' ? 0 : 9))).ToString();
-				default: return s[f - 1].ToString();
-			}
+				's' => " ",
+				't' => "\t",
+				'n' => "\n",
+				'r' => "\r",
+				'U' => u < 0 ? "\x81" : "U", // lexer only
+				'u' => u <= 0 ? "u" : // parser only
+					((char)((s[f] & 15) + (s[f++] < 'A' ? 0 : 9) << 12
+					| (s[f] & 15) + (s[f++] < 'A' ? 0 : 9) << 8
+					| (s[f] & 15) + (s[f++] < 'A' ? 0 : 9) << 4
+					| (s[f] & 15) + (s[f++] < 'A' ? 0 : 9))).ToString(),
+				_ => s[f - 1].ToString(),
+			};
 		}
 	}
 
@@ -256,8 +252,7 @@ namespace qutum.parser
 		public T Dump(string ind = "", int pos = 0)
 		{
 			int f = 1, fix = 1;
-			for (var x = head; ; x = x.next, f++)
-			{
+			for (var x = head; ; x = x.next, f++) {
 				if (f == fix)
 					Console.WriteLine(DumpSelf(ind, pos < 0 ? "/ " : pos > 0 ? "\\ " : ""));
 				if (x == null)

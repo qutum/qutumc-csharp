@@ -1,6 +1,6 @@
 //
 // Qutum 10 Compiler
-// Copyright 2008-2018 Qianyan Cai
+// Copyright 2008-2020 Qianyan Cai
 // Under the terms of the GNU General Public License version 3
 // http://qutum.com
 //
@@ -34,8 +34,8 @@ namespace qutum.test.syntax
 		{
 			Console.WriteLine(input);
 			byte[] bs = Encoding.UTF8.GetBytes(input);
-			ps.treeDumper = o => !(o is ArraySegment<Token<Lex>> s) ? null : s.Count == 0 ? ""
-				: string.Join(" ", s.Select(k => k.Dump()).ToArray());
+			ps.treeDumper = o => !(o is ArraySegment<Token<Lex>> s) ? null
+				: s.Count == 0 ? "" : string.Join(" ", s.Select(k => k.Dump()).ToArray());
 			var t = ps.Parse(bs);
 			Simple(t); t.Dump();
 			if (ok != (t.err == 0 && (t.tail == null || t.tail.err == 0)))
@@ -47,8 +47,7 @@ namespace qutum.test.syntax
 		{
 			if (t.err > 0) return;
 			if (t.err < 0 || t.name == "empty") { t.Remove(false); return; }
-			if (t.name == "line")
-			{
+			if (t.name == "line") {
 				t.name = t.head.name; t.from = t.head.from; t.to = t.head.to;
 				t.tokens = t.head.tokens; t.err = t.head.err; t.expect = t.head.expect;
 				t.dump = t.head.dump;
