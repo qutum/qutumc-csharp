@@ -94,10 +94,6 @@ namespace qutum.parser
 
 		public virtual void Unload() { scan.Unload(); tokenn = 0; loc = -2; lines.Clear(); }
 
-		public int Loc() => Math.Min(loc, tokenn);
-
-		public int Line(int loc) { var l = lines.BinarySearch(loc); return (l ^ l >> 31) + (l >> 31); }
-
 		public bool Next()
 		{
 			if (++loc < tokenn) return true;
@@ -126,13 +122,15 @@ namespace qutum.parser
 
 		protected abstract void Error(K key, int step, bool end, byte? b, int from, int to);
 
+		protected void Add() { if (tokens.Length <= tokenn) Array.Resize(ref tokens, tokens.Length << 1); }
+
+		public int Loc() => Math.Min(loc, tokenn);
+
 		public T Token() => tokens[loc];
 
 		public abstract bool Is(K key);
 
 		public abstract bool Is(K key1, K key);
-
-		protected void Add() { if (tokens.Length <= tokenn) Array.Resize(ref tokens, tokens.Length << 1); }
 
 		public ArraySegment<T> Tokens(int from, int to) =>
 			to > tokenn ? throw new IndexOutOfRangeException()
@@ -145,18 +143,20 @@ namespace qutum.parser
 			return s;
 		}
 
+		public int Line(int loc) { var l = lines.BinarySearch(loc); return (l ^ l >> 31) + (l >> 31); }
+
 		static Parser<string, char, char, string> boot = new Parser<string, char, char, string>(@"
-			gram  = eol*lex lexs*eol*
-			lexs  = eol+lex
-			lex   = name S*\=S*step1 step* =+
+			gram  = eol*prod prods*eol*
+			prods = eol+prod
+			prod  = key S*\=S*step1 step* =+
 			step1 = byte+alt1* =+
 			alt1  = \|byte+ =+
-			step = S+err?rep?byte+alt* =+
-			alt  = \|rep?byte+ =+
+			step  = S+err?rep?byte+alt* =+
+			alt   = \|rep?byte+ =+
 			err   = \?|\* =+
 			rep   = \+ =+
 			byte  = B\+? | [range*^?range*]\+? | \\E\+? =+
-			name  = W+ =+
+			key   = W+ =+
 			range = R|R-R|\\E =+
 			eol   = S*\r?\nS*", new BootScan()) { greedy = false, treeKeep = false, treeDump = false };
 

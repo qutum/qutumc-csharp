@@ -34,32 +34,32 @@ namespace qutum.parser
 
 	public class Parser<I, K, T, S> where S : IEnumerable<T>
 	{
-		sealed class Alt
+		sealed class Prod
 		{
 			internal string name;
-			internal Con[] s;
+			internal Con[] alts;
 		}
 
 		sealed class Con
 		{
 			internal string name, hint;
-			internal object[] s; // Alt or Key or null
+			internal object[] s; // Prod or Key or null
 			internal Qua[] qs;
-			internal sbyte greedy; // default:0, greedy: 1, back greedy: -1
-			internal byte recok; // bit-k
-			internal sbyte keep; // default: 0, thru: -1, keep: 1
+			internal sbyte greedy; // parser.greedy:0, greedy: 1, back greedy: -1
+			internal byte reck; // bit-or of reck index
+			internal sbyte keep; // parser.treeKeep: 0, thru: -1, keep: 1
 
 			public override string ToString() => name + "=" + string.Join(' ',
-				s.Where(v => v != null).Select((v, x) => (v is Alt a ? a.name : Esc(v))
+				s.Where(v => v != null).Select((v, x) => (v is Prod p ? p.name : Esc(v))
 					+ (qs[x] == More ? "+" : qs[x] == Any ? "*" : qs[x] == Opt ? "?" : "")));
 		}
 
-		Alt start;
+		Prod start;
 		List<Match> matchs = new List<Match>();
 		List<int> locs = new List<int>();
 		HashSet<int> errs = new HashSet<int>();
 		int loc;
-		K[] recok;
+		K[] reck;
 		internal Scan<I, K, T, S> scan;
 		internal int largest, largestLoc, total;
 		internal bool greedy = false; // S=AB A=1|12 B=23|2  gready: (12)3  back greedy: 1(23)
@@ -85,44 +85,55 @@ namespace qutum.parser
 
 		public virtual Tree<S> Parse(I input)
 		{
-			if (input != null) scan.Load(input);
-			int m = Earley(out Tree<S> recos, recovery);
+			if (input != null)
+				scan.Load(input);
+			int m = Earley(out Tree<S> recs, recovery);
 			Tree<S> t = m >= 0 ? Accepted(m, null) : Rejected();
-			matchs.Clear(); locs.Clear();
-			if (input != null) scan.Unload();
-			if (recos != null) t.Adds(recos);
+			matchs.Clear();
+			locs.Clear();
+			if (input != null)
+				scan.Unload();
+			if (recs != null)
+				t.Adds(recs);
 			return t;
 		}
 
 		public virtual bool Check(I input)
 		{
-			if (input != null) scan.Load(input);
+			if (input != null)
+				scan.Load(input);
 			bool gre = greedy; greedy = false;
-			int m = Earley(out Tree<S> recos, 0);
-			greedy = gre; matchs.Clear(); locs.Clear();
-			if (input != null) scan.Unload();
+			int m = Earley(out Tree<S> recs, 0); greedy = gre;
+			matchs.Clear();
+			locs.Clear();
+			if (input != null)
+				scan.Unload();
 			return m >= 0;
 		}
 
-		int Earley(out Tree<S> recos, int reco)
+		int Earley(out Tree<S> recs, int rec)
 		{
 			locs.Add(loc = 0);
-			foreach (var x in start.s)
+			foreach (var x in start.alts)
 				Add(x, 0, 0, 0, -1, -1);
 			largest = largestLoc = 0;
-			recos = null;
+			recs = null;
 			Loop: int shift; do
 			{
-				int c; Complete(locs[loc]); c = matchs.Count;
-				int p; Predict(locs[loc]); p = matchs.Count;
+				int c, p;
+				Complete(locs[loc]); c = matchs.Count;
+				Predict(locs[loc]); p = matchs.Count;
 				for (; ; )
 				{
-					Complete(c); if (c == (c = matchs.Count)) break;
-					Predict(p); if (p == (p = matchs.Count)) break;
+					Complete(c);
+					if (c == (c = matchs.Count)) break;
+					Predict(p);
+					if (p == (p = matchs.Count)) break;
 				}
 				if (matchs.Count - locs[loc] > largest)
 					largest = matchs.Count - locs[largestLoc = loc];
 			} while ((shift = Shift()) > 0);
+
 			total = matchs.Count;
 			for (int x = locs[loc]; x < matchs.Count; x++)
 			{
@@ -130,18 +141,21 @@ namespace qutum.parser
 				if (m.con.name == start.name && m.from == 0 && m.con.s[m.step] == null)
 					return x;
 			}
-			if (recok.Length > 0 && reco > 0)
+			if (reck.Length > 0 && rec > 0)
 			{
-				if (recos == null) recos = new Tree<S>();
-				recos.Add(Rejected());
+				if (recs == null) recs = new Tree<S>();
+				recs.Add(Rejected());
 				if (shift == 0)
 					for (; ; locs.Add(matchs.Count), ++loc)
-						if (Recover(false)) goto Loop;
-						else if (!scan.Next()) break;
-				reco--;
-				if (Recover(true)) goto Loop;
+						if (Recover(false))
+							goto Loop;
+						else if (!scan.Next())
+							break;
+				rec--;
+				if (Recover(true))
+					goto Loop;
 			}
-			recos = null;
+			recs = null;
 			return -1;
 		}
 
@@ -150,8 +164,8 @@ namespace qutum.parser
 			for (; x < matchs.Count; x++)
 			{
 				var m = matchs[x];
-				if (m.con.s[m.step] is Alt a)
-					foreach (var con in a.s)
+				if (m.con.s[m.step] is Prod p)
+					foreach (var con in p.alts)
 						Add(con, loc, loc, 0, x, -1);
 				if (((int)m.con.qs[m.step] & 1) == 0)
 					Add(m.con, m.from, m.to, m.step + 1, x, -3); // m.to == loc
@@ -164,10 +178,11 @@ namespace qutum.parser
 			{
 				var m = matchs[x];
 				if ((x >= empty || m.from == loc) && m.con.s[m.step] == null)
-					for (int px = locs[m.from], py = m.from < loc ? locs[m.from + 1] : matchs.Count; px < py; px++)
+					for (int px = locs[m.from], py = m.from < loc ? locs[m.from + 1] : matchs.Count;
+						px < py; px++)
 					{
 						var pm = matchs[px];
-						if (pm.con.s[pm.step] is Alt a && a.name == m.con.name)
+						if (pm.con.s[pm.step] is Prod p && p.name == m.con.name)
 							Add(pm.con, pm.from, pm.to, pm.step + 1, px, x); // pm.to <= loc
 					}
 			}
@@ -195,14 +210,16 @@ namespace qutum.parser
 				var m = matchs[x];
 				if (m.con == c && m.from == from && m.step == step)
 				{
-					if ((c.greedy == 0 ? !greedy : c.greedy < 0) || m.tail == -1 || a.tail == -1) return;
+					if ((c.greedy == 0 ? !greedy : c.greedy < 0) || m.tail == -1 || a.tail == -1)
+						return;
 					bool g = false; var b = a;
 					for (int mp = m.prev, bp = b.prev; ;)
 					{
 						Debug.Assert(m.tail != -1); Debug.Assert(b.tail != -1);
 						int v = (m.to - matchs[mp].to) - (b.to - matchs[bp].to);
 						if (v != 0) g = v < 0;
-						if (mp == bp) break;
+						if (mp == bp)
+							break;
 						v = matchs[mp].to - matchs[bp].to;
 						if (v >= 0) mp = (m = matchs[mp]).tail != -1 ? m.prev : -1;
 						if (v <= 0) bp = (b = matchs[bp]).tail != -1 ? b.prev : -1;
@@ -218,18 +235,21 @@ namespace qutum.parser
 
 		bool Recover(bool eof)
 		{
-			for (int r = 0; r < recok.Length; r++)
-				if (eof || scan.Is(recok[r]))
+			for (int r = 0; r < reck.Length; r++)
+				if (eof || scan.Is(reck[r]))
 				{
 					for (int x = matchs.Count - 1; x >= 0; x--)
 					{
 						var m = matchs[x]; var y = m.step;
-						if (y > 0 && (m.con.recok & 1 << r) != 0)
+						if (y > 0 && (m.con.reck & 1 << r) != 0)
 							for (object v; (v = m.con.s[y++]) != null;)
-								if (v is K k && scan.Is(recok[r], k))
-								{ Add(m.con, m.from, m.to, y, x, -4); goto Reco; }
+								if (v is K k && scan.Is(reck[r], k))
+								{
+									Add(m.con, m.from, m.to, y, x, -4);
+									goto Rec;
+								}
 					}
-					Reco:;
+					Rec:;
 				}
 			return total < matchs.Count;
 		}
@@ -261,10 +281,12 @@ namespace qutum.parser
 					if (m.step > 0)
 					{
 						errs.Add(z);
-						if (treeExpect >= 2 || ((int)m.con.qs[m.step] & 1) != 0 && (treeExpect == 1 || s is K))
+						if (treeExpect >= 2
+							|| ((int)m.con.qs[m.step] & 1) != 0 && (treeExpect == 1 || s is K))
 						{
-							var e = s is Alt a ? a.s[0].hint ?? a.name : s;
-							var d = treeDump ? $"{Esc(e)} expected by {m.con.hint}!{m.step} {Dump(m)}" : m.con.hint;
+							var e = s is Prod p ? p.alts[0].hint ?? p.name : s;
+							var d = treeDump ? $"{Esc(e)} expected by {m.con.hint}!{m.step} {Dump(m)}"
+								: m.con.hint;
 							t.Insert(new Tree<S>
 							{ name = m.con.name, from = m.from, to = m.to, err = m.step, expect = e, dump = d });
 						}
@@ -289,34 +311,33 @@ namespace qutum.parser
 			boot = new Parser<string, char, char, string>()
 			{ scan = new BootScan(), greedy = false, treeKeep = false, treeDump = false };
 
-			// prod name, alt-or-key-with-qua1 that2|that3 that4  \x1 is |
+			// prod name, prod-or-key-with-qua-alt1 con1|alt2 con2  \x1 is |
 			var grammar = new Dictionary<string, string>() {
-			{ "gram",  "reco? eol* prod prods* eol*" },
+			{ "gram",  "rec? eol* prod prods* eol*" },
 			{ "prods", "eol+ prod" },
-			{ "prod",  "name S* = con* alt* phint?" },
-			{ "con",   "W+|sym|S+" },
-			{ "alt",   "ahint? \x1 S* con*" },
+			{ "prod",  "name S* = con* alt* hint?" },
 			{ "name",  "W+" },
-			{ "sym",   "O+|Q|\\ E|\\ u X X X X" },
-			{ "phint", "hint" },
-			{ "ahint", "hint? hinte" },
+			{ "con",   "W+|sym|S+" },
+			{ "sym",   "Q|O+|\\ E|\\ u X X X X" },
+			{ "alt",   "ahint? \x1 S* con*" },
 			{ "hint",  "= hintg? hintk? S* hintw" },
 			{ "hintg", "*" }, // hint greedy
 			{ "hintk", "+|-" }, // hint keep
 			{ "hintw", "H*" }, // hint words
-			{ "hinte", "eol" },
+			{ "hinte", "eol" }, // to split prod into lines
+			{ "ahint", "hint? hinte" },
 			{ "eol",   "S* comm? \r? \n S*" },
 			{ "comm",  "= = V*" },
-			{ "reco",  "\x1 = recos+" },
-			{ "recos", "recok|S+" },
-			{ "recok", "W+|O+|\\ E|\\ u X X X X" } }; // recovery key
-			// build Alt
-			var prod = grammar.ToDictionary(
+			{ "rec",   "\x1 = recs+" },
+			{ "recs",  "reck|S+" },
+			{ "reck",  "W+|O+|\\ E|\\ u X X X X" } };
+			// build Prod
+			var prods = grammar.ToDictionary(
 				kv => kv.Key,
-				kv => new Parser<string, char, char, string>.Alt { name = kv.Key });
+				kv => new Parser<string, char, char, string>.Prod { name = kv.Key });
 			// build Con
 			foreach (var kv in grammar)
-				prod[kv.Key].s = kv.Value.Split("|").Select(con =>
+				prods[kv.Key].alts = kv.Value.Split("|").Select(con =>
 				{
 					var z = con.Replace('\x1', '|').Split(' ', StringSplitOptions.RemoveEmptyEntries);
 					var qs = z.Select(v =>
@@ -324,19 +345,19 @@ namespace qutum.parser
 							: c == '?' ? Opt : c == '*' ? Any : c == '+' ? More : One)
 						.Append(One).ToArray();
 					var s = z.Select((v, x) =>
-						prod.TryGetValue(v = qs[x] == One ? v : v.Substring(0, v.Length - 1), out var a)
+						prods.TryGetValue(v = qs[x] == One ? v : v.Substring(0, v.Length - 1), out var a)
 							? a : (object)boot.scan.Keys(v).First())
 						.Append(null).ToArray();
 					return new Parser<string, char, char, string>.Con { name = kv.Key, s = s, qs = qs };
 				}).ToArray();
 			// build boot parser
-			prod["hint"].s[0].greedy = 1;
-			foreach (var c in prod["con"].s.Take(1).Concat(
-				new[] { "prod", "alt", "name", "sym", "phint", "hintg", "hintk", "hintw", "hinte", "recok" }
-					.SelectMany(x => prod[x].s)))
+			prods["hint"].alts[0].greedy = 1;
+			foreach (var c in prods["con"].alts.Take(1) // word
+				.Concat(new[] { "prod", "alt", "name", "sym", "hintg", "hintk", "hintw", "hinte", "reck" }
+				.SelectMany(x => prods[x].alts)))
 				c.keep = 1;
-			boot.start = prod["gram"];
-			boot.recok = Array.Empty<char>();
+			boot.start = prods["gram"];
+			boot.reck = Array.Empty<char>();
 		}
 
 		void Boot(string gram)
@@ -345,53 +366,81 @@ namespace qutum.parser
 			var top = boot.Parse(null);
 			if (top.err != 0)
 			{
-				boot.scan.Unload(); boot.treeDump = true; boot.Parse(gram).Dump(); boot.treeDump = false;
+				boot.scan.Unload();
+				boot.treeDump = true; boot.Parse(gram).Dump(); boot.treeDump = false;
 				var e = new Exception(); e.Data["err"] = top;
 				throw e;
 			}
-			recok = top.Where(t => t.name == "recok").SelectMany(t => scan.Keys(BootScan.Esc(gram, t.from, t.to, 1)))
-				.ToArray();
-			if (recok.Length > 4) throw new Exception("too many recovery keys");
-			var prod = top.Where(t => t.name == "prod");
-			var alt = prod.ToDictionary(t => BootTokens(t.head), t => new Alt { name = t.head.tokens });
-			foreach (var p in prod)
+			// gram
+			// \ prod
+			//   \ name
+			//   \ word or sym or alt ...
+			//   \ con .tokens refer prod.name
+			//   \ alt .name == prod.name
+			//     \ hintg or hintk ... hintw
+			//     \ hinte
+			//     \ word or sym ...
+			//   \ hintg or hintk ... hintw
+			// \ prod ...
+			reck = top.Where(t => t.name == "reck").SelectMany
+				(t => scan.Keys(BootScan.Esc(gram, t.from, t.to, 1))).ToArray();
+			if (reck.Length > 4)
+				throw new Exception("too many recovery keys");
+			var prods = top.Where(t => t.name == "prod");
+			var names = prods.ToDictionary(
+				p => BootTokens(p.head), p => new Prod { name = p.head.tokens });
+
+			foreach (var p in prods)
 			{
-				var cs = p.Where(t => t.name == "alt").Prepend(p).Select(ta =>
+				// build alt
+				var az = p.Where(t => t.name == "alt").Prepend(p).Select(ta =>
 				{
-					var s = ta.Where(t => t.name == "con" || t.name == "sym").SelectMany
-						(t => t.name == "sym" ? BootQua(gram, t.from) ?? scan.Keys(BootScan.Esc(gram, t.from, t.to, 1)).Cast<object>()
-							: alt.TryGetValue(BootTokens(t), out Alt a) ? new object[] { a } : scan.Keys(t.tokens).Cast<object>()
-						).Append(null).ToArray();
-					var qs = s.Select((v, x) => v == null || !(s[x + 1] is Qua r) ? One : r).Where((v, x) => !(s[x] is Qua));
-					var rk = (byte)recok.Select((r, x) => s.Any(v => v is K k && scan.Is(r, k)) ? 1 << x : 0).Sum();
-					return new Con
-					{ name = p.head.tokens, s = s.Where(v => !(v is Qua)).ToArray(), qs = qs.ToArray(), recok = rk };
+					// alt name or keys or quantifier ...
+					var z = ta.Where(t => t.name == "sym" || t.name == "con").SelectMany(t =>
+						t.name == "sym" ?
+							gram[t.from] == '?' ? new object[] { Opt } :
+							gram[t.from] == '*' ? new object[] { Any } :
+							gram[t.from] == '+' ? new object[] { More } :
+							scan.Keys(BootScan.Esc(gram, t.from, t.to, 1)).Cast<object>()
+						:
+							names.TryGetValue(BootTokens(t), out Prod p) ? new object[] { p } :
+							scan.Keys(t.tokens).Cast<object>())
+						.Append(null).ToArray();
+					// build con
+					var s = z.Where(
+						v => !(v is Qua)).ToArray();
+					var qs = z.Select(
+						(v, x) => v != null && z[x + 1] is Qua r ? r : One).Where(
+						(v, x) => !(z[x] is Qua)).ToArray();
+					var rk = (byte)reck.Select(
+						(r, x) => z.Any(v => v is K k && scan.Is(r, k)) ? 1 << x : 0)
+						.Sum();
+					return new Con { name = p.head.tokens, s = s, qs = qs, reck = rk };
 				}).ToArray();
-				int tx = 0;
-				p.Where(t => t.name == "alt" || t.name == "phint").Select((a, x) =>
+				// build hint
+				int cx = 0;
+				p.Where(t => t.name == "alt").Append(p).Each((t, x) =>
 				{
-					sbyte g = 0, k = 0; string w = null; a = a.head;
-					if (a.name == "hintg") { g = 1; a = a.next ?? top; }
-					if (a.name == "hintk") { k = (sbyte)(gram[a.from] == '+' ? 1 : -1); a = a.next ?? top; }
-					if (a.name == "hintw") { w = BootTokens(a); a = a.next ?? top; }
-					for (; w != null && tx <= x; tx++) { cs[tx].greedy = g; cs[tx].keep = k; cs[tx].hint = w != "" ? w : null; }
-					if (a.name == "hinte") tx = x + 1;
-					return true;
-				}).Count();
-				alt[p.head.tokens].s = cs;
+					sbyte g = 0, k = 0;
+					foreach (var h in t)
+					{
+						if (h.name == "hintg") g = 1;
+						if (h.name == "hintk") k = (sbyte)(gram[h.from] == '+' ? 1 : -1);
+						if (h.name == "hintw") for (var w = BootTokens(h); cx <= x; cx++)
+							{
+								az[cx].greedy = g; az[cx].keep = k; az[cx].hint = w != "" ? w : null;
+							}
+						// each hint is for only one line
+						if (h.name == "hinte") cx = x + 1;
+					}
+				});
+				names[p.head.tokens].alts = az;
 			}
 			boot.scan.Unload();
-			start = alt[prod.First().head.tokens];
+			start = names[prods.First().head.tokens];
 		}
 
-		static IEnumerable<object> BootQua(string s, int x)
-		{
-			if (s[x] == '?') return new object[] { Opt };
-			if (s[x] == '*') return new object[] { Any };
-			if (s[x] == '+') return new object[] { More };
-			return null;
-		}
-
-		static string BootTokens(Tree<string> t) => t.tokens ?? (t.tokens = boot.scan.Tokens(t.from, t.to));
+		static string BootTokens(Tree<string> t) =>
+			t.tokens ?? (t.tokens = boot.scan.Tokens(t.from, t.to));
 	}
 }

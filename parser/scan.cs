@@ -121,10 +121,10 @@ namespace qutum.parser
 				case 'W': return t < 127 && W[t];       // word
 				case 'X': return t < 127 && X[t];       // hexadecimal
 				case 'O': return t < 127 && O[t];       // operator
-				case 'Q': return t == '?' || t == '*' || t == '+';  // quantifier
-				case 'H': return t >= ' ' && t < 127 && t != '=';   // hint
-				case 'E': return t > ' ' && t < 127 && t != 'u';    // escape except \u
-				case 'V': return t >= ' ' && t != 127 || t == '\t'; // comment, also utf
+				case 'Q': return t == '?' || t == '*' || t == '+'; // quantifier
+				case 'H': return t >= ' ' && t < 127 && t != '=' || t == '\t'; // hint
+				case 'E': return t > ' ' && t < 127 && t != 'u';          // escape except \u
+				case 'V': return t >= ' ' && t != 127 || t == '\t';       // comment, also utf
 				case 'B': return t < 127 && B[t];                         // byte
 				case 'R': return t < 127 && B[t] && t != '-' && t != '^'; // range
 				default: return t == key;
@@ -161,12 +161,21 @@ namespace qutum.parser
 				case 'r': return "\r";
 				case 'U': return u < 0 ? "\x81" : "U"; // lexer only
 				case 'u': // parser only
-					return u > 0 ? ((char)(s[f] - (s[f++] < 'a' ? '0' : 87) << 12
+					return u <= 0 ? "u" :
+						((char)(s[f] - (s[f++] < 'a' ? '0' : 87) << 12
 						| s[f] - (s[f++] < 'a' ? '0' : 87) << 8
 						| s[f] - (s[f++] < 'a' ? '0' : 87) << 4
-						| s[f] - (s[f++] < 'a' ? '0' : 87))).ToString() : "u";
+						| s[f] - (s[f++] < 'a' ? '0' : 87))).ToString();
 				default: return s[f - 1].ToString();
 			}
+		}
+	}
+
+	public static class Extension
+	{
+		public static void Each<T>(this IEnumerable<T> s, Action<T, int> a)
+		{
+			int x = 0; foreach (var t in s) a(t, x++);
 		}
 	}
 
