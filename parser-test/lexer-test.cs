@@ -162,6 +162,13 @@ namespace qutum.test.parser
 
 		[TestMethod]
 		[ExpectedException(typeof(Exception))]
+		public void LexRange9()
+		{
+			new LexerEnum<Tag>("A=a[ab] \n B=a[bc]");
+		}
+
+		[TestMethod]
+		[ExpectedException(typeof(Exception))]
 		public void LexAlt1()
 		{
 			new LexerEnum<Tag>("A=ab|ac \n B=ab");
@@ -187,6 +194,13 @@ namespace qutum.test.parser
 		public void LexAlt4()
 		{
 			new LexerEnum<Tag>("A=a[a-c^ac]|a[b-b]");
+		}
+
+		[TestMethod]
+		[ExpectedException(typeof(Exception))]
+		public void LexAlt5()
+		{
+			new LexerEnum<Tag>("A=a[a-c^a]|ab");
 		}
 
 		[TestMethod]

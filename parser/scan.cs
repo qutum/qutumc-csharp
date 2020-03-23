@@ -130,6 +130,7 @@ namespace qutum.parser
 		}
 
 		static readonly bool[] W = new bool[127], X = new bool[127], O = new bool[127], B = new bool[127];
+		internal static readonly bool[] RI = new bool[127];
 
 		static BootScan()
 		{
@@ -141,6 +142,7 @@ namespace qutum.parser
 				W[t] = t >= 'a' && t <= 'z' || t >= 'A' && t <= 'Z' || t >= '0' && t <= '9' || t == '_';
 				X[t] = t >= 'a' || t <= 'f' || t >= 'A' && t <= 'F' || t >= '0' && t <= '9';
 				B[t] = (W[t] || O[t]) && t != '[' && t != ']' || t == '=';
+				RI[t] = t >= ' ' || t == '\t' || t == '\n' || t == '\r';
 			}
 		}
 

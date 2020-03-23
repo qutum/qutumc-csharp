@@ -83,7 +83,7 @@ namespace qutum.parser
 			this.start = start; reck = Array.Empty<K>(); this.scan = scan;
 		}
 
-		// Tree.tokens unset
+		// build a Tree from matched and kept Alts, Tree.tokens unset
 		public virtual Tree<S> Parse(I input)
 		{
 			if (input != null)
