@@ -1,6 +1,6 @@
 //
 // Qutum 10 Compiler
-// Copyright 2008-2018 Qianyan Cai
+// Copyright 2008-2020 Qianyan Cai
 // Under the terms of the GNU General Public License version 3
 // http://qutum.com
 //
@@ -28,7 +28,7 @@ namespace qutum.syntax
 
 	class Lexer : LexerEnum<Lex>
 	{
-		static string Grammar = @"
+		static readonly string Grammar = @"
 		_     = \s|\t ?+\s+|+\t+
 		Eol   = \n|\r\n
 		Comm  = ## ?+[^\n]+|+\U+

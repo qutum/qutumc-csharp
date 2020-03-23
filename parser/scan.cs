@@ -129,7 +129,7 @@ namespace qutum.parser
 			};
 		}
 
-		static bool[] W = new bool[127], X = new bool[127], O = new bool[127], B = new bool[127];
+		static readonly bool[] W = new bool[127], X = new bool[127], O = new bool[127], B = new bool[127];
 
 		static BootScan()
 		{
@@ -146,6 +146,7 @@ namespace qutum.parser
 
 		internal static string Esc(string s, int f, int t, int u) => Esc(s, ref f, t, u);
 
+		// u: <0: lexer \U, >0: parser \u, 0: keep \u or \U
 		internal static string Esc(string s, ref int f, int t, int u)
 		{
 			if (s[f++] != '\\')
@@ -156,8 +157,8 @@ namespace qutum.parser
 				't' => "\t",
 				'n' => "\n",
 				'r' => "\r",
-				'U' => u < 0 ? "\x81" : "U", // lexer only
-				'u' => u <= 0 ? "u" : // parser only
+				'U' => u < 0 ? "\x81" : "U", // for lexer
+				'u' => u <= 0 ? "u" : // for parser
 					((char)((s[f] & 15) + (s[f++] < 'A' ? 0 : 9) << 12
 					| (s[f] & 15) + (s[f++] < 'A' ? 0 : 9) << 8
 					| (s[f] & 15) + (s[f++] < 'A' ? 0 : 9) << 4
