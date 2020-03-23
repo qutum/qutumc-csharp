@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 
@@ -8,9 +9,9 @@ namespace qutum.parser
 	public struct Token<K> where K : struct
 	{
 		public K key;
-		public int from, to; // scan.Loc
 		public object value;
 		public bool err;
+		public int from, to; // from input byte index to index excluded, scan.Loc()
 
 		public string Dump() => $"{key}{(err ? "!" : "=")}{value}";
 	}
@@ -26,8 +27,7 @@ namespace qutum.parser
 		protected override void Token(K key, int step, ref bool end, int f, int to)
 		{
 			if (from < 0) from = f;
-			if (end)
-			{
+			if (end) {
 				Span<byte> bs = to - from <= 1024 ? stackalloc byte[to - from] : new byte[to - from];
 				scan.Tokens(from, to, bs);
 				Add(key, from, to, Encoding.UTF8.GetString(bs));
@@ -42,11 +42,10 @@ namespace qutum.parser
 			if (end) from = -1;
 		}
 
-		protected void Add(K key, int f, int to, object value, bool err = false)
-		{
-			Add();
-			tokens[tokenn++] = new Token<K> { key = key, from = f, to = to, value = value, err = err };
-		}
+		protected void Add(K key, int f, int to, object value, bool err = false) =>
+			Add(new Token<K> {
+				key = key, from = f, to = to, value = value, err = err
+			});
 
 		protected static EqualityComparer<K> Eq = EqualityComparer<K>.Default;
 
@@ -62,33 +61,32 @@ namespace qutum.parser
 		sealed class Unit
 		{
 			internal int id;
-			internal Unit[] next; // utf-8: <=bf: [128], <=df: [129], <=ef: [130], <=f7: [131], ff: [132]
-			internal int pren; // how many bytes to this unit
+			internal int pren; // how many bytes before this unit
 			internal K key;
 			internal int step;
-			internal int mode; // no quantifer: err: -2, back: 0, ok: 2; quantifier: err: -1, ok: 3
-			internal Unit go; // go.next != null
+			internal Unit[] next; // utf-8: <=bf [128], <=df [129], <=ef [130], <=f7 [131], ff [132]
+			internal int mode; // no quantifier: err: -2, back: 0, ok: 2; quantifier: err: -1, ok: 3
+			internal Unit go; // when next==null or next[byte]==null, go.next != null
 
 			internal Unit(Lexer<K, T> l) => id = ++l.id;
 		}
 
 		Unit start;
-		int id, bf, bt, bn;
+		int id;
+		int bn; // total bytes gots
+		int bf, bt; // from index to index excluded to make token
 		internal Scan<IEnumerable<byte>, byte, byte, IEnumerable<byte>> scan;
-		internal byte[] bytes = new byte[17];
+		internal byte[] bytes = new byte[17]; // latest bytes, [byte index & 15]
 		internal T[] tokens = new T[65536];
 		internal int tokenn, loc = -2;
 		internal List<int> lines = new List<int>();
 
-		public Lexer(string grammar, Scan<IEnumerable<byte>, byte, byte, IEnumerable<byte>> scan)
-		{ this.scan = scan; Boot(grammar); }
-
 		public virtual void Load(IEnumerable<byte> input)
 		{
 			if (loc > -2) Unload();
-			scan.Load(input);
-			bf = bt = bn = scan.Loc() + 1;
-			loc = -1; lines.Add(-1); lines.Add(0);
+			scan.Load(input); Debug.Assert(scan.Loc() == -1);
+			bf = bt = bn = 0;
+			loc = -1; lines.Add(0);
 		}
 
 		public virtual void Unload() { scan.Unload(); tokenn = 0; loc = -2; lines.Clear(); }
@@ -99,29 +97,52 @@ namespace qutum.parser
 			var u = start;
 			Go: bf = bt;
 			Next: if (bt >= bn)
-				if (scan.Next()) { if ((bytes[bn++ & 15] = scan.Token()) == '\n') lines.Add(bn); }
-				else if (u == start || bt > bn)
-				{ if (bn >= 0) Error(start.key, -1, true, null, bn, bn = -1); return loc < tokenn; }
-				else goto Do;
+				if (scan.Next()) {
+					if ((bytes[bn++ & 15] = scan.Token()) == '\n') lines.Add(bn);
+				}
+				else if (u == start || bt > bn) {
+					if (bn >= 0) Error(start.key, -1, true, null, bn, bn = -1);
+					return loc < tokenn;
+				}
+				else
+					goto Do;
 			var b = bytes[bt & 15];
-			if (u.next[b < 128 ? b : b > 0xf7 ? 132 : b > 0xef ? 131 : b > 0xdf ? 130 : b > 0xbf ? 129 : 128] is Unit n)
-			{
-				u = n; ++bt;
-				if (u.next != null) goto Next;
+			if (u.next[b < 128 ? b : b > 0xf7 ? 132 : b > 0xef ? 131 : b > 0xdf ? 130 : b > 0xbf ? 129 : 128]
+					is Unit v) {
+				u = v; ++bt;
+				if (u.next != null)
+					goto Next;
 			}
-			Do: n = u.go;
-			if (u.mode == 0) { u = n; --bt; goto Do; }
-			else if (u.mode > 0) { var e = n == start; Token(u.key, u.step, ref e, bf, bt); if (e) n = start; }
-			else Error(u.key, u.step, n == start || bt >= bn, bt < bn ? bytes[bt & 15] : (byte?)null, bf, ++bt);
-			if (n == start && loc < tokenn) return true;
-			u = n; goto Go;
+			Do: v = u.go;
+			if (u.mode == 0) {
+				u = v; --bt; // back
+				goto Do;
+			}
+			else if (u.mode > 0) {
+				var e = v == start;
+				Token(u.key, u.step, ref e, bf, bt);
+				if (e) v = start;
+			}
+			else
+				Error(u.key, u.step, v == start || bt >= bn,
+					bt < bn ? bytes[bt & 15] : (byte?)null, bf, ++bt);
+			if (v == start && loc < tokenn)
+				return true;
+			u = v;
+			goto Go;
 		}
 
+		// make a token
 		protected abstract void Token(K key, int step, ref bool end, int from, int to);
 
+		// make an error token
 		protected abstract void Error(K key, int step, bool end, byte? b, int from, int to);
 
-		protected void Add() { if (tokens.Length <= tokenn) Array.Resize(ref tokens, tokens.Length << 1); }
+		protected void Add(T token)
+		{
+			if (tokenn == tokens.Length) Array.Resize(ref tokens, tokens.Length << 1);
+			tokens[tokenn++] = token;
+		}
 
 		public int Loc() => Math.Min(loc, tokenn);
 
@@ -146,62 +167,68 @@ namespace qutum.parser
 
 		public abstract IEnumerable<K> Keys(string text);
 
-		public int Line(int loc) { var l = lines.BinarySearch(loc); return (l ^ l >> 31) + (l >> 31); }
+		// line and col start from 1
+		public bool LineCol(int loc, out int line, out int column)
+		{
+			line = lines.BinarySearch(loc);
+			line = (line ^ line >> 31) + (line >> 31) + 1;
+			column = loc - lines[line - 1] + 1;
+			return loc >= 0 && loc < bn;
+		}
+
+		// bootstrap
 
 		static Parser<string, char, char, string> boot = new Parser<string, char, char, string>(@"
-			gram  = eol*prod prods*eol*
-			prods = eol+prod
-			prod  = key S*\=S*step1 step* =+
-			step1 = byte+alt1* =+
-			alt1  = \|byte+ =+
-			step  = S+err?rep?byte+alt* =+
-			alt   = \|rep?byte+ =+
-			err   = \?|\* =+
+			gram  = eol* prod prods* eol*
+			prods = eol+ prod
+			prod  = key S*\=S* step1 step* =+
+			step1 = byte+ alt1* =+
+			alt1  = \| byte+ =+
+			step  = S+ err? rep? byte+ alt* =+
+			alt   = \| rep? byte+ =+
+			err   = \? | \* =+
 			rep   = \+ =+
-			byte  = B\+? | [range*^?range*]\+? | \\E\+? =+
+			byte  = B\+? | [range* ^? range*]\+? | \\E\+? =+
 			key   = W+ =+
-			range = R|R-R|\\E =+
-			eol   = S*\r?\nS*", new BootScan()) { greedy = false, treeKeep = false, treeDump = false };
+			range = R | R-R | \\E =+
+			eol   = S* \r?\n S*",
+			new BootScan()) {
+			greedy = false, treeKeep = false, treeDump = false
+		};
 
-		static IEnumerable<int> bootRange = Enumerable.Range(32, 127 - 32).Concat(new int[] { '\t', '\n', '\r' }).ToArray();
+		static IEnumerable<int> bootRange =
+			Enumerable.Range(32, 127 - 32).Append('\t').Append('\n').Append('\r').ToArray();
 
-		void Boot(string gram)
+		public Lexer(string gram, Scan<IEnumerable<byte>, byte, byte, IEnumerable<byte>> scan)
 		{
 			boot.scan.Load(gram);
 			var top = boot.Parse(null);
-			if (top.err != 0)
-			{
+			if (top.err != 0) {
 				boot.scan.Unload(); boot.treeDump = true; boot.Parse(gram).Dump(); boot.treeDump = false;
 				var e = new Exception(); e.Data["err"] = top; throw e;
 			}
 			start = new Unit(this) { mode = -1 }; start.go = start;
-			foreach (var l in top)
-			{
+			foreach (var l in top) {
 				var k = Keys(l.head.tokens ?? (l.head.tokens = boot.scan.Tokens(l.head.from, l.head.to))).Single();
 				var ust = l.Select((z, x) => x < 2 ? start : new Unit(this) { key = k, step = x, mode = -1, go = start })
 					.Append(start).ToArray();
 				var step = 0; var b1 = new int[1];
-				foreach (var st in l.Skip(1))
-				{
+				foreach (var st in l.Skip(1)) {
 					++step;
-					foreach (var a in st.Where(t => t.name.StartsWith("alt")).Prepend(st))
-					{
+					foreach (var a in st.Where(t => t.name.StartsWith("alt")).Prepend(st)) {
 						var u = ust[step];
 						var rep = a.Any(t => t.name == "rep") ? u : ust[step + 1];
 						var ab = a.Where(t => t.name == "byte");
 						if (ab.Count() > 15) throw new Exception($"{k}.{step} exceeds 15 bytes");
 						var errgo = a.head.name == "err" ? u.go = u : u.mode > 0 ? u : u.go;
 						if (a.head.name == "err" && gram[a.head.from] == '?') BootMode(u, k, step, 1, ust[step + 1]);
-						foreach (var b in ab)
-						{
+						foreach (var b in ab) {
 							var x = b.from; var bs = b1;
 							if (gram[x] == '\\')
 								b1[0] = BootScan.Esc(gram, ref x, b.to, -1)[0];
-							else if (gram[x] == '[')
-							{
+							else if (gram[x] == '[') {
 								++x; bool ex = false;
-								bs = b.Aggregate(x != (b.head?.from ?? -1) ? bootRange : Array.Empty<int>(), (s, r) =>
-								{
+								bs = b.Aggregate(x != (b.head?.from ?? -1) ? bootRange : Array.Empty<int>(), (s, r) => {
 									ex |= x != (x = r.from);
 									var e = gram[x] == '\\' ? new int[] { BootScan.Esc(gram, ref x, r.to, 0)[0] }
 										: Enumerable.Range(gram[x], 1 - gram[x] + gram[(x = r.to) - 1]);
@@ -223,6 +250,7 @@ namespace qutum.parser
 				}
 			}
 			if (boot.treeDump) BootDump(start, "", "");
+			this.scan = scan;
 		}
 
 		Unit BootNext(Unit u, int[] s, K key, int step, Unit err, Unit qua = null)
@@ -250,10 +278,8 @@ namespace qutum.parser
 			var n = u.next[129]?.next[128];
 			if (n != null)
 				return qua != null == (n == u) ? n : throw new Exception($"{key}.{step} and {u.key}.{u.step} conflict");
-			if (qua != null)
-			{ u.next[129] = qua.next[129]; u.next[130] = qua.next[130]; u.next[131] = qua.next[131]; }
-			else
-			{
+			if (qua != null) { u.next[129] = qua.next[129]; u.next[130] = qua.next[130]; u.next[131] = qua.next[131]; }
+			else {
 				u.next[129] = new Unit(this) { pren = 1, key = key, step = step, mode = -1, go = err, next = new Unit[133] };
 				u.next[130] = new Unit(this) { pren = 1, key = key, step = step, mode = -1, go = err, next = new Unit[133] };
 				u.next[131] = new Unit(this) { pren = 1, key = key, step = step, mode = -1, go = err, next = new Unit[133] };
