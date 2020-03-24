@@ -63,13 +63,15 @@ namespace qutum.parser
 		sealed class Unit
 		{
 			internal int id;
-			internal int pren; // how many bytes before this unit
 			internal K key;
 			internal int step; // first is 1
+			internal int pren; // number of units previous to this unit
 			internal Unit[] next; // utf-8: <=bf [128], <=df [129], <=ef [130], <=f7 [131], ff [132]
-			internal int mode; // no quantifier: err: -2, back: 0, ok: 2; quantifier: err: -1, ok: 3
-			internal Unit go;   // when next==null or next[byte]==null, go.next != null
-								// to start: token or err
+			internal Unit go; // when next==null or next[byte]==null or backward
+							  // go.next != null, to start: token ended or error
+			internal int mode; // no quantifier: mismatch: -2, match: 2, backward: 0;
+							   //    quantifier: mismatch: -1, match: 3
+							   // neither backward cross steps nor inside utf
 
 			internal Unit(Lexer<K, T> l) => id = ++l.id;
 		}
@@ -117,16 +119,16 @@ namespace qutum.parser
 					goto Next;
 			}
 		Go: v = u.go;
-			if (u.mode == 0) {
-				u = v; --bt; // back
+			if (u.mode == 0) { // failed to greedy
+				u = v; --bt; // one byte backward
 				goto Go;
 			}
-			else if (u.mode > 0) {
+			else if (u.mode > 0) { // match a step 
 				var e = v == start;
 				Token(u.key, u.step, ref e, bf, bt);
 				if (e) v = start;
 			}
-			else
+			else // mismatch, report error
 				Error(u.key, u.step, v == start || bt >= bn,
 					bt < bn ? bytes[bt & 15] : (byte?)null, bf, ++bt);
 			if (v == start && loc < tokenn)
@@ -138,7 +140,7 @@ namespace qutum.parser
 		// make each step of a token
 		protected abstract void Token(K key, int step, ref bool end, int from, int to);
 
-		// an error step found
+		// report an error step
 		protected abstract void Error(K key, int step, bool end, byte? b, int from, int to);
 
 		protected void Add(T token)
@@ -188,9 +190,9 @@ namespace qutum.parser
 			prod  = key S*\=S* step1 step* =+
 			step1 = byte+ alt1* =+
 			alt1  = \| byte+ =+
-			step  = S+ err? rep? byte+ alt* =+
+			step  = S+ mis? rep? byte+ alt* =+
 			alt   = \| rep? byte+ =+
-			err   = \? | \* =+
+			mis   = \? | \* =+
 			rep   = \+ =+
 			byte  = B\+? | [range* ^? range*]\+? | \\E\+? =+
 			key   = W+ =+
@@ -218,15 +220,14 @@ namespace qutum.parser
 			//     \ alt1 ...
 			//       \ byte+ or range...+ or esc+ ...
 			//   \ step ...
-			//     \ err
+			//     \ mis
 			//     \ rep
 			//     \ byte+ or range...+ or esc+ ...
 			//     \ alt ...
 			//       \ rep
 			//       \ byte+ or range...+ or esc+ ...
 			// \ prod ...
-			start = new Unit(this) { mode = -1 };
-			start.go = start;
+			start = new Unit(this) { mode = -1 }; start.go = start;
 
 			var bs = new int[127]; int bn;
 			// build prod
@@ -235,30 +236,41 @@ namespace qutum.parser
 				// first unit of each step
 				var stepus = prod.Select((z, x) =>
 						x <= 1 ? start
-						: new Unit(this) { key = k, step = x, mode = -1, go = start })
+						: new Unit(this) {
+							key = k, step = x, go = start, mode = -1 // no backward cross steps
+						})
 					.Append(start)
 					.ToArray();
+				// build step mis
+				prod.Skip(1).Each((st, step) => {
+					var u = stepus[++step]; // first step is 1
+					if (st.head.name == "mis")
+						if (gram[st.head.from] == '?') // skip to next step
+						{ u.go = stepus[step + 1]; u.mode = 1; }
+						else // skip this byte and repeat step
+							u.go = u;
+				});
 				// build step
-				var step = 0;
-				foreach (var st in prod.Skip(1)) {
-					++step;
+				prod.Skip(1).Each((st, step) => {
+					var u = stepus[++step];
 					// build alt
 					foreach (var a in st.Where(t => t.name.StartsWith("alt")).Prepend(st)) {
-						var u = stepus[step];
-						var rep = a.Any(t => t.name == "rep") ? u : stepus[step + 1];
+						u = stepus[step];
+						// go for match
+						var ok = a.head.name == "rep" || a.head.next?.name == "rep" ? u // repeat step
+								: stepus[step + 1];
+						// go for mismatch
+						var mis = u.mode > 0 ? u : u.go;
+						// build units from bytes
 						var bytes = a.Where(t => t.name == "byte");
 						if (bytes.Count() > 15)
 							throw new Exception($"{k}.{step} exceeds 15 bytes :{boot.Tokens(a)}");
-						var errgo = a.head.name == "err" ? u.go = u
-									: u.mode > 0 ? u : u.go;
-						// skip to next step when error
-						if (a.head.name == "err" && gram[a.head.from] == '?')
-							BootMode(u, k, step, 1, stepus[step + 1]);
-						// build unit
 						foreach (var b in bytes) {
 							var x = b.from; bn = 0;
-							if (gram[x] == '\\')
-								bs[bn++] = BootScan.Esc(gram, ref x, b.to, -1)[0];
+							if (gram[x] == '\\') {
+								bs[bn++] = BootScan.Esc(gram, x, b.to, true)[0];
+								x += 2;
+							}
 							// build range
 							else if (gram[x] == '[') {
 								++x;
@@ -268,7 +280,7 @@ namespace qutum.parser
 								foreach (var r in b) {
 									inc &= x == (x = r.from); // before ^
 									if (gram[x] == '\\')
-										rs[BootScan.Esc(gram, ref x, r.to, 0)[0]] = inc;
+										rs[BootScan.Esc(gram, x, r.to)[0]] = inc;
 									else
 										for (int y = gram[x], z = gram[r.to - 1]; y <= z; y++)
 											rs[y] = inc; // R-R
@@ -282,71 +294,89 @@ namespace qutum.parser
 							}
 							else // single byte
 								bs[bn++] = gram[x++];
-							var ok = b.next?.name != "byte"; // last byte in alt
+							// build unit
+							var next = BootNext(k, step, u, bs, bn, mis);
+							// byte repeat
 							var repb = x != b.to; // +
-							var next = BootNext(u, bs, bn, k, step, errgo);
 							if (repb)
-								BootNext(next, bs, bn, k, step, errgo, u);
-							var err = repb || bs[0] > 127;
-							BootMode(next, k, step,
-								ok ? repb ? 3 : 2 : err ? repb ? -1 : -2 : 0,
-								ok ? rep : err ? errgo : u);
+								BootNext(k, step, next, bs, bn, mis, u);
+							if (b.next?.name != "byte") // last byte in alt
+								BootMode(k, step, next, repb ? 3 : 2, ok); // match
+							else if (repb || bs[0] > 127)
+								BootMode(k, step, next, repb ? -1 : -2, mis); // mismatch
+							else
+								BootMode(k, step, next, 0, u);
 							u = next; x = b.to;
 						}
 					}
-				}
+				});
 			}
 			if (boot.treeDump) BootDump(start, "", "");
 			this.scan = scan;
 			boot.scan.Unload();
 		}
 
-		Unit BootNext(Unit u, int[] bs, int bn, K key, int step, Unit err, Unit repb = null)
+		void BootMode(K key, int step, Unit u, int mode, Unit go)
 		{
-			if (u.next == null)
-				u.next = new Unit[133];
+			if (u.mode + mode >= 4
+				|| (u.mode & 1) != (mode & 1) && u.go != null)
+				throw new Exception($"{key}.{step} and {u.key}.{u.step} conflict");
+			if ((u.mode & mode) < 0 && u.go != go)
+				throw new Exception($"{key}.{step} and {u.key}.{u.step} conflict over mismatch");
+			if (u.mode != 0 && mode <= 0)
+				return;
+			Debug.Assert(u != start);
+			if (u.mode == 0 && mode != 0) {
+				u.key = key; u.step = step;
+			}
+			u.go = go; u.mode = mode;
+		}
+
+		Unit BootNext(K key, int step, Unit u, int[] bs, int bn, Unit err, Unit repb = null)
+		{
+			u.next ??= new Unit[133];
 			if (bs[0] > 127) // utf escape
-				return BootNextU(u, key, step, err, repb);
+				return BootNextU(key, step, u, err, repb);
 			Unit v = u.next[bs[0]];
 			for (int x = 1; x < bn; x++)
 				if (u.next[bs[x]] != v)
-					throw new Exception($"Prefix of {key}.{step} and {u.key}.{u.step} must be same or distinct");
-			if (v != null)
-				return v.pren != bn ?
-					throw new Exception($"Prefix of {key}.{step} and {u.key}.{u.step} must be same or distinct")
-					: repb != null == (v == u) ? v
-					: throw new Exception($"{key}.{step} and {u.key}.{u.step} conflict");
-			v = repb?.next[bs[0]] ?? new Unit(this) { pren = bn };
-			for (int x = 0; x < bn; x++)
-				u.next[bs[x]] = v;
+					throw new Exception($"Prefix of {key}.{step} and {(v ?? u).key}.{(v ?? u).step} must be the same or distinct");
+			if (v == null) {
+				v = repb?.next[bs[0]] // repeat a byte
+					?? new Unit(this) { key = key, step = step, pren = bn };
+				for (int x = 0; x < bn; x++)
+					u.next[bs[x]] = v;
+			}
+			else if (v.pren != bn)
+				throw new Exception($"Prefix of {key}.{step} and {v.key}.{v.step} must be the same or distinct");
+			else if (repb != null != (v == u))
+				// key may != u.key
+				throw new Exception($"{key}.{step} and {v.key}.{v.step} conflict over byte repeat");
 			return v;
 		}
 
-		Unit BootNextU(Unit u, K key, int step, Unit err, Unit repb)
+		Unit BootNextU(K key, int step, Unit u, Unit err, Unit repb)
 		{
 			var v = u.next[129]?.next[128];
 			if (v != null)
-				return repb != null == (v == u) ? v : throw new Exception($"{key}.{step} and {u.key}.{u.step} conflict");
-			if (repb != null) { u.next[129] = repb.next[129]; u.next[130] = repb.next[130]; u.next[131] = repb.next[131]; }
+				return repb != null == (v == u) ? v
+					: throw new Exception($"{key}.{step} and {u.key}.{u.step} conflict over repeat");
+			if (repb != null)
+				repb.next.AsSpan(129, 4).CopyTo(u.next.AsSpan(129, 4));
 			else {
-				u.next[129] = new Unit(this) { pren = 1, key = key, step = step, mode = -1, go = err, next = new Unit[133] };
-				u.next[130] = new Unit(this) { pren = 1, key = key, step = step, mode = -1, go = err, next = new Unit[133] };
-				u.next[131] = new Unit(this) { pren = 1, key = key, step = step, mode = -1, go = err, next = new Unit[133] };
-				var u130a = new Unit(this) { pren = 1, key = key, step = step, mode = -1, go = err, next = new Unit[133] };
-				var u131a = new Unit(this) { pren = 1, key = key, step = step, mode = -1, go = err, next = new Unit[133] };
-				var u131b = new Unit(this) { pren = 1, key = key, step = step, mode = -1, go = err, next = new Unit[133] };
-				u.next[129].next[128] = (u.next[130].next[128] = u130a).next[128]
-				= ((u.next[131].next[128] = u131a).next[128] = u131b).next[128] = new Unit(this) { pren = 1 };
+				var a129 = new Unit(this) { key = key, step = step, pren = 1, go = err, mode = -1, next = new Unit[133] };
+				var a130 = new Unit(this) { key = key, step = step, pren = 1, go = err, mode = -1, next = new Unit[133] };
+				var b130 = new Unit(this) { key = key, step = step, pren = 1, go = err, mode = -1, next = new Unit[133] };
+				var a131 = new Unit(this) { key = key, step = step, pren = 1, go = err, mode = -1, next = new Unit[133] };
+				var b131 = new Unit(this) { key = key, step = step, pren = 1, go = err, mode = -1, next = new Unit[133] };
+				var c131 = new Unit(this) { key = key, step = step, pren = 1, go = err, mode = -1, next = new Unit[133] };
+				v = new Unit(this) { key = key, step = step, pren = 1 };
+				(u.next[129] = a129).next[128] = v; // c0
+				((u.next[130] = a130).next[128] = b130).next[128] = v; // e0
+				(((u.next[131] = a131).next[128] = b131).next[128] = c131).next[128] = v; // f0
+																						  // TODO [132] // f8
 			}
-			return u.next[129].next[128];
-		}
-
-		void BootMode(Unit u, K key, int step, int mode, Unit go)
-		{
-			if (u.mode + mode >= 4 || (u.mode & 1) != (mode & 1) && u.go != null || (u.mode & mode) < 0 && u.go != go)
-				throw new Exception($"{key}.{step} and {u.key}.{u.step} conflicted");
-			if (u.mode != 0 && mode <= 0) return;
-			u.key = key; u.step = step; u.mode = mode; u.go = go;
+			return v;
 		}
 
 		void BootDump(Unit u, string ind, string pre, Dictionary<Unit, bool> us = null)

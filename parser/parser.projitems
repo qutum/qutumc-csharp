@@ -12,4 +12,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)scan.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)util.cs" />
   </ItemGroup>
+  <ItemGroup>
+    <Content Include="$(MSBuildThisFileDirectory)doc-zh.txt" />
+  </ItemGroup>
 </Project>
