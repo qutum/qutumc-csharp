@@ -316,7 +316,7 @@ namespace qutum.parser
 			{ "prod",  "name S* = con* alt* hint?" },
 			{ "name",  "W+" },
 			{ "con",   "W+|sym|S+" }, // word to prod name or scan.Keys
-			{ "sym",   "Q|O+|\\ E|\\ u X X X X" }, // unescape to scan.Keys except Qua
+			{ "sym",   "Q|O+|\\ E" }, // unescape to scan.Keys except Qua
 			{ "alt",   "ahint? \x1 S* con*" },
 			{ "hint",  "= hintg? hintk? S* hintw" },
 			{ "hintg", "*" }, // hint greedy
@@ -328,7 +328,7 @@ namespace qutum.parser
 			{ "comm",  "= = V*" },
 			{ "rec",   "\x1 = recs+" },
 			{ "recs",  "reck|S+" },
-			{ "reck",  "W+|O+|\\ E|\\ u X X X X" } }; // unescape to scan.Keys
+			{ "reck",  "W+|O+|\\ E" } }; // unescape to scan.Keys
 
 			// build prod
 			var prods = grammar.ToDictionary(
@@ -387,7 +387,7 @@ namespace qutum.parser
 			//   \ hintg or hintk ... hintw
 			// \ prod ...
 			reck = top.Where(t => t.name == "reck")
-				.SelectMany(t => scan.Keys(BootScan.Esc(gram, t.from, t.to, 1)))
+				.SelectMany(t => scan.Keys(BootScan.Esc(gram, t.from, t.to)))
 				.ToArray();
 			if (reck.Length > 4)
 				throw new Exception("too many recovery keys");
@@ -405,7 +405,7 @@ namespace qutum.parser
 							gram[t.from] == '?' ? new object[] { Opt } :
 							gram[t.from] == '*' ? new object[] { Any } :
 							gram[t.from] == '+' ? new object[] { More } :
-							scan.Keys(BootScan.Esc(gram, t.from, t.to, 1)).Cast<object>()
+							scan.Keys(BootScan.Esc(gram, t.from, t.to)).Cast<object>()
 						:
 							names.TryGetValue(boot.Tokens(t), out Prod p) ? new object[] { p } :
 							scan.Keys(t.tokens).Cast<object>())

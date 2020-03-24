@@ -10,10 +10,32 @@ using qutum.parser;
 using System;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using static Microsoft.VisualStudio.TestTools.UnitTesting.Assert;
 
 namespace qutum.test.parser
 {
+	public class TestException : ExpectedExceptionBaseAttribute
+	{
+		readonly Regex reg;
+		readonly Type type;
+
+		public TestException(string regex = null, Type type = null)
+		{
+			if (regex != null)
+				reg = new Regex(regex);
+			this.type = type ?? typeof(Exception);
+		}
+
+		protected override void Verify(Exception ex)
+		{
+			if (!type.IsAssignableFrom(ex.GetType()))
+				throw new Exception($"Expected: {type}, Actual: {ex.GetType()}");
+			if (reg != null && !reg.IsMatch(ex.Message))
+				throw new Exception($"Expected Regex: {reg}, Actual: {ex.Message}");
+		}
+	}
+
 	[TestClass]
 	public class TestLexer
 	{
@@ -92,14 +114,14 @@ namespace qutum.test.parser
 		}
 
 		[TestMethod]
-		[ExpectedException(typeof(Exception))]
+		[TestException("15")]
 		public void Lex16()
 		{
 			new LexerEnum<Tag>("A=0123456789abcdefg");
 		}
 
 		[TestMethod]
-		[ExpectedException(typeof(Exception))]
+		[TestException("Prefix of B.1 and A.1")]
 		public void LexRange1()
 		{
 			new LexerEnum<Tag>("A=a[^ab] \n B=ac");
@@ -154,21 +176,28 @@ namespace qutum.test.parser
 		}
 
 		[TestMethod]
-		[ExpectedException(typeof(Exception))]
+		[TestException("No byte in A.1")]
 		public void LexRange8()
 		{
 			new LexerEnum<Tag>("A=[abc^0-9A-Za-z]");
 		}
 
 		[TestMethod]
-		[ExpectedException(typeof(Exception))]
+		[TestException("Prefix of B.1 and A.1")]
 		public void LexRange9()
 		{
-			new LexerEnum<Tag>("A=a[ab] \n B=a[bc]");
+			new LexerEnum<Tag>("A=a[ac] \n B=a[bc]");
 		}
 
 		[TestMethod]
-		[ExpectedException(typeof(Exception))]
+		[TestException("Prefix of B.1 and A.1")]
+		public void LexRange10()
+		{
+			new LexerEnum<Tag>("A=a[abc] \n B=a[bc]");
+		}
+
+		[TestMethod]
+		[TestException("B.1 and A.1 conflict")]
 		public void LexAlt1()
 		{
 			new LexerEnum<Tag>("A=ab|ac \n B=ab");
@@ -190,14 +219,14 @@ namespace qutum.test.parser
 		}
 
 		[TestMethod]
-		[ExpectedException(typeof(Exception))]
+		[TestException("A.1 and A.1 conflict")]
 		public void LexAlt4()
 		{
 			new LexerEnum<Tag>("A=a[a-c^ac]|a[b-b]");
 		}
 
 		[TestMethod]
-		[ExpectedException(typeof(Exception))]
+		[TestException("Prefix of A.1 and A.1")]
 		public void LexAlt5()
 		{
 			new LexerEnum<Tag>("A=a[a-c^a]|ab");
@@ -228,28 +257,28 @@ namespace qutum.test.parser
 		}
 
 		[TestMethod]
-		[ExpectedException(typeof(Exception))]
+		[TestException("A.1 and A.1 .*repeat")]
 		public void LexPlus4()
 		{
 			new LexerEnum<Tag>("A=a+a");
 		}
 
 		[TestMethod]
-		[ExpectedException(typeof(Exception))]
+		[TestException("B.1 and A.1 conflict")]
 		public void LexPlus5()
 		{
 			new LexerEnum<Tag>("A=a+c \n B=aa");
 		}
 
 		[TestMethod]
-		[ExpectedException(typeof(Exception))]
+		[TestException("B.1 and A.1 .*repeat")]
 		public void LexPlus6()
 		{
 			new LexerEnum<Tag>("A=aa \n B=a+");
 		}
 
 		[TestMethod]
-		[ExpectedException(typeof(Exception))]
+		[TestException("B.1 and A.1 conflict")]
 		public void LexPlus7()
 		{
 			new LexerEnum<Tag>("A=a+b \n B=abc");
@@ -280,7 +309,7 @@ namespace qutum.test.parser
 		}
 
 		[TestMethod]
-		[ExpectedException(typeof(Exception))]
+		[TestException()]
 		public void LexStep2()
 		{
 			new LexerEnum<Tag>("A=*a b c");
@@ -356,7 +385,7 @@ namespace qutum.test.parser
 		}
 
 		[TestMethod]
-		[ExpectedException(typeof(Exception))]
+		[TestException("B.1 and A.1 conflict")]
 		public void LexUtf1()
 		{
 			new LexerEnum<Tag>("A=\\U+ \n B=\\U\\U");

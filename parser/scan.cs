@@ -146,26 +146,18 @@ namespace qutum.parser
 			}
 		}
 
-		internal static string Esc(string s, int f, int t, int u) => Esc(s, ref f, t, u);
-
-		// u: <0: lexer \U, >0: parser \u, 0: keep \u or \U
-		internal static string Esc(string s, ref int f, int t, int u)
+		internal static string Esc(string s, int f, int t, bool U = false)
 		{
-			if (s[f++] != '\\')
-				return s[(f - 1)..t];
-			return s[f++] switch
+			if (s[f] != '\\')
+				return s[f..t];
+			return s[++f] switch
 			{
 				's' => " ",
 				't' => "\t",
 				'n' => "\n",
 				'r' => "\r",
-				'U' => u < 0 ? "\x81" : "U", // for lexer
-				'u' => u <= 0 ? "u" : // for parser
-					((char)((s[f] & 15) + (s[f++] < 'A' ? 0 : 9) << 12
-					| (s[f] & 15) + (s[f++] < 'A' ? 0 : 9) << 8
-					| (s[f] & 15) + (s[f++] < 'A' ? 0 : 9) << 4
-					| (s[f] & 15) + (s[f++] < 'A' ? 0 : 9))).ToString(),
-				_ => s[f - 1].ToString(),
+				'U' => U ? "\x80" : "U",
+				_ => s[f].ToString(),
 			};
 		}
 	}
