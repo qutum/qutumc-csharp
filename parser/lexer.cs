@@ -60,15 +60,16 @@ namespace qutum.parser
 
 	public abstract class Lexer<K, T> : Scan<IEnumerable<byte>, K, T, ArraySegment<T>> where T : struct
 	{
+		// each unit is just before next byte or after last byte of step
 		sealed class Unit
 		{
 			internal int id;
 			internal K key;
 			internal int step; // first is 1
-			internal int pren; // number of units previous to this unit
+			internal int pren; // number of bytes to this unit
 			internal Unit[] next; // utf-8: <=bf [128], <=df [129], <=ef [130], <=f7 [131], ff [132]
 			internal Unit go; // when next==null or next[byte]==null or backward
-							  // go.next != null, to start: token ended or error
+							  // go.next != null, to start: token end or error
 			internal int mode; // no quantifier: mismatch: -2, match: 2, backward: 0;
 							   //    quantifier: mismatch: -1, match: 3
 							   // neither backward cross steps nor inside utf
@@ -120,7 +121,7 @@ namespace qutum.parser
 			}
 		Go: v = u.go;
 			if (u.mode == 0) { // failed to greedy
-				u = v; --bt; // one byte backward
+				u = v; --bt; // one byte backward // TODO backward directly, not one by one
 				goto Go;
 			}
 			else if (u.mode > 0) { // match a step 
@@ -229,17 +230,16 @@ namespace qutum.parser
 			// \ prod ...
 			start = new Unit(this) { mode = -1 }; start.go = start;
 
-			var bs = new int[127]; int bn;
+			var ns = new int[127]; int nn;
 			// build prod
 			foreach (var prod in top) {
 				var k = Keys(boot.Tokens(prod.head)).Single();
 				// first unit of each step
 				var stepus = prod.Select((z, x) =>
-						x <= 1 ? start
-						: new Unit(this) {
+						x <= 1 ? start : new Unit(this) {
 							key = k, step = x, go = start, mode = -1 // no backward cross steps
 						})
-					.Append(start)
+					.Append(start) // token end
 					.ToArray();
 				// build step mis
 				prod.Skip(1).Each((st, step) => {
@@ -250,11 +250,12 @@ namespace qutum.parser
 						else // skip this byte and repeat step
 							u.go = u;
 				});
+				Unit[] aus = null;
 				// build step
 				prod.Skip(1).Each((st, step) => {
 					var u = stepus[++step];
 					// build alt
-					foreach (var a in st.Where(t => t.name.StartsWith("alt")).Prepend(st)) {
+					var Aus = st.Where(t => t.name.StartsWith("alt")).Prepend(st).Select(a => {
 						u = stepus[step];
 						// go for match
 						var ok = a.head.name == "rep" || a.head.next?.name == "rep" ? u // repeat step
@@ -263,12 +264,13 @@ namespace qutum.parser
 						var mis = u.mode > 0 ? u : u.go;
 						// build units from bytes
 						var bytes = a.Where(t => t.name == "byte");
-						if (bytes.Count() > 15)
+						var bn = bytes.Count();
+						if (bn > 15)
 							throw new Exception($"{k}.{step} exceeds 15 bytes :{boot.Tokens(a)}");
-						foreach (var b in bytes) {
-							var x = b.from; bn = 0;
+						bytes.Each((b, bx) => {
+							var x = b.from; nn = 0;
 							if (gram[x] == '\\') {
-								bs[bn++] = BootScan.Esc(gram, x, b.to, true)[0];
+								ns[nn++] = BootScan.Esc(gram, x, b.to, true)[0];
 								x += 2;
 							}
 							// build range
@@ -287,28 +289,38 @@ namespace qutum.parser
 									x = r.to;
 								}
 								for (int y = 0; y < 127; y++)
-									if (rs[y]) bs[bn++] = y;
-								if (bn == 0)
+									if (rs[y]) ns[nn++] = y;
+								if (nn == 0)
 									throw new Exception($"No byte in {k}.{step} :{boot.Tokens(b)}");
 								++x; // ]
 							}
 							else // single byte
-								bs[bn++] = gram[x++];
+								ns[nn++] = gram[x++];
 							// build unit
-							var next = BootNext(k, step, u, bs, bn, mis);
+							var next = BootNext(k, step, u, ns, nn, mis);
 							// byte repeat
 							var repb = x != b.to; // +
 							if (repb)
-								BootNext(k, step, next, bs, bn, mis, u);
-							if (b.next?.name != "byte") // last byte in alt
+								BootNext(k, step, next, ns, nn, mis, u);
+							if (bx == bn - 1)
+								// "next" is the unit after this step
 								BootMode(k, step, next, repb ? 3 : 2, ok); // match
-							else if (repb || bs[0] > 127)
+							else if (repb || ns[0] > 127)
 								BootMode(k, step, next, repb ? -1 : -2, mis); // mismatch
 							else
 								BootMode(k, step, next, 0, u);
 							u = next; x = b.to;
-						}
+						});
+						return u;
+					}).Where(u => u.next != null) // last byte repeat unit of each alt
+					.ToArray();
+					if (aus != null) {
+						u = stepus[step];
+						for (int x = 0; x <= 129; x++)
+							if (u.next[x] != null && aus.Any(au => au.next[x] != null))
+								throw new Exception($"{k}.{step} and {k}.{step - 1} conflict over repeat");
 					}
+					aus = Aus;
 				});
 			}
 			if (boot.treeDump) BootDump(start, "", "");
@@ -332,27 +344,27 @@ namespace qutum.parser
 			u.go = go; u.mode = mode;
 		}
 
-		Unit BootNext(K key, int step, Unit u, int[] bs, int bn, Unit err, Unit repb = null)
+		Unit BootNext(K key, int step, Unit u, int[] ns, int nn, Unit err, Unit repb = null)
 		{
 			u.next ??= new Unit[133];
-			if (bs[0] > 127) // utf escape
+			if (ns[0] > 127) // utf escape
 				return BootNextU(key, step, u, err, repb);
-			Unit v = u.next[bs[0]];
-			for (int x = 1; x < bn; x++)
-				if (u.next[bs[x]] != v)
-					throw new Exception($"Prefix of {key}.{step} and {(v ?? u).key}.{(v ?? u).step} must be the same or distinct");
-			if (v == null) {
-				v = repb?.next[bs[0]] // repeat a byte
-					?? new Unit(this) { key = key, step = step, pren = bn };
-				for (int x = 0; x < bn; x++)
-					u.next[bs[x]] = v;
+			Unit n = u.next[ns[0]];
+			for (int x = 1; x < nn; x++)
+				if (u.next[ns[x]] != n)
+					throw new Exception($"Prefix of {key}.{step} and {(n ?? u).key}.{(n ?? u).step} must be the same or distinct");
+			if (n == null) {
+				n = repb != null ? u // repeat a byte
+					: new Unit(this) { key = key, step = step, pren = nn };
+				for (int x = 0; x < nn; x++)
+					u.next[ns[x]] = n;
 			}
-			else if (v.pren != bn)
-				throw new Exception($"Prefix of {key}.{step} and {v.key}.{v.step} must be the same or distinct");
-			else if (repb != null != (v == u))
+			else if (n.pren != nn)
+				throw new Exception($"Prefix of {key}.{step} and {n.key}.{n.step} must be the same or distinct");
+			else if (repb != null != (n == u))
 				// key may != u.key
-				throw new Exception($"{key}.{step} and {v.key}.{v.step} conflict over byte repeat");
-			return v;
+				throw new Exception($"{key}.{step} and {n.key}.{n.step} conflict over byte repeat");
+			return n;
 		}
 
 		Unit BootNextU(K key, int step, Unit u, Unit err, Unit repb)
@@ -374,8 +386,7 @@ namespace qutum.parser
 				(u.next[129] = a129).next[128] = v; // c0
 				((u.next[130] = a130).next[128] = b130).next[128] = v; // e0
 				(((u.next[131] = a131).next[128] = b131).next[128] = c131).next[128] = v; // f0
-																						  // TODO [132] // f8
-			}
+			}   // TODO [132] // f8
 			return v;
 		}
 
