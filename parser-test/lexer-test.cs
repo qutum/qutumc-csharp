@@ -50,7 +50,7 @@ namespace qutum.test.parser
 		[TestMethod]
 		public void Lex1()
 		{
-			var l = new LexerEnum<Tag>("A=a \n B=b\n");
+			var l = new LexerEnum<Tag>("A=a \n B=b\n ==comm\n");
 			Check(l, "a", "A=a"); Check(l, "b", "B=b"); Check(l, "ab", "A=a B=b");
 			Check(l, "", ""); Check(l, "c", "0!c");
 		}
@@ -139,9 +139,9 @@ namespace qutum.test.parser
 		[TestMethod]
 		public void LexRange4()
 		{
-			var l = new LexerEnum<Tag>("A=[a-z0-9]_");
+			var l = new LexerEnum<Tag>("A=\\x_");
 			Check(l, "3_", "A=3_"); Check(l, "b_", "A=b_");
-			Check(l, "A_", "0!A 0!_"); Check(l, "_", "0!_");
+			Check(l, "G_", "0!G 0!_"); Check(l, "_", "0!_");
 		}
 
 		[TestMethod]
@@ -162,7 +162,7 @@ namespace qutum.test.parser
 		[TestMethod]
 		public void LexRange7()
 		{
-			var l = new LexerEnum<Tag>("A=[!-~^0-9A-Za-z]");
+			var l = new LexerEnum<Tag>("A=[!-~^\\d\\a]");
 			Check(l, "!_^/+", "A=! A=_ A=^ A=/ A=+");
 			Check(l, " 2Ab.", "0!  0!2 0!A 0!b A=.");
 		}
@@ -177,7 +177,7 @@ namespace qutum.test.parser
 		[TestMethod]
 		public void LexAlt1()
 		{
-			Throw(() => new LexerEnum<Tag>("A=ab|ac \n B=ab"), "B.1 and A.1 conflict");
+			Throw(() => new LexerEnum<Tag>("A=ab| ac \n B=ab"), "B.1 and A.1 conflict");
 		}
 
 		[TestMethod]
@@ -238,6 +238,7 @@ namespace qutum.test.parser
 		{
 			Throw(() => new LexerEnum<Tag>("A=a+c \n B=aa"), "B.1 and A.1 conflict");
 			Throw(() => new LexerEnum<Tag>("A=a+b \n B=abc"), "B.1 and A.1 conflict");
+			Throw(() => new LexerEnum<Tag>("A=abc \n B=a+b"), "B.1 and A.1 conflict");
 		}
 
 		[TestMethod]
@@ -334,7 +335,7 @@ namespace qutum.test.parser
 		[TestMethod]
 		public void LexStep8()
 		{
-			var l = new LexerEnum<Tag>("A=a ?+c|b+e d");
+			var l = new LexerEnum<Tag>("A=a | +c|b+e d");
 			Check(l, "abed", "A=abed"); Check(l, "abbed", "A=abbed");
 			Check(l, "aebed", "A!e 0!b 0!e 0!d"); Check(l, "abbcbed", "A!c A=abbcbed");
 			Check(l, "acd", "A=acd"); Check(l, "acbed", "A=acbed");
@@ -344,7 +345,7 @@ namespace qutum.test.parser
 		[TestMethod]
 		public void LexStep9()
 		{
-			var l = new LexerEnum<Tag>("A=a ?+c|b+e");
+			var l = new LexerEnum<Tag>("A=a |+c|b+e");
 			Check(l, "abed", "A=abe 0!d"); Check(l, "abbe", "A=abbe");
 			Check(l, "aebe", "A=a 0!e 0!b 0!e"); Check(l, "abbcbe", "A!c A=abbcbe");
 			Check(l, "ac", "A=ac"); Check(l, "acbe", "A=acbe");

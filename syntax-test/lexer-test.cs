@@ -32,9 +32,10 @@ namespace qutum.test.syntax
 		}
 
 		[TestMethod]
-		public void LexSpace()
+		public void LexComm()
 		{
 			Check(@"\####\\####\ ", "Comm=Commb _=");
+			Check(@"\### \## ###\ ###\ ab", "Comm=Commb _= Comm=");
 		}
 
 		[TestMethod]
@@ -80,8 +81,8 @@ namespace qutum.test.syntax
 		[TestMethod]
 		public void LexString1()
 		{
-			Check(@"""abc  def""", "Str=abc  def");
-			Check(@"""a", "Str!"); Check("\"a\nb\"", "Str!\n Str=ab");
+			Check("\"abc  def\"", "Str=abc  def");
+			Check("\"a", "Str!"); Check("\"a\nb\"", "Str!\n Word=b Str!");
 		}
 
 		[TestMethod]

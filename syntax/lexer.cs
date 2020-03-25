@@ -29,15 +29,15 @@ namespace qutum.syntax
 	class Lexer : LexerEnum<Lex>
 	{
 		static readonly string Grammar = @"
-		_     = \s|\t  ?+\s+|+\t+
+		_     = \s|\t  |+\s+| +\t+
 		Eol   = \n|\r\n
-		Comm  = ##  ?+[^\n]+|+\U+
-		Commb = \\+##  *+##\\+|+#|+[^#]+|+\U+
-		Str   = ""  *""|+[^""\\\n\r]+|+\U+|+\\[\s!-~^ux]|+\\x[0-9a-fA-F][0-9a-fA-F]|+\\u[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]
-		Strb  = \\+""  *+""\\+|+""|+[^""]+|+\U+
-		Word  = [a-zA-Z_]|[a-zA-Z_][0-9a-zA-Z_]+
-		Hex   = 0[xX]|\+0[xX]|-0[xX]  ?+[0-9a-fA-F]+|+_[0-9a-fA-F]+
-		Num   = 0|\+0|-0|[1-9]|\+[1-9]|-[1-9]  ?+[0-9]+|+_[0-9]+  ?.[0-9]+ ?+_[0-9]+  ?[eE][0-9]+|[eE][\+\-][0-9]+  ?[fF]
+		Comm  = ##  |+[^\n]+|+\U+
+		Commb = \\+##  +##\\+| +#| +[^#]+|+\U+
+		Str   = ""  *""|\n| +[^""\\\n\r]+|+\U+| +\\[\s!-~^ux]| +\\x\x\x| +\\u\x\x\x\x
+		Strb  = \\+""  +""\\+| +""| +[^""]+| +\U+
+		Word  = [\a_]| [\a_][\d\a_]+
+		Hex   = 0[xX]|\+0[xX]|-0[xX]  |+\x+|+_\x+
+		Num   = 0|\+0|-0|[1-9]|\+[1-9]|-[1-9]  |+\d+|+_\d+  |.\d+  |+_\d+  |[eE]\d+|[eE][\+\-]\d+  |[fF]
 		In    = `
 		Out   = .
 		Wire  = '
@@ -110,7 +110,11 @@ namespace qutum.syntax
 					if (to - f != bn || scan.Token(f) != '#') return;
 					end = true; key = Lex.Comm; v = nameof(Lex.Commb); break;
 				case Lex.Str:
-					if (step == 1 || end) break;
+					if (step == 1 || end && scan.Token(f) == '"') break;
+					if (end) { // \n
+						Error(key, step, true, (byte)'\n', f, to);
+						return;
+					}
 					ScanBs(f, to, bn);
 					if (bs[bn] != '\\') bn += to - f; else Escape(); return;
 				case Lex.Strb:

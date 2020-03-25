@@ -159,7 +159,7 @@ namespace qutum.parser
 			}
 		}
 
-		internal static string Esc(string s, int f, int t, bool U = false)
+		internal static string Esc(string s, int f, int t, bool U = false, bool range = false)
 		{
 			if (s[f] != '\\')
 				return s[f..t];
@@ -170,6 +170,9 @@ namespace qutum.parser
 				'n' => "\n",
 				'r' => "\r",
 				'U' => U ? "\x80" : "U",
+				'd' => range ? "0123456789" : "d",
+				'x' => range ? "0123456789ABCDEFabcdef" : "x",
+				'a' => range ? "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz" : "a",
 				_ => s[f].ToString(),
 			};
 		}
