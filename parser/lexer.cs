@@ -51,7 +51,7 @@ namespace qutum.parser
 
 		protected static EqualityComparer<K> Eq = EqualityComparer<K>.Default;
 
-		public override bool Is(K key) => Eq.Equals(tokens[loc].key, key);
+		public override bool Is(K key) => Eq.Equals(Token().key, key);
 
 		public override bool Is(K key1, K key) => Eq.Equals(key1, key);
 
@@ -79,13 +79,13 @@ namespace qutum.parser
 
 		readonly Unit start;
 		int id;
+		internal Scan<IEnumerable<byte>, byte, byte, IEnumerable<byte>> scan;
 		int bn; // total bytes gots
 		int bf, bt; // from index to index excluded for each step
-		internal Scan<IEnumerable<byte>, byte, byte, IEnumerable<byte>> scan;
-		internal byte[] bytes = new byte[17]; // latest bytes, [byte index & 15]
-		internal T[] tokens = new T[65536];
+		byte[] bytes = new byte[17]; // latest bytes, [byte index & 15]
 		internal int tokenn, loc = -2;
-		internal List<int> lines = new List<int>();
+		internal T[] tokens = new T[65536];
+		readonly List<int> lines = new List<int>();
 
 		public virtual void Load(IEnumerable<byte> input)
 		{
@@ -129,7 +129,7 @@ namespace qutum.parser
 				Token(u.key, u.step, ref e, bf, bt);
 				if (e) v = start;
 			}
-			else // mismatch, report error
+			else // mismatch, report error step
 				Error(u.key, u.step, v == start || bt >= bn,
 					bt < bn ? bytes[bt & 15] : (byte?)null, bf, ++bt);
 			if (v == start && loc < tokenn)
@@ -157,6 +157,8 @@ namespace qutum.parser
 		public abstract bool Is(K key);
 
 		public abstract bool Is(K key1, K key);
+
+		public T Token(int x) => tokens[x];
 
 		public ArraySegment<T> Tokens(int from, int to)
 		{
@@ -303,7 +305,7 @@ namespace qutum.parser
 							if (repb)
 								BootNext(k, step, next, ns, nn, mis, u);
 							if (bx == bn - 1)
-								// "next" is the unit after this step
+								// "next" is the unit after this byte to end this step
 								BootMode(k, step, next, repb ? 3 : 2, ok); // match
 							else if (repb || ns[0] > 127)
 								BootMode(k, step, next, repb ? -1 : -2, mis); // mismatch
@@ -344,11 +346,11 @@ namespace qutum.parser
 			u.go = go; u.mode = mode;
 		}
 
-		Unit BootNext(K key, int step, Unit u, int[] ns, int nn, Unit err, Unit repb = null)
+		Unit BootNext(K key, int step, Unit u, int[] ns, int nn, Unit utfMis, Unit repb = null)
 		{
 			u.next ??= new Unit[133];
 			if (ns[0] > 127) // utf escape
-				return BootNextU(key, step, u, err, repb);
+				return BootNextU(key, step, u, utfMis, repb);
 			Unit n = u.next[ns[0]];
 			for (int x = 1; x < nn; x++)
 				if (u.next[ns[x]] != n)
@@ -367,7 +369,7 @@ namespace qutum.parser
 			return n;
 		}
 
-		Unit BootNextU(K key, int step, Unit u, Unit err, Unit repb)
+		Unit BootNextU(K key, int step, Unit u, Unit mis, Unit repb)
 		{
 			var v = u.next[129]?.next[128];
 			if (v != null)
@@ -376,12 +378,12 @@ namespace qutum.parser
 			if (repb != null)
 				repb.next.AsSpan(129, 4).CopyTo(u.next.AsSpan(129, 4));
 			else {
-				var a129 = new Unit(this) { key = key, step = step, pren = 1, go = err, mode = -1, next = new Unit[133] };
-				var a130 = new Unit(this) { key = key, step = step, pren = 1, go = err, mode = -1, next = new Unit[133] };
-				var b130 = new Unit(this) { key = key, step = step, pren = 1, go = err, mode = -1, next = new Unit[133] };
-				var a131 = new Unit(this) { key = key, step = step, pren = 1, go = err, mode = -1, next = new Unit[133] };
-				var b131 = new Unit(this) { key = key, step = step, pren = 1, go = err, mode = -1, next = new Unit[133] };
-				var c131 = new Unit(this) { key = key, step = step, pren = 1, go = err, mode = -1, next = new Unit[133] };
+				var a129 = new Unit(this) { key = key, step = step, pren = 1, go = mis, mode = -1, next = new Unit[133] };
+				var a130 = new Unit(this) { key = key, step = step, pren = 1, go = mis, mode = -1, next = new Unit[133] };
+				var b130 = new Unit(this) { key = key, step = step, pren = 1, go = mis, mode = -1, next = new Unit[133] };
+				var a131 = new Unit(this) { key = key, step = step, pren = 1, go = mis, mode = -1, next = new Unit[133] };
+				var b131 = new Unit(this) { key = key, step = step, pren = 1, go = mis, mode = -1, next = new Unit[133] };
+				var c131 = new Unit(this) { key = key, step = step, pren = 1, go = mis, mode = -1, next = new Unit[133] };
 				v = new Unit(this) { key = key, step = step, pren = 1 };
 				(u.next[129] = a129).next[128] = v; // c0
 				((u.next[130] = a130).next[128] = b130).next[128] = v; // e0

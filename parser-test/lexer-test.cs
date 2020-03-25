@@ -76,7 +76,8 @@ namespace qutum.test.parser
 		public void Lex23()
 		{
 			var l = new LexerEnum<Tag>("A=ab \n B=abc \n C=cc \n CC=ccc");
-			Check(l, "ab", "A=ab"); Check(l, "abc", "B=abc"); Check(l, "ababc", "A=ab B=abc");
+			Check(l, "ab", "A=ab"); Check(l, "abc", "B=abc");
+			Check(l, "ababc", "A=ab B=abc"); Check(l, "abdcc", "A=ab 0!d C=cc");
 			Check(l, "abcc", "B=abc 0!c"); Check(l, "abccc", "B=abc C=cc");
 			Check(l, "ababcccc", "A=ab B=abc CC=ccc"); Check(l, "a", "0!a");
 		}
@@ -190,8 +191,9 @@ namespace qutum.test.parser
 		[TestMethod]
 		public void LexAlt3()
 		{
-			var l = new LexerEnum<Tag>("A=ab|ac \n B=abc");
-			Check(l, "ab", "A=ab"); Check(l, "ac", "A=ac"); Check(l, "abc", "B=abc");
+			var l = new LexerEnum<Tag>("A=abc|abd \n B=abcd \n C=acd");
+			Check(l, "abc", "A=abc"); Check(l, "abd", "A=abd");
+			Check(l, "abcd", "B=abcd"); Check(l, "acd", "C=acd");
 		}
 
 		[TestMethod]
@@ -271,23 +273,26 @@ namespace qutum.test.parser
 		[TestMethod]
 		public void LexStep1()
 		{
-			var l = new LexerEnum<Tag>("A=aa b c \n B=ab \n C=bc");
-			Check(l, "aabcd", "A=aabc 0!d"); Check(l, "abbc", "B=ab C=bc");
-			Check(l, "aa", "A!"); Check(l, "aacab", "A!c B=ab");
+			var l = new LexerEnum<Tag>("A=aa b cde \n B=ab \n C=bc");
+			Check(l, "aabcdee", "A=aabcde 0!e"); Check(l, "abbc", "B=ab C=bc");
+			Check(l, "aa", "A!"); Check(l, "aabcdf", "A!c 0!d 0!f");
+			Check(l, "aacab", "A!c B=ab");
 		}
 
 		[TestMethod]
 		public void LexStep2()
 		{
-			Throw(() => new LexerEnum<Tag>("A=*a b c"), "");
+			var l = new LexerEnum<Tag>("A=a *b c \n B=d \n C=cd");
+			Check(l, "abcd", "A=abc B=d"); Check(l, "acbc", "A!c A=acbc");
+			Check(l, "acdd", "A!c A!d A!d A!"); Check(l, "adebccd", "A!d A!e A=adebc C=cd");
 		}
 
 		[TestMethod]
 		public void LexStep3()
 		{
-			var l = new LexerEnum<Tag>("A=a *b c \n B=d \n C=cd");
-			Check(l, "abcd", "A=abc B=d"); Check(l, "acbc", "A!c A=acbc");
-			Check(l, "acdd", "A!c A!d A!d A!"); Check(l, "adbccd", "A!d A=adbc C=cd");
+			var l = new LexerEnum<Tag>("A=a bcd|bce f \n B=abcf");
+			Check(l, "abcdf", "A=abcdf"); Check(l, "abcef", "A=abcef");
+			Check(l, "abcf", "B=abcf");
 		}
 
 		[TestMethod]
@@ -344,6 +349,20 @@ namespace qutum.test.parser
 			Check(l, "aebe", "A=a 0!e 0!b 0!e"); Check(l, "abbcbe", "A!c A=abbcbe");
 			Check(l, "ac", "A=ac"); Check(l, "acbe", "A=acbe");
 			Check(l, "a", "A=a");
+		}
+
+		[TestMethod]
+		public void LexStep10()
+		{
+			var l = new LexerEnum<Tag>("A=a *bc d \n B=d \n C=cd");
+			Check(l, "abcdd", "A=abcd B=d"); Check(l, "acbcd", "A!c A=acbcd");
+			Check(l, "abedd", "A!b A!e A!d A!d A!"); Check(l, "abebcdcd", "A!b A!e A=abebcd C=cd");
+		}
+
+		[TestMethod]
+		public void LexStep11()
+		{
+			Throw(() => new LexerEnum<Tag>("A=*a b c"), "");
 		}
 
 		[TestMethod]

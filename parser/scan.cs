@@ -20,6 +20,8 @@ namespace qutum.parser
 		T Token();
 		bool Is(K key);
 		bool Is(K key1, K key);
+
+		T Token(int x);
 		// tokens from index to index excluded
 		S Tokens(int from, int to);
 		// tokens from index to index excluded
@@ -48,6 +50,8 @@ namespace qutum.parser
 		public virtual bool Is(char key) => input[loc] == key;
 
 		public virtual bool Is(char key1, char key) => key1 == key;
+
+		public char Token(int x) => input[x];
 
 		public string Tokens(int from, int to) => input[from..to];
 
@@ -81,6 +85,15 @@ namespace qutum.parser
 		public virtual bool Is(byte key) => iter.Current == key;
 
 		public virtual bool Is(byte key1, byte key) => key1 == key;
+
+		public byte Token(int x)
+		{
+			if (input is byte[] a)
+				return a[x];
+			if (input is List<byte> l)
+				return l[x];
+			return input.Skip(x).First();
+		}
 
 		public IEnumerable<byte> Tokens(int from, int to)
 		{

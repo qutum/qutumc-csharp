@@ -29,15 +29,15 @@ namespace qutum.syntax
 	class Lexer : LexerEnum<Lex>
 	{
 		static readonly string Grammar = @"
-		_     = \s|\t ?+\s+|+\t+
+		_     = \s|\t  ?+\s+|+\t+
 		Eol   = \n|\r\n
-		Comm  = ## ?+[^\n]+|+\U+
-		Commb = \\+## *+##\\+|+#|+[^#]+|+\U+
-		Str   = "" *""|+[^""\\\n\r]+|+\U+|+\\[\s!-~^ux]|+\\x[0-9a-fA-F][0-9a-fA-F]|+\\u[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]
-		Strb  = \\+"" *+""\\+|+""|+[^""]+|+\U+
+		Comm  = ##  ?+[^\n]+|+\U+
+		Commb = \\+##  *+##\\+|+#|+[^#]+|+\U+
+		Str   = ""  *""|+[^""\\\n\r]+|+\U+|+\\[\s!-~^ux]|+\\x[0-9a-fA-F][0-9a-fA-F]|+\\u[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]
+		Strb  = \\+""  *+""\\+|+""|+[^""]+|+\U+
 		Word  = [a-zA-Z_]|[a-zA-Z_][0-9a-zA-Z_]+
-		Hex   = 0[xX]|\+0[xX]|-0[xX] ?+[0-9a-fA-F]+|+_[0-9a-fA-F]+
-		Num   = 0|\+0|-0|[1-9]|\+[1-9]|-[1-9] ?+[0-9]+|+_[0-9]+ ?.[0-9]+ ?+_[0-9]+ ?[eE][0-9]+|[eE][\+\-][0-9]+ ?[fF]
+		Hex   = 0[xX]|\+0[xX]|-0[xX]  ?+[0-9a-fA-F]+|+_[0-9a-fA-F]+
+		Num   = 0|\+0|-0|[1-9]|\+[1-9]|-[1-9]  ?+[0-9]+|+_[0-9]+  ?.[0-9]+ ?+_[0-9]+  ?[eE][0-9]+|[eE][\+\-][0-9]+  ?[fF]
 		In    = `
 		Out   = .
 		Wire  = '
@@ -89,7 +89,7 @@ namespace qutum.syntax
 					if (LineStart(f)) { scan.Tokens(f, to, bs); return; }
 					else { bs[0] = 0; return; }
 				if (bs[0] != 0)
-					if (f < to && scan.Tokens(f, f + 1, bs.AsSpan(1))[0] != bs[0])
+					if (f < to && (bs[1] = scan.Token(f)) != bs[0])
 					{ bs[0] = 0; Add(Lex._, f, to, "do not mix tabs and spaces for indent", true); }
 					else if (bs[0] == ' ' && (to - from & 3) != 0)
 					{ bs[0] = 0; Add(Lex._, f, to, $"{to - from + 3 >> 2 << 2} spaces expected", true); }
@@ -107,7 +107,7 @@ namespace qutum.syntax
 					break;
 				case Lex.Commb:
 					if (step == 1) { bn = to - from; return; }
-					if (to - f != bn || scan.Tokens(f, f + 1, bs)[0] != '#') return;
+					if (to - f != bn || scan.Token(f) != '#') return;
 					end = true; key = Lex.Comm; v = nameof(Lex.Commb); break;
 				case Lex.Str:
 					if (step == 1 || end) break;
@@ -115,7 +115,7 @@ namespace qutum.syntax
 					if (bs[bn] != '\\') bn += to - f; else Escape(); return;
 				case Lex.Strb:
 					if (step == 1) { bn = to; return; }
-					if (to - f != bn - from || scan.Tokens(f, f + 1, bs)[0] != '"') return;
+					if (to - f != bn - from || scan.Token(f) != '"') return;
 					end = true; bn = ScanBs(bn, f, 0); break;
 				case Lex.Word:
 					bn = ScanBs(from, to, 0); break;
