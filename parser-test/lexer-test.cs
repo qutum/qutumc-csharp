@@ -67,9 +67,9 @@ namespace qutum.test.parser
 		[TestMethod]
 		public void Lex13()
 		{
-			var l = new LexerEnum<Tag>("A=a \n B=abc \n BB=bc \n C=ccc");
+			var l = new LexerEnum<Tag>("A=a \n B=abc \n BB=bc \n C=ccc \n D=cd");
 			Check(l, "abc", "B=abc"); Check(l, "aabcccc", "A=a B=abc C=ccc");
-			Check(l, "bcb", "BB=bc 0!b");
+			Check(l, "bcb", "BB=bc 0!b"); Check(l, "ccd", "0!c D=cd");
 		}
 
 		[TestMethod]
@@ -238,6 +238,7 @@ namespace qutum.test.parser
 		{
 			Throw(() => new LexerEnum<Tag>("A=a+c \n B=aa"), "B.1 and A.1 conflict");
 			Throw(() => new LexerEnum<Tag>("A=a+b \n B=abc"), "B.1 and A.1 conflict");
+			Throw(() => new LexerEnum<Tag>("A=ab+c \n B=abcd"), "B.1 and A.1 conflict");
 			Throw(() => new LexerEnum<Tag>("A=abc \n B=a+b"), "B.1 and A.1 conflict");
 		}
 
@@ -269,6 +270,29 @@ namespace qutum.test.parser
 		{
 			Throw(() => new LexerEnum<Tag>("A=[ab]+ [bc]"), "A.2 and A.1 .*repeat");
 			Throw(() => new LexerEnum<Tag>("A=a[ab]+|b[bc]+ b"), "A.2 and A.1 .*repeat");
+		}
+
+		[TestMethod]
+		public void LexRepeat10()
+		{
+			Throw(() => new LexerEnum<Tag>("A=a*"), "First byte");
+			Throw(() => new LexerEnum<Tag>("A=ab*c \n B=acd"), "B.1 and A.1 .*repeat");
+		}
+
+		[TestMethod]
+		public void LexRepeat11()
+		{
+			var l = new LexerEnum<Tag>("A=aa*");
+			Check(l, "a", "A=a"); Check(l, "aa", "A=aa"); Check(l, "aaa", "A=aaa");
+			Check(l, "baa", "0!b A=aa"); Check(l, "ab", "A=a 0!b");
+		}
+
+		[TestMethod]
+		public void LexRepeat12()
+		{
+			var l = new LexerEnum<Tag>("A=ab*c");
+			Check(l, "abc", "A=abc"); Check(l, "abbc", "A=abbc"); Check(l, "abbbc", "A=abbbc");
+			Check(l, "ac", "A=ac"); Check(l, "abb", "A!"); Check(l, "abbda", "A!d A!");
 		}
 
 		[TestMethod]

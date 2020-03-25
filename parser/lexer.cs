@@ -192,15 +192,16 @@ namespace qutum.parser
 			gram  = eol* prod prods* eol*
 			prods = eol+ prod
 			prod  = key S*\=S* step1 step* =+
+			key   = W+ =+
 			step1 = byte+ alt1* =+
 			alt1  = \| S* byte+ =+
 			step  = S+ mis? rep? byte+ alt* =+
 			alt   = \| S* rep? byte+ =+
 			mis   = \| S* | \* =+
 			rep   = \+ =+
-			byte  = B\+? | [range* ^? range*]\+? | \\E\+? =+
-			key   = W+ =+
+			byte  = B qua? | [range* ^? range*] qua? | \\E qua? =+
 			range = R | R-R | \\E =+
+			qua   = \+ | \* =+
 			eol   = S* comm? \r?\n S*
 			comm  = \=\= V*",
 			new BootScan()) {
@@ -221,16 +222,20 @@ namespace qutum.parser
 			// \ prod
 			//   \ key
 			//   \ step1
-			//     \ byte+ or range...+ or esc+ ...
+			//     \ byte or range... or esc ...
+			//       \ qua
 			//     \ alt1 ...
-			//       \ byte+ or range...+ or esc+ ...
+			//       \ byte or range... or esc ...
+			//         \ qua
 			//   \ step ...
 			//     \ mis
 			//     \ rep
-			//     \ byte+ or range...+ or esc+ ...
+			//     \ byte or range... or esc ...
+			//       \ qua
 			//     \ alt ...
 			//       \ rep
-			//       \ byte+ or range...+ or esc+ ...
+			//       \ byte or range... or esc ...
+			//         \ qua
 			// \ prod ...
 			start = new Unit(this) { mode = -1 }; start.go = start;
 
@@ -260,7 +265,7 @@ namespace qutum.parser
 					var Aus = st.Where(t => t.name.StartsWith("alt")).Prepend(st).Select(a => {
 						u = stepus[step];
 						// go for match
-						var ok = a.head.name == "rep" || a.head.next?.name == "rep" ? u // repeat step
+						var ok = a.head.name == "rep" || a.head.next?.name == "rep" ? u // step repeat
 								: stepus[step + 1];
 						// go for error
 						var err = u.mode < 0 ? u.go : u;
@@ -301,14 +306,20 @@ namespace qutum.parser
 							else // single byte
 								ns[nn++] = (byte)gram[x++];
 							// build unit
-							var repb = x != b.to; // byte repeat
+							var qua = b.tail?.name == "qua" ? b.tail : null; // byte repeat
+							var more = qua != null && gram[qua.from] == '+';
+							var any = qua != null && gram[qua.from] == '*';
+							if (bx == 0 && any)
+								throw new Exception($"First byte of {k}.{step} must not have * repeat");
 							var go = u; var mode = 0; // mismatch to backward
 							if (bx == bn - 1) // last byte of alt
 								{ go = ok; mode = 1; } // match step
-							else if (repb || ns[0] > 127) // inside byte repeat or utf
+							else if (more || any || ns[0] > 127 // inside byte repeat or utf
+								|| b.next.tail?.name == "qua"
+									&& gram[b.next.tail.from] == '*') // next byte is * repeat
 								{ go = err; mode = -1; } // mismatch to error
-							var next = BootNext(k, step, u, ns, nn, go, mode, null, err);
-							if (repb)
+							var next = BootNext(k, step, u, ns, nn, go, mode, any ? u : null, err);
+							if (more)
 								BootNext(k, step, next, ns, nn, go, mode, u, err);
 							u = next; x = b.to;
 						});
@@ -346,14 +357,15 @@ namespace qutum.parser
 					: new Unit(this) { key = key, step = step, pren = nn, go = go, mode = mode };
 				for (int x = 0; x < nn; x++)
 					u.next[ns[x]] = n;
+				if (repFrom == u) // * repeat
+					BootMode(key, step, n, go, mode);
 			}
 			else if (n.pren != nn)
 				throw new Exception($"Prefix of {key}.{step} and {n.key}.{n.step}"
 					+ " must be the same or distinct");
 			else if (repFrom != null != (n == u))
-				// key may != u.key
 				throw new Exception($"{key}.{step} and {n.key}.{n.step} conflict over byte repeat");
-			else if (repFrom == null)
+			else if (repFrom == null || repFrom == u)
 				BootMode(key, step, n, go, mode);
 			return n;
 		}
@@ -364,24 +376,27 @@ namespace qutum.parser
 			if (n != null) {
 				if (repFrom != null != (n == u))
 					throw new Exception($"{key}.{step} and {u.key}.{u.step} conflict over utf repeat");
-				if (repFrom == null)
+				if (repFrom == null || repFrom == u)
 					BootMode(key, step, n, go, mode);
 				return n;
 			}
-			if (repFrom != null)
-				Array.Copy(repFrom.next, 129, (n = u).next, 129, 4);
-			else {
+			if (repFrom == null || repFrom == u) { // TODO 132 f8
 				var a129 = new Unit(this) { key = key, step = step, pren = 1, go = err, mode = -1, next = new Unit[133] };
 				var a130 = new Unit(this) { key = key, step = step, pren = 1, go = err, mode = -1, next = new Unit[133] };
 				var b130 = new Unit(this) { key = key, step = step, pren = 1, go = err, mode = -1, next = new Unit[133] };
 				var a131 = new Unit(this) { key = key, step = step, pren = 1, go = err, mode = -1, next = new Unit[133] };
 				var b131 = new Unit(this) { key = key, step = step, pren = 1, go = err, mode = -1, next = new Unit[133] };
 				var c131 = new Unit(this) { key = key, step = step, pren = 1, go = err, mode = -1, next = new Unit[133] };
-				n = new Unit(this) { key = key, step = step, pren = 1, go = go, mode = mode };
+				n = repFrom == u ? u
+					: new Unit(this) { key = key, step = step, pren = 1, go = go, mode = mode };
 				(u.next[129] = a129).next[128] = n; // c0
 				((u.next[130] = a130).next[128] = b130).next[128] = n; // e0
 				(((u.next[131] = a131).next[128] = b131).next[128] = c131).next[128] = n; // f0
-			}   // TODO [132] // f8
+				if (repFrom == u) // * repeat
+					BootMode(key, step, n, go, mode);
+			}
+			else
+				Array.Copy(repFrom.next, 129, (n = u).next, 129, 4);
 			return n;
 		}
 

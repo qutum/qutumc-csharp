@@ -127,11 +127,11 @@ namespace qutum.test.syntax
 		[TestMethod]
 		public void LexHex1()
 		{
-			Check("0x0", "Int=0"); Check("0xF", "Int=15");
+			Check("0x0", "Int=0"); Check("0xF", "Int=15"); Check("0xx", "Hex!x");
 			Check("+0x0A", "Int=10");
-			Check("0x7fffffff", "Int=2147483647"); Check("0x8000_0000", "Int=-2147483648");
-			Check("0xfffffffe", "Int=-2");
-			Check("0x_0", "Int=0"); Check("0x__0", "Int=0 Word=__0"); Check("1x1", "Int=1 Word=x1");
+			Check("0x7fffffff", "Int=2147483647"); Check("0x80_00_00_00", "Int=-2147483648");
+			Check("0xffff_fffe", "Int=-2"); Check("0xffff_fffe_", "Int=-2 Word=_");
+			Check("0x_0", "Int=0"); Check("0x__0", "Hex!_ Word=_0"); Check("1x1", "Int=1 Word=x1");
 		}
 
 		[TestMethod]
