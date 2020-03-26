@@ -1,6 +1,6 @@
 //
 // Qutum 10 Compiler
-// Copyright 2008-2018 Qianyan Cai
+// Copyright 2008-2020 Qianyan Cai
 // Under the terms of the GNU General Public License version 3
 // http://qutum.com
 //
@@ -8,7 +8,6 @@
 using qutum.parser;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace qutum.syntax
 {
@@ -16,16 +15,17 @@ namespace qutum.syntax
 
 	class Parsers : Parser<IEnumerable<byte>, Lex, Token<Lex>, ArraySegment<Token<Lex>>>
 	{
-		static string Grammar = @"|= Eol Ded
+		static string Grammar =
+		@"|= EOL DED
 		blocks = block+ skips?
 		block = skips? line
-		line = parse Eol inner? =+
-		parse = __* Parse Parse__* =+
-		inner = skips? Ind block+ skips? Ded
+		line = parse EOL inner? =+
+		parse = BLANK* CONTENT CONTENT_BLANK* =+
+		inner = skips? IND block+ skips? DED
 		skips = skip+
-		skip = empty|comm | Ind skip+ Ded | Ded skip+ Ind
-		empty = _* Eol =+
-		comm = _* Comm __* Eol
+		skip = empty|comm | IND skip+ DED | DED skip+ IND
+		empty = SP* EOL =+
+		comm = SP* COMM BLANK* EOL
 		";
 
 		public Parsers(Lexer l) : base(Grammar, l) { treeKeep = false; treeExpect = 0; }
@@ -46,8 +46,10 @@ namespace qutum.syntax
 				else do if (x.next != null) { x = x.next; goto Loop; }
 					while ((x = x.up) != null);
 			}
-			scan.Tokens(0, scan.Loc()).Where(k => k.err).Select(k => t.Add(
-				new Trees { name = k.key.ToString(), from = k.from, to = k.to, err = 1, expect = k.value })).Count();
+			foreach (var k in ((Lexer)scan).errs)
+				t.Add(new Trees {
+					name = k.key.ToString(), from = k.from, to = k.to, err = 1, expect = k.value
+				});
 			scan.Unload();
 			return t;
 		}

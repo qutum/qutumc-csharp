@@ -49,7 +49,7 @@ namespace qutum.parser
 
 			public override string ToString() =>
 				name + "=" + string.Join(' ', s.Where(c => c.p != null).Select(
-					c => (c.p is Prod p ? p.name : Esc(c))
+					c => (c.p is Prod p ? p.name : Esc(c.p))
 					+ (c.q == More ? "+" : c.q == Any ? "*" : c.q == Opt ? "?" : "")));
 		}
 
@@ -316,7 +316,7 @@ namespace qutum.parser
 			{ "prod",  "name S* = con* alt* hint?" },
 			{ "name",  "W+" },
 			{ "con",   "W+|sym|S+" }, // word to prod name or scan.Keys
-			{ "sym",   "Q|O+|\\ E" }, // unescape to scan.Keys except Qua
+			{ "sym",   "Q|O+|\\ E" }, // unescaped to scan.Keys except Qua
 			{ "alt",   "ahint? \x1 S* con*" },
 			{ "hint",  "= hintg? hintk? S* hintw" },
 			{ "hintg", "*" }, // hint greedy

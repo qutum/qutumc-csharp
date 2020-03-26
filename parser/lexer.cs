@@ -10,10 +10,10 @@ namespace qutum.parser
 	{
 		public K key;
 		public object value;
-		public bool err;
 		public int from, to; // from input byte index to index excluded, scan.Loc()
+		public int err; // ~token index this error found before
 
-		public string Dump() => $"{key}{(err ? "!" : "=")}{value}";
+		public string Dump() => $"{key}{(err < 0 ? "!" : "=")}{value}";
 	}
 
 	public class LexerEnum<K> : Lexer<K, Token<K>> where K : struct
@@ -23,6 +23,14 @@ namespace qutum.parser
 			: base(grammar, scan ?? new ScanByte()) { }
 
 		protected int from = -1;
+		public bool errMerge = false; // add error token into corrent tokens
+		public readonly List<Token<K>> errs = new List<Token<K>>();
+
+		public override void Unload()
+		{
+			base.Unload();
+			errs.Clear();
+		}
 
 		protected override void Token(K key, int part, ref bool end, int f, int to)
 		{
@@ -38,15 +46,24 @@ namespace qutum.parser
 		protected override void Error(K key, int part, bool end, byte? b, int f, int to)
 		{
 			if (from < 0) from = f;
-			if (part >= 0) Add(key, f, to, (char?)b ?? (object)"", true);
+			if (part >= 0) AddErr(key, f, to, (char?)b ?? (object)"");
 			if (end) from = -1;
 		}
 
-		protected void Add(K key, int f, int to, object value, bool err = false)
+		protected void Add(K key, int f, int to, object value)
 		{
 			Add(new Token<K> {
-				key = key, from = f, to = to, value = value, err = err
+				key = key, from = f, to = to, value = value
 			});
+		}
+
+		protected void AddErr(K key, int f, int to, object value)
+		{
+			var e = new Token<K> {
+				key = key, from = f, to = to, value = value, err = ~tokenn
+			};
+			if (errMerge) Add(e);
+			else errs.Add(e);
 		}
 
 		protected static EqualityComparer<K> Eq = EqualityComparer<K>.Default;
@@ -334,7 +351,7 @@ namespace qutum.parser
 			var any = qua != null && gram[qua.from] == '*';
 			if (bx == 0 && any)
 				throw new Exception($"First byte of {k}.{part} must not have * repeat");
-			// go and mode
+			// buid next
 			var go = u; var mode = 0; // mismatch to backward
 			if (bx == bn - 1) // last byte of alt
 				{ go = ok; mode = 1; } // match part
@@ -342,7 +359,6 @@ namespace qutum.parser
 				|| b.next.tail?.name == "qua"
 					&& gram[b.next.tail.from] == '*') // next byte is * repeat
 				{ go = err; mode = -1; } // mismatch to error
-			// buid next
 			var next = BootNext(k, part, u, ns, nn, go, mode, any ? u : null, err);
 			if (more)
 				BootNext(k, part, next, ns, nn, go, mode, u, err);

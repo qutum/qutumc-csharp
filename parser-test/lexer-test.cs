@@ -26,6 +26,7 @@ namespace qutum.test.parser
 
 		void Check(LexerEnum<Tag> l, byte[] input, string s)
 		{
+			l.errMerge = true;
 			l.Load(input);
 			while (l.Next()) ;
 			var z = string.Join(" ", l.Tokens(0, l.Loc()).Select(t => t.Dump()).ToArray());

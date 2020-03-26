@@ -62,10 +62,10 @@ namespace qutum.test.syntax
 		{
 			var t = Parses("a\nb", false);
 			AreEqual(0, t.head.err); AreEqual(0, t.head.from); AreEqual(1, t.head.to);
-			AreEqual(Lex.Eol, t.tail.tail.expect);
+			AreEqual(Lex.EOL, t.tail.tail.expect);
 			t = Parses("a\n\tb", false);
 			AreEqual(0, t.head.err); AreEqual(0, t.head.from); AreEqual(1, t.head.to);
-			AreEqual(Lex.Eol, t.tail.tail.expect);
+			AreEqual(Lex.EOL, t.tail.tail.expect);
 		}
 
 		[TestMethod]
@@ -104,16 +104,16 @@ namespace qutum.test.syntax
 		{
 			var t = Parses("\ta\nb\n", false);
 			AreEqual(0, t.head.err); AreEqual(4, t.head.from); AreEqual(5, t.head.to);
-			AreEqual(Lex.Eol, t.tail.head.expect); AreEqual(1, t.tail.head.to);
+			AreEqual(Lex.EOL, t.tail.head.expect); AreEqual(1, t.tail.head.to);
 			t = Parses("##\n\ta\nb\n", false);
 			AreEqual(0, t.head.err); AreEqual(6, t.head.from); AreEqual(7, t.head.to);
-			AreEqual(Lex.Eol, t.tail.head.expect); AreEqual(3, t.tail.head.to);
+			AreEqual(Lex.EOL, t.tail.head.expect); AreEqual(3, t.tail.head.to);
 			t = Parses("##\n\t##\n\ta\nb\n", false);
 			AreEqual(0, t.head.err); AreEqual(8, t.head.from); AreEqual(9, t.head.to);
-			AreEqual(Lex.Eol, t.tail.head.next.expect); AreEqual(5, t.tail.head.next.to);
+			AreEqual(Lex.EOL, t.tail.head.next.expect); AreEqual(5, t.tail.head.next.to);
 			t = Parses("\t##\n##\n\ta\nb\n", false);
 			AreEqual(0, t.head.err); AreEqual(10, t.head.from); AreEqual(11, t.head.to);
-			AreEqual(Lex.Eol, t.tail.head.next.expect); AreEqual(7, t.tail.head.next.to);
+			AreEqual(Lex.EOL, t.tail.head.next.expect); AreEqual(7, t.tail.head.next.to);
 		}
 
 		[TestMethod]
@@ -122,11 +122,11 @@ namespace qutum.test.syntax
 			var t = Parses("a\n\t\taa\n\tab\n", false);
 			AreEqual(0, t.head.err); AreEqual(0, t.head.from); AreEqual(1, t.head.to);
 			AreEqual(0, t.head.head.err); AreEqual(7, t.head.head.from); AreEqual(8, t.head.head.to);
-			AreEqual(Lex.Eol, t.tail.head.expect); AreEqual(4, t.tail.head.to);
+			AreEqual(Lex.EOL, t.tail.head.expect); AreEqual(4, t.tail.head.to);
 			t = Parses("a\n##\n\n\t\taa\n\tab\n", false);
 			AreEqual(0, t.head.err); AreEqual(0, t.head.from); AreEqual(1, t.head.to);
 			AreEqual(0, t.head.head.err); AreEqual(10, t.head.head.from); AreEqual(11, t.head.head.to);
-			AreEqual(Lex.Eol, t.tail.head.expect); AreEqual(7, t.tail.head.to);
+			AreEqual(Lex.EOL, t.tail.head.expect); AreEqual(7, t.tail.head.to);
 		}
 
 		[TestMethod]
@@ -235,11 +235,11 @@ namespace qutum.test.syntax
 			var t = Parses("a\n\n##\n\n\tb\n\n\t\t  ##\n\t\tc\n  \\##\n..##\\  \\####\\\n\n\t\td\n", false);
 			AreEqual(0, t.head.err); AreEqual(0, t.head.from); AreEqual(1, t.head.to);
 			AreEqual(0, t.head.head.err); AreEqual(7, t.head.head.from); AreEqual(8, t.head.head.to);
-			AreEqual(0, t.head.head.head.err); AreEqual(17, t.head.head.head.from); AreEqual(18, t.head.head.head.to);
-			AreEqual(0, t.head.head.tail.err); AreEqual(30, t.head.head.tail.from); AreEqual(31, t.head.head.tail.to);
+			AreEqual(0, t.head.head.head.err); AreEqual(16, t.head.head.head.from); AreEqual(17, t.head.head.head.to);
+			AreEqual(0, t.head.head.tail.err); AreEqual(28, t.head.head.tail.from); AreEqual(29, t.head.head.tail.to);
 			AreEqual("empty", t.head.next.name); AreEqual(5, t.head.next.from); AreEqual(6, t.head.next.to);
-			AreEqual("_", t.tail.prev.name); AreEqual(13, t.tail.prev.from); AreEqual(15, t.tail.prev.to);
-			AreEqual("_", t.tail.name); AreEqual(23, t.tail.from); AreEqual(24, t.tail.to);
+			AreEqual("SP", t.tail.prev.name); AreEqual(13, t.tail.prev.from); AreEqual(15, t.tail.prev.to);
+			AreEqual("SP", t.tail.name); AreEqual(23, t.tail.from); AreEqual(24, t.tail.to);
 		}
 
 		[TestMethod]
