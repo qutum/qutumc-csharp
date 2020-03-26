@@ -393,9 +393,9 @@ namespace qutum.test.parser
 		[TestMethod]
 		public void LexEsc1()
 		{
-			var l = new LexerEnum<Tag>(@"A=[\^\-\[\]\\\U]");
+			var l = new LexerEnum<Tag>(@"A=[\^\-\[\]\\\Z]");
 			Check(l, "^", "A=^"); Check(l, "-", "A=-"); Check(l, "[", "A=["); Check(l, "]", "A=]");
-			Check(l, "\\", "A=\\"); Check(l, "U", "A=U");
+			Check(l, "\\", "A=\\"); Check(l, "Z", "A=Z");
 		}
 
 		[TestMethod]
@@ -408,8 +408,9 @@ namespace qutum.test.parser
 		[TestMethod]
 		public void LexUtf1()
 		{
+			Throw(() => new LexerEnum<Tag>("A=\\U+ \n B=\\U\\u"), "Prefix of B.1 and A.1");
 			Throw(() => new LexerEnum<Tag>("A=\\U+ \n B=\\U\\U"), "B.1 and A.1 conflict");
-			Throw(() => new LexerEnum<Tag>("A=\\U+ \n B=\\U"), "B.1 and A.1 conflict");
+			Throw(() => new LexerEnum<Tag>("A=\\u+ \n B=\\u"), "B.1 and A.1 conflict");
 		}
 
 		[TestMethod]
@@ -424,8 +425,8 @@ namespace qutum.test.parser
 		[TestMethod]
 		public void LexUtf4()
 		{
-			var l = new LexerEnum<Tag>("A=a\\U+z");
-			Check(l, "a好za大家都好z", "A=a好z A=a大家都好z");
+			var l = new LexerEnum<Tag>(@"A=a[\U\u^z]+z");
+			Check(l, "a好za大家\t都好z", "A=a好z A=a大家\t都好z");
 			var bs = Encoding.UTF8.GetBytes("a好"); bs[2] = 0;
 			Check(l, bs, "A!\0 0!\xbd");
 		}
@@ -433,7 +434,7 @@ namespace qutum.test.parser
 		[TestMethod]
 		public void LexUtf5()
 		{
-			var l = new LexerEnum<Tag>("A=a \n B=a\\U+ b");
+			var l = new LexerEnum<Tag>("A=[a\\U^\\U] \n B=a\\U+ b");
 			Check(l, "a", "A=a");
 			Check(l, "a你好b", "B=a你好b");
 			Check(l, new byte[] { (byte)'a', 0xc0 }, "B!");

@@ -29,15 +29,15 @@ namespace qutum.syntax
 	class Lexer : LexerEnum<Lex>
 	{
 		static readonly string Grammar = @"
-		_     = \s|\t  |+\s+| +\t+
+		_     = \s|\t  |+\s+|+\t+
 		Eol   = \n|\r\n
-		Comm  = ##  |+[^\n]+|+\U+
-		Commb = \\+##  +##\\+| +#| +[^#]+|+\U+
-		Str   = ""  *""|\n| +[^""\\\n\r]+|+\U+| +\\[\s!-~^ux]| +\\x\x\x| +\\u\x\x\x\x
-		Strb  = \\+""  +""\\+| +""| +[^""]+| +\U+
+		Comm  = ##     |[\u^\n]+
+		Commb = \\+##  *+##\\+| +#|  +[\u^#]+
+		Strb  = \\+""  *+""\\+| +""| +[\u^""]+
+		Str   = ""     *""|\n| +[\u^""\\\n\r]+| +\\[\s!-~^ux]| +\\x\x\x| +\\u\x\x\x\x
 		Word  = [\a_][\d\a_]*
 		Hex   = 0[xX]|\+0[xX]|-0[xX]  \x|_\x  |+\x+|+_\x+
-		Num   = 0|\+0|-0|[1-9]|\+[1-9]|-[1-9]  |+\d+|+_\d+  |.\d+  |+_\d+  |[eE]\d+|[eE][\+\-]\d+  |[fF]
+		Num   = 0|\+0|-0|[1-9]|\+[1-9]|-[1-9] |+\d+|+_\d+ |.\d+ |+_\d+ |[eE]\d+|[eE][\+\-]\d+ |[fF]
 		In    = `
 		Out   = .
 		Wire  = '
@@ -75,7 +75,7 @@ namespace qutum.syntax
 
 		public override void Unload() { base.Unload(); indLast = 0; }
 
-		protected override void Token(Lex key, int step, ref bool end, int f, int to)
+		protected override void Token(Lex key, int part, ref bool end, int f, int to)
 		{
 			object v = null;
 			if (from < 0)
@@ -85,7 +85,7 @@ namespace qutum.syntax
 			}
 			if (key == Lex._)
 			{
-				if (step == 1)
+				if (part == 1)
 					if (LineStart(f)) { scan.Tokens(f, to, bs); return; }
 					else { bs[0] = 0; return; }
 				if (bs[0] != 0)
@@ -106,19 +106,19 @@ namespace qutum.syntax
 					if (to == f + 2) Add(key, f, to, @"use \n instead of \r\n", true);
 					break;
 				case Lex.Commb:
-					if (step == 1) { bn = to - from; return; }
+					if (part == 1) { bn = to - from; return; }
 					if (to - f != bn || scan.Token(f) != '#') return;
 					end = true; key = Lex.Comm; v = nameof(Lex.Commb); break;
 				case Lex.Str:
-					if (step == 1 || end && scan.Token(f) == '"') break;
+					if (part == 1 || end && scan.Token(f) == '"') break;
 					if (end) { // \n
-						Error(key, step, true, (byte)'\n', f, to);
+						Error(key, part, true, (byte)'\n', f, to);
 						return;
 					}
 					ScanBs(f, to, bn);
 					if (bs[bn] != '\\') bn += to - f; else Escape(); return;
 				case Lex.Strb:
-					if (step == 1) { bn = to; return; }
+					if (part == 1) { bn = to; return; }
 					if (to - f != bn - from || scan.Token(f) != '"') return;
 					end = true; bn = ScanBs(bn, f, 0); break;
 				case Lex.Word:
@@ -127,20 +127,20 @@ namespace qutum.syntax
 					if (!end) return;
 					bn = ScanBs(from, to, 0); key = Lex.Int; v = Hex(); break;
 				case Lex.Num:
-					if (step == 2) nn = to - from;
-					else if (step == 4) nf = to - from;
-					else if (step == 5) ne = to - from;
+					if (part == 2) nn = to - from;
+					else if (part == 4) nf = to - from;
+					else if (part == 5) ne = to - from;
 					if (!end) return;
 					bn = ScanBs(from, to, 0); v = Num(ref key); break;
 			}
 			if (end) { Add(key, from, to, v ?? (bn > 0 ? Encoding.UTF8.GetString(bs, 0, bn) : null)); from = -1; }
 		}
 
-		protected override void Error(Lex key, int step, bool end, byte? b, int f, int to)
+		protected override void Error(Lex key, int part, bool end, byte? b, int f, int to)
 		{
-			if (step < 0 && LineStart(f))
+			if (part < 0 && LineStart(f))
 				while (indLast > 0) Add(Lex.Ded, f, f, --indLast);
-			base.Error(key, step, end, b, f, to);
+			base.Error(key, part, end, b, f, to);
 		}
 
 		bool LineStart(int f) => tokenn == 0 || tokens[tokenn - 1].key == Lex.Eol && tokens[tokenn - 1].to == f;

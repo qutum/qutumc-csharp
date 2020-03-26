@@ -132,18 +132,19 @@ namespace qutum.parser
 				'W' => t < 127 && W[t],       // word
 				'X' => t < 127 && X[t],       // hexadecimal
 				'O' => t < 127 && O[t],       // operator
-				'Q' => t == '?' || t == '*' || t == '+', // quantifier
-				'H' => t >= ' ' && t < 127 && t != '=' || t == '\t', // hint
-				'E' => t > ' ' && t < 127 && t != 'u',    // escape except \u
-				'V' => t >= ' ' && t != 127 || t == '\t', // comment, also utf
-				'B' => t < 127 && B[t], // byte
+				'E' => t > ' ' && t < 127,    // escape
+				'B' => t < 127 && B[t],       // byte
 				'R' => t < 127 && B[t] && t != '-' && t != '^', // range
+				'Q' => t == '?' || t == '*' || t == '+',        // quantifier
+				'H' => t >= ' ' && t < 127 && t != '=' || t == '\t', // hint
+				'V' => t >= ' ' && t != 127 || t == '\t',            // comment, also utf
 				_ => t == key,
 			};
 		}
 
 		static readonly bool[] W = new bool[127], X = new bool[127], O = new bool[127], B = new bool[127];
 		internal static readonly bool[] RI = new bool[127];
+		static readonly string RU;
 
 		static BootScan()
 		{
@@ -157,9 +158,11 @@ namespace qutum.parser
 				B[t] = (W[t] || O[t]) && t != '[' && t != ']' || t == '=';
 				RI[t] = t >= ' ' || t == '\t' || t == '\n' || t == '\r';
 			}
+			RU = new string(Enumerable.Range(0, 127).Select(b => (char)b)
+					.Where(b => RI[b]).Append('\x80').ToArray());
 		}
 
-		internal static string Esc(string s, int f, int t, bool U = false, bool range = false)
+		internal static string Esc(string s, int f, int t, bool lexer = false)
 		{
 			if (s[f] != '\\')
 				return s[f..t];
@@ -169,10 +172,11 @@ namespace qutum.parser
 				't' => "\t",
 				'n' => "\n",
 				'r' => "\r",
-				'U' => U ? "\x80" : "U",
-				'd' => range ? "0123456789" : "d",
-				'x' => range ? "0123456789ABCDEFabcdef" : "x",
-				'a' => range ? "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz" : "a",
+				'd' => lexer ? "0123456789" : "d",
+				'x' => lexer ? "0123456789ABCDEFabcdef" : "x",
+				'a' => lexer ? "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz" : "a",
+				'U' => lexer ? "\x80" : "U",
+				'u' => lexer ? RU : "u",
 				_ => s[f].ToString(),
 			};
 		}
