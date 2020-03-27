@@ -12,11 +12,9 @@ using System.Linq;
 
 namespace qutum.syntax
 {
-	using Token = Token<Lex>;
-	using Tokens = ArraySegment<Token<Lex>>;
 	using Tree = Tree<ArraySegment<Token<Lex>>>;
 
-	class Parsers : Parser<IEnumerable<byte>, Lex, Token, Tokens, Tree>
+	class Parsers : Parser<Lex, Tree>
 	{
 		static readonly string grammer =
 		@"|= EOL DED
@@ -35,7 +33,7 @@ namespace qutum.syntax
 		{
 			treeKeep = false;
 			treeExpect = 0;
-			treeDumper = o => !(o is Tokens s) ? null
+			treeDumper = o => !(o is ArraySegment<Token<Lex>> s) ? null
 				: s.Count == 0 ? "" : string.Join(" ", s.Select(k => k.ToString()).ToArray());
 		}
 

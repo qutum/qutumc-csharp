@@ -13,7 +13,7 @@ using static qutum.parser.Qua;
 
 namespace qutum.parser
 {
-	using BootParser = Parser<string, char, char, string, Tree<string>>;
+	using ParserChars = ParserBase<string, char, char, string, Tree<string>>;
 
 	public class Tree<S> : LinkTree<Tree<S>>
 	{
@@ -27,9 +27,23 @@ namespace qutum.parser
 			$"{from}:{to}{(err == 0 ? "" : err > 0 ? "!" : "!!")} {dump ?? expect ?? name}";
 	}
 
+	public class Parser<K, T> : ParserBase<IEnumerable<byte>, K, Token<K>, ArraySegment<Token<K>>, T>
+		where K : struct where T : Tree<ArraySegment<Token<K>>>, new()
+	{
+		public Parser(string gram,
+			Scan<IEnumerable<byte>, K, Token<K>, ArraySegment<Token<K>>> scan)
+			: base(gram, scan) { }
+	}
+
+	public class ParserStr : ParserChars
+	{
+		public ParserStr(string gram, Scan<string, char, char, string> scan = null)
+			: base(gram, scan ?? new ScanStr()) { }
+	}
+
 	enum Qua : byte { Opt = 0, One = 1, Any = 2, More = 3 };
 
-	public class Parser<I, K, To, Ts, T> where Ts : IEnumerable<To> where T : Tree<Ts>, new()
+	public class ParserBase<I, K, To, Ts, T> where Ts : IEnumerable<To> where T : Tree<Ts>, new()
 	{
 		sealed class Prod
 		{
@@ -80,7 +94,7 @@ namespace qutum.parser
 			public override string ToString() => $"{from}:{to}#{step} {a}";
 		}
 
-		Parser(Prod start, Scan<I, K, To, Ts> scan)
+		ParserBase(Prod start, Scan<I, K, To, Ts> scan)
 		{
 			this.start = start; reck = Array.Empty<K>(); this.scan = scan;
 		}
@@ -305,9 +319,9 @@ namespace qutum.parser
 		static string Esc(object v) => v.ToString().Replace("\n", "\\n").Replace("\r", "\\r").Replace("\t", "\\t");
 
 		// bootstrap
-		static readonly BootParser boot;
+		static readonly ParserChars boot;
 
-		static Parser()
+		static ParserBase()
 		{
 			var scan = new BootScan();
 			// prod name, prod-or-key-with-qua-alt1 con1|alt2 con2  \x1 is |
@@ -334,7 +348,7 @@ namespace qutum.parser
 			// build prod
 			var prods = grammar.ToDictionary(
 				kv => kv.Key,
-				kv => new BootParser.Prod { name = kv.Key });
+				kv => new ParserChars.Prod { name = kv.Key });
 			foreach (var kv in grammar)
 				// split into alts
 				prods[kv.Key].alts = kv.Value.Split("|").Select(alt => {
@@ -346,13 +360,13 @@ namespace qutum.parser
 						var q = c.Length == 1 || !(c[^1] is char x) ? One
 								: x == '?' ? Opt : x == '*' ? Any : x == '+' ? More : One;
 						var p = q == One ? c : c[0..^1];
-						return new BootParser.Con {
+						return new ParserChars.Con {
 							p = prods.TryGetValue(p, out var a) ? a : (object)scan.Keys(p).First(),
 							q = q,
 						};
-					}).Append(new BootParser.Con { q = One })
+					}).Append(new ParserChars.Con { q = One })
 					.ToArray();
-					return new BootParser.Alt { name = kv.Key, s = s };
+					return new ParserChars.Alt { name = kv.Key, s = s };
 				}).ToArray();
 			// spaces before hintw are greedy
 			prods["hint"].alts[0].greedy = 1;
@@ -361,12 +375,12 @@ namespace qutum.parser
 				.Concat(new[] { "prod", "alt", "name", "sym", "hintg", "hintk", "hintw", "hinte", "reck" }
 				.SelectMany(x => prods[x].alts)))
 				c.keep = 1;
-			boot = new BootParser(prods["gram"], scan) {
+			boot = new ParserChars(prods["gram"], scan) {
 				greedy = false, treeKeep = false, treeDump = false
 			};
 		}
 
-		public Parser(string gram, Scan<I, K, To, Ts> scan)
+		public ParserBase(string gram, Scan<I, K, To, Ts> scan)
 		{
 			boot.scan.Load(gram);
 			var top = boot.Parse(null);

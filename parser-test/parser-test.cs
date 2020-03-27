@@ -19,15 +19,10 @@ namespace qutum.test.parser
 
 		public void Dispose() => env.Dispose();
 
-		class P : Parser<string, char, char, string, Tree<string>>
-		{
-			public P(string grammar) : base(grammar, new ScanStr()) { }
-		}
-
 		[TestMethod]
 		public void Term()
 		{
-			var p = new P("S=k");
+			var p = new ParserStr("S=k");
 			IsTrue(p.Check("k"));
 			IsFalse(p.Check("")); IsFalse(p.Check("kk")); IsFalse(p.Check("K"));
 		}
@@ -35,7 +30,7 @@ namespace qutum.test.parser
 		[TestMethod]
 		public void Alt()
 		{
-			var p = new P("S=A\nA=a|1|#");
+			var p = new ParserStr("S=A\nA=a|1|#");
 			IsTrue(p.Check("a")); IsTrue(p.Check("1")); IsTrue(p.Check("#"));
 			IsFalse(p.Check("")); IsFalse(p.Check("a1")); IsFalse(p.Check("A"));
 		}
@@ -43,7 +38,7 @@ namespace qutum.test.parser
 		[TestMethod]
 		public void Con()
 		{
-			var p = new P("S = A B|B A \nA = a|1 \nB = b|2");
+			var p = new ParserStr("S = A B|B A \nA = a|1 \nB = b|2");
 			IsFalse(p.Check("a")); IsFalse(p.Check("1")); IsFalse(p.Check("b")); IsFalse(p.Check("2"));
 			IsTrue(p.Check("ab")); IsTrue(p.Check("ba"));
 			IsTrue(p.Check("1b")); IsTrue(p.Check("b1"));
@@ -55,7 +50,7 @@ namespace qutum.test.parser
 		[TestMethod]
 		public void Esc()
 		{
-			var p = new P(@"S = \ss\tt\r\n\\/ | \|or\=eq\*s\+p\?q");
+			var p = new ParserStr(@"S = \ss\tt\r\n\\/ | \|or\=eq\*s\+p\?q");
 			IsTrue(p.Check(" s\tt\r\n\\/")); IsFalse(p.Check(" s\tt\r \n\\/"));
 			IsTrue(p.Check("|or=eq*s+p?q"));
 		}
@@ -63,7 +58,7 @@ namespace qutum.test.parser
 		[TestMethod]
 		public void ErrHint()
 		{
-			var p = new P("S=A B =start \n A=1|2 =A12 ==oh||no\n |3 =A3 \n B= =empty \n |4 =B4") {
+			var p = new ParserStr("S=A B =start \n A=1|2 =A12 ==oh||no\n |3 =A3 \n B= =empty \n |4 =B4") {
 				treeDump = true
 			};
 			IsNull(p.Parse("").Dump().head);
@@ -74,7 +69,7 @@ namespace qutum.test.parser
 		[TestMethod]
 		public void LeftRecu()
 		{
-			var p = new P("S = S b|A \nA = a");
+			var p = new ParserStr("S = S b|A \nA = a");
 			IsTrue(p.Check("a")); IsTrue(p.Check("ab")); IsTrue(p.Check("abb")); IsTrue(p.Check("abbb"));
 			IsFalse(p.Check("")); IsFalse(p.Check("b")); IsFalse(p.Check("aab")); IsFalse(p.Check("abbba"));
 		}
@@ -82,7 +77,7 @@ namespace qutum.test.parser
 		[TestMethod]
 		public void RightRecu()
 		{
-			var p = new P("S = a S|B \nB = b");
+			var p = new ParserStr("S = a S|B \nB = b");
 			IsTrue(p.Check("b")); IsTrue(p.Check("ab")); IsTrue(p.Check("aab")); IsTrue(p.Check("aaaab"));
 			IsFalse(p.Check("")); IsFalse(p.Check("a")); IsFalse(p.Check("abb")); IsFalse(p.Check("abbba"));
 		}
@@ -90,20 +85,20 @@ namespace qutum.test.parser
 		[TestMethod]
 		public void RightRecuUnopt()
 		{
-			var p = new P("S= aa B \nB= A a \nA= a A|a") { treeDump = true };
+			var p = new ParserStr("S= aa B \nB= A a \nA= a A|a") { treeDump = true };
 			IsFalse(p.Check("aa")); IsFalse(p.Check("aaa"));
 			IsTrue(p.Check("aaaa")); IsTrue(p.Check("aaaaa")); IsTrue(p.Check("aaaaaa"));
 			IsTrue(p.Check("aaaaaaa")); AreEqual(11, p.largest);
-			p = new P("S= aa B \nB= A a \nA= A a|a") { treeDump = true };
+			p = new ParserStr("S= aa B \nB= A a \nA= A a|a") { treeDump = true };
 			IsTrue(p.Check("aaaaaaa")); AreEqual(5, p.largest);
-			p = new P("S= aa B \nB= A a \nA= a a+") { treeDump = true };
+			p = new ParserStr("S= aa B \nB= A a \nA= a a+") { treeDump = true };
 			IsTrue(p.Check("aaaaaaa")); AreEqual(5, p.largest);
 		}
 
 		[TestMethod]
 		public void MidRecu()
 		{
-			var p = new P(@"
+			var p = new ParserStr(@"
 				S	= If|X
 				If	= if \s S \s then \s S
 					| if \s S \s then \s S \s else \s S
@@ -119,7 +114,7 @@ namespace qutum.test.parser
 		[TestMethod]
 		public void DoubleRecu()
 		{
-			var p = new P("S=S S|a");
+			var p = new ParserStr("S=S S|a");
 			IsFalse(p.Check(""));
 			IsTrue(p.Check("a")); IsTrue(p.Check("aa")); IsTrue(p.Check("aaa")); IsTrue(p.Check("aaaa"));
 		}
@@ -127,7 +122,7 @@ namespace qutum.test.parser
 		[TestMethod]
 		public void AddMul()
 		{
-			var p = new P(@"
+			var p = new ParserStr(@"
 				Expr  = Expr\+Mul | Mul
 				Mul   = Mul\*Value | Value
 				Value = (Expr) | Num
@@ -151,7 +146,7 @@ namespace qutum.test.parser
 		[TestMethod]
 		public void AddMulErr()
 		{
-			var p = new P(@"
+			var p = new ParserStr(@"
 				Expr  = Expr\+Mul | Mul     = expression
 				Mul   = Mul\*Value | Value  = expression
 				Value = (Expr) | Num        = value
@@ -184,7 +179,7 @@ namespace qutum.test.parser
 		[TestMethod]
 		public void Greedy1()
 		{
-			var p = new P("S = A B \n A = A 1|1 \n B = 1|B 1") { treeDump = true };
+			var p = new ParserStr("S = A B \n A = A 1|1 \n B = 1|B 1") { treeDump = true };
 			AreEqual(1, p.Parse("111").Dump().head.to);
 			p.greedy = true;
 			AreEqual(2, p.Parse("111").Dump().head.to);
@@ -193,7 +188,7 @@ namespace qutum.test.parser
 		[TestMethod]
 		public void Greedy2()
 		{
-			var p = new P("S =A B C D \nA =1|12 \nB =234|3 \nC =5|456 \nD =67|7") {
+			var p = new ParserStr("S =A B C D \nA =1|12 \nB =234|3 \nC =5|456 \nD =67|7") {
 				treeDump = true
 			};
 			AreEqual(1, p.Parse("1234567").Dump().head.to);
@@ -204,7 +199,7 @@ namespace qutum.test.parser
 		[TestMethod]
 		public void GreedyHint()
 		{
-			var p = new P("S = A B =*\n A = A 1|1 \n B = 1|B 1") { treeDump = true };
+			var p = new ParserStr("S = A B =*\n A = A 1|1 \n B = 1|B 1") { treeDump = true };
 			AreEqual(2, p.Parse("111").Dump().head.to);
 			p.greedy = true;
 			AreEqual(2, p.Parse("111").Dump().head.to);
@@ -213,7 +208,7 @@ namespace qutum.test.parser
 		[TestMethod]
 		public void Empty1()
 		{
-			var p = new P("S=a A B \n A=|a+ \n B=A") { greedy = true, treeDump = true };
+			var p = new ParserStr("S=a A B \n A=|a+ \n B=A") { greedy = true, treeDump = true };
 			IsTrue(p.Check("a")); IsTrue(p.Check("aa"));
 			var t = p.Parse("aaa").Dump();
 			AreEqual(0, t.err); AreEqual(1, t.head.from); AreEqual(3, t.head.to);
@@ -223,7 +218,7 @@ namespace qutum.test.parser
 		[TestMethod]
 		public void Empty2()
 		{
-			var p = new P("S=A B \n A=a P \n B=P b \n P=|pq") { treeDump = true };
+			var p = new ParserStr("S=A B \n A=a P \n B=P b \n P=|pq") { treeDump = true };
 			IsTrue(p.Check("ab")); IsTrue(p.Check("apqb"));
 			IsTrue(p.Check("apqpqb")); IsFalse(p.Check("apqpqpqb"));
 		}
@@ -231,7 +226,7 @@ namespace qutum.test.parser
 		[TestMethod]
 		public void Option1()
 		{
-			var p = new P("S=A B?a? \n A=a|aa \n B=a") { treeDump = true };
+			var p = new ParserStr("S=A B?a? \n A=a|aa \n B=a") { treeDump = true };
 			IsFalse(p.Check("")); IsTrue(p.Check("a")); IsTrue(p.Check("aaaa"));
 			var t = p.Parse("aa").Dump();
 			AreEqual(0, t.err); AreEqual(1, t.head.to);
@@ -245,7 +240,7 @@ namespace qutum.test.parser
 		[TestMethod]
 		public void Option2()
 		{
-			var p = new P("S=A?B? \n A=B a \n B=b");
+			var p = new ParserStr("S=A?B? \n A=B a \n B=b");
 			IsTrue(p.Check("")); IsTrue(p.Check("ba")); IsTrue(p.Check("b"));
 			IsTrue(p.Check("bab")); IsFalse(p.Check("ab"));
 		}
@@ -253,7 +248,7 @@ namespace qutum.test.parser
 		[TestMethod]
 		public void Plus1()
 		{
-			var p = new P("S=a+") { treeDump = true };
+			var p = new ParserStr("S=a+") { treeDump = true };
 			IsFalse(p.Check("")); IsTrue(p.Check("a")); IsTrue(p.Check("aaaaaa"));
 			IsTrue(p.Check("aaaaaaa")); AreEqual(2, p.largest);
 		}
@@ -261,7 +256,7 @@ namespace qutum.test.parser
 		[TestMethod]
 		public void Plus2()
 		{
-			var p = new P("S=A B \n A=a P+ \n B=P+b \n P=pq") { treeDump = true };
+			var p = new ParserStr("S=A B \n A=a P+ \n B=P+b \n P=pq") { treeDump = true };
 			IsFalse(p.Check("apqb")); IsTrue(p.Check("apqpqb"));
 			var t = p.Parse("apqpqpqb").Dump();
 			AreEqual(0, t.err); AreEqual(10, p.largest);
@@ -276,7 +271,7 @@ namespace qutum.test.parser
 		[TestMethod]
 		public void Star1()
 		{
-			var p = new P("S=a*") { treeDump = true };
+			var p = new ParserStr("S=a*") { treeDump = true };
 			IsTrue(p.Check("")); IsTrue(p.Check("a")); IsTrue(p.Check("aaaaaa"));
 			IsTrue(p.Check("aaaaaaa")); AreEqual(2, p.largest);
 		}
@@ -284,7 +279,7 @@ namespace qutum.test.parser
 		[TestMethod]
 		public void Star2()
 		{
-			var p = new P("S=A B \n A=a P* \n B=P* b \n P=p|q") { treeDump = true };
+			var p = new ParserStr("S=A B \n A=a P* \n B=P* b \n P=p|q") { treeDump = true };
 			IsTrue(p.Check("ab")); IsTrue(p.Check("apqb")); IsTrue(p.Check("apqpqb"));
 			var t = p.Parse("apqpqpqb").Dump();
 			AreEqual(0, t.err); AreEqual(20, p.largest);
@@ -301,7 +296,7 @@ namespace qutum.test.parser
 		[TestMethod]
 		public void KeepHint()
 		{
-			var p = new P("S=A B C\n A=1 =+\n B=1 =-\n C=1") {
+			var p = new ParserStr("S=A B C\n A=1 =+\n B=1 =-\n C=1") {
 				treeKeep = true, treeDump = true
 			};
 			var t = p.Parse("111").Dump();
@@ -314,7 +309,7 @@ namespace qutum.test.parser
 		[TestMethod]
 		public void Recovery1()
 		{
-			var p = new P("|=,\n S=A|S,A? \n A=M|A\\+M \n M=V|M\\*V \n V=0|1|2|3|4|5") {
+			var p = new ParserStr("|=,\n S=A|S,A? \n A=M|A\\+M \n M=V|M\\*V \n V=0|1|2|3|4|5") {
 				treeDump = true
 			};
 			var t = p.Parse("0").Dump(); AreEqual(0, t.err);
@@ -331,7 +326,7 @@ namespace qutum.test.parser
 		[TestMethod]
 		public void Recovery2()
 		{
-			var p = new P("|=,\n S=A|S,A? \n A=M|A\\+M \n M=V|M\\*V \n V=0|1|2|3|4|5") {
+			var p = new ParserStr("|=,\n S=A|S,A? \n A=M|A\\+M \n M=V|M\\*V \n V=0|1|2|3|4|5") {
 				treeDump = true
 			};
 			var t = p.Parse("+").Dump(); AreEqual(1, t.err);
@@ -349,7 +344,7 @@ namespace qutum.test.parser
 		[TestMethod]
 		public void Recovery3()
 		{
-			var p = new P("|=,\n S=A|S,A? \n A=M|A\\+M \n M=V|M\\*V \n V=0|1|2|3|4|5") {
+			var p = new ParserStr("|=,\n S=A|S,A? \n A=M|A\\+M \n M=V|M\\*V \n V=0|1|2|3|4|5") {
 				treeDump = true
 			};
 			var t = p.Parse("0+1*2+,1").Dump(); AreEqual(0, t.err);
@@ -362,7 +357,7 @@ namespace qutum.test.parser
 		[TestMethod]
 		public void Recovery4()
 		{
-			var p = new P("|=),\n S=A|S,A? \n A=M|A\\+M \n M=V|M\\*V \n V=(A)|N \n N=0|1|2|3|4|5") {
+			var p = new ParserStr("|=),\n S=A|S,A? \n A=M|A\\+M \n M=V|M\\*V \n V=(A)|N \n N=0|1|2|3|4|5") {
 				treeDump = true
 			};
 			var t = p.Parse("()").Dump(); AreEqual(0, t.err);
@@ -387,7 +382,7 @@ namespace qutum.test.parser
 		[TestMethod]
 		public void Recovery5()
 		{
-			var p = new P("|=)}\n P=S+ \n S={A}|{S+} \n A=V|A\\+V \n V=(A)|N \n N=0|1|2|3|4|5") {
+			var p = new ParserStr("|=)}\n P=S+ \n S={A}|{S+} \n A=V|A\\+V \n V=(A)|N \n N=0|1|2|3|4|5") {
 				treeDump = true
 			};
 			var t = p.Parse("{()").Dump(); AreEqual(0, t.err);

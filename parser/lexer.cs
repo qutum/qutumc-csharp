@@ -25,8 +25,8 @@ namespace qutum.parser
 
 	public class Lexer<K> : LexerBase<K, Token<K>> where K : struct
 	{
-		public Lexer(string grammar, Scan<IEnumerable<byte>, byte, byte,
-			IEnumerable<byte>> scan = null)
+		public Lexer(string grammar,
+			Scan<IEnumerable<byte>, byte, byte, IEnumerable<byte>> scan = null)
 			: base(grammar, scan ?? new ScanByte()) { }
 
 		protected int from = -1;
@@ -82,7 +82,8 @@ namespace qutum.parser
 		public override IEnumerable<K> Keys(string text) => new[] { Enum.Parse<K>(text) };
 	}
 
-	public abstract class LexerBase<K, T> : Scan<IEnumerable<byte>, K, T, ArraySegment<T>> where T : struct
+	public abstract class LexerBase<K, T> : Scan<IEnumerable<byte>, K, T, ArraySegment<T>>
+		where T : struct
 	{
 		// each unit is just before next byte or after last byte of part
 		sealed class Unit
@@ -211,8 +212,7 @@ namespace qutum.parser
 
 		// bootstrap
 
-		static readonly Parser<string, char, char, string, Tree<string>> boot
-			= new Parser<string, char, char, string, Tree<string>>(@"
+		static readonly ParserStr boot = new ParserStr(@"
 			gram  = eol* prod prods* eol*
 			prods = eol+ prod
 			prod  = key S*\=S* part1 part* =+
