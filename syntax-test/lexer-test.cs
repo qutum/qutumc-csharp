@@ -15,19 +15,21 @@ using static Microsoft.VisualStudio.TestTools.UnitTesting.Assert;
 namespace qutum.test.syntax
 {
 	[TestClass]
-	public class TestLexer
+	public class TestLexer : IDisposable
 	{
-		public TestLexer() { DebugWriter.ConsoleBegin(); l = new Lexer(); }
+		readonly EnvWriter env = EnvWriter.Begin();
 
-		Lexer l;
+		public void Dispose() => env.Dispose();
+
+		readonly Lexer l = new Lexer();
 
 		void Check(string input, string s)
 		{
 			l.errMerge = true;
 			l.Load(Encoding.UTF8.GetBytes(input));
 			while (l.Next()) ;
-			var z = string.Join(" ", l.Tokens(0, l.Loc()).Select(t => t.Dump()).ToArray());
-			Console.WriteLine(z);
+			var z = string.Join(" ", l.Tokens(0, l.Loc()).Select(t => t.ToString()).ToArray());
+			env.WriteLine(z);
 			l.Unload();
 			AreEqual(s, z);
 		}
@@ -42,7 +44,8 @@ namespace qutum.test.syntax
 		[TestMethod]
 		public void LexEol()
 		{
-			Check("\\####\\\t \r\n\\####\\ \t \n", @"COMM=COMMB SP= EOL!use \n instead of \r\n EOL= COMM=COMMB SP= EOL=");
+			Check("\\####\\\t \r\n\r\n\\####\\ \t \n",
+				@"COMM=COMMB SP= EOL!use LF \n eol instead of CRLF \r\n EOL= EOL= COMM=COMMB SP= EOL=");
 		}
 
 		[TestMethod]

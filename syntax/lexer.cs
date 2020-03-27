@@ -91,9 +91,10 @@ namespace qutum.syntax
 		byte[] bs = new byte[4096]; // buffer used for some tokens
 		int bn;
 		int nn, nf, ne; // end of each number part
-		int indLast; // indent count of last line
+		int indent; // indent count of last line
+		bool crlf; // \r\n found
 
-		public override void Unload() { base.Unload(); indLast = 0; }
+		public override void Unload() { base.Unload(); indent = 0;  crlf = false; }
 
 		int ScanBs(int f, int to, int x)
 		{
@@ -107,8 +108,8 @@ namespace qutum.syntax
 		protected override void Error(Lex key, int part, bool end, byte? b, int f, int to)
 		{
 			if (part < 0 && LineStart(f)) // EOL at scan end
-				while (indLast > 0) // clear indents
-					Add(Lex.DED, f, f, --indLast);
+				while (indent > 0) // clear indents
+					Add(Lex.DED, f, f, --indent);
 			base.Error(key, part, end, b, f, to);
 		}
 
@@ -121,36 +122,34 @@ namespace qutum.syntax
 			if (from < 0) {
 				from = f; bn = 0;
 				if (key != Lex.SP && LineStart(f)) // no indent at line start
-					while (indLast > 0) // clear indents
-						Add(Lex.DED, f, f, --indLast);
+					while (indent > 0) // clear indents
+						Add(Lex.DED, f, f, --indent);
 			}
 			switch (key) {
 
 			case Lex.SP:
 				if (part == 1) {
-					if (LineStart(f))
-						scan.Tokens(f, to, bs); // line start, save the byte to check indents
-					else
-						bs[0] = 0;
+					// line start, save the byte to check indents
+					bs[0] = LineStart(f) ? scan.Token(f) : (byte)0;
 					return;
 				}
 				if (bs[0] != 0) // for line start
 					if (f < to && (bs[1] = scan.Token(f)) != bs[0]) { // mix \s and \t
-						bs[0] = 0; // error, as not start
+						bs[0] = 0; // error, not line start
 						AddErr(Lex.SP, f, to, "do not mix tabs and spaces for indent");
 					}
 					else if (bs[0] == ' ' && (to - from & 3) != 0) { // check \s width of 4
-						bs[0] = 0; // error, as not start
+						bs[0] = 0; // error, not line start
 						AddErr(Lex.SP, f, to, $"{to - from + 3 >> 2 << 2} spaces expected");
 					}
 				if (!end)
 					return;
 				if (bs[0] != 0) { // for line start
 					var ind = to - from >> (bs[0] == ' ' ? 2 : 0); // indent count
-					while (ind > indLast)
-						Add(Lex.IND, from, to, ++indLast); // more indents
-					while (ind < indLast)
-						Add(Lex.DED, from, to, --indLast); // less indents
+					while (ind > indent)
+						Add(Lex.IND, from, to, ++indent); // more indents
+					while (ind < indent)
+						Add(Lex.DED, from, to, --indent); // less indents
 				}
 				else
 					Add(key, from, to, null); // SP
@@ -158,8 +157,10 @@ namespace qutum.syntax
 				return; // already make tokens
 
 			case Lex.EOL:
-				if (to == f + 2) // \r\n found
-					AddErr(key, f, to, @"use \n instead of \r\n");
+				if (!crlf && to == f + 2) { // \r\n found
+					AddErr(key, f, to, @"use LF \n eol instead of CRLF \r\n");
+					crlf = true;
+				}
 				break;
 
 			case Lex.COMMB:

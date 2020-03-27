@@ -7,14 +7,17 @@
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using qutum.parser;
+using System;
 using static Microsoft.VisualStudio.TestTools.UnitTesting.Assert;
 
 namespace qutum.test.parser
 {
 	[TestClass]
-	public class TestParser
+	public class TestParser : IDisposable
 	{
-		public TestParser() { DebugWriter.ConsoleBegin(); }
+		readonly EnvWriter env = EnvWriter.Begin();
+
+		public void Dispose() => env.Dispose();
 
 		class P : Parser<string, char, char, string>
 		{

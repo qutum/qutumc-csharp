@@ -1,3 +1,10 @@
+//
+// Qutum 10 Compiler
+// Copyright 2008-2020 Qianyan Cai
+// Under the terms of the GNU General Public License version 3
+// http://qutum.com
+//
+
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -13,7 +20,7 @@ namespace qutum.parser
 		public int from, to; // from input byte index to index excluded, scan.Loc()
 		public int err; // ~token index this error found before
 
-		public string Dump() => $"{key}{(err < 0 ? "!" : "=")}{value}";
+		public override string ToString() => $"{key}{(err < 0 ? "!" : "=")}{value}";
 	}
 
 	public class LexerEnum<K> : Lexer<K, Token<K>> where K : struct
@@ -98,7 +105,7 @@ namespace qutum.parser
 		internal Scan<IEnumerable<byte>, byte, byte, IEnumerable<byte>> scan;
 		int bn; // total bytes gots
 		int bf, bt; // from index to index excluded for each part
-		byte[] bytes = new byte[17]; // latest bytes, [byte index & 15]
+		readonly byte[] bytes = new byte[17]; // latest bytes, [byte index & 15]
 		internal int tokenn, loc = -2;
 		internal T[] tokens = new T[65536];
 		readonly List<int> lines = new List<int>();
@@ -230,8 +237,9 @@ namespace qutum.parser
 			boot.scan.Load(gram);
 			var top = boot.Parse(null);
 			if (top.err != 0) {
-				boot.scan.Unload(); boot.treeDump = true;
-				boot.Parse(gram).Dump(); boot.treeDump = false;
+				boot.scan.Unload();
+				var dump = boot.treeDump; boot.treeDump = true;
+				boot.Parse(gram).Dump(); boot.treeDump = dump;
 				var e = new Exception(); e.Data["err"] = top;
 				throw e;
 			}
@@ -306,7 +314,7 @@ namespace qutum.parser
 					aus = Aus;
 				});
 			}
-			if (boot.treeDump) BootDump(start, "", "");
+			if (boot.treeDump) BootDump(start, "");
 			this.scan = scan;
 			boot.scan.Unload();
 		}
@@ -369,7 +377,7 @@ namespace qutum.parser
 		{
 			var utf = ns[nn] > 127;
 			if (utf) --nn;
-			Unit n = utf ? u.next?[129]?.next?[128] : u.next?[ns[1]];
+			Unit n = utf ? u.next?[129]?.next[128] : u.next?[ns[1]];
 			if (u.next == null)
 				u.next = new Unit[133];
 			else
@@ -430,33 +438,35 @@ namespace qutum.parser
 			}
 		}
 
-		static void BootDump(Unit u, string ind, string pre, Dictionary<Unit, bool> us = null)
+		static void BootDump(Unit u, string pre, Dictionary<Unit, bool> us = null)
 		{
+			using var env = EnvWriter.Use();
 			var uz = us ?? new Dictionary<Unit, bool> { };
 			uz[u] = false;
-			Console.WriteLine($"{ind}{u.id}: {u.key}.{u.part} " +
+			env.WriteLine($"{u.id}: {u.key}.{u.part} " +
 				$"{(u.mode < 0 ? "mis" : u.mode > 0 ? "ok" : "back")}.{u.go.id} < {pre}");
 			if (!uz.ContainsKey(u.go))
 				uz[u.go] = true;
 			if (u.next == null)
 				return;
-			var i = ind + "  ";
-			foreach (var n in u.next.Distinct().Where(n => n != null))
+			foreach (var n in u.next.Append(u.next?[129]?.next[128]).Distinct().Where(n => n != null))
 				if (n == u)
-					Console.WriteLine($"{i}+");
-				else {
-					var s = u.next.Select((nn, b) => nn != n ? null
+					env.WriteLine("  +");
+				else if (n.next?[128] == null) {
+					var s = u.next.Append(u.next?[129]?.next[128]).Select(
+						(nn, b) => nn != n ? null
 						: b > ' ' && b < 127 ? ((char)b).ToString()
 						: b == ' ' ? "\\s" : b == '\t' ? "\\t" : b == '\n' ? "\\n" : b == '\r' ? "\\r"
 						: b >= 128 ? "\\u"
 						: $"\\x{b:x}")
 						.Where(x => x != null);
-					BootDump(n, i, string.Join(' ', s), uz);
+					using var ind = EnvWriter.Indent("  ");
+					BootDump(n, string.Join(' ', s), uz);
 				}
 			Go: if (us == null)
 				foreach (var go in uz)
 					if (go.Value) {
-						BootDump(go.Key, ind, "", uz);
+						BootDump(go.Key, $"{go.Key.key}.{go.Key.part - 1}", uz);
 						goto Go;
 					}
 		}

@@ -8,6 +8,7 @@
 using qutum.parser;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace qutum.syntax
 {
@@ -15,7 +16,7 @@ namespace qutum.syntax
 
 	class Parsers : Parser<IEnumerable<byte>, Lex, Token<Lex>, ArraySegment<Token<Lex>>>
 	{
-		static string Grammar =
+		static readonly string grammer =
 		@"|= EOL DED
 		blocks = block+ skips?
 		block = skips? line
@@ -28,18 +29,21 @@ namespace qutum.syntax
 		comm = SP* COMM BLANK* EOL
 		";
 
-		public Parsers(Lexer l) : base(Grammar, l) { treeKeep = false; treeExpect = 0; }
+		public Parsers(Lexer l) : base(grammer, l)
+		{
+			treeKeep = false;
+			treeExpect = 0;
+			treeDumper = o => !(o is ArraySegment<Token<Lex>> s) ? null
+				: s.Count == 0 ? "" : string.Join(" ", s.Select(k => k.ToString()).ToArray());
+		}
 
 		public override Trees Parse(IEnumerable<byte> input)
 		{
 			scan.Load(input);
 			var t = base.Parse(null);
-			if (t.head is Trees x)
-			{
-				Loop: if (x.err == 0 && x.name == "empty" && x.up != t && x.next?.err == 0 && x.next?.name == "empty")
-				{
-					t.Add(new Trees
-					{ name = x.name, from = x.next.from, to = x.next.to, err = 1, expect = "too many empty lines" });
+			if (t.head is Trees x) {
+			Loop: if (x.err == 0 && x.name == "empty" && x.up != t && x.next?.err == 0 && x.next?.name == "empty") {
+					t.Add(new Trees { name = x.name, from = x.next.from, to = x.next.to, err = 1, expect = "too many empty lines" });
 					while ((x = x.next).next?.err == 0 && x.next?.name == "empty") ;
 				}
 				if (x.head != null) { x = x.head; goto Loop; }

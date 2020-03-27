@@ -16,9 +16,11 @@ using static Microsoft.VisualStudio.TestTools.UnitTesting.Assert;
 namespace qutum.test.parser
 {
 	[TestClass]
-	public class TestLexer
+	public class TestLexer : IDisposable
 	{
-		public TestLexer() { DebugWriter.ConsoleBegin(); }
+		readonly EnvWriter env = EnvWriter.Begin();
+
+		public void Dispose() => env.Dispose();
 
 		enum Tag { A = 1, B, BB, C, CC, D };
 
@@ -29,8 +31,8 @@ namespace qutum.test.parser
 			l.errMerge = true;
 			l.Load(input);
 			while (l.Next()) ;
-			var z = string.Join(" ", l.Tokens(0, l.Loc()).Select(t => t.Dump()).ToArray());
-			Console.WriteLine(z);
+			var z = string.Join(" ", l.Tokens(0, l.Loc()).Select(t => t.ToString()).ToArray());
+			env.WriteLine(z);
 			l.Unload();
 			AreEqual(s, z);
 		}

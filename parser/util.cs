@@ -10,6 +10,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace qutum
@@ -94,21 +95,31 @@ namespace qutum
 			return (T)this;
 		}
 
-		public T Dump(string ind = "", int pos = 0)
+		public T Dump(int detail = 0)
 		{
-			int f = 1, fix = 1;
-			for (var x = head; ; x = x.next, f++) {
-				if (f == fix)
-					Console.WriteLine(DumpSelf(ind, pos < 0 ? "/ " : pos > 0 ? "\\ " : ""));
-				if (x == null)
+			int o = dumpOrder, upo = up?.dumpOrder ?? 1;
+			bool afterup = upo > 0 || upo == 0 && this != up.head;
+			for (var t = head; ; t = t.next) {
+				if (o > 0 ? t == head : o < 0 ? t == null : t == head?.next)
+					using (var env = EnvWriter.Indent(up == null ? "" : afterup ? "\\ " : "/ "))
+						env.WriteLine(ToString());
+				if (t == null)
 					break;
-				x.Dump(pos == 0 ? ind : ind + (pos == (f < fix ? -2 : 2) ? "  " : "| "),
-					f < fix ? x == head ? -2 : -1 : x == tail ? 2 : 1);
+				using (var env = EnvWriter.Indent
+					(up == null ? "" :
+					(o > 0 || o == 0 && t != head
+						? afterup && this == up.tail
+						: !afterup && this == up.head) ? "  " :
+					"| "))
+					t.Dump(detail);
 			}
 			return (T)this;
 		}
 
-		public virtual string DumpSelf(string ind, string pos) => $"{ind}{pos} dump";
+		// preorder >0, inorder 0, postorder <0
+		public virtual int dumpOrder => 1;
+
+		public override string ToString() => "dump";
 
 		public IEnumerator<T> GetEnumerator()
 		{
@@ -132,34 +143,90 @@ namespace qutum
 		public IEnumerable<T> Backward() => new Backwarder { tail = tail };
 	}
 
-	class DebugWriter : StringWriter
+	class EnvWriter : StringWriter, IDisposable
 	{
-		internal TextWriter console;
+		static readonly EnvWriter env = new EnvWriter();
 
-		internal static void ConsoleBegin()
+		TextWriter output;
+		bool pressKey;
+		readonly List<string> indents = new List<string>();
+		bool lineStart = true;
+
+		public static EnvWriter Begin(bool pressKey = false)
 		{
+			env.pressKey = pressKey;
+			if (env.indents.Contains(null))
+				return env;
+			env.output = Console.Out;
 			Console.OutputEncoding = new UTF8Encoding(false, false);
-			if (Debugger.IsAttached && !(Console.Out is DebugWriter))
-				Console.SetOut(new DebugWriter { console = Console.Out });
+			Console.SetOut(env);
+			env.indents.Add(null);
+			return env;
 		}
 
-		internal static void ConsoleEnd()
+		public static EnvWriter Use() => Indent("");
+
+		public static EnvWriter Indent(string ind = "\t")
 		{
-			if (Debugger.IsAttached) {
-				Console.WriteLine("Press Enter Key ...");
-				Console.ReadLine();
+			env.indents.Add(ind ?? throw new ArgumentNullException());
+			return env;
+		}
+
+		protected override void Dispose(bool _)
+		{
+			if (env.indents.Count == 0)
+				return;
+			var ind = env.indents[^1];
+			env.indents.RemoveAt(env.indents.Count - 1);
+			if (ind == null) {
+				Console.SetOut(output);
+				try {
+					if (pressKey && !Console.IsInputRedirected
+							&& GetConsoleProcessList(procs, 1) == 1) {
+						Write("Press Any Key ... "); Flush();
+						Console.ReadKey(true);
+					}
+				}
+				catch (DllNotFoundException) { }
 			}
 		}
 
 		public override void Flush()
 		{
 			base.Flush();
-			var s = GetStringBuilder().ToString();
-			Debug.Write(s);
-			Debug.Flush();
-			console.Write(s);
-			console.Flush();
+			foreach (var cs in GetStringBuilder().GetChunks()) {
+				int f = 0, t = 0;
+				while (t >= 0 && f < cs.Length) {
+					t = cs.Span.Slice(f).IndexOfAny('\n', '\r');
+					if (t != 0) {
+						if (lineStart)
+							foreach (var ind in indents)
+								if (ind != null && ind.Length > 0)
+									Print(ind.AsMemory());
+						lineStart = false;
+						Print(t < 0 ? cs[f..] : cs.Slice(f, t));
+					}
+					lineStart = t >= 0 && cs.Span[f + t] == '\n';
+					if (lineStart)
+						Print(cs.Slice(f + t, 1));
+					f += t + 1;
+				}
+			}
+			Print(null);
 			GetStringBuilder().Clear();
+		}
+
+		void Print(ReadOnlyMemory<char>? s)
+		{
+			if (s != null)
+				output.Write(s);
+			else
+				output.Flush();
+			if (Debugger.IsAttached)
+				if (s != null)
+					Debug.Write(s);
+				else
+					Debug.Flush();
 		}
 
 		public override void WriteLine()
@@ -251,5 +318,19 @@ namespace qutum
 		{
 			base.WriteLine(value); Flush();
 		}
+
+		public override void WriteLine(ReadOnlySpan<char> buffer)
+		{
+			base.WriteLine(buffer); Flush();
+		}
+
+		public override void WriteLine(StringBuilder value)
+		{
+			base.WriteLine(value); Flush();
+		}
+
+		[DllImport("kernel32.dll", SetLastError = false)]
+		static extern uint GetConsoleProcessList(uint[] procs, uint n);
+		static readonly uint[] procs = new uint[1];
 	}
 }

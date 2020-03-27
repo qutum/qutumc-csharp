@@ -18,25 +18,18 @@ namespace qutum.test.syntax
 	using Trees = Tree<ArraySegment<Token<Lex>>>;
 
 	[TestClass]
-	public class TestParser
+	public class TestParser : IDisposable
 	{
-		public TestParser()
-		{
-			DebugWriter.ConsoleBegin();
-			l = new Lexer();
-			ps = new Parsers(l) { treeDump = true };
-		}
+		readonly EnvWriter env = EnvWriter.Begin();
 
-		Lexer l;
-		Parsers ps;
+		public void Dispose() => env.Dispose();
+
+		readonly Parsers ps = new Parsers(new Lexer()) { treeDump = true };
 
 		Trees Parses(string input, bool ok)
 		{
-			Console.WriteLine(input);
-			byte[] bs = Encoding.UTF8.GetBytes(input);
-			ps.treeDumper = o => !(o is ArraySegment<Token<Lex>> s) ? null
-				: s.Count == 0 ? "" : string.Join(" ", s.Select(k => k.Dump()).ToArray());
-			var t = ps.Parse(bs);
+			env.WriteLine(input);
+			var t = ps.Parse(Encoding.UTF8.GetBytes(input));
 			Simple(t); t.Dump();
 			if (ok != (t.err == 0 && (t.tail == null || t.tail.err == 0)))
 				Fail(ok ? "error" : "no error");
@@ -80,7 +73,7 @@ namespace qutum.test.syntax
 		[TestMethod]
 		public void Inner2()
 		{
-			var t = Parses("a\n\taa\n        aaa\n\tab\n", true);
+			var t = Parses("a\n\taa\n\t\taaa\n\tab\n", true);
 			AreEqual(0, t.head.err); AreEqual(0, t.head.from); AreEqual(1, t.head.to);
 			AreEqual(0, t.head.head.err); AreEqual(3, t.head.head.from); AreEqual(4, t.head.head.to);
 			AreEqual(0, t.head.head.head.err); AreEqual(6, t.head.head.head.from); AreEqual(7, t.head.head.head.to);
@@ -90,7 +83,7 @@ namespace qutum.test.syntax
 		[TestMethod]
 		public void Inner3()
 		{
-			var t = Parses("a\n\taa\n        aaa\n\tab\nb\n\tbb\n", true);
+			var t = Parses("a\n\taa\n\t\taaa\n\tab\nb\n\tbb\n", true);
 			AreEqual(0, t.head.err); AreEqual(0, t.head.from); AreEqual(1, t.head.to);
 			AreEqual(0, t.head.head.err); AreEqual(3, t.head.head.from); AreEqual(4, t.head.head.to);
 			AreEqual(0, t.head.head.head.err); AreEqual(6, t.head.head.head.from); AreEqual(7, t.head.head.head.to);
@@ -213,7 +206,7 @@ namespace qutum.test.syntax
 		[TestMethod]
 		public void Comm2()
 		{
-			var t = Parses("\t##\na\n    \\##\n##\\ \n\n\n\nb\n\n##\nc\n", true);
+			var t = Parses("\t##\na\n\t\\##\n##\\ \n\n\n\nb\n\n##\nc\n", true);
 			AreEqual(0, t.head.err); AreEqual(4, t.head.from); AreEqual(5, t.head.to);
 			AreEqual(0, t.head.next.err); AreEqual(14, t.head.next.from); AreEqual(15, t.head.next.to);
 			AreEqual(0, t.tail.err); AreEqual(19, t.tail.from); AreEqual(20, t.tail.to);

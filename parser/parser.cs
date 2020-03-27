@@ -21,8 +21,8 @@ namespace qutum.parser
 		public int err; // step break: > 0, recovered: -1
 		public object expect; // step expected, Alt hint/name, or Key
 
-		public override string DumpSelf(string ind, string pos) =>
-			$"{ind}{pos}{from}:{to}{(err == 0 ? "" : err > 0 ? "!" : "!!")} {dump ?? expect ?? name}";
+		public override string ToString() =>
+			$"{from}:{to}{(err == 0 ? "" : err > 0 ? "!" : "!!")} {dump ?? expect ?? name}";
 	}
 
 	enum Qua : byte { Opt = 0, One = 1, Any = 2, More = 3 };
@@ -370,8 +370,9 @@ namespace qutum.parser
 			boot.scan.Load(gram);
 			var top = boot.Parse(null);
 			if (top.err != 0) {
-				boot.scan.Unload(); boot.treeDump = true;
-				boot.Parse(gram).Dump(); boot.treeDump = false;
+				boot.scan.Unload();
+				var dump = boot.treeDump; boot.treeDump = true;
+				boot.Parse(gram).Dump(); boot.treeDump = dump;
 				var e = new Exception(); e.Data["err"] = top;
 				throw e;
 			}
