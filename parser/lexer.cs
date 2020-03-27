@@ -23,9 +23,9 @@ namespace qutum.parser
 		public override string ToString() => $"{key}{(err < 0 ? "!" : "=")}{value}";
 	}
 
-	public class LexerEnum<K> : Lexer<K, Token<K>> where K : struct
+	public class Lexer<K> : LexerBase<K, Token<K>> where K : struct
 	{
-		public LexerEnum(string grammar, Scan<IEnumerable<byte>, byte, byte,
+		public Lexer(string grammar, Scan<IEnumerable<byte>, byte, byte,
 			IEnumerable<byte>> scan = null)
 			: base(grammar, scan ?? new ScanByte()) { }
 
@@ -82,7 +82,7 @@ namespace qutum.parser
 		public override IEnumerable<K> Keys(string text) => new[] { Enum.Parse<K>(text) };
 	}
 
-	public abstract class Lexer<K, T> : Scan<IEnumerable<byte>, K, T, ArraySegment<T>> where T : struct
+	public abstract class LexerBase<K, T> : Scan<IEnumerable<byte>, K, T, ArraySegment<T>> where T : struct
 	{
 		// each unit is just before next byte or after last byte of part
 		sealed class Unit
@@ -97,7 +97,7 @@ namespace qutum.parser
 			internal int mode; // match to token: 1, misatch to error: -1, mismatch to backward: 0
 							   // no backward neither cross parts nor inside utf nor inside byte repeat
 
-			internal Unit(Lexer<K, T> l) => id = ++l.id;
+			internal Unit(LexerBase<K, T> l) => id = ++l.id;
 		}
 
 		readonly Unit start;
@@ -211,8 +211,8 @@ namespace qutum.parser
 
 		// bootstrap
 
-		static readonly Parser<string, char, char, string> boot
-			= new Parser<string, char, char, string>(@"
+		static readonly Parser<string, char, char, string, Tree<string>> boot
+			= new Parser<string, char, char, string, Tree<string>>(@"
 			gram  = eol* prod prods* eol*
 			prods = eol+ prod
 			prod  = key S*\=S* part1 part* =+
@@ -232,7 +232,7 @@ namespace qutum.parser
 				greedy = false, treeKeep = false, treeDump = false
 			};
 
-		public Lexer(string gram, Scan<IEnumerable<byte>, byte, byte, IEnumerable<byte>> scan)
+		public LexerBase(string gram, Scan<IEnumerable<byte>, byte, byte, IEnumerable<byte>> scan)
 		{
 			boot.scan.Load(gram);
 			var top = boot.Parse(null);

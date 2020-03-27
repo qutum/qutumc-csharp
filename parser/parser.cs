@@ -13,6 +13,8 @@ using static qutum.parser.Qua;
 
 namespace qutum.parser
 {
+	using BootParser = Parser<string, char, char, string, Tree<string>>;
+
 	public class Tree<S> : LinkTree<Tree<S>>
 	{
 		public string name, dump;
@@ -27,7 +29,7 @@ namespace qutum.parser
 
 	enum Qua : byte { Opt = 0, One = 1, Any = 2, More = 3 };
 
-	public class Parser<I, K, T, S> where S : IEnumerable<T>
+	public class Parser<I, K, To, Ts, T> where Ts : IEnumerable<To> where T : Tree<Ts>, new()
 	{
 		sealed class Prod
 		{
@@ -59,7 +61,7 @@ namespace qutum.parser
 		int matchn;
 		readonly List<int> locs = new List<int>(); // loc to match index
 		int loc; // current token loc
-		internal readonly Scan<I, K, T, S> scan;
+		internal readonly Scan<I, K, To, Ts> scan;
 		internal int largest, largestLoc, total;
 		internal bool greedy = false; // S=AB A=1|12 B=23|2  gready: (12)3  back greedy: 1(23)
 		internal int recovery = 10; // no recovery: 0, how many times to recover at eof: > 0
@@ -78,18 +80,18 @@ namespace qutum.parser
 			public override string ToString() => $"{from}:{to}#{step} {a}";
 		}
 
-		Parser(Prod start, Scan<I, K, T, S> scan)
+		Parser(Prod start, Scan<I, K, To, Ts> scan)
 		{
 			this.start = start; reck = Array.Empty<K>(); this.scan = scan;
 		}
 
 		// build a Tree from matched and kept Alts, Tree.tokens unset
-		public virtual Tree<S> Parse(I input)
+		public virtual T Parse(I input)
 		{
 			if (input != null)
 				scan.Load(input);
-			int m = Earley(out Tree<S> recs, recovery);
-			Tree<S> t = m >= 0 ? Accepted(m, null) : Rejected();
+			int m = Earley(out T recs, recovery);
+			T t = m >= 0 ? Accepted(m, null) : Rejected();
 			matchn = 0;
 			locs.Clear();
 			if (input != null)
@@ -112,7 +114,7 @@ namespace qutum.parser
 			return m >= 0;
 		}
 
-		int Earley(out Tree<S> recs, int rec)
+		int Earley(out T recs, int rec)
 		{
 			locs.Add(loc = 0);
 			foreach (var x in start.alts)
@@ -143,7 +145,7 @@ namespace qutum.parser
 					return x;
 			}
 			if (reck.Length > 0 && rec > 0) {
-				recs ??= new Tree<S>();
+				recs ??= new T();
 				recs.Add(Rejected());
 				if (shift == 0)
 					for (; ; locs.Add(matchn), ++loc)
@@ -249,27 +251,27 @@ namespace qutum.parser
 			return total < matchn;
 		}
 
-		Tree<S> Accepted(int match, Tree<S> insert)
+		T Accepted(int match, T insert)
 		{
 			var m = matchs[match];
 			if (m.from == m.to && m.step == 0 && m.a.s.Length > 1)
 				return null;
 			var t = ((m.a.keep == 0 ? treeKeep : m.a.keep > 0) ? null : insert)
-				?? new Tree<S> {
+				?? new T {
 					name = m.a.name, from = m.from, to = m.to, dump = Dump(m)
 				};
 			for (; m.tail != -1; m = matchs[m.prev])
 				if (m.tail >= 0)
 					Accepted(m.tail, t);
 				else if (m.tail == -4)
-					t.AddHead(new Tree<S> { name = "", from = m.from, to = m.to, err = -1 });
-			return insert == null || insert == t ? t : insert.AddHead(t);
+					t.AddHead(new T { name = "", from = m.from, to = m.to, err = -1 });
+			return insert == null || insert == t ? t : (T)insert.AddHead(t);
 		}
 
-		Tree<S> Rejected()
+		T Rejected()
 		{
 			int from = locs[loc] < matchn ? loc : loc - 1, x = locs[from];
-			var t = new Tree<S> {
+			var t = new T {
 				name = "", from = from, to = loc, err = 1,
 				dump = treeDump ? Dump(scan.Tokens(0, loc)) : null
 			};
@@ -284,7 +286,7 @@ namespace qutum.parser
 							var e = s.p is Prod p ? p.alts[0].hint ?? p.name : s.p;
 							var d = treeDump ? $"{Esc(e)} expected by {m.a.hint}!{m.step} {Dump(m)}"
 								: m.a.hint;
-							t.AddHead(new Tree<S> {
+							t.AddHead(new T {
 								name = m.a.name, from = m.from, to = m.to,
 								err = m.step, expect = e, dump = d
 							});
@@ -296,15 +298,14 @@ namespace qutum.parser
 			return t;
 		}
 
-		public S Tokens(Tree<S> t) => t.tokens ??= scan.Tokens(t.from, t.to);
+		public Ts Tokens(T t) => t.tokens ??= scan.Tokens(t.from, t.to);
 
 		string Dump(Match m) => !treeDump ? null : $"{m.a} :: {Dump(scan.Tokens(m.from, m.to))}";
 		string Dump(object v) => treeDumper?.Invoke(v) ?? Esc(v.ToString());
 		static string Esc(object v) => v.ToString().Replace("\n", "\\n").Replace("\r", "\\r").Replace("\t", "\\t");
 
 		// bootstrap
-
-		static readonly Parser<string, char, char, string> boot;
+		static readonly BootParser boot;
 
 		static Parser()
 		{
@@ -333,7 +334,7 @@ namespace qutum.parser
 			// build prod
 			var prods = grammar.ToDictionary(
 				kv => kv.Key,
-				kv => new Parser<string, char, char, string>.Prod { name = kv.Key });
+				kv => new BootParser.Prod { name = kv.Key });
 			foreach (var kv in grammar)
 				// split into alts
 				prods[kv.Key].alts = kv.Value.Split("|").Select(alt => {
@@ -345,13 +346,13 @@ namespace qutum.parser
 						var q = c.Length == 1 || !(c[^1] is char x) ? One
 								: x == '?' ? Opt : x == '*' ? Any : x == '+' ? More : One;
 						var p = q == One ? c : c[0..^1];
-						return new Parser<string, char, char, string>.Con {
+						return new BootParser.Con {
 							p = prods.TryGetValue(p, out var a) ? a : (object)scan.Keys(p).First(),
 							q = q,
 						};
-					}).Append(new Parser<string, char, char, string>.Con { q = One })
+					}).Append(new BootParser.Con { q = One })
 					.ToArray();
-					return new Parser<string, char, char, string>.Alt { name = kv.Key, s = s };
+					return new BootParser.Alt { name = kv.Key, s = s };
 				}).ToArray();
 			// spaces before hintw are greedy
 			prods["hint"].alts[0].greedy = 1;
@@ -360,12 +361,12 @@ namespace qutum.parser
 				.Concat(new[] { "prod", "alt", "name", "sym", "hintg", "hintk", "hintw", "hinte", "reck" }
 				.SelectMany(x => prods[x].alts)))
 				c.keep = 1;
-			boot = new Parser<string, char, char, string>(prods["gram"], scan) {
+			boot = new BootParser(prods["gram"], scan) {
 				greedy = false, treeKeep = false, treeDump = false
 			};
 		}
 
-		public Parser(string gram, Scan<I, K, T, S> scan)
+		public Parser(string gram, Scan<I, K, To, Ts> scan)
 		{
 			boot.scan.Load(gram);
 			var top = boot.Parse(null);

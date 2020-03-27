@@ -19,7 +19,7 @@ namespace qutum.test.parser
 
 		public void Dispose() => env.Dispose();
 
-		class P : Parser<string, char, char, string>
+		class P : Parser<string, char, char, string, Tree<string>>
 		{
 			public P(string grammar) : base(grammar, new ScanStr()) { }
 		}

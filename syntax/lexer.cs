@@ -8,7 +8,6 @@
 using qutum.parser;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 
 namespace qutum.syntax
@@ -31,7 +30,7 @@ namespace qutum.syntax
 		EXC, AT, POU, DOL, CIR, AMP, COL, SCOL, QUE, BSL, VER, TIL,
 	}
 
-	class Lexer : LexerEnum<Lex>
+	class Lexer : Lexer<Lex>
 	{
 		static readonly string Grammar = @"
 		PL    = (
@@ -94,7 +93,7 @@ namespace qutum.syntax
 		int indent; // indent count of last line
 		bool crlf; // \r\n found
 
-		public override void Unload() { base.Unload(); indent = 0;  crlf = false; }
+		public override void Unload() { base.Unload(); indent = 0; crlf = false; }
 
 		int ScanBs(int f, int to, int x)
 		{
@@ -316,20 +315,20 @@ namespace qutum.syntax
 		};
 
 		static Lexer() => Eq = new LexEq();
-	}
 
-	class LexEq : EqualityComparer<Lex>
-	{
-		public override bool Equals(Lex x, Lex y)
+		class LexEq : EqualityComparer<Lex>
 		{
-			if (x == y) return true;
-			if ((x ^ y) >= 0) return false; // both lexes or kinds
-											// kind contains lex
-			if (y < 0) (x, y) = (y, x);
-			return y <= Lex.COMM ? (Lex.BLANK & x) == Lex.BLANK
-				: y > Lex.DED && (Lex.CONTENT & x) == Lex.CONTENT;
-		}
+			public override bool Equals(Lex x, Lex y)
+			{
+				if (x == y) return true;
+				if ((x ^ y) >= 0) return false; // both lexes or kinds
+												// kind contains lex
+				if (y < 0) (x, y) = (y, x);
+				return y <= Lex.COMM ? (Lex.BLANK & x) == Lex.BLANK
+					: y > Lex.DED && (Lex.CONTENT & x) == Lex.CONTENT;
+			}
 
-		public override int GetHashCode(Lex v) => (int)v;
+			public override int GetHashCode(Lex v) => (int)v;
+		}
 	}
 }

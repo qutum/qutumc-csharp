@@ -12,9 +12,11 @@ using System.Linq;
 
 namespace qutum.syntax
 {
-	using Trees = Tree<ArraySegment<Token<Lex>>>;
+	using Token = Token<Lex>;
+	using Tokens = ArraySegment<Token<Lex>>;
+	using Tree = Tree<ArraySegment<Token<Lex>>>;
 
-	class Parsers : Parser<IEnumerable<byte>, Lex, Token<Lex>, ArraySegment<Token<Lex>>>
+	class Parsers : Parser<IEnumerable<byte>, Lex, Token, Tokens, Tree>
 	{
 		static readonly string grammer =
 		@"|= EOL DED
@@ -33,17 +35,17 @@ namespace qutum.syntax
 		{
 			treeKeep = false;
 			treeExpect = 0;
-			treeDumper = o => !(o is ArraySegment<Token<Lex>> s) ? null
+			treeDumper = o => !(o is Tokens s) ? null
 				: s.Count == 0 ? "" : string.Join(" ", s.Select(k => k.ToString()).ToArray());
 		}
 
-		public override Trees Parse(IEnumerable<byte> input)
+		public override Tree Parse(IEnumerable<byte> input)
 		{
 			scan.Load(input);
 			var t = base.Parse(null);
-			if (t.head is Trees x) {
+			if (t.head is Tree x) {
 			Loop: if (x.err == 0 && x.name == "empty" && x.up != t && x.next?.err == 0 && x.next?.name == "empty") {
-					t.Add(new Trees { name = x.name, from = x.next.from, to = x.next.to, err = 1, expect = "too many empty lines" });
+					t.Add(new Tree { name = x.name, from = x.next.from, to = x.next.to, err = 1, expect = "too many empty lines" });
 					while ((x = x.next).next?.err == 0 && x.next?.name == "empty") ;
 				}
 				if (x.head != null) { x = x.head; goto Loop; }
@@ -51,7 +53,7 @@ namespace qutum.syntax
 					while ((x = x.up) != null);
 			}
 			foreach (var k in ((Lexer)scan).errs)
-				t.Add(new Trees {
+				t.Add(new Tree {
 					name = k.key.ToString(), from = k.from, to = k.to, err = 1, expect = k.value
 				});
 			scan.Unload();
