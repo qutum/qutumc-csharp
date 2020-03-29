@@ -116,14 +116,11 @@ namespace qutum.parser
 		// build a Tree from matched and kept Alts, Tree.tokens unset
 		public virtual T Parse(I input)
 		{
-			if (input != null)
-				scan.Load(input);
+			using var __ = scan.Load(input);
 			int m = Earley(out T recs, recovery);
 			T t = m >= 0 ? Accepted(m, null) : Rejected();
 			matchn = 0;
 			locs.Clear();
-			if (input != null)
-				scan.Unload();
 			if (recs != null)
 				t.AddSub(recs);
 			return t;
@@ -131,14 +128,11 @@ namespace qutum.parser
 
 		public virtual bool Check(I input)
 		{
-			if (input != null)
-				scan.Load(input);
+			using var __ = scan.Load(input);
 			bool gre = greedy; greedy = false;
 			int m = Earley(out _, 0); greedy = gre;
 			matchn = 0;
 			locs.Clear();
-			if (input != null)
-				scan.Unload();
 			return m >= 0;
 		}
 
@@ -406,12 +400,12 @@ namespace qutum.parser
 
 		public ParserBase(string gram, Scan<I, K, Tk, Ts> scan)
 		{
-			boot.scan.Load(gram);
+			using var __ = boot.scan.Load(gram);
 			var top = boot.Parse(null);
 			if (top.err != 0) {
-				boot.scan.Unload();
+				boot.scan.Dispose(); boot.scan.Load(gram);
 				var dump = boot.treeDump; boot.treeDump = 3;
-				boot.Parse(gram).Dump(); boot.treeDump = dump;
+				boot.Parse(null).Dump(); boot.treeDump = dump;
 				var e = new Exception(); e.Data["err"] = top;
 				throw e;
 			}
@@ -480,7 +474,6 @@ namespace qutum.parser
 			}
 			start = names[prods.First().head.tokens];
 			this.scan = scan;
-			boot.scan.Unload();
 		}
 	}
 }

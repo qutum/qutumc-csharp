@@ -26,11 +26,10 @@ namespace qutum.test.syntax
 		void Check(string input, string s)
 		{
 			l.errMerge = true;
-			l.Load(Encoding.UTF8.GetBytes(input));
+			using var __ = l.Load(Encoding.UTF8.GetBytes(input));
 			while (l.Next()) ;
 			var z = string.Join(" ", l.Tokens(0, l.Loc()).Select(t => t.ToString()).ToArray());
 			env.WriteLine(z);
-			l.Unload();
 			AreEqual(s, z);
 		}
 

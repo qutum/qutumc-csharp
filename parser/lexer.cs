@@ -7,7 +7,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Text;
 
@@ -33,11 +32,7 @@ namespace qutum.parser
 		public bool errMerge = false; // add error token into corrent tokens
 		public readonly List<Token<K>> errs = new List<Token<K>>();
 
-		public override void Unload()
-		{
-			base.Unload();
-			errs.Clear();
-		}
+		public override void Dispose() { base.Dispose(); from = -1; errs.Clear(); }
 
 		protected override void Token(K key, int part, ref bool end, int f, int to)
 		{
@@ -114,19 +109,24 @@ namespace qutum.parser
 		int bn; // total bytes gots
 		int bf, bt; // from index to index excluded for each part
 		readonly byte[] bytes = new byte[17]; // latest bytes, [byte index & 15]
-		internal int tokenn, loc = -2;
+		internal int tokenn, loc = -1;
 		internal T[] tokens = new T[65536];
 		readonly List<int> lines = new List<int>();
 
-		public virtual void Load(IEnumerable<byte> input)
+		public virtual IDisposable Load(IEnumerable<byte> input)
 		{
-			if (loc > -2) Unload();
-			scan.Load(input); Debug.Assert(scan.Loc() == -1);
-			bf = bt = bn = 0;
-			loc = -1; lines.Add(0);
+			if (scan.Load(input) == null)
+				return null;
+			lines.Add(0);
+			return this;
 		}
 
-		public virtual void Unload() { scan.Unload(); tokenn = 0; loc = -2; lines.Clear(); }
+		public virtual void Dispose()
+		{
+			scan.Dispose();
+			bf = bt = bn = tokenn = 0; loc = -1;
+			lines.Clear();
+		}
 
 		public bool Next()
 		{
@@ -235,17 +235,17 @@ namespace qutum.parser
 			eol   = S* comm? \r?\n S*
 			comm  = \=\= V*",
 			new BootScan()) {
-				greedy = false, treeKeep = false, treeDump = 0
-			};
+			greedy = false, treeKeep = false, treeDump = 0
+		};
 
 		public LexerBase(string gram, Scan<IEnumerable<byte>, byte, byte, IEnumerable<byte>> scan)
 		{
-			boot.scan.Load(gram);
+			using var __ = boot.scan.Load(gram);
 			var top = boot.Parse(null);
 			if (top.err != 0) {
-				boot.scan.Unload();
+				boot.scan.Dispose(); boot.scan.Load(gram);
 				var dump = boot.treeDump; boot.treeDump = 3;
-				boot.Parse(gram).Dump(); boot.treeDump = dump;
+				boot.Parse(null).Dump(); boot.treeDump = dump;
 				var e = new Exception(); e.Data["err"] = top;
 				throw e;
 			}
@@ -322,7 +322,6 @@ namespace qutum.parser
 			}
 			if (boot.treeDump > 0) BootDump(start, "");
 			this.scan = scan;
-			boot.scan.Unload();
 		}
 
 		void BootByte(string gram, ref Unit u, K k, int part, Unit ok, Unit err,

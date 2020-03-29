@@ -166,8 +166,8 @@ namespace qutum.test.syntax
 			AreEqual(0, t.head.err); AreEqual(0, t.head.from); AreEqual(1, t.head.to);
 			AreEqual(0, t.head.head.err); AreEqual(6, t.head.head.from); AreEqual(7, t.head.head.to);
 			AreEqual(0, t.head.tail.err); AreEqual(13, t.head.tail.from); AreEqual(14, t.head.tail.to);
-			AreEqual("empty", t.tail.prev.name); AreEqual(3, t.tail.prev.from); AreEqual(4, t.tail.prev.to);
-			AreEqual("empty", t.tail.name); AreEqual(10, t.tail.from); AreEqual(11, t.tail.to);
+			AreEqual("empty", t.tail.prev.name); AreEqual(2, t.tail.prev.from); AreEqual(4, t.tail.prev.to);
+			AreEqual("empty", t.tail.name); AreEqual(9, t.tail.from); AreEqual(11, t.tail.to);
 		}
 
 		[TestMethod]
@@ -188,8 +188,8 @@ namespace qutum.test.syntax
 			AreEqual(0, t.head.head.err); AreEqual(3, t.head.head.from); AreEqual(4, t.head.head.to);
 			AreEqual(0, t.head.head.head.err); AreEqual(10, t.head.head.head.from); AreEqual(11, t.head.head.head.to);
 			AreEqual(0, t.head.tail.err); AreEqual(17, t.head.tail.from); AreEqual(18, t.head.tail.to);
-			AreEqual("empty", t.tail.prev.name); AreEqual(7, t.tail.prev.from); AreEqual(8, t.tail.prev.to);
-			AreEqual("empty", t.tail.name); AreEqual(15, t.tail.from); AreEqual(16, t.tail.to);
+			AreEqual("empty", t.tail.prev.name); AreEqual(6, t.tail.prev.from); AreEqual(8, t.tail.prev.to);
+			AreEqual("empty", t.tail.name); AreEqual(14, t.tail.from); AreEqual(16, t.tail.to);
 		}
 
 		[TestMethod]
@@ -230,7 +230,7 @@ namespace qutum.test.syntax
 			AreEqual(0, t.head.head.err); AreEqual(7, t.head.head.from); AreEqual(8, t.head.head.to);
 			AreEqual(0, t.head.head.head.err); AreEqual(16, t.head.head.head.from); AreEqual(17, t.head.head.head.to);
 			AreEqual(0, t.head.head.tail.err); AreEqual(28, t.head.head.tail.from); AreEqual(29, t.head.head.tail.to);
-			AreEqual("empty", t.head.next.name); AreEqual(5, t.head.next.from); AreEqual(6, t.head.next.to);
+			AreEqual("empty", t.head.next.name); AreEqual(2, t.head.next.from); AreEqual(6, t.head.next.to);
 			AreEqual("SP", t.tail.prev.name); AreEqual(13, t.tail.prev.from); AreEqual(15, t.tail.prev.to);
 			AreEqual("SP", t.tail.name); AreEqual(23, t.tail.from); AreEqual(24, t.tail.to);
 		}

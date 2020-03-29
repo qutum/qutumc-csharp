@@ -11,35 +11,51 @@ using System.Linq;
 
 namespace qutum.parser
 {
-	public interface Scan<in I, K, T, out S> where S : IEnumerable<T>
+	public interface Scan<in I, K, T, out S> : IDisposable where S : IEnumerable<T>
 	{
-		void Load(I input);
+		// return self, or null for inner load with same input
+		IDisposable Load(I input);
 		bool Next();
 		// current token index, -1 before first Next()
 		int Loc();
 		T Token();
 		bool Is(K key);
 		bool Is(K key1, K key);
-
 		T Token(int x);
 		// tokens from index to index excluded
 		S Tokens(int from, int to);
 		// tokens from index to index excluded
 		Span<T> Tokens(int from, int to, Span<T> s);
-		void Unload();
+
 		// text to single or several keys
 		IEnumerable<K> Keys(string text);
+	}
+
+	static class ScanExt
+	{
+		public static bool Load<I, K, T, S>(this Scan<I, K, T, S> scan, ref I inp, I i, out IDisposable dis)
+			where I : class where S : IEnumerable<T>
+		{
+			if (inp == null) {
+				inp = i ?? throw new ArgumentException();
+				dis = scan;
+				return true;
+			}
+			if (i != null && i != inp)
+				throw new ArgumentException();
+			dis = null;
+			return false;
+		}
 	}
 
 	public class ScanStr : Scan<string, char, char, string>
 	{
 		protected string input;
-		protected int loc;
+		protected int loc = -1;
 
-		public void Load(string input)
-		{
-			this.input = input; loc = -1;
-		}
+		public IDisposable Load(string Input) => this.Load(ref input, Input, out var d) ? d : d;
+
+		public void Dispose() { input = null; loc = -1; }
 
 		public bool Next() => ++loc < input.Length;
 
@@ -60,8 +76,6 @@ namespace qutum.parser
 			input.AsSpan(from, to - from).CopyTo(s); return s;
 		}
 
-		public void Unload() => input = null;
-
 		public IEnumerable<char> Keys(string text) => text;
 	}
 
@@ -69,12 +83,16 @@ namespace qutum.parser
 	{
 		protected IEnumerable<byte> input;
 		protected IEnumerator<byte> iter;
-		protected int loc;
+		protected int loc = -1;
 
-		public void Load(IEnumerable<byte> input)
+		public IDisposable Load(IEnumerable<byte> Input)
 		{
-			this.input = input; iter = input.GetEnumerator(); loc = -1;
+			if (this.Load(ref input, Input, out var dis))
+				iter = input.GetEnumerator();
+			return dis;
 		}
+
+		public void Dispose() { input = null; iter = null; loc = -1; }
 
 		public bool Next() { loc++; return iter.MoveNext(); }
 
@@ -115,8 +133,6 @@ namespace qutum.parser
 			}
 			return bs;
 		}
-
-		public void Unload() { input = null; iter = null; }
 
 		public IEnumerable<byte> Keys(string text) => text.Select(k => (byte)k);
 	}

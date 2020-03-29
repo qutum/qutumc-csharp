@@ -85,7 +85,7 @@ namespace qutum.syntax
 		NUM   = 0|\+0|-0|[1-9]|\+[1-9]|-[1-9] |+\d+|+_\d+ |.\d+ |+_\d+ |[eE]\d+|[eE][\+\-]\d+ |[fF]
 		";
 
-		public Lexer(bool value=false) : base(Grammar) { this.value = value; }
+		public Lexer(bool value = false) : base(Grammar) { this.value = value; }
 
 		bool value;
 		byte[] bs = new byte[4096]; // buffer used for some tokens
@@ -94,7 +94,7 @@ namespace qutum.syntax
 		int indent; // indent count of last line
 		bool crlf; // \r\n found
 
-		public override void Unload() { base.Unload(); indent = 0; crlf = false; }
+		public override void Dispose() { base.Dispose(); indent = 0; crlf = false; }
 
 		int ScanBs(int f, int to, int x)
 		{

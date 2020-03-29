@@ -29,11 +29,10 @@ namespace qutum.test.parser
 		void Check(Lexer<Tag> l, byte[] input, string s)
 		{
 			l.errMerge = true;
-			l.Load(input);
+			using var __ = l.Load(input);
 			while (l.Next()) ;
 			var z = string.Join(" ", l.Tokens(0, l.Loc()).Select(t => t.ToString()).ToArray());
 			env.WriteLine(z);
-			l.Unload();
 			AreEqual(s, z);
 		}
 

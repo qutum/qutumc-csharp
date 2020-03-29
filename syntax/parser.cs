@@ -39,8 +39,7 @@ namespace qutum.syntax
 
 		public override Tree Parse(IEnumerable<byte> input)
 		{
-			if (input != null)
-				scan.Load(input);
+			using var __ = scan.Load(input);
 			var t = base.Parse(null);
 			if (t.head is Tree x) {
 			Loop: if (x.err == 0 && x.name == "empty" && x.up != t && x.next?.err == 0 && x.next?.name == "empty") {
@@ -59,8 +58,6 @@ namespace qutum.syntax
 				t.Add(new Tree {
 					name = k.key.ToString(), from = k.from, to = k.to, err = 1, expect = k.value
 				});
-			if (input != null)
-				scan.Unload();
 			return t;
 		}
 
