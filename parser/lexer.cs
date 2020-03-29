@@ -32,7 +32,13 @@ namespace qutum.parser
 		public bool errMerge = false; // add error token into corrent tokens
 		public readonly List<Token<K>> errs = new List<Token<K>>();
 
-		public override void Dispose() { base.Dispose(); from = -1; errs.Clear(); }
+		public override IDisposable Load(IEnumerable<byte> input)
+		{
+			if (base.Load(input) == null)
+				return null;
+			from = -1; errs.Clear();
+			return this;
+		}
 
 		protected override void Token(K key, int part, ref bool end, int f, int to)
 		{
@@ -94,10 +100,10 @@ namespace qutum.parser
 			internal K key;
 			internal int part; // first is 1
 			internal int pren; // number of bytes to this unit
-			internal Unit[] next; // utf-8: <=bf [128], <=df [129], <=ef [130], <=f7 [131], ff [132]
+			internal Unit[] next; // utf-8: <=bf [128], <=df [129], <=ef [130], <=f7 [131], or [132]
 			internal Unit go; // when next==null or next[byte]==null or backward
 							  // go.next != null, to start: token end or error
-			internal int mode; // match to token: 1, misatch to error: -1, mismatch to backward: 0
+			internal int mode; // match to token: 1, mismatch to error: -1, mismatch to backward: 0
 							   // no backward neither cross parts nor inside utf nor inside byte repeat
 
 			internal Unit(LexerBase<K, T> l) => id = ++l.id;
@@ -106,7 +112,7 @@ namespace qutum.parser
 		readonly Unit start;
 		int id;
 		internal Scan<IEnumerable<byte>, byte, byte, IEnumerable<byte>> scan;
-		int bn; // total bytes gots
+		int bn; // total bytes got
 		int bf, bt; // from index to index excluded for each part
 		readonly byte[] bytes = new byte[17]; // latest bytes, [byte index & 15]
 		internal int tokenn, loc = -1;
@@ -117,16 +123,13 @@ namespace qutum.parser
 		{
 			if (scan.Load(input) == null)
 				return null;
-			lines.Add(0);
+			bf = bt = bn = tokenn = 0; loc = -1;
+			lines.Clear(); lines.Add(0);
 			return this;
 		}
 
-		public virtual void Dispose()
-		{
-			scan.Dispose();
-			bf = bt = bn = tokenn = 0; loc = -1;
-			lines.Clear();
-		}
+		// lexer results keep available
+		public virtual void Dispose() => scan.Dispose();
 
 		public bool Next()
 		{
@@ -240,7 +243,7 @@ namespace qutum.parser
 
 		public LexerBase(string gram, Scan<IEnumerable<byte>, byte, byte, IEnumerable<byte>> scan)
 		{
-			using var __ = boot.scan.Load(gram);
+			using var __ = boot.scan.Load(gram) ?? throw new NullReferenceException();
 			var top = boot.Parse(null);
 			if (top.err != 0) {
 				boot.scan.Dispose(); boot.scan.Load(gram);
@@ -305,11 +308,11 @@ namespace qutum.parser
 						var bn = bytes.Count();
 						if (bn > 15)
 							throw new Exception($"{k}.{part} exceeds 15 bytes :{boot.Tokens(a)}");
-						bytes.Each((b, bx) => {
-							BootByte(gram, ref u, k, part, ok, err, b, bx, bn, ns);
-						});
-						return u;
-					}).Where(u => u.next != null) // last byte repeat unit of each alt
+						bytes.Each((b, bx) =>
+							BootByte(gram, ref u, k, part, ok, err, b, bx, bn, ns)
+						);
+						return u; // last unit of this alt
+					}).Where(u => u.next != null)
 					.ToArray();
 					if (aus != null) {
 						u = pus[part];
@@ -422,6 +425,7 @@ namespace qutum.parser
 			var a131 = new Unit(this) { key = key, part = part, pren = 1, go = err, mode = -1, next = new Unit[133] };
 			var b131 = new Unit(this) { key = key, part = part, pren = 1, go = err, mode = -1, next = new Unit[133] };
 			var c131 = new Unit(this) { key = key, part = part, pren = 1, go = err, mode = -1, next = new Unit[133] };
+			// TODO [132]
 			(u.next[129] = a129).next[128] = n; // c0
 			((u.next[130] = a130).next[128] = b130).next[128] = n; // e0
 			(((u.next[131] = a131).next[128] = b131).next[128] = c131).next[128] = n; // f0

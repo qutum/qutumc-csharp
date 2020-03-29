@@ -25,6 +25,7 @@ namespace qutum.test.syntax
 
 		void Check(string input, string s)
 		{
+			env.WriteLine(input);
 			l.errMerge = true;
 			using var __ = l.Load(Encoding.UTF8.GetBytes(input));
 			while (l.Next()) ;
@@ -56,7 +57,8 @@ namespace qutum.test.syntax
 		[TestMethod]
 		public void LexIndent2()
 		{
-			Check("\n\t\ta\n\ta\na\na", "EOL= IND=1 IND=2 WORD=a EOL= DED=1 WORD=a EOL= DED=0 WORD=a EOL= WORD=a");
+			Check("\n\ta\n\t\t\ta\n\t\ta\na\na",
+				"EOL= IND=1 WORD=a EOL= IND=2 IND=3 WORD=a EOL= DED=2 WORD=a EOL= DED=1 DED=0 WORD=a EOL= WORD=a");
 		}
 
 		[TestMethod]

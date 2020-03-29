@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <AssemblyName>qutumc</AssemblyName>
+    <RootNamespace>qutum.compile</RootNamespace>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)'=='Debug'">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>embedded</DebugType>
+    <OutputPath>..\bin\</OutputPath>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)'=='Release'">
+    <DebugType>none</DebugType>
+    <OutputPath>..\bin\</OutputPath>
+  </PropertyGroup>
+
+  <Import Project="..\parser\parser.projitems" Label="Shared" />
+  <Import Project="..\syntax\syntax.projitems" Label="Shared" />
+
+</Project>

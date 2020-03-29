@@ -13,7 +13,7 @@ namespace qutum.parser
 {
 	public interface Scan<in I, K, T, out S> : IDisposable where S : IEnumerable<T>
 	{
-		// return self, or null for inner load with same input
+		// return self, or null for nested load with the same input
 		IDisposable Load(I input);
 		bool Next();
 		// current token index, -1 before first Next()
