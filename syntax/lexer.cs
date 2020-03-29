@@ -85,8 +85,9 @@ namespace qutum.syntax
 		NUM   = 0|\+0|-0|[1-9]|\+[1-9]|-[1-9] |+\d+|+_\d+ |.\d+ |+_\d+ |[eE]\d+|[eE][\+\-]\d+ |[fF]
 		";
 
-		public Lexer() : base(Grammar) { }
+		public Lexer(bool value=false) : base(Grammar) { this.value = value; }
 
+		bool value;
 		byte[] bs = new byte[4096]; // buffer used for some tokens
 		int bn;
 		int nn, nf, ne; // end of each number part
@@ -228,6 +229,11 @@ namespace qutum.syntax
 					return;
 				bn = ScanBs(from, to, 0);
 				v = Num(ref key);
+				break;
+
+			default:
+				if (value)
+					bn = ScanBs(from, to, 0);
 				break;
 			}
 			if (end) {

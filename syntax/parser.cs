@@ -34,17 +34,22 @@ namespace qutum.syntax
 			treeKeep = false;
 			treeExpect = 0;
 			treeDumper = o => !(o is ArraySegment<Token<Lex>> s) ? null
-				: s.Count == 0 ? "" : string.Join(" ", s.Select(k => k.ToString()).ToArray());
+				: s.Count == 0 ? "" : string.Join(" ", s.Select(t => t.ToString()).ToArray());
 		}
 
 		public override Tree Parse(IEnumerable<byte> input)
 		{
-			scan.Load(input);
+			if (input != null)
+				scan.Load(input);
 			var t = base.Parse(null);
 			if (t.head is Tree x) {
 			Loop: if (x.err == 0 && x.name == "empty" && x.up != t && x.next?.err == 0 && x.next?.name == "empty") {
-					t.Add(new Tree { name = x.name, from = x.next.from, to = x.next.to, err = 1, expect = "too many empty lines" });
-					while ((x = x.next).next?.err == 0 && x.next?.name == "empty") ;
+					t.Add(new Tree {
+						name = x.name, from = x.from, to = x.next.to,
+						err = 1, dump = "too many empty lines"
+					});
+					while ((x = x.next).next?.err == 0 && x.next?.name == "empty")
+						;
 				}
 				if (x.head != null) { x = x.head; goto Loop; }
 				else do if (x.next != null) { x = x.next; goto Loop; }
@@ -54,7 +59,8 @@ namespace qutum.syntax
 				t.Add(new Tree {
 					name = k.key.ToString(), from = k.from, to = k.to, err = 1, expect = k.value
 				});
-			scan.Unload();
+			if (input != null)
+				scan.Unload();
 			return t;
 		}
 

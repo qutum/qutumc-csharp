@@ -162,7 +162,7 @@ namespace qutum.parser
 					.Where(b => RI[b]).Append('\x80').ToArray());
 		}
 
-		internal static string Esc(string s, int f, int t, bool lexer = false)
+		internal static string Unesc(string s, int f, int t, bool lexer = false)
 		{
 			if (s[f] != '\\')
 				return s[f..t];

@@ -17,7 +17,7 @@ namespace qutum.parser
 	{
 		public K key;
 		public object value;
-		public int from, to; // from input byte index to index excluded, scan.Loc()
+		public int from, to; // from input index to index excluded, scan.Loc()
 		public int err; // ~token index this error found before
 
 		public override string ToString() => $"{key}{(err < 0 ? "!" : "=")}{value}";
@@ -80,6 +80,13 @@ namespace qutum.parser
 		public override bool Is(K key1, K key) => Eq.Equals(key1, key);
 
 		public override IEnumerable<K> Keys(string text) => new[] { Enum.Parse<K>(text) };
+
+		public (int fromL, int fromC, int toL, int toC) LineCol(int from, int to)
+		{
+			var (fl, fc) = LineCol(Token(from).from);
+			var (tl, tc) = LineCol(Token(to - 1).to - 1);
+			return (fl, fc, tl, tc);
+		}
 	}
 
 	public abstract class LexerBase<K, T> : Scan<IEnumerable<byte>, K, T, ArraySegment<T>>
@@ -184,7 +191,7 @@ namespace qutum.parser
 
 		public abstract bool Is(K key1, K key);
 
-		public T Token(int x) => tokens[x];
+		public T Token(int x) => x < tokenn ? tokens[x] : throw new IndexOutOfRangeException();
 
 		public ArraySegment<T> Tokens(int from, int to)
 		{
@@ -194,7 +201,7 @@ namespace qutum.parser
 
 		public Span<T> Tokens(int from, int to, Span<T> s)
 		{
-			if (to > tokenn) throw new IndexOutOfRangeException();
+			if (from >= tokenn || to > tokenn) throw new IndexOutOfRangeException();
 			tokens.AsSpan(from, to - from).CopyTo(s);
 			return s;
 		}
@@ -202,12 +209,11 @@ namespace qutum.parser
 		public abstract IEnumerable<K> Keys(string text);
 
 		// first line and col are 1
-		public bool LineCol(int loc, out int line, out int column)
+		public (int line, int column) LineCol(int byteLoc)
 		{
-			line = lines.BinarySearch(loc);
+			var line = lines.BinarySearch(byteLoc);
 			line = (line ^ line >> 31) + (line >> 31) + 1;
-			column = loc - lines[line - 1] + 1;
-			return loc >= 0 && loc < bn;
+			return (line, byteLoc - lines[line - 1] + 1);
 		}
 
 		// bootstrap
@@ -229,7 +235,7 @@ namespace qutum.parser
 			eol   = S* comm? \r?\n S*
 			comm  = \=\= V*",
 			new BootScan()) {
-				greedy = false, treeKeep = false, treeDump = false
+				greedy = false, treeKeep = false, treeDump = 0
 			};
 
 		public LexerBase(string gram, Scan<IEnumerable<byte>, byte, byte, IEnumerable<byte>> scan)
@@ -238,7 +244,7 @@ namespace qutum.parser
 			var top = boot.Parse(null);
 			if (top.err != 0) {
 				boot.scan.Unload();
-				var dump = boot.treeDump; boot.treeDump = true;
+				var dump = boot.treeDump; boot.treeDump = 3;
 				boot.Parse(gram).Dump(); boot.treeDump = dump;
 				var e = new Exception(); e.Data["err"] = top;
 				throw e;
@@ -314,7 +320,7 @@ namespace qutum.parser
 					aus = Aus;
 				});
 			}
-			if (boot.treeDump) BootDump(start, "");
+			if (boot.treeDump > 0) BootDump(start, "");
 			this.scan = scan;
 			boot.scan.Unload();
 		}
@@ -325,7 +331,7 @@ namespace qutum.parser
 			var x = b.from;
 			int nn = 0;
 			if (gram[x] == '\\') {
-				foreach (var c in BootScan.Esc(gram, x, b.to, true))
+				foreach (var c in BootScan.Unesc(gram, x, b.to, true))
 					ns[++nn] = (byte)c;
 				x += 2;
 			}
@@ -338,7 +344,7 @@ namespace qutum.parser
 				foreach (var r in b) {
 					inc &= x == (x = r.from); // before ^
 					if (gram[x] == '\\')
-						foreach (var c in BootScan.Esc(gram, x, r.to, true))
+						foreach (var c in BootScan.Unesc(gram, x, r.to, true))
 							rs[c] = inc;
 					else
 						for (char c = gram[x], cc = gram[r.to - 1]; c <= cc; c++)

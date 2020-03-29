@@ -95,14 +95,14 @@ namespace qutum
 			return (T)this;
 		}
 
-		public T Dump(int detail = 0)
+		public T Dump(object extra = null)
 		{
 			int o = dumpOrder, upo = up?.dumpOrder ?? 1;
 			bool afterup = upo > 0 || upo == 0 && this != up.head;
 			for (var t = head; ; t = t.next) {
 				if (o > 0 ? t == head : o < 0 ? t == null : t == head?.next)
 					using (var env = EnvWriter.Indent(up == null ? "" : afterup ? "\\ " : "/ "))
-						env.WriteLine(ToString());
+						env.WriteLine(ToString(extra));
 				if (t == null)
 					break;
 				using (var env = EnvWriter.Indent
@@ -111,7 +111,7 @@ namespace qutum
 						? afterup && this == up.tail
 						: !afterup && this == up.head) ? "  " :
 					"| "))
-					t.Dump(detail);
+					t.Dump(extra);
 			}
 			return (T)this;
 		}
@@ -119,7 +119,7 @@ namespace qutum
 		// preorder >0, inorder 0, postorder <0
 		public virtual int dumpOrder => 1;
 
-		public override string ToString() => "dump";
+		public virtual string ToString(object extra) => "dump";
 
 		public IEnumerator<T> GetEnumerator()
 		{

@@ -24,7 +24,7 @@ namespace qutum.test.syntax
 
 		public void Dispose() => env.Dispose();
 
-		readonly Parsers ps = new Parsers(new Lexer()) { treeDump = true };
+		readonly Parsers ps = new Parsers(new Lexer()) { treeDump = 3 };
 
 		Trees Parses(string input, bool ok)
 		{
