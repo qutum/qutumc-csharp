@@ -24,18 +24,15 @@ namespace qutum.parser
 
 	public class Lexer<K> : LexerBase<K, Token<K>> where K : struct
 	{
-		public Lexer(string grammar,
-			Scan<IEnumerable<byte>, byte, byte, IEnumerable<byte>> scan = null)
-			: base(grammar, scan ?? new ScanByte()) { }
+		public Lexer(string grammar) : base(grammar) { }
 
 		protected int from = -1;
 		public bool errMerge = false; // add error token into corrent tokens
 		public readonly List<Token<K>> errs = new List<Token<K>>();
 
-		public override IDisposable Load(IEnumerable<byte> input)
+		public override IDisposable Load(Scan<byte, byte, IEnumerable<byte>> scan)
 		{
-			if (base.Load(input) == null)
-				return null;
+			base.Load(scan);
 			from = -1; errs.Clear();
 			return this;
 		}
@@ -90,8 +87,7 @@ namespace qutum.parser
 		}
 	}
 
-	public abstract class LexerBase<K, T> : Scan<IEnumerable<byte>, K, T, ArraySegment<T>>
-		where T : struct
+	public abstract class LexerBase<K, T> : Scan<K, T, ArraySegment<T>> where T : struct
 	{
 		// each unit is just before next byte or after last byte of part
 		sealed class Unit
@@ -111,7 +107,7 @@ namespace qutum.parser
 
 		readonly Unit start;
 		int id;
-		internal Scan<IEnumerable<byte>, byte, byte, IEnumerable<byte>> scan;
+		internal Scan<byte, byte, IEnumerable<byte>> scan;
 		int bn; // total bytes got
 		int bf, bt; // from index to index excluded for each part
 		readonly byte[] bytes = new byte[17]; // latest bytes, [byte index & 15]
@@ -119,17 +115,16 @@ namespace qutum.parser
 		internal T[] tokens = new T[65536];
 		readonly List<int> lines = new List<int>();
 
-		public virtual IDisposable Load(IEnumerable<byte> input)
+		public virtual IDisposable Load(Scan<byte, byte, IEnumerable<byte>> scan)
 		{
-			if (scan.Load(input) == null)
-				return null;
+			this.scan = scan;
 			bf = bt = bn = tokenn = 0; loc = -1;
 			lines.Clear(); lines.Add(0);
 			return this;
 		}
 
 		// lexer results keep available
-		public virtual void Dispose() => scan.Dispose();
+		public virtual void Dispose() { scan.Dispose(); scan = default; }
 
 		public bool Next()
 		{
@@ -236,19 +231,18 @@ namespace qutum.parser
 			range = R | R-R | \\E =+
 			qua   = \+ | \* =+
 			eol   = S* comm? \r?\n S*
-			comm  = \=\= V*",
-			new BootScan()) {
+			comm  = \=\= V*") {
 			greedy = false, treeKeep = false, treeDump = 0
 		};
 
-		public LexerBase(string gram, Scan<IEnumerable<byte>, byte, byte, IEnumerable<byte>> scan)
+		public LexerBase(string gram)
 		{
-			using var __ = boot.scan.Load(gram) ?? throw new NullReferenceException();
-			var top = boot.Parse(null);
+			using var bscan = new BootScan(gram);
+			var top = boot.Load(bscan).Parse();
 			if (top.err != 0) {
-				boot.scan.Dispose(); boot.scan.Load(gram);
+				using var bscan2 = new BootScan(gram);
 				var dump = boot.treeDump; boot.treeDump = 3;
-				boot.Parse(null).Dump(); boot.treeDump = dump;
+				boot.Load(bscan2).Parse().Dump(); boot.treeDump = dump;
 				var e = new Exception(); e.Data["err"] = top;
 				throw e;
 			}
@@ -324,7 +318,6 @@ namespace qutum.parser
 				});
 			}
 			if (boot.treeDump > 0) BootDump(start, "");
-			this.scan = scan;
 		}
 
 		void BootByte(string gram, ref Unit u, K k, int part, Unit ok, Unit err,

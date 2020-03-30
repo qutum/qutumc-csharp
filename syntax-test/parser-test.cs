@@ -9,7 +9,6 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using qutum.parser;
 using qutum.syntax;
 using System;
-using System.Linq;
 using System.Text;
 using static Microsoft.VisualStudio.TestTools.UnitTesting.Assert;
 
@@ -29,7 +28,8 @@ namespace qutum.test.syntax
 		Trees Parses(string input, bool ok)
 		{
 			env.WriteLine(input);
-			var t = ps.Parse(Encoding.UTF8.GetBytes(input));
+			using var __ = ps.scan.Load(new ScanByte(Encoding.UTF8.GetBytes(input)));
+			var t = ps.Parse();
 			Simple(t); t.Dump();
 			if (ok != (t.err == 0 && (t.tail == null || t.tail.err == 0)))
 				Fail(ok ? "error" : "no error");

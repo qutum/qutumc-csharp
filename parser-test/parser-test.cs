@@ -12,6 +12,15 @@ using static Microsoft.VisualStudio.TestTools.UnitTesting.Assert;
 
 namespace qutum.test.parser
 {
+	static class TestExtension
+	{
+		public static bool Check(this ParserStr p, string input)
+			=> p.Load(new ScanStr(input)).Check();
+
+		public static Tree<string> Parse(this ParserStr p, string input)
+			=> p.Load(new ScanStr(input)).Parse();
+	}
+
 	[TestClass]
 	public class TestParser : IDisposable
 	{

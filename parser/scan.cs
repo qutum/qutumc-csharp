@@ -11,12 +11,10 @@ using System.Linq;
 
 namespace qutum.parser
 {
-	public interface Scan<in I, K, T, out S> : IDisposable where S : IEnumerable<T>
+	public interface Scan<K, T, out S> : IDisposable where S : IEnumerable<T>
 	{
-		// return self, or null for nested load with the same input
-		IDisposable Load(I input);
 		bool Next();
-		// current token index, -1 before first Next()
+		// current token index, <0 before first Next()
 		int Loc();
 		T Token();
 		bool Is(K key);
@@ -31,29 +29,12 @@ namespace qutum.parser
 		IEnumerable<K> Keys(string text);
 	}
 
-	static class ScanExt
-	{
-		public static bool Load<I, K, T, S>(this Scan<I, K, T, S> scan, ref I inp, I i, out IDisposable dis)
-			where I : class where S : IEnumerable<T>
-		{
-			if (inp == null) {
-				inp = i ?? throw new ArgumentException();
-				dis = scan;
-				return true;
-			}
-			if (i != null && i != inp)
-				throw new ArgumentException();
-			dis = null;
-			return false;
-		}
-	}
-
-	public class ScanStr : Scan<string, char, char, string>
+	public class ScanStr : Scan<char, char, string>
 	{
 		protected string input;
 		protected int loc = -1;
 
-		public IDisposable Load(string Input) => this.Load(ref input, Input, out var d) ? d : d;
+		public ScanStr(string input) => this.input = input;
 
 		public void Dispose() { input = null; loc = -1; }
 
@@ -79,17 +60,16 @@ namespace qutum.parser
 		public IEnumerable<char> Keys(string text) => text;
 	}
 
-	public class ScanByte : Scan<IEnumerable<byte>, byte, byte, IEnumerable<byte>>
+	public class ScanByte : Scan<byte, byte, IEnumerable<byte>>
 	{
 		protected IEnumerable<byte> input;
 		protected IEnumerator<byte> iter;
 		protected int loc = -1;
 
-		public IDisposable Load(IEnumerable<byte> Input)
+		public ScanByte(IEnumerable<byte> input)
 		{
-			if (this.Load(ref input, Input, out var dis))
-				iter = input.GetEnumerator();
-			return dis;
+			this.input = input;
+			iter = input.GetEnumerator();
 		}
 
 		public void Dispose() { input = null; iter = null; loc = -1; }
@@ -139,6 +119,8 @@ namespace qutum.parser
 
 	class BootScan : ScanStr
 	{
+		public BootScan(string input) : base(input) { }
+
 		public override bool Is(char key)
 		{
 			char t = input[loc];

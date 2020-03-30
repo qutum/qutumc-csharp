@@ -6,6 +6,7 @@
 //
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using qutum.parser;
 using qutum.syntax;
 using System;
 using System.Linq;
@@ -27,8 +28,9 @@ namespace qutum.test.syntax
 		{
 			env.WriteLine(input);
 			l.errMerge = true;
-			using var __ = l.Load(Encoding.UTF8.GetBytes(input));
-			while (l.Next()) ;
+			using var __ = l.Load(new ScanByte(Encoding.UTF8.GetBytes(input)));
+			while (l.Next())
+				;
 			var z = string.Join(" ", l.Tokens(0, l.Loc()).Select(t => t.ToString()).ToArray());
 			env.WriteLine(z);
 			AreEqual(s, z);

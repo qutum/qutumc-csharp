@@ -7,14 +7,13 @@
 
 using qutum.parser;
 using System;
-using System.Collections.Generic;
 using System.Linq;
 
 namespace qutum.syntax
 {
 	using Tree = Tree<ArraySegment<Token<Lex>>>;
 
-	class Parsers : Parser<Lex, Tree>
+	class Parsers : Parser<Lex, Tree, Lexer>
 	{
 		static readonly string grammer =
 		@"|= EOL DED
@@ -37,10 +36,9 @@ namespace qutum.syntax
 				: s.Count == 0 ? "" : string.Join(" ", s.Select(t => t.ToString()).ToArray());
 		}
 
-		public override Tree Parse(IEnumerable<byte> input)
+		public override Tree Parse()
 		{
-			using var __ = scan.Load(input);
-			var t = base.Parse(null);
+			var t = base.Parse();
 			if (t.head is Tree x) {
 			Loop: if (x.err == 0 && x.name == "empty" && x.up != t && x.next?.err == 0 && x.next?.name == "empty") {
 					t.Add(new Tree {
@@ -54,13 +52,13 @@ namespace qutum.syntax
 				else do if (x.next != null) { x = x.next; goto Loop; }
 					while ((x = x.up) != null);
 			}
-			foreach (var k in ((Lexer)scan).errs)
+			foreach (var k in scan.errs)
 				t.Add(new Tree {
 					name = k.key.ToString(), from = k.from, to = k.to, err = 1, expect = k.value
 				});
 			return t;
 		}
 
-		public override bool Check(IEnumerable<byte> input) => throw new NotImplementedException();
+		public override bool Check() => throw new NotImplementedException();
 	}
 }
