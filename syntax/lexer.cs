@@ -92,6 +92,7 @@ namespace qutum.syntax
 		int nn, nf, ne; // end of each number part
 		int indent; // indent count of last line
 		bool crlf; // \r\n found
+#pragma warning disable CS0649
 		public bool allValue; // set all tokens value
 
 		public override void Dispose() { base.Dispose(); indent = 0; crlf = false; }

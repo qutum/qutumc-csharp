@@ -157,8 +157,8 @@ namespace qutum
 			env.pressKey = pressKey;
 			if (env.indents.Contains(null))
 				return env;
-			env.output = Console.Out;
 			Console.OutputEncoding = new UTF8Encoding(false, false);
+			env.output = Console.Out;
 			Console.SetOut(env);
 			env.indents.Add(null);
 			return env;

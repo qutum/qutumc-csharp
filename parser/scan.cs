@@ -40,7 +40,7 @@ namespace qutum.parser
 
 		public bool Next() => ++loc < input.Length;
 
-		public int Loc() => Math.Min(loc, input.Length);
+		public int Loc() => loc;
 
 		public char Token() => input[loc];
 
@@ -60,17 +60,82 @@ namespace qutum.parser
 		public IEnumerable<char> Keys(string text) => text;
 	}
 
-	public class ScanByte : Scan<byte, byte, IEnumerable<byte>>
+	public class ScanByte : Scan<byte, byte, ArraySegment<byte>>, Scan<byte, byte, IEnumerable<byte>>
 	{
-		protected IEnumerable<byte> input;
+		protected byte[] input;
+		protected int loc = -1;
+
+		public ScanByte(byte[] input) => this.input = input;
+
+		public void Dispose() { input = null; loc = -1; }
+
+		public bool Next() => ++loc < input.Length;
+
+		public int Loc() => loc;
+
+		public byte Token() => input[loc];
+
+		public virtual bool Is(byte key) => input[loc] == key;
+
+		public virtual bool Is(byte key1, byte key) => key1 == key;
+
+		public byte Token(int x) => input[x];
+
+		public ArraySegment<byte> Tokens(int from, int to)
+		{
+			return new ArraySegment<byte>(input, from, to - from);
+		}
+
+		IEnumerable<byte> Scan<byte, byte, IEnumerable<byte>>.Tokens(int from, int to) => Tokens(from, to);
+
+		public Span<byte> Tokens(int from, int to, Span<byte> s)
+		{
+			input.AsSpan(from, to - from).CopyTo(s); return s;
+		}
+
+		public IEnumerable<byte> Keys(string text) => text.Select(k => (byte)k);
+	}
+
+	public class ScanByteSeg : Scan<byte, byte, ArraySegment<byte>>, Scan<byte, byte, IEnumerable<byte>>
+	{
+		protected ArraySegment<byte> input;
+		protected int loc = -1;
+
+		public ScanByteSeg(ArraySegment<byte> input) => this.input = input;
+
+		public void Dispose() { input = null; loc = -1; }
+
+		public bool Next() => ++loc < input.Count;
+
+		public int Loc() => loc;
+
+		public byte Token() => input[loc];
+
+		public virtual bool Is(byte key) => input[loc] == key;
+
+		public virtual bool Is(byte key1, byte key) => key1 == key;
+
+		public byte Token(int x) => input[x];
+
+		public ArraySegment<byte> Tokens(int from, int to) => input.Slice(from, to - from);
+
+		IEnumerable<byte> Scan<byte, byte, IEnumerable<byte>>.Tokens(int from, int to) => Tokens(from, to);
+
+		public Span<byte> Tokens(int from, int to, Span<byte> s)
+		{
+			input.AsSpan(from, to - from).CopyTo(s); return s;
+		}
+
+		public IEnumerable<byte> Keys(string text) => text.Select(k => (byte)k);
+	}
+
+	public class ScanByteList : Scan<byte, byte, IEnumerable<byte>>
+	{
+		protected List<byte> input;
 		protected IEnumerator<byte> iter;
 		protected int loc = -1;
 
-		public ScanByte(IEnumerable<byte> input)
-		{
-			this.input = input;
-			iter = input.GetEnumerator();
-		}
+		public ScanByteList(List<byte> input) { this.input = input; iter = input.GetEnumerator(); }
 
 		public void Dispose() { input = null; iter = null; loc = -1; }
 
@@ -84,33 +149,15 @@ namespace qutum.parser
 
 		public virtual bool Is(byte key1, byte key) => key1 == key;
 
-		public byte Token(int x)
-		{
-			if (input is byte[] a)
-				return a[x];
-			if (input is List<byte> l)
-				return l[x];
-			return input.Skip(x).First();
-		}
+		public byte Token(int x) => input[x];
 
-		public IEnumerable<byte> Tokens(int from, int to)
-		{
-			if (input is byte[] a)
-				return new ArraySegment<byte>(a, from, to - from);
-			if (input is List<byte> l)
-				return l.GetRange(from, to - from);
-			return input.Skip(from).Take(to - from);
-		}
+		public IEnumerable<byte> Tokens(int from, int to) => input.GetRange(from, to - from);
 
 		public Span<byte> Tokens(int from, int to, Span<byte> bs)
 		{
-			if (input is byte[] a)
-				a.AsSpan(from, to - from).CopyTo(bs);
-			// else if (input is List<byte> s) lack of List.CopyTo(Span)
-			else {
-				int x = 0; foreach (var v in input.Skip(from).Take(to - from))
-					bs[x++] = v;
-			}
+			// lack of List.CopyTo(Span ...)
+			int x = 0; foreach (var v in input.GetRange(from, to - from))
+				bs[x++] = v;
 			return bs;
 		}
 

@@ -5,11 +5,9 @@
 // http://qutum.com
 //
 
-#pragma warning disable IDE1006 // Naming Styles
 using qutum.parser;
 using qutum.syntax;
 using System;
-using System.Collections.Generic;
 using System.IO;
 
 namespace qutum.compile
