@@ -11,9 +11,18 @@ using System.Linq;
 
 namespace qutum.syntax
 {
-	using Tree = Tree<ArraySegment<Token<Lex>>>;
+	enum Syn
+	{
+		blocks, block,
+		line, parse, inner,
+		skips, skip, empty, comm
+	}
 
-	class Parsers : Parser<Lex, Tree, Lexer>
+	class Tree : Tree<Syn, ArraySegment<Token<Lex>>, Tree>
+	{
+	}
+
+	class Parsers : Parser<Lex, Syn, Tree, Lexer>
 	{
 		static readonly string grammer =
 		@"|= EOL DED
@@ -36,25 +45,36 @@ namespace qutum.syntax
 				: s.Count == 0 ? "" : string.Join(" ", s.Select(t => t.ToString()).ToArray());
 		}
 
+		protected override Syn Name(string name) => Enum.Parse<Syn>(name);
+
 		public override Tree Parse()
 		{
 			var t = base.Parse();
 			if (t.head is Tree x) {
-			Loop: if (x.err == 0 && x.name == "empty" && x.up != t && x.next?.err == 0 && x.next?.name == "empty") {
+			Loop:
+				if (x.err == 0 && x.name == Syn.empty &&
+						x.up != t && x.next?.err == 0 && x.next?.name == Syn.empty) {
 					t.Add(new Tree {
 						name = x.name, from = x.from, to = x.next.to,
 						err = 1, dump = "too many empty lines"
 					});
-					while ((x = x.next).next?.err == 0 && x.next?.name == "empty")
+					while ((x = x.next).next?.err == 0 && x.next?.name == Syn.empty)
 						;
 				}
-				if (x.head != null) { x = x.head; goto Loop; }
-				else do if (x.next != null) { x = x.next; goto Loop; }
-					while ((x = x.up) != null);
+				if (x.head != null) {
+					x = x.head;
+					goto Loop;
+				}
+				do
+					if (x.next != null) {
+						x = x.next;
+						goto Loop;
+					}
+				while ((x = x.up) != null);
 			}
 			foreach (var k in scan.errs)
 				t.Add(new Tree {
-					name = k.key.ToString(), from = k.from, to = k.to, err = 1, expect = k.value
+					name = (Syn)(-(int)k.key), from = k.from, to = k.to, err = 1, expect = k.value
 				});
 			return t;
 		}

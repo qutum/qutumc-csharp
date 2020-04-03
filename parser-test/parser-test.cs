@@ -17,7 +17,7 @@ namespace qutum.test.parser
 		public static bool Check(this ParserStr p, string input)
 			=> p.Load(new ScanStr(input)).Check();
 
-		public static Tree<string> Parse(this ParserStr p, string input)
+		public static TreeStr Parse(this ParserStr p, string input)
 			=> p.Load(new ScanStr(input)).Parse();
 	}
 

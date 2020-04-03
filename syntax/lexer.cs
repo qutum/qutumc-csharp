@@ -53,7 +53,7 @@ namespace qutum.syntax
 		SHL   = <<
 		SHR   = >>
 		EQ    = =
-		IEQ   = -=
+		IEQ   = \\=
 		LEQ   = <=
 		GEQ   = >=
 		LES   = <

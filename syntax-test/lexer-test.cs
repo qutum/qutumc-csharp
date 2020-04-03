@@ -222,7 +222,7 @@ namespace qutum.test.syntax
 		[TestMethod]
 		public void LexSymbol3()
 		{
-			Check("==-=<<=<=<>=>", "EQ= EQ= IEQ= SHL= EQ= LEQ= LES= GEQ= GRE=");
+			Check(@"==\=<<=<=<>=>", "EQ= EQ= IEQ= SHL= EQ= LEQ= LES= GEQ= GRE=");
 			Check("---++&&||", "NOT= SUB= XOR= AND= OR=");
 		}
 	}

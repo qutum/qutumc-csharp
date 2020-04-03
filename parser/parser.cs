@@ -13,11 +13,11 @@ using static qutum.parser.Qua;
 
 namespace qutum.parser
 {
-	using ParserChar = ParserBase<char, char, string, Tree<string>, ScanStr>;
+	using ParserChar = ParserBase<char, char, string, string, TreeStr, ScanStr>;
 
-	public class Tree<S> : LinkTree<Tree<S>>
+	public class Tree<N, S, T> : LinkTree<T> where T : Tree<N, S, T>
 	{
-		public string name;
+		public N name;
 		public int from, to; // from token index to index excluded
 		public S tokens;
 		public int err; // no error: 0, step break: > 0, recovered: -1
@@ -38,9 +38,13 @@ namespace qutum.parser
 		}
 	}
 
-	public class Parser<K, Tr, Sc> : ParserBase<K, Token<K>, ArraySegment<Token<K>>, Tr, Sc>
+	public class TreeStr : Tree<string, string, TreeStr>
+	{
+	}
+
+	public class Parser<K, N, Tr, Sc> : ParserBase<K, Token<K>, ArraySegment<Token<K>>, N, Tr, Sc>
 		where K : struct
-		where Tr : Tree<ArraySegment<Token<K>>>, new()
+		where Tr : Tree<N, ArraySegment<Token<K>>, Tr>, new()
 		where Sc : Scan<K, Token<K>, ArraySegment<Token<K>>>
 	{
 		public Parser(string gram, Sc scan) : base(gram, scan) { }
@@ -53,12 +57,12 @@ namespace qutum.parser
 
 	enum Qua : byte { Opt = 0, One = 1, Any = 2, More = 3 };
 
-	public class ParserBase<K, Tk, Ts, Tr, Sc>
-		where Ts : IEnumerable<Tk> where Tr : Tree<Ts>, new() where Sc : Scan<K, Tk, Ts>
+	public class ParserBase<K, Tk, Ts, N, Tr, Sc>
+		where Ts : IEnumerable<Tk> where Tr : Tree<N, Ts, Tr>, new() where Sc : Scan<K, Tk, Ts>
 	{
 		sealed class Prod
 		{
-			internal string name;
+			internal N name;
 			internal Alt[] alts;
 		}
 		struct Con
@@ -68,17 +72,18 @@ namespace qutum.parser
 		}
 		sealed class Alt
 		{
-			internal string name, hint;
+			internal N name;
 			internal Con[] s;
 			internal sbyte greedy; // parser.greedy:0, greedy: 1, back greedy: -1
 			internal byte reck; // bit-or of reck index
 			internal sbyte keep; // parser.treeKeep: 0, thru: -1, keep: 1
+			internal string hint;
 
 			public override string ToString()
 			{
 				return name + "="
 					+ string.Join(' ', s.Where(c => c.p != null).Select(c =>
-					(c.p is Prod p ? p.name : Esc(c.p))
+					(c.p is Prod p ? p.name.ToString() : Esc(c.p))
 					+ (c.q == More ? "+" : c.q == Any ? "*" : c.q == Opt ? "?" : "")));
 			}
 		}
@@ -110,7 +115,7 @@ namespace qutum.parser
 
 		ParserBase(Prod start) { this.start = start; reck = Array.Empty<K>(); }
 
-		public ParserBase<K, Tk, Ts, Tr, Sc> Load(Sc scan) { this.scan = scan; return this; }
+		public ParserBase<K, Tk, Ts, N, Tr, Sc> Load(Sc scan) { this.scan = scan; return this; }
 
 		// build a Tree from matched and kept Alts, Tree.tokens unset
 		public virtual Tr Parse()
@@ -160,7 +165,7 @@ namespace qutum.parser
 			completen = matchn;
 			for (int x = locs[loc]; x < matchn; x++) {
 				var m = matchs[x];
-				if (m.a.name == start.name && m.from == 0 && m.a.s[m.step].p == null)
+				if (Eq.Equals(m.a.name, start.name) && m.from == 0 && m.a.s[m.step].p == null)
 					return x;
 			}
 			if (reck.Length > 0 && rec > 0) {
@@ -200,7 +205,7 @@ namespace qutum.parser
 					for (int px = locs[m.from], py = m.from < loc ? locs[m.from + 1] : matchn;
 							px < py; px++) {
 						var pm = matchs[px];
-						if (pm.a.s[pm.step].p is Prod p && p.name == m.a.name)
+						if (pm.a.s[pm.step].p is Prod p && Eq.Equals(p.name, m.a.name))
 							Add(pm.a, pm.from, pm.to, pm.step + 1, px, x); // pm.to <= loc
 					}
 			}
@@ -282,7 +287,7 @@ namespace qutum.parser
 				if (p.tail >= 0)
 					Accepted(p.tail, t);
 				else if (p.tail == -4)
-					t.AddHead(new Tr { name = "", from = p.from, to = p.to, err = -1 });
+					t.AddHead(new Tr { name = default, from = p.from, to = p.to, err = -1 });
 			if (up != null && up != t)
 				up.AddHead(t);
 			if (New != null)
@@ -294,7 +299,7 @@ namespace qutum.parser
 		{
 			int from = locs[loc] < matchn ? loc : loc - 1, x = locs[from];
 			var t = new Tr {
-				name = "", from = from, to = loc, err = 1,
+				name = default, from = from, to = loc, err = 1,
 				dump = treeDump > 0 ? Dump(scan.Tokens(0, loc)) : null
 			};
 			var errs = new bool[matchn];
@@ -305,7 +310,7 @@ namespace qutum.parser
 						errs[z] = true;
 						if (treeExpect >= 2 ||
 								((int)s.q & 1) != 0 && (treeExpect == 1 || s.p is K)) {
-							var e = s.p is Prod p ? p.alts[0].hint ?? p.name : s.p;
+							var e = s.p is Prod p ? p.alts[0].hint ?? (object)p.name : s.p;
 							var d = treeDump <= 0 ? m.a.hint
 								: $"{Esc(e)} expected by {m.a.hint}!{m.step} {Dump(m, true)}";
 							t.AddHead(new Tr {
@@ -322,10 +327,14 @@ namespace qutum.parser
 
 		public Ts Tokens(Tr t) => t.tokens ??= scan.Tokens(t.from, t.to);
 
+		protected static EqualityComparer<N> Eq = EqualityComparer<N>.Default;
+
+		protected virtual N Name(string name) => (N)(object)name;
+
 		string Dump(Match m, bool leaf)
 		{
 			return treeDump <= 0 || treeDump == 1 && !leaf ? null :
-				$"{(treeDump <= 2 ? m.a.name : m.a.ToString())} :: {Dump(scan.Tokens(m.from, m.to))}";
+				$"{(treeDump <= 2 ? m.a.name.ToString() : m.a.ToString())} :: {Dump(scan.Tokens(m.from, m.to))}";
 		}
 		string Dump(object v) => treeDumper?.Invoke(v) ?? Esc(v.ToString());
 		static string Esc(object v)
@@ -426,7 +435,7 @@ namespace qutum.parser
 			var prods = top.Where(t => t.name == "prod");
 			var names = prods.ToDictionary(
 				p => boot.Tokens(p.head),
-				p => new Prod { name = p.head.tokens });
+				p => new Prod { name = Name(p.head.tokens) });
 
 			foreach (var p in prods) {
 				// build alts
@@ -439,9 +448,11 @@ namespace qutum.parser
 							gram[t.from] == '+' ? new object[] { More } :
 							scan.Keys(BootScan.Unesc(gram, t.from, t.to)).Cast<object>()
 						:
+							// for word, search product names first, then scan keys
 							names.TryGetValue(boot.Tokens(t), out Prod p) ? new object[] { p } :
 							scan.Keys(t.tokens).Cast<object>())
-						.Append(null).ToArray();
+						.Append(null)
+						.ToArray();
 					// build alt
 					var s = z.Select((v, x) =>
 						new Con { p = v, q = v != null && z[x + 1] is Qua r ? r : One })
@@ -450,7 +461,7 @@ namespace qutum.parser
 					var rk = (byte)reck.Select((r, x) =>
 						z.Any(v => v is K k && scan.Is(r, k)) ? 1 << x : 0).Sum();
 					return new Alt {
-						name = p.head.tokens, s = s, reck = rk
+						name = Name(p.head.tokens), s = s, reck = rk
 					};
 				}).ToArray();
 				// build hint

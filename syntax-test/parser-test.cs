@@ -14,8 +14,6 @@ using static Microsoft.VisualStudio.TestTools.UnitTesting.Assert;
 
 namespace qutum.test.syntax
 {
-	using Trees = Tree<ArraySegment<Token<Lex>>>;
-
 	[TestClass]
 	public class TestParser : IDisposable
 	{
@@ -25,7 +23,7 @@ namespace qutum.test.syntax
 
 		readonly Parsers ps = new Parsers(new Lexer()) { treeDump = 3 };
 
-		Trees Parses(string input, bool ok)
+		Tree Parses(string input, bool ok)
 		{
 			env.WriteLine(input);
 			using var __ = ps.scan.Load(new ScanByte(Encoding.UTF8.GetBytes(input)));
@@ -36,11 +34,11 @@ namespace qutum.test.syntax
 			return t;
 		}
 
-		void Simple(Trees t)
+		void Simple(Tree t)
 		{
 			if (t.err > 0) return;
-			if (t.err < 0 || t.name == "empty") { t.Remove(false); return; }
-			if (t.name == "line") {
+			if (t.err < 0 || t.name == Syn.empty) { t.Remove(false); return; }
+			if (t.name == Syn.line) {
 				t.name = t.head.name; t.from = t.head.from; t.to = t.head.to;
 				t.tokens = t.head.tokens; t.err = t.head.err; t.expect = t.head.expect;
 				t.dump = t.head.dump;
@@ -166,8 +164,8 @@ namespace qutum.test.syntax
 			AreEqual(0, t.head.err); AreEqual(0, t.head.from); AreEqual(1, t.head.to);
 			AreEqual(0, t.head.head.err); AreEqual(6, t.head.head.from); AreEqual(7, t.head.head.to);
 			AreEqual(0, t.head.tail.err); AreEqual(13, t.head.tail.from); AreEqual(14, t.head.tail.to);
-			AreEqual("empty", t.tail.prev.name); AreEqual(2, t.tail.prev.from); AreEqual(4, t.tail.prev.to);
-			AreEqual("empty", t.tail.name); AreEqual(9, t.tail.from); AreEqual(11, t.tail.to);
+			AreEqual(Syn.empty, t.tail.prev.name); AreEqual(2, t.tail.prev.from); AreEqual(4, t.tail.prev.to);
+			AreEqual(Syn.empty, t.tail.name); AreEqual(9, t.tail.from); AreEqual(11, t.tail.to);
 		}
 
 		[TestMethod]
@@ -188,8 +186,8 @@ namespace qutum.test.syntax
 			AreEqual(0, t.head.head.err); AreEqual(3, t.head.head.from); AreEqual(4, t.head.head.to);
 			AreEqual(0, t.head.head.head.err); AreEqual(10, t.head.head.head.from); AreEqual(11, t.head.head.head.to);
 			AreEqual(0, t.head.tail.err); AreEqual(17, t.head.tail.from); AreEqual(18, t.head.tail.to);
-			AreEqual("empty", t.tail.prev.name); AreEqual(6, t.tail.prev.from); AreEqual(8, t.tail.prev.to);
-			AreEqual("empty", t.tail.name); AreEqual(14, t.tail.from); AreEqual(16, t.tail.to);
+			AreEqual(Syn.empty, t.tail.prev.name); AreEqual(6, t.tail.prev.from); AreEqual(8, t.tail.prev.to);
+			AreEqual(Syn.empty, t.tail.name); AreEqual(14, t.tail.from); AreEqual(16, t.tail.to);
 		}
 
 		[TestMethod]
@@ -230,9 +228,9 @@ namespace qutum.test.syntax
 			AreEqual(0, t.head.head.err); AreEqual(7, t.head.head.from); AreEqual(8, t.head.head.to);
 			AreEqual(0, t.head.head.head.err); AreEqual(16, t.head.head.head.from); AreEqual(17, t.head.head.head.to);
 			AreEqual(0, t.head.head.tail.err); AreEqual(28, t.head.head.tail.from); AreEqual(29, t.head.head.tail.to);
-			AreEqual("empty", t.head.next.name); AreEqual(2, t.head.next.from); AreEqual(6, t.head.next.to);
-			AreEqual("SP", t.tail.prev.name); AreEqual(13, t.tail.prev.from); AreEqual(15, t.tail.prev.to);
-			AreEqual("SP", t.tail.name); AreEqual(23, t.tail.from); AreEqual(24, t.tail.to);
+			AreEqual(Syn.empty, t.head.next.name); AreEqual(2, t.head.next.from); AreEqual(6, t.head.next.to);
+			AreEqual((Syn)(-(int)Lex.SP), t.tail.prev.name); AreEqual(13, t.tail.prev.from); AreEqual(15, t.tail.prev.to);
+			AreEqual((Syn)(-(int)Lex.SP), t.tail.name); AreEqual(23, t.tail.from); AreEqual(24, t.tail.to);
 		}
 
 		[TestMethod]

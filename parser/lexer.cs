@@ -51,7 +51,7 @@ namespace qutum.parser
 		protected override void Error(K key, int part, bool end, byte? b, int f, int to)
 		{
 			if (from < 0) from = f;
-			if (part >= 0) AddErr(key, f, to, (char?)b ?? (object)"");
+			if (part >= 0) AddErr(key, f, to, (object)(char?)b ?? "");
 			if (end) from = -1;
 		}
 
@@ -321,7 +321,7 @@ namespace qutum.parser
 		}
 
 		void BootByte(string gram, ref Unit u, K k, int part, Unit ok, Unit err,
-			Tree<string> b, int bx, int bn, byte[] ns)
+			TreeStr b, int bx, int bn, byte[] ns)
 		{
 			var x = b.from;
 			int nn = 0;
