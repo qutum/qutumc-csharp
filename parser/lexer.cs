@@ -30,7 +30,7 @@ namespace qutum.parser
 		public bool errMerge = false; // add error token into corrent tokens
 		public readonly List<Token<K>> errs = new List<Token<K>>();
 
-		public override IDisposable Load(Scan<byte, byte, IEnumerable<byte>> scan)
+		public override IDisposable Load(Scan<byte, byte> scan)
 		{
 			base.Load(scan);
 			from = -1; errs.Clear();
@@ -87,7 +87,7 @@ namespace qutum.parser
 		}
 	}
 
-	public abstract class LexerBase<K, T> : Scan<K, T, ArraySegment<T>> where T : struct
+	public abstract class LexerBase<K, T> : ScanSeg<K, T> where T : struct
 	{
 		// each unit is just before next byte or after last byte of part
 		sealed class Unit
@@ -107,7 +107,7 @@ namespace qutum.parser
 
 		readonly Unit start;
 		int id;
-		internal Scan<byte, byte, IEnumerable<byte>> scan;
+		internal Scan<byte, byte> scan;
 		int bn; // total bytes got
 		int bf, bt; // from index to index excluded for each part
 		readonly byte[] bytes = new byte[17]; // latest bytes, [byte index & 15]
@@ -115,7 +115,7 @@ namespace qutum.parser
 		internal T[] tokens = new T[65536];
 		readonly List<int> lines = new List<int>();
 
-		public virtual IDisposable Load(Scan<byte, byte, IEnumerable<byte>> scan)
+		public virtual IDisposable Load(Scan<byte, byte> scan)
 		{
 			this.scan = scan;
 			bf = bt = bn = tokenn = 0; loc = -1;
@@ -197,6 +197,8 @@ namespace qutum.parser
 			return new ArraySegment<T>(tokens, from, to - from);
 		}
 
+		IEnumerable<T> Scan<K, T>.Tokens(int from, int to) => Tokens(from, to);
+
 		public Span<T> Tokens(int from, int to, Span<T> s)
 		{
 			if (from >= tokenn || to > tokenn) throw new IndexOutOfRangeException();
@@ -270,7 +272,7 @@ namespace qutum.parser
 			var ns = new byte[130];
 			// build prod
 			foreach (var prod in top) {
-				var k = Keys(boot.Tokens(prod.head)).Single();
+				var k = Keys(boot.scan.Tokens(prod.head.from, prod.head.to)).Single();
 				// first unit of each part
 				var pus = prod.Select((z, x) =>
 						x <= 1 ? start : new Unit(this) { key = k, part = x })
@@ -301,7 +303,8 @@ namespace qutum.parser
 						var bytes = a.Where(t => t.name == "byte");
 						var bn = bytes.Count();
 						if (bn > 15)
-							throw new Exception($"{k}.{part} exceeds 15 bytes :{boot.Tokens(a)}");
+							throw new Exception($"{k}.{part} exceeds 15 bytes :"
+								+ boot.scan.Tokens(a.from, a.to));
 						bytes.Each((b, bx) =>
 							BootByte(gram, ref u, k, part, ok, err, b, bx, bn, ns)
 						);
@@ -349,7 +352,7 @@ namespace qutum.parser
 				for (byte y = 0; y <= 128; y++)
 					if (rs[y]) ns[++nn] = y;
 				if (nn == 0)
-					throw new Exception($"No byte in {k}.{part} :{boot.Tokens(b)}");
+					throw new Exception($"No byte in {k}.{part} :{boot.scan.Tokens(b.from, b.to)}");
 				++x; // ]
 			}
 			else // single byte

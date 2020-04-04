@@ -18,7 +18,7 @@ namespace qutum.syntax
 		skips, skip, empty, comm
 	}
 
-	class Tree : Tree<Syn, ArraySegment<Token<Lex>>, Tree>
+	class Tree : Tree<Syn, Tree>
 	{
 	}
 

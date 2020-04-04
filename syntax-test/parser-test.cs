@@ -40,8 +40,7 @@ namespace qutum.test.syntax
 			if (t.err < 0 || t.name == Syn.empty) { t.Remove(false); return; }
 			if (t.name == Syn.line) {
 				t.name = t.head.name; t.from = t.head.from; t.to = t.head.to;
-				t.tokens = t.head.tokens; t.err = t.head.err; t.expect = t.head.expect;
-				t.dump = t.head.dump;
+				t.err = t.head.err; t.expect = t.head.expect; t.dump = t.head.dump;
 				t.head.Remove();
 			}
 			for (var x = t.head; x != null; x = x.next)

@@ -13,15 +13,14 @@ using static qutum.parser.Qua;
 
 namespace qutum.parser
 {
-	using ParserChar = ParserBase<char, char, string, string, TreeStr, ScanStr>;
+	using ParserChar = ParserBase<char, char, string, TreeStr, ScanStr>;
 
-	public class Tree<N, S, T> : LinkTree<T> where T : Tree<N, S, T>
+	public class Tree<N, T> : LinkTree<T> where T : Tree<N, T>
 	{
 		public N name;
 		public int from, to; // from token index to index excluded
-		public S tokens;
 		public int err; // no error: 0, step break: > 0, recovered: -1
-		public object expect; // step expected, Alt hint/name, or K
+		public object expect; // for error: step expected, Alt hint/name, or K
 		public string dump;
 
 		public override string ToString()
@@ -38,14 +37,12 @@ namespace qutum.parser
 		}
 	}
 
-	public class TreeStr : Tree<string, string, TreeStr>
+	public class TreeStr : Tree<string, TreeStr>
 	{
 	}
 
-	public class Parser<K, N, Tr, Sc> : ParserBase<K, Token<K>, ArraySegment<Token<K>>, N, Tr, Sc>
-		where K : struct
-		where Tr : Tree<N, ArraySegment<Token<K>>, Tr>, new()
-		where Sc : Scan<K, Token<K>, ArraySegment<Token<K>>>
+	public class Parser<K, N, Tr, Sc> : ParserBase<K, Token<K>, N, Tr, Sc>
+		where K : struct where Tr : Tree<N, Tr>, new() where Sc : ScanSeg<K, Token<K>>
 	{
 		public Parser(string gram, Sc scan) : base(gram, scan) { }
 	}
@@ -57,8 +54,7 @@ namespace qutum.parser
 
 	enum Qua : byte { Opt = 0, One = 1, Any = 2, More = 3 };
 
-	public class ParserBase<K, Tk, Ts, N, Tr, Sc>
-		where Ts : IEnumerable<Tk> where Tr : Tree<N, Ts, Tr>, new() where Sc : Scan<K, Tk, Ts>
+	public class ParserBase<K, Tk, N, Tr, Sc> where Tr : Tree<N, Tr>, new() where Sc : Scan<K, Tk>
 	{
 		sealed class Prod
 		{
@@ -115,7 +111,7 @@ namespace qutum.parser
 
 		ParserBase(Prod start) { this.start = start; reck = Array.Empty<K>(); }
 
-		public ParserBase<K, Tk, Ts, N, Tr, Sc> Load(Sc scan) { this.scan = scan; return this; }
+		public ParserBase<K, Tk, N, Tr, Sc> Load(Sc scan) { this.scan = scan; return this; }
 
 		// build a Tree from matched and kept Alts, Tree.tokens unset
 		public virtual Tr Parse()
@@ -325,8 +321,6 @@ namespace qutum.parser
 			return t;
 		}
 
-		public Ts Tokens(Tr t) => t.tokens ??= scan.Tokens(t.from, t.to);
-
 		protected static EqualityComparer<N> Eq = EqualityComparer<N>.Default;
 
 		protected virtual N Name(string name) => (N)(object)name;
@@ -434,10 +428,12 @@ namespace qutum.parser
 				throw new Exception("too many recovery keys");
 			var prods = top.Where(t => t.name == "prod");
 			var names = prods.ToDictionary(
-				p => boot.Tokens(p.head),
-				p => new Prod { name = Name(p.head.tokens) });
+				p => p.head.dump = boot.scan.Tokens(p.head.from, p.head.to),
+				p => new Prod { name = Name(p.head.dump) }
+			);
 
 			foreach (var p in prods) {
+				var prod = names[p.head.dump];
 				// build alts
 				var az = p.Where(t => t.name == "alt").Prepend(p).Select(ta => {
 					// prod name or keys or quantifier ...
@@ -447,10 +443,10 @@ namespace qutum.parser
 							gram[t.from] == '*' ? new object[] { Any } :
 							gram[t.from] == '+' ? new object[] { More } :
 							scan.Keys(BootScan.Unesc(gram, t.from, t.to)).Cast<object>()
-						:
-							// for word, search product names first, then scan keys
-							names.TryGetValue(boot.Tokens(t), out Prod p) ? new object[] { p } :
-							scan.Keys(t.tokens).Cast<object>())
+						// for word, search product names first, then scan keys
+						: names.TryGetValue(t.dump = boot.scan.Tokens(t.from, t.to), out Prod p)
+							? new object[] { p } :
+							scan.Keys(t.dump).Cast<object>())
 						.Append(null)
 						.ToArray();
 					// build alt
@@ -461,7 +457,7 @@ namespace qutum.parser
 					var rk = (byte)reck.Select((r, x) =>
 						z.Any(v => v is K k && scan.Is(r, k)) ? 1 << x : 0).Sum();
 					return new Alt {
-						name = Name(p.head.tokens), s = s, reck = rk
+						name = prod.name, s = s, reck = rk
 					};
 				}).ToArray();
 				// build hint
@@ -472,16 +468,16 @@ namespace qutum.parser
 						if (h.name == "hintg") g = 1;
 						if (h.name == "hintk") k = (sbyte)(gram[h.from] == '+' ? 1 : -1);
 						if (h.name == "hintw")
-							for (var w = boot.Tokens(h); ax <= x; ax++) {
+							for (var w = boot.scan.Tokens(h.from, h.to); ax <= x; ax++) {
 								az[ax].greedy = g; az[ax].keep = k; az[ax].hint = w != "" ? w : null;
 							}
 						// each hint is for only one line
 						if (h.name == "hinte") ax = x + 1;
 					}
 				});
-				names[p.head.tokens].alts = az;
+				prod.alts = az;
 			}
-			start = names[prods.First().head.tokens];
+			start = names[prods.First().head.dump];
 		}
 	}
 }

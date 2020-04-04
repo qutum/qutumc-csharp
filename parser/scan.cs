@@ -11,7 +11,7 @@ using System.Linq;
 
 namespace qutum.parser
 {
-	public interface Scan<K, T, out S> : IDisposable where S : IEnumerable<T>
+	public interface Scan<K, T> : IDisposable
 	{
 		bool Next();
 		// current token index, <0 before first Next()
@@ -21,7 +21,7 @@ namespace qutum.parser
 		bool Is(K key1, K key);
 		T Token(int x);
 		// tokens from index to index excluded
-		S Tokens(int from, int to);
+		IEnumerable<T> Tokens(int from, int to);
 		// tokens from index to index excluded
 		Span<T> Tokens(int from, int to, Span<T> s);
 
@@ -29,7 +29,13 @@ namespace qutum.parser
 		IEnumerable<K> Keys(string text);
 	}
 
-	public class ScanStr : Scan<char, char, string>
+	public interface ScanSeg<K, T> : Scan<K, T>
+	{
+		// tokens from index to index excluded
+		new ArraySegment<T> Tokens(int from, int to);
+	}
+
+	public class ScanStr : Scan<char, char>
 	{
 		protected string input;
 		protected int loc = -1;
@@ -52,6 +58,8 @@ namespace qutum.parser
 
 		public string Tokens(int from, int to) => input[from..to];
 
+		IEnumerable<char> Scan<char, char>.Tokens(int from, int to) => Tokens(from, to);
+
 		public Span<char> Tokens(int from, int to, Span<char> s)
 		{
 			input.AsSpan(from, to - from).CopyTo(s); return s;
@@ -60,7 +68,7 @@ namespace qutum.parser
 		public IEnumerable<char> Keys(string text) => text;
 	}
 
-	public class ScanByte : Scan<byte, byte, ArraySegment<byte>>, Scan<byte, byte, IEnumerable<byte>>
+	public class ScanByte : ScanSeg<byte, byte>
 	{
 		protected byte[] input;
 		protected int loc = -1;
@@ -86,7 +94,7 @@ namespace qutum.parser
 			return new ArraySegment<byte>(input, from, to - from);
 		}
 
-		IEnumerable<byte> Scan<byte, byte, IEnumerable<byte>>.Tokens(int from, int to) => Tokens(from, to);
+		IEnumerable<byte> Scan<byte, byte>.Tokens(int from, int to) => Tokens(from, to);
 
 		public Span<byte> Tokens(int from, int to, Span<byte> s)
 		{
@@ -96,7 +104,7 @@ namespace qutum.parser
 		public IEnumerable<byte> Keys(string text) => text.Select(k => (byte)k);
 	}
 
-	public class ScanByteSeg : Scan<byte, byte, ArraySegment<byte>>, Scan<byte, byte, IEnumerable<byte>>
+	public class ScanByteSeg : ScanSeg<byte, byte>
 	{
 		protected ArraySegment<byte> input;
 		protected int loc = -1;
@@ -119,7 +127,7 @@ namespace qutum.parser
 
 		public ArraySegment<byte> Tokens(int from, int to) => input.Slice(from, to - from);
 
-		IEnumerable<byte> Scan<byte, byte, IEnumerable<byte>>.Tokens(int from, int to) => Tokens(from, to);
+		IEnumerable<byte> Scan<byte, byte>.Tokens(int from, int to) => Tokens(from, to);
 
 		public Span<byte> Tokens(int from, int to, Span<byte> s)
 		{
@@ -129,7 +137,7 @@ namespace qutum.parser
 		public IEnumerable<byte> Keys(string text) => text.Select(k => (byte)k);
 	}
 
-	public class ScanByteList : Scan<byte, byte, IEnumerable<byte>>
+	public class ScanByteList : Scan<byte, byte>
 	{
 		protected List<byte> input;
 		protected IEnumerator<byte> iter;
