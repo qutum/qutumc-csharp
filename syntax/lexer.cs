@@ -22,23 +22,23 @@ namespace qutum.syntax
 
 		STR, STRB, WORD, HEX, NUM, INT, FLOAT,
 
-		PL, PR, SBL, SBR, CBL, CBR,
+		LP, RP, LSB, RSB, LCB, RCB,
 		APO, BAPO, COM, DOT,
 		ADD, SUB, MUL, DIV, MOD, DIVF, MODF, SHL, SHR,
-		EQ, IEQ, LEQ, GEQ, LES, GRE,
+		EQ, IEQ, LEQ, GEQ, LT, GT,
 		NOT, XOR, AND, OR,
-		EXC, AT, POU, DOL, CIR, AMP, COL, SCOL, QUE, BSL, VER, TIL,
+		EXC, AT, HASH, DOL, CIR, AMP, COL, SCOL, SEQ, QUE, BSL, VER, TIL,
 	}
 
 	class Lexer : Lexer<Lex>
 	{
 		static readonly string Grammar = @"
-		PL    = (
-		PR    = )
-		SBL   = \[
-		SBR   = \]
-		CBL   = {
-		CBR   = }
+		LP    = (
+		RP    = )
+		LSB   = \[
+		RSB   = \]
+		LCB   = {
+		RCB   = }
 		APO   = '
 		BAPO  = `
 		COM   = ,
@@ -52,24 +52,25 @@ namespace qutum.syntax
 		MODF  = %%
 		SHL   = <<
 		SHR   = >>
-		EQ    = =
+		EQ    = ==
 		IEQ   = \\=
 		LEQ   = <=
 		GEQ   = >=
-		LES   = <
-		GRE   = >
+		LT    = <
+		GT    = >
 		NOT   = --
 		XOR   = \+\+
 		AND   = &&
 		OR    = \|\|
 		EXC   = !
 		AT    = @
-		POU   = #
+		HASH  = #
 		DOL   = $
 		CIR   = ^
 		AMP   = &
 		COL   = :
 		SCOL  = ;
+		SEQ   = =
 		QUE   = \?
 		BSL   = \\
 		VER   = \|

@@ -214,7 +214,7 @@ namespace qutum.test.syntax
 		[TestMethod]
 		public void LexSymbol2()
 		{
-			Check("([{)]}", "PL= SBL= CBL= PR= SBR= CBR=");
+			Check("([{)]}", "LP= LSB= LCB= RP= RSB= RCB=");
 			Check("*/%//%%", "MUL= DIV= MOD= DIVF= MODF="); Check("<<>>", "SHL= SHR=");
 			Check("+5-5+_5-_5", "INT=5 INT=-5 ADD= WORD=_5 SUB= WORD=_5");
 		}
@@ -222,7 +222,7 @@ namespace qutum.test.syntax
 		[TestMethod]
 		public void LexSymbol3()
 		{
-			Check(@"==\=<<=<=<>=>", "EQ= EQ= IEQ= SHL= EQ= LEQ= LES= GEQ= GRE=");
+			Check(@"===\=<<=<=<>=>", "EQ= SEQ= IEQ= SHL= SEQ= LEQ= LT= GEQ= GT=");
 			Check("---++&&||", "NOT= SUB= XOR= AND= OR=");
 		}
 	}

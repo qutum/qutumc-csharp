@@ -247,7 +247,7 @@ namespace qutum.parser
 					return;
 				}
 			}
-			if (matchn == matchs.Length) Array.Resize(ref matchs, matchs.Length << 1);
+			if (matchn + 2 > matchs.Length) Array.Resize(ref matchs, matchs.Length << 1);
 			matchs[matchn++] = u;
 			if (pto < loc && step > 0 && (int)a.s[--u.step].q > 1)
 				matchs[matchn++] = u; // prev and tail kept
