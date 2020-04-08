@@ -97,8 +97,8 @@ namespace qutum.test.syntax
 		{
 			Check(@"""\tabc\r\ndef""", "STR=\tabc\r\ndef");
 			Check(@"""\x09abc\x0d\x0adef""", "STR=\tabc\r\ndef");
-			Check(@"""\abc\\\0\x7edef\""\u597d吗""", "STR=abc\\\0~def\"好吗");
-			Check(@"""\x0\uaa""", "STR!\\ STR!\\ STR=x0uaa");
+			Check(@"""abc\\\0\x7edef\""\u597d吗""", "STR=abc\\\0~def\"好吗");
+			Check(@"""\a\x0\uaa""", "STR!\\ STR!\\ STR!\\ STR=ax0uaa");
 		}
 
 		[TestMethod]

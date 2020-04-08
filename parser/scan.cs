@@ -222,11 +222,10 @@ namespace qutum.parser
 				return s[f..t];
 			return s[++f] switch
 			{
-				'0' => "\0",
+				's' => " ",
 				't' => "\t",
 				'n' => "\n",
 				'r' => "\r",
-				's' => " ",
 				'd' => lexer ? "0123456789" : "d",
 				'x' => lexer ? "0123456789ABCDEFabcdef" : "x",
 				'a' => lexer ? "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz" : "a",

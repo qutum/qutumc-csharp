@@ -80,7 +80,7 @@ namespace qutum.syntax
 		COMM  = ##     |[\u^\n]+
 		COMMB = \\+##  *+##\\+| +#|  +[\u^#]+
 		STRB  = \\+""  *+""\\+| +""| +[\u^""]+
-		STR   = ""     *""|\n| +[\u^""\\\n\r]+| +\\[\s!-~^ux]| +\\x\x\x| +\\u\x\x\x\x
+		STR   = ""     *""|\n| +[\t\s!-~\U^""\\]+| +\\[0tnr""\\]| +\\x\x\x| +\\u\x\x\x\x
 		WORD  = [\a_]|  [\a_][\d\a_]+
 		HEX   = 0[xX]|\+0[xX]|-0[xX]  \x|_\x  |+\x+|+_\x+
 		NUM   = 0|\+0|-0|[1-9]|\+[1-9]|-[1-9] |+\d+|+_\d+ |.\d+ |+_\d+ |[eE]\d+|[eE][\+\-]\d+ |[fF]
@@ -107,7 +107,7 @@ namespace qutum.syntax
 			return n;
 		}
 
-		protected override void Error(Lex key, int part, bool end, byte? b, int f, int to)
+		protected override void Error(Lex key, int part, bool end, int b, int f, int to)
 		{
 			if (part < 0 && LineStart(f)) // EOL at scan end
 				while (indent > 0) // clear indents

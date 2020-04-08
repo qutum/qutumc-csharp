@@ -48,10 +48,10 @@ namespace qutum.parser
 			}
 		}
 
-		protected override void Error(K key, int part, bool end, byte? b, int f, int to)
+		protected override void Error(K key, int part, bool end, int b, int f, int to)
 		{
 			if (from < 0) from = f;
-			if (part >= 0) AddErr(key, f, to, (object)(char?)b ?? "");
+			if (part >= 0) AddErr(key, f, to, b >= 0 ? (object)(char)b : null);
 			if (end) from = -1;
 		}
 
@@ -133,10 +133,14 @@ namespace qutum.parser
 		Step: bf = bt;
 		Next: if (bt >= bn)
 				if (scan.Next()) {
-					if ((bytes[bn++ & 15] = scan.Token()) == '\n') lines.Add(bn);
+					if ((bytes[bn++ & 15] = scan.Token()) == '\n')
+						lines.Add(bn);
 				}
 				else if (u == start || bt > bn) {
-					if (bn >= 0) Error(start.key, -1, true, null, bn, bn = -1);
+					if (bn >= 0) {
+						Error(start.key, -1, true, -1, bn, bn);
+						bn = -1;
+					}
 					return loc < tokenn;
 				}
 				else // scan ended, token not
@@ -160,7 +164,7 @@ namespace qutum.parser
 			}
 			else { // error part
 				Error(u.key, u.part, v == start || bt >= bn,
-					bt < bn ? bytes[bt & 15] : (byte?)null, bf, bt);
+					bt < bn ? bytes[bt & 15] : -1, bf, bt);
 				++bt; // shift a byte
 			}
 			if (v == start && loc < tokenn)
@@ -172,8 +176,8 @@ namespace qutum.parser
 		// make each part of a token
 		protected abstract void Token(K key, int part, ref bool end, int from, int to);
 
-		// report an error part, part < 0 for end of scan
-		protected abstract void Error(K key, int part, bool end, byte? b, int from, int to);
+		// report an error: part >= 0, end of scan: part < 0 and Byte < 0
+		protected abstract void Error(K key, int part, bool end, int Byte, int from, int to);
 
 		protected void Add(T token)
 		{
