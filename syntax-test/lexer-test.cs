@@ -208,7 +208,7 @@ namespace qutum.test.syntax
 		[TestMethod]
 		public void LexSymbol1()
 		{
-			Check("a`b.0'c", "WORD=a BAPO= WORD=b DOT= INT=0 APO= WORD=c");
+			Check("a`b.0'.c", "WORD=a BAPO= WORD=b DOT= INT=0 APO= DOT= WORD=c");
 		}
 
 		[TestMethod]

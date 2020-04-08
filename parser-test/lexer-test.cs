@@ -275,29 +275,6 @@ namespace qutum.test.parser
 		}
 
 		[TestMethod]
-		public void LexRepeat10()
-		{
-			Throw(() => new Lexer<Tag>("A=a*"), "First byte");
-			Throw(() => new Lexer<Tag>("A=ab*c \n B=acd"), "B.1 and A.1 .*repeat");
-		}
-
-		[TestMethod]
-		public void LexRepeat11()
-		{
-			var l = new Lexer<Tag>("A=aa*");
-			Check(l, "a", "A=a"); Check(l, "aa", "A=aa"); Check(l, "aaa", "A=aaa");
-			Check(l, "baa", "0!b A=aa"); Check(l, "ab", "A=a 0!b");
-		}
-
-		[TestMethod]
-		public void LexRepeat12()
-		{
-			var l = new Lexer<Tag>("A=ab*c");
-			Check(l, "abc", "A=abc"); Check(l, "abbc", "A=abbc"); Check(l, "abbbc", "A=abbbc");
-			Check(l, "ac", "A=ac"); Check(l, "abb", "A!"); Check(l, "abbda", "A!d A!");
-		}
-
-		[TestMethod]
 		public void LexStep1()
 		{
 			var l = new Lexer<Tag>("A=aa b cde \n B=ab \n C=bc");

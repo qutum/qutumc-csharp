@@ -225,13 +225,12 @@ namespace qutum.parser
 			key   = W+ =+
 			part1 = byte+ alt1* =+
 			alt1  = \| S* byte+ =+
-			part  = S+ mis? rep? byte+ alt* =+
-			alt   = \| S* rep? byte+ =+
+			part  = S+ mis? loop? byte+ alt* =+
+			alt   = \| S* loop? byte+ =+
 			mis   = \| S* | \* =+
-			rep   = \+ =+
-			byte  = B qua? | [range* ^? range*] qua? | \\E qua? =+
+			loop  = \+ =+
+			byte  = B \+? | [range* ^? range*] \+? | \\E \+? =+
 			range = R | R-R | \\E =+
-			qua   = \+ | \* =+
 			eol   = S* comm? \r?\n S*
 			comm  = \=\= V*") {
 			greedy = false, treeKeep = false, treeDump = 0
@@ -259,11 +258,11 @@ namespace qutum.parser
 			//         \ qua
 			//   \ part ...
 			//     \ mis
-			//     \ rep
+			//     \ loop
 			//     \ byte or range... or esc ...
 			//       \ qua
 			//     \ alt ...
-			//       \ rep
+			//       \ loop
 			//       \ byte or range... or esc ...
 			//         \ qua
 			// \ prod ...
@@ -295,7 +294,7 @@ namespace qutum.parser
 					var Aus = p.Where(t => t.name.StartsWith("alt")).Prepend(p).Select(a => {
 						u = pus[part];
 						// go for match
-						var ok = a.head.name == "rep" || a.head.next?.name == "rep" ? u // part repeat
+						var ok = a.head.name == "loop" || a.head.next?.name == "loop" ? u // part loop
 								: pus[part + 1];
 						// go for error
 						var err = u.mode < 0 ? u.go : u;
@@ -358,21 +357,15 @@ namespace qutum.parser
 			else // single byte
 				ns[++nn] = (byte)gram[x++];
 
-			var qua = b.tail?.name == "qua" ? b.tail : null; // byte repeat
-			var more = qua != null && gram[qua.from] == '+';
-			var any = qua != null && gram[qua.from] == '*';
-			if (bx == 0 && any)
-				throw new Exception($"First byte of {k}.{part} must not have * repeat");
 			// buid next
+			var rep = x < b.to; // byte repeat +
 			var go = u; var mode = 0; // mismatch to backward
 			if (bx == bn - 1) // last byte of alt
 				{ go = ok; mode = 1; } // match part
-			else if (more || any || ns[nn] > 127 // inside byte repeat or utf
-				|| b.next.tail?.name == "qua"
-					&& gram[b.next.tail.from] == '*') // next byte is * repeat
+			else if (rep || ns[nn] > 127) // inside byte repeat or utf
 				{ go = err; mode = -1; } // mismatch to error
-			var next = BootNext(k, part, u, ns, nn, go, mode, any ? u : null, err);
-			if (more)
+			var next = BootNext(k, part, u, ns, nn, go, mode, null, err);
+			if (rep)
 				BootNext(k, part, next, ns, nn, go, mode, u, err);
 			u = next;
 		}
@@ -396,12 +389,10 @@ namespace qutum.parser
 				for (int x = 1; x <= nn; x++)
 					u.next[ns[x]] = n;
 				if (utf)
-					if (repFrom == null || repFrom == u)
-						BootNextU(key, part, u, n, err); // build utf for * repeat or first unit of + repeat
-					else // build for next unit of + repeat
+					if (repFrom == null)
+						BootNextU(key, part, u, n, err); // build utf for first unit of byte repeat
+					else // build for next unit of byte repeat
 						Array.Copy(repFrom.next, 129, n.next, 129, 4);
-				if (repFrom == u) // check and set mode for already exist next of * repeat
-					BootMode(key, part, n, go, mode);
 			}
 			else if (n.pren != nn) // all already nexts must be the same
 				throw new Exception($"Prefix of {key}.{part} and {n.key}.{n.part}"
