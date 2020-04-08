@@ -176,6 +176,7 @@ namespace qutum.parser
 	{
 		public BootScan(string input) : base(input) { }
 
+		// for boot grammar
 		public override bool Is(char key)
 		{
 			char t = input[loc];
@@ -196,8 +197,8 @@ namespace qutum.parser
 		}
 
 		static readonly bool[] W = new bool[127], X = new bool[127], O = new bool[127], B = new bool[127];
-		internal static readonly bool[] RI = new bool[127];
-		static readonly string RU;
+		internal static readonly bool[] RI = new bool[127]; // default inclusive range
+		static readonly string All; // all ascii and utf
 
 		static BootScan()
 		{
@@ -211,25 +212,26 @@ namespace qutum.parser
 				B[t] = (W[t] || O[t]) && t != '[' && t != ']' || t == '=';
 				RI[t] = t >= ' ' || t == '\t' || t == '\n' || t == '\r';
 			}
-			RU = new string(Enumerable.Range(0, 127).Select(b => (char)b)
-					.Where(b => RI[b]).Append('\x80').ToArray());
+			All = new string(Enumerable.Range(0, 128).Select(b => (char)b).Append('\x80').ToArray());
 		}
 
+		// for general grammar
 		internal static string Unesc(string s, int f, int t, bool lexer = false)
 		{
 			if (s[f] != '\\')
 				return s[f..t];
 			return s[++f] switch
 			{
-				's' => " ",
+				'0' => "\0",
 				't' => "\t",
 				'n' => "\n",
 				'r' => "\r",
+				's' => " ",
 				'd' => lexer ? "0123456789" : "d",
 				'x' => lexer ? "0123456789ABCDEFabcdef" : "x",
 				'a' => lexer ? "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz" : "a",
 				'U' => lexer ? "\x80" : "U",
-				'u' => lexer ? RU : "u",
+				'u' => lexer ? All : "u",
 				_ => s[f].ToString(),
 			};
 		}

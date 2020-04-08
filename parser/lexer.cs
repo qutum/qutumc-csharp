@@ -336,7 +336,7 @@ namespace qutum.parser
 			else if (gram[x] == '[') {
 				++x;
 				Span<bool> rs = stackalloc bool[129]; bool inc = true;
-				if (x != b.head?.from) // omitted inclusive range
+				if (x != b.head?.from) // inclusive range omitted, use default
 					BootScan.RI.CopyTo(rs);
 				foreach (var r in b) {
 					inc &= x == (x = r.from); // before ^
@@ -453,7 +453,7 @@ namespace qutum.parser
 						(nn, b) => nn != n ? null
 						: b > ' ' && b < 127 ? ((char)b).ToString()
 						: b == ' ' ? "\\s" : b == '\t' ? "\\t" : b == '\n' ? "\\n" : b == '\r' ? "\\r"
-						: b >= 128 ? "\\u"
+						: b >= 128 ? "\\U"
 						: $"\\x{b:x}")
 						.Where(x => x != null);
 					using var ind = EnvWriter.Indent("  ");

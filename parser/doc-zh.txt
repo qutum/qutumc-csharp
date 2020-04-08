@@ -8,7 +8,7 @@ qutum.parser.ScanByte
 
 qutum.parser.BootScan
 
-输入string，输出自举char流，支持空白、词、数字、量词、转义、UTF等
+输入string，输出自举char流，支持空白、词、数字、量词、转义、utf等
 
 
 qutum.parser.Lexer
@@ -28,7 +28,7 @@ token定义为：一个步骤或以空格分隔多个步骤
 每个步骤第一个字节不能*重复
 
 默认字节范围为 32-126的ascii字符及\t \n \r
-转义：\s 空格 \t \n \r \d 数字 \x 十六进制 \a 字母 \u 默认字节范围及UTF字符 \U 128以上的UTF字符
+转义：\s 空格 \t \n \r \d 数字 \x 十六进制 \a 字母 \u 所有字符含utf \U 128以上的utf字符
 
 qutum.parser.LexerEnum
 

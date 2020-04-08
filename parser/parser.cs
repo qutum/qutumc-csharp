@@ -92,7 +92,7 @@ namespace qutum.parser
 		int loc; // current token loc
 		internal int largest, largestLoc;
 		internal Sc scan;
-		public bool greedy = false; // S=AB A=1|12 B=23|2  gready: (12)3  back greedy: 1(23)
+		public bool greedy = false; // for any Alt eg. S=AB A=1|12 B=23|2  gready: (12)3  back greedy: 1(23)
 		public int recovery = 10; // no recovery: 0, how many times to recover at eof: > 0
 		public bool treeKeep = true;
 		public int treeDump = 0; // no: 0, tokens for tree leaf: 1, tokens: 2, tokens and Alt: 3
