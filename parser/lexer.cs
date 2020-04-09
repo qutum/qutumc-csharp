@@ -73,7 +73,7 @@ namespace qutum.parser
 
 		protected static EqualityComparer<K> Eq = EqualityComparer<K>.Default;
 
-		public override bool Is(K key) => Eq.Equals(Token().key, key);
+		public sealed override bool Is(K key) => Is(Token().key, key);
 
 		public override bool Is(K key1, K key) => Eq.Equals(key1, key);
 

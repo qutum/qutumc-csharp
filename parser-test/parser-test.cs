@@ -29,7 +29,7 @@ namespace qutum.test.parser
 		public void Dispose() => env.Dispose();
 
 		[TestMethod]
-		public void Term()
+		public void Term1()
 		{
 			var p = new ParserStr("S=k");
 			IsTrue(p.Check("k"));
@@ -37,7 +37,21 @@ namespace qutum.test.parser
 		}
 
 		[TestMethod]
-		public void Alt()
+		public void Term2()
+		{
+			var p = new ParserStr("S=");
+			IsTrue(p.Check("")); IsFalse(p.Check("a"));
+		}
+
+		[TestMethod]
+		public void Alt1()
+		{
+			var p = new ParserStr("S=|a");
+			IsTrue(p.Check("")); IsTrue(p.Check("a")); IsFalse(p.Check("b"));
+		}
+
+		[TestMethod]
+		public void Alt2()
 		{
 			var p = new ParserStr("S=A\nA=a|1|#");
 			IsTrue(p.Check("a")); IsTrue(p.Check("1")); IsTrue(p.Check("#"));

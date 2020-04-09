@@ -7,7 +7,6 @@
 
 using qutum.parser;
 using System;
-using System.Collections.Generic;
 using System.Text;
 
 namespace qutum.syntax
@@ -20,7 +19,7 @@ namespace qutum.syntax
 
 		SP = 1, COMM, COMMB, EOL, IND, DED,
 
-		STR, STRB, WORD, HEX, NUM, INT, FLOAT,
+		STR, STRB, WORD, WORDS, HEX, NUM, INT, FLOAT,
 
 		LP, RP, LSB, RSB, LCB, RCB,
 		APO, BAPO, COM, DOT,
@@ -40,7 +39,7 @@ namespace qutum.syntax
 		LCB   = {
 		RCB   = }
 		APO   = '
-		BAPO  = `
+		==BAPO  = `
 		COM   = ,
 		DOT   = .
 		ADD   = \+
@@ -80,8 +79,9 @@ namespace qutum.syntax
 		COMM  = ##     |[\u^\n]+
 		COMMB = \\+##  *+##\\+| +#|  +[\u^#]+
 		STRB  = \\+""  *+""\\+| +""| +[\u^""]+
-		STR   = ""     *""|\n| +[\t\s!-~\U^""\\]+| +\\[0tnr""\\]| +\\x\x\x| +\\u\x\x\x\x
-		WORD  = [\a_]|  [\a_][\d\a_]+
+		STR   = ""     *""|\n| +[\t\s!-~\U^""\\]+| +\\[0tnr"".`\\]| +\\x\x\x| +\\u\x\x\x\x
+		WORDS = `      *`| \n| +[\t\s!-~\U^`\\]+|  +\\[0tnr"".`\\]| +\\x\x\x| +\\u\x\x\x\x
+		WORD  = [\a_]|[\a_][\d\a_]+  |+.+| +.+[\a_]|+.+[\a_][\d\a_]+
 		HEX   = 0[xX]|\+0[xX]|-0[xX]  \x|_\x  |+\x+|+_\x+
 		NUM   = 0|\+0|-0|[1-9]|\+[1-9]|-[1-9] |+\d+|+_\d+ |.\d+ |+_\d+ |[eE]\d+|[eE][\+\-]\d+ |[fF]
 		";
@@ -186,13 +186,14 @@ namespace qutum.syntax
 				break;
 
 			case Lex.STR:
+			case Lex.WORDS:
 				if (part == 1)
 					return;
-				if (end && scan.Token(f) != '"') { // \n found
+				if (end && scan.Token(f) != (key == Lex.STR ? '"' : '`')) { // \n found
 					Error(key, part, true, (byte)'\n', f, to);
 					return;
 				}
-				if (end) // " as end
+				if (end) // " or ` as end
 					break;
 				ScanBs(f, to, bn);
 				if (bs[bn] != '\\')
@@ -210,7 +211,7 @@ namespace qutum.syntax
 						bn += Encoding.UTF8.GetBytes(u, bs.AsSpan(bn)); break;
 					default: bs[bn++] = bs[bn]; break;
 					}
-				return; // inside string
+				return; // inside string or word
 
 			case Lex.WORD:
 				bn = ScanBs(from, to, 0);
@@ -306,8 +307,8 @@ namespace qutum.syntax
 			}
 			e += dot;
 			if (e <= 0)
-				return e < -54 ? 0f : e < -37 ? v / Fes[37] / Fes[-e - 37] : v / Fes[-e];
-			float w = v * Fes[e < 39 ? e : 39];
+				return e < -54 ? 0f : e < -37 ? v / Exps[37] / Exps[-e - 37] : v / Exps[-e];
+			float w = v * Exps[e < 39 ? e : 39];
 			if (float.IsInfinity(w)) {
 				AddErr(key, from, from + bn, "float out of range");
 				return 0f;
@@ -315,28 +316,21 @@ namespace qutum.syntax
 			return w;
 		}
 
-		static readonly float[] Fes = new[] {
+		static readonly float[] Exps = new[] {
 			1e00f, 1e01f, 1e02f, 1e03f, 1e04f, 1e05f, 1e06f, 1e07f, 1e08f, 1e09f,
 			1e10f, 1e11f, 1e12f, 1e13f, 1e14f, 1e15f, 1e16f, 1e17f, 1e18f, 1e19f,
 			1e20f, 1e21f, 1e22f, 1e23f, 1e24f, 1e25f, 1e26f, 1e27f, 1e28f, 1e29f,
 			1e30f, 1e31f, 1e32f, 1e33f, 1e34f, 1e35f, 1e36f, 1e37f, 1e38f, float.PositiveInfinity,
 		};
 
-		static Lexer() => Eq = new LexEq();
-
-		class LexEq : EqualityComparer<Lex>
+		public override bool Is(Lex x, Lex y)
 		{
-			public override bool Equals(Lex x, Lex y)
-			{
-				if (x == y) return true;
-				if ((x ^ y) >= 0) return false; // both lexes or kinds
-												// kind contains lex
-				if (y < 0) (x, y) = (y, x);
-				return y <= Lex.COMM ? (Lex.BLANK & x) == Lex.BLANK
-					: y > Lex.DED && (Lex.CONTENT & x) == Lex.CONTENT;
-			}
-
-			public override int GetHashCode(Lex v) => (int)v;
+			if (x == y) return true;
+			if ((x ^ y) >= 0) return false; // both lexes or kinds
+											// kind contains lex
+			if (y < 0) (x, y) = (y, x);
+			return y <= Lex.COMM ? (Lex.BLANK & x) == Lex.BLANK
+				: y > Lex.DED && (Lex.CONTENT & x) == Lex.CONTENT;
 		}
 	}
 }

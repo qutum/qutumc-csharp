@@ -124,11 +124,23 @@ namespace qutum.test.syntax
 		}
 
 		[TestMethod]
-		public void LexWord()
+		public void LexWord1()
 		{
 			Check("abc", "WORD=abc"); Check("Abc123", "WORD=Abc123");
 			Check("_123", "WORD=_123"); Check("__a4", "WORD=__a4"); Check("_A__b_", "WORD=_A__b_");
 			Check("_123 __", "WORD=_123 SP= WORD=__");
+		}
+
+		[TestMethod]
+		public void LexWord2()
+		{
+			Check("a..", "WORD=a.."); Check("A1.b_..c.d'__.__", "WORD=A1.b_..c.d APO= WORD=__.__");
+			Check("`a", "WORDS!"); Check("`a\nb`", "WORDS!\n WORD=b WORDS!");
+			Check("`abc  def`", "WORDS=abc  def");
+			Check(@"`\tabc\r\ndef`", "WORDS=\tabc\r\ndef");
+			Check(@"`\x09a.bc\x0d\x0a..def`", "WORDS=\ta.bc\r\n..def");
+			Check(@"`abc\\\0\x7edef\.\`\u597d吗`", "WORDS=abc\\\0~def.`好吗");
+			Check(@"`\a\x0\uaa`", "WORDS!\\ WORDS!\\ WORDS!\\ WORDS=ax0uaa");
 		}
 
 		[TestMethod]
@@ -208,7 +220,7 @@ namespace qutum.test.syntax
 		[TestMethod]
 		public void LexSymbol1()
 		{
-			Check("a`b.0'.c", "WORD=a BAPO= WORD=b DOT= INT=0 APO= DOT= WORD=c");
+			Check("a:b.0'.c", "WORD=a COL= WORD=b. INT=0 APO= DOT= WORD=c");
 		}
 
 		[TestMethod]
