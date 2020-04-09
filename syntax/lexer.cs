@@ -13,9 +13,7 @@ namespace qutum.syntax
 {
 	enum Lex : sbyte
 	{
-		BLANK = -3,         // SP or COMM,         bit 01
-		CONTENT = -2,       // lexes for contents, bit 10
-		CONTENT_BLANK = -1, // CONTENT or BLANK,   bit 11
+		CONTENT = -2, // lexes for contents, bit 10
 
 		SP = 1, COMM, COMMB, EOL, IND, DED,
 
@@ -95,6 +93,7 @@ namespace qutum.syntax
 		bool crlf; // \r\n found
 #pragma warning disable CS0649
 		public bool allValue; // set all tokens value
+		public bool allSpace; // keep all spaces and comments
 
 		public override void Dispose() { base.Dispose(); indent = 0; crlf = false; }
 
@@ -153,7 +152,7 @@ namespace qutum.syntax
 					while (ind < indent)
 						Add(Lex.DED, from, to, --indent); // less indents
 				}
-				else
+				else if (allSpace)
 					Add(key, from, to, null); // SP
 				from = -1;
 				return; // already make tokens
@@ -165,6 +164,11 @@ namespace qutum.syntax
 				}
 				break;
 
+			case Lex.COMM:
+				if (!allSpace)
+					return;
+				break;
+
 			case Lex.COMMB:
 				if (part == 1) {
 					bn = to; // start part position
@@ -172,7 +176,10 @@ namespace qutum.syntax
 				}
 				if (to - f != bn - from || scan.Token(f) != '#') // check end part length
 					return;
-				end = true; key = Lex.COMM; v = nameof(Lex.COMMB); // as COMM
+				end = true;
+				if (!allSpace)
+					return;
+				key = Lex.COMM; v = nameof(Lex.COMMB); // as COMM
 				break;
 
 			case Lex.STRB:
@@ -327,10 +334,9 @@ namespace qutum.syntax
 		{
 			if (x == y) return true;
 			if ((x ^ y) >= 0) return false; // both lexes or kinds
-											// kind contains lex
 			if (y < 0) (x, y) = (y, x);
-			return y <= Lex.COMM ? (Lex.BLANK & x) == Lex.BLANK
-				: y > Lex.DED && (Lex.CONTENT & x) == Lex.CONTENT;
+			// kind contains lex
+			return y > Lex.DED && (Lex.CONTENT & x) == Lex.CONTENT;
 		}
 	}
 }

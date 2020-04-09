@@ -36,46 +36,57 @@ namespace qutum.test.syntax
 			AreEqual(s, z);
 		}
 
+		void CheckSp(string input, string s)
+		{
+			l.allSpace = true;
+			try {
+				Check(input, s);
+			}
+			finally {
+				l.allSpace = false;
+			}
+		}
+
 		[TestMethod]
 		public void LexComm()
 		{
-			Check(@"\####\\####\ ", "COMM=COMMB SP=");
-			Check(@"\### \## ###\ ###\ ab", "COMM=COMMB SP= COMM=");
+			CheckSp(@"\####\\####\ ", "COMM=COMMB SP=");
+			CheckSp(@"\### \## ###\ ###\ ab", "COMM=COMMB SP= COMM=");
 		}
 
 		[TestMethod]
 		public void LexEol()
 		{
-			Check("\\####\\\t \r\n\r\n\\####\\ \t \n",
+			CheckSp("\\####\\\t \r\n\r\n\\####\\ \t \n",
 				@"COMM=COMMB SP= EOL!use LF \n eol instead of CRLF \r\n EOL= EOL= COMM=COMMB SP= EOL=");
 		}
 
 		[TestMethod]
 		public void LexIndent1()
 		{
-			Check("    \n\t\t\t\n\t\n    \n", "IND=1 EOL= IND=2 IND=3 EOL= DED=2 DED=1 EOL= EOL= DED=0");
+			CheckSp("    \n\t\t\t\n\t\n    \n", "IND=1 EOL= IND=2 IND=3 EOL= DED=2 DED=1 EOL= EOL= DED=0");
 		}
 
 		[TestMethod]
 		public void LexIndent2()
 		{
-			Check("\n\ta\n\t\t\ta\n\t\ta\na\na",
+			CheckSp("\n\ta\n\t\t\ta\n\t\ta\na\na",
 				"EOL= IND=1 WORD=a EOL= IND=2 IND=3 WORD=a EOL= DED=2 WORD=a EOL= DED=1 DED=0 WORD=a EOL= WORD=a");
 		}
 
 		[TestMethod]
 		public void LexIndent3()
 		{
-			Check("\t\t####\n", "IND=1 IND=2 COMM= EOL= DED=1 DED=0");
-			Check("\\####\\\t\t\n", "COMM=COMMB SP= EOL=");
+			CheckSp("\t\t####\n", "IND=1 IND=2 COMM= EOL= DED=1 DED=0");
+			CheckSp("\\####\\\t\t\n", "COMM=COMMB SP= EOL=");
 		}
 
 		[TestMethod]
 		public void LexIndent4()
 		{
-			Check(" \t", "SP!do not mix tabs and spaces for indent SP=");
-			Check("\t    ", "SP!do not mix tabs and spaces for indent SP=");
-			Check(" ", "SP!4 spaces expected SP="); Check("       ", "SP!8 spaces expected SP=");
+			CheckSp(" \t", "SP!do not mix tabs and spaces for indent SP=");
+			CheckSp("\t    ", "SP!do not mix tabs and spaces for indent SP=");
+			CheckSp(" ", "SP!4 spaces expected SP="); CheckSp("       ", "SP!8 spaces expected SP=");
 		}
 
 		[TestMethod]
@@ -128,7 +139,7 @@ namespace qutum.test.syntax
 		{
 			Check("abc", "WORD=abc"); Check("Abc123", "WORD=Abc123");
 			Check("_123", "WORD=_123"); Check("__a4", "WORD=__a4"); Check("_A__b_", "WORD=_A__b_");
-			Check("_123 __", "WORD=_123 SP= WORD=__");
+			Check("_123 __", "WORD=_123 WORD=__");
 		}
 
 		[TestMethod]
