@@ -5,6 +5,7 @@
 // http://qutum.com
 //
 
+#pragma warning disable CS0649
 using qutum.parser;
 using System;
 using System.Text;
@@ -13,7 +14,7 @@ namespace qutum.syntax
 {
 	enum Lex : sbyte
 	{
-		CONTENT = -2, // lexes for contents, bit 10
+		CONTENT = -2, // lexes for contents, 10b
 
 		SP = 1, COMM, COMMB, EOL, IND, DED,
 
@@ -91,7 +92,6 @@ namespace qutum.syntax
 		int nn, nf, ne; // end of each number part
 		int indent; // indent count of last line
 		bool crlf; // \r\n found
-#pragma warning disable CS0649
 		public bool allValue; // set all tokens value
 		public bool allSpace; // keep all spaces and comments
 
@@ -146,7 +146,8 @@ namespace qutum.syntax
 				if (!end)
 					return;
 				if (bs[0] != 0) { // for line start
-					var ind = to - from >> (bs[0] == ' ' ? 2 : 0); // indent count
+					var ind = to - from; // indent count
+					if (bs[0] == ' ') ind = ind + 2 >> 2;
 					while (ind > indent)
 						Add(Lex.IND, from, to, ++indent); // more indents
 					while (ind < indent)
@@ -330,13 +331,11 @@ namespace qutum.syntax
 			1e30f, 1e31f, 1e32f, 1e33f, 1e34f, 1e35f, 1e36f, 1e37f, 1e38f, float.PositiveInfinity,
 		};
 
-		public override bool Is(Lex x, Lex y)
+		public override bool Is(Lex testee, Lex key)
 		{
-			if (x == y) return true;
-			if ((x ^ y) >= 0) return false; // both lexes or kinds
-			if (y < 0) (x, y) = (y, x);
+			if (testee == key) return true;
 			// kind contains lex
-			return y > Lex.DED && (Lex.CONTENT & x) == Lex.CONTENT;
+			return key < 0 && testee > Lex.DED && (Lex.CONTENT & key) == Lex.CONTENT;
 		}
 	}
 }

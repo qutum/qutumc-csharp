@@ -18,7 +18,7 @@ namespace qutum.parser
 		int Loc();
 		T Token();
 		bool Is(K key);
-		bool Is(K key1, K key);
+		bool Is(K testee, K key);
 		T Token(int x);
 		// tokens from index to index excluded
 		IEnumerable<T> Tokens(int from, int to);
@@ -52,7 +52,7 @@ namespace qutum.parser
 
 		public virtual bool Is(char key) => input[loc] == key;
 
-		public virtual bool Is(char key1, char key) => key1 == key;
+		public virtual bool Is(char testee, char key) => testee == key;
 
 		public char Token(int x) => input[x];
 
@@ -85,7 +85,7 @@ namespace qutum.parser
 
 		public virtual bool Is(byte key) => input[loc] == key;
 
-		public virtual bool Is(byte key1, byte key) => key1 == key;
+		public virtual bool Is(byte testee, byte key) => testee == key;
 
 		public byte Token(int x) => input[x];
 
@@ -121,7 +121,7 @@ namespace qutum.parser
 
 		public virtual bool Is(byte key) => input[loc] == key;
 
-		public virtual bool Is(byte key1, byte key) => key1 == key;
+		public virtual bool Is(byte testee, byte key) => testee == key;
 
 		public byte Token(int x) => input[x];
 
@@ -155,7 +155,7 @@ namespace qutum.parser
 
 		public virtual bool Is(byte key) => iter.Current == key;
 
-		public virtual bool Is(byte key1, byte key) => key1 == key;
+		public virtual bool Is(byte testee, byte key) => testee == key;
 
 		public byte Token(int x) => input[x];
 
@@ -172,14 +172,15 @@ namespace qutum.parser
 		public IEnumerable<byte> Keys(string text) => text.Select(k => (byte)k);
 	}
 
-	class BootScan : ScanStr
+	sealed class BootScan : ScanStr
 	{
 		public BootScan(string input) : base(input) { }
 
 		// for boot grammar
-		public override bool Is(char key)
+		public override bool Is(char key) => Is(input[loc], key);
+
+		public override bool Is(char t, char key)
 		{
-			char t = input[loc];
 			return key switch
 			{
 				'S' => t == ' ' || t == '\t', // space

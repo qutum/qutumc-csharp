@@ -19,13 +19,13 @@ namespace qutum.parser
 	{
 		public N name;
 		public int from, to; // from token index to index excluded
-		public int err; // no error: 0, step break: > 0, recovered: -1
-		public object expect; // for error: step expected, Alt hint/name, or K
+		public int err; // no error: 0, error: -1, error step: > 0, recovered -step: < -1
+		public object info; // error Token, expected Alt hint/name or K, or recovered K
 		public string dump;
 
 		public override string ToString()
 		{
-			return $"{from}:{to}{(err == 0 ? "" : err > 0 ? "!" : "!!")} {dump ?? expect ?? name}";
+			return $"{from}:{to}{(err == 0 ? "" : err < -1 ? "!" + err : "!")} {dump ?? info ?? name}";
 		}
 
 		public override string ToString(object extra)
@@ -33,7 +33,7 @@ namespace qutum.parser
 			if (!(extra is Func<int, int, (int, int, int, int)> loc))
 				return ToString();
 			var (fl, fc, tl, tc) = loc(from, to);
-			return $"{fl}.{fc}:{tl}.{tc}{(err == 0 ? "" : err > 0 ? "!" : "!!")} {dump ?? expect ?? name}";
+			return $"{fl}.{fc}:{tl}.{tc}{(err == 0 ? "" : err > 0 ? "!" : "!!")} {dump ?? info ?? name}";
 		}
 	}
 
@@ -106,7 +106,9 @@ namespace qutum.parser
 			internal int prev; // complete or option: >=0, predict: >=-1, shift: see code, repeat: kept
 			internal int tail; // Alt: >=0, predict: -1, shift: -2, option: -3, repeat: kept, recovery: -4
 
-			public override string ToString() => $"{from}:{to}#{step} {a}";
+			public override string ToString()
+				=> $"{from}:{to}{(a.s[step].p != null ? "'" : "#")}{step}" +
+				$"{(tail >= 0 ? "^" : tail == -1 ? "p" : tail == -2 ? "s" : tail == -3 ? "?" : "r")} {a}";
 		}
 
 		ParserBase(Prod start) { this.start = start; reck = Array.Empty<K>(); }
@@ -121,7 +123,10 @@ namespace qutum.parser
 			matchn = 0;
 			locs.Clear();
 			if (recs != null)
-				t.AddSub(recs);
+				if (m >= 0)
+					t.AddNextSub(recs);
+				else
+					t = recs.head.Remove().AddNextSub(recs);
 			return t;
 		}
 
@@ -177,7 +182,6 @@ namespace qutum.parser
 				if (Recover(true))
 					goto Loop;
 			}
-			recs = null;
 			return -1;
 		}
 
@@ -261,7 +265,7 @@ namespace qutum.parser
 						var m = matchs[x]; var y = m.step;
 						if (y > 0 && (m.a.reck & 1 << r) != 0)
 							for (object v; (v = m.a.s[y++].p) != null;)
-								if (v is K k && scan.Is(reck[r], k)) {
+								if (v is K k && scan.Is(k, reck[r])) {
 									Add(m.a, m.from, m.to, y, x, -4);
 									goto Rec;
 								}
@@ -282,8 +286,13 @@ namespace qutum.parser
 			for (var p = m; p.tail != -1; p = matchs[p.prev])
 				if (p.tail >= 0)
 					Accepted(p.tail, t);
-				else if (p.tail == -4)
-					t.AddHead(new Tr { name = default, from = p.from, to = p.to, err = -1 });
+				else if (p.tail == -4) {
+					Debug.Assert(p.a == m.a);
+					t.AddHead(new Tr {
+						name = p.a.name, from = p.from, to = p.to, err = -p.step,
+						info = (K)p.a.s[p.step - 1].p
+					});
+				}
 			if (up != null && up != t)
 				up.AddHead(t);
 			if (New != null)
@@ -295,8 +304,8 @@ namespace qutum.parser
 		{
 			int from = locs[loc] < matchn ? loc : loc - 1, x = locs[from];
 			var t = new Tr {
-				name = default, from = from, to = loc, err = 1,
-				dump = treeDump > 0 ? Dump(scan.Tokens(0, loc)) : null
+				name = start.name, from = from, to = loc, err = -1,
+				info = from < loc ? (object)scan.Token(from) : null
 			};
 			var errs = new bool[matchn];
 			for (int y = matchn - 1, z; (z = y) >= x; y--) {
@@ -308,10 +317,11 @@ namespace qutum.parser
 								((int)s.q & 1) != 0 && (treeExpect == 1 || s.p is K)) {
 							var e = s.p is Prod p ? p.alts[0].hint ?? (object)p.name : s.p;
 							var d = treeDump <= 0 ? m.a.hint
+								: treeDump <= 2 ? $"{Esc(e)} expected by {m.a.hint}"
 								: $"{Esc(e)} expected by {m.a.hint}!{m.step} {Dump(m, true)}";
 							t.AddHead(new Tr {
 								name = m.a.name, from = m.from, to = m.to,
-								err = m.step, expect = e, dump = d
+								err = m.step, info = e, dump = d
 							});
 						}
 					}
@@ -455,7 +465,7 @@ namespace qutum.parser
 						.Where(v => !(v.p is Qua))
 						.ToArray();
 					var rk = (byte)reck.Select((r, x) =>
-						z.Any(v => v is K k && scan.Is(r, k)) ? 1 << x : 0).Sum();
+						z.Any(v => v is K k && scan.Is(k, r)) ? 1 << x : 0).Sum();
 					return new Alt {
 						name = prod.name, s = s, reck = rk
 					};

@@ -75,7 +75,7 @@ namespace qutum.parser
 
 		public sealed override bool Is(K key) => Is(Token().key, key);
 
-		public override bool Is(K key1, K key) => Eq.Equals(key1, key);
+		public override bool Is(K testee, K key) => Eq.Equals(testee, key);
 
 		public override IEnumerable<K> Keys(string text) => new[] { Enum.Parse<K>(text) };
 
@@ -191,7 +191,7 @@ namespace qutum.parser
 
 		public abstract bool Is(K key);
 
-		public abstract bool Is(K key1, K key);
+		public abstract bool Is(K key, K testee);
 
 		public T Token(int x) => x < tokenn ? tokens[x] : throw new IndexOutOfRangeException();
 

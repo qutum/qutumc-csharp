@@ -27,11 +27,12 @@ namespace qutum
 	{
 		public T up, prev, next, head, tail;
 
+		// add sub and all sub.next after tail
 		public T Add(T sub)
 		{
 			if (sub == null)
 				return (T)this;
-			Debug.Assert(sub.up == null);
+			Debug.Assert(sub.up == null && sub.prev == null);
 			var end = sub;
 			for (end.up = (T)this; end.next != null; end.up = (T)this)
 				end = end.next;
@@ -43,11 +44,12 @@ namespace qutum
 			return (T)this;
 		}
 
+		// add sub and all sub.next before head
 		public T AddHead(T sub)
 		{
 			if (sub == null)
 				return (T)this;
-			Debug.Assert(sub.up == null);
+			Debug.Assert(sub.up == null && sub.prev == null);
 			var end = sub;
 			for (end.up = (T)this; end.next != null; end.up = (T)this)
 				end = end.next;
@@ -59,6 +61,18 @@ namespace qutum
 			return (T)this;
 		}
 
+		// add subs of t after tail
+		public T AddSub(T t)
+		{
+			if (t == null || t.head == null)
+				return (T)this;
+			var x = t.head;
+			t.head = t.tail = null;
+			x.up = null;
+			return Add(x);
+		}
+
+		// add sub and all sub.next after last next
 		public T AddNext(T next)
 		{
 			if (next == null)
@@ -71,27 +85,36 @@ namespace qutum
 			return (T)this;
 		}
 
-		public T AddSub(T t)
+		// add subs of t after last next
+		public T AddNextSub(T t)
 		{
-			if (t == null)
+			if (t == null || t.head == null)
 				return (T)this;
+			Debug.Assert(up == null);
+			var end = (T)this;
+			while (end.next != null)
+				end = end.next;
 			var x = t.head;
-			x.up = null;
 			t.head = t.tail = null;
-			return Add(x);
+			(x.prev = end).next = x;
+			for (x.up = null; x.next != null; x.up = null)
+				x = x.next;
+			return (T)this;
 		}
 
+		// remove self from up
 		public T Remove(bool clear = true)
 		{
 			if (prev != null)
 				prev.next = next;
 			if (next != null)
 				next.prev = prev;
-			if (up != null && up.head == this)
+			if (up?.head == this)
 				up.head = next;
-			if (up != null && up.tail == this)
+			if (up?.tail == this)
 				up.tail = prev;
-			if (clear) up = prev = next = null;
+			if (clear)
+				up = prev = next = null;
 			return (T)this;
 		}
 
@@ -113,6 +136,9 @@ namespace qutum
 					"| "))
 					t.Dump(extra);
 			}
+			if (up == null && prev == null)
+				for (var t = next; t != null; t = t.next)
+					t.Dump(extra);
 			return (T)this;
 		}
 
@@ -121,6 +147,7 @@ namespace qutum
 
 		public virtual string ToString(object extra) => "dump";
 
+		// enumerate subs
 		public IEnumerator<T> GetEnumerator()
 		{
 			for (var x = head; x != null; x = x.next)
