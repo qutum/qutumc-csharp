@@ -19,13 +19,13 @@ namespace qutum.parser
 	{
 		public N name;
 		public int from, to; // from token index to index excluded
-		public int err; // no error: 0, error: -1, error step: > 0, recovered -step: < -1
+		public int err; // no error: 0, error: -1, error step: > 0, recovered ~step: < -1
 		public object info; // error Token, expected Alt hint/name or K, or recovered K
 		public string dump;
 
 		public override string ToString()
 		{
-			return $"{from}:{to}{(err == 0 ? "" : err < -1 ? "!" + err : "!")} {dump ?? info ?? name}";
+			return $"{from}:{to}{(err == 0 ? "" : err < -1 ? "" + err : "!")} {dump ?? info ?? name}";
 		}
 
 		public override string ToString(object extra)
@@ -33,7 +33,7 @@ namespace qutum.parser
 			if (!(extra is Func<int, int, (int, int, int, int)> loc))
 				return ToString();
 			var (fl, fc, tl, tc) = loc(from, to);
-			return $"{fl}.{fc}:{tl}.{tc}{(err == 0 ? "" : err > 0 ? "!" : "!!")} {dump ?? info ?? name}";
+			return $"{fl}.{fc}:{tl}.{tc}{(err == 0 ? "" : err < -1 ? "" + err : "!")} {dump ?? info ?? name}";
 		}
 	}
 
@@ -72,7 +72,7 @@ namespace qutum.parser
 			internal Con[] s;
 			internal sbyte greedy; // parser.greedy:0, greedy: 1, back greedy: -1
 			internal byte reck; // bit-or of reck index
-			internal sbyte keep; // parser.treeKeep: 0, thru: -1, keep: 1
+			internal sbyte keep; // parser.keep: 0, thru: -1, keep: 1
 			internal string hint;
 
 			public override string ToString()
@@ -85,7 +85,7 @@ namespace qutum.parser
 		}
 
 		readonly Prod start;
-		readonly K[] reck;
+		readonly K[] reck; // recovery K, recovery matches which step > 0
 		Match[] matchs = new Match[16384];
 		int matchn, completen;
 		readonly List<int> locs = new List<int>(); // loc to match index
@@ -94,10 +94,10 @@ namespace qutum.parser
 		internal Sc scan;
 		public bool greedy = false; // for any Alt eg. S=AB A=1|12 B=23|2  gready: (12)3  back greedy: 1(23)
 		public int recovery = 10; // no recovery: 0, how many times to recover at eof: > 0
-		public bool treeKeep = true;
-		public int treeDump = 0; // no: 0, tokens for tree leaf: 1, tokens: 2, tokens and Alt: 3
-		public int treeExpect = 1; // One or More K: 0, One or More: 1, all: 2
-		public Func<object, string> treeDumper = null;
+		public bool keep = true;
+		public int dump = 0; // no: 0, tokens for tree leaf: 1, tokens: 2, tokens and Alt: 3
+		public int errExpect = 2; // hint only: 0, and One or More K: 1, and One or More: 2, all: 3
+		public Func<object, string> dumper = null;
 
 		struct Match
 		{
@@ -120,13 +120,14 @@ namespace qutum.parser
 		{
 			int m = Earley(out Tr recs, recovery);
 			Tr t = m >= 0 ? Accepted(m, null) : Rejected();
-			matchn = 0;
-			locs.Clear();
 			if (recs != null)
 				if (m >= 0)
 					t.AddNextSub(recs);
 				else
 					t = recs.head.Remove().AddNextSub(recs);
+			Array.Fill(matchs, default, 0, matchn);
+			matchn = 0;
+			locs.Clear();
 			return t;
 		}
 
@@ -134,6 +135,7 @@ namespace qutum.parser
 		{
 			bool gre = greedy; greedy = false;
 			int m = Earley(out _, 0); greedy = gre;
+			Array.Fill(matchs, default, 0, matchn);
 			matchn = 0;
 			locs.Clear();
 			return m >= 0;
@@ -280,7 +282,7 @@ namespace qutum.parser
 			var m = matchs[match];
 			if (m.from == m.to && m.step == 0 && m.a.s.Length > 1)
 				return null;
-			Tr t = (m.a.keep == 0 ? treeKeep : m.a.keep > 0) ? null : up, New = null;
+			Tr t = (m.a.keep == 0 ? keep : m.a.keep > 0) ? null : up, New = null;
 			if (t == null)
 				t = New = new Tr { name = m.a.name, from = m.from, to = m.to };
 			for (var p = m; p.tail != -1; p = matchs[p.prev])
@@ -310,23 +312,28 @@ namespace qutum.parser
 			var errs = new bool[matchn];
 			for (int y = matchn - 1, z; (z = y) >= x; y--) {
 			Prev: var m = matchs[z]; var s = m.a.s[m.step];
-				if (s.p != null && !errs[z])
-					if (m.step > 0) {
-						errs[z] = true;
-						if (treeExpect >= 2 ||
-								((int)s.q & 1) != 0 && (treeExpect == 1 || s.p is K)) {
-							var e = s.p is Prod p ? p.alts[0].hint ?? (object)p.name : s.p;
-							var d = treeDump <= 0 ? m.a.hint
-								: treeDump <= 2 ? $"{Esc(e)} expected by {m.a.hint}"
-								: $"{Esc(e)} expected by {m.a.hint}!{m.step} {Dump(m, true)}";
-							t.AddHead(new Tr {
-								name = m.a.name, from = m.from, to = m.to,
-								err = m.step, info = e, dump = d
-							});
-						}
-					}
-					else if ((z = m.prev) >= 0)
+				if (s.p == null || errs[z])
+					continue;
+				if (m.step == 0)
+					if ((z = m.prev) >= 0)
 						goto Prev;
+					else
+						continue;
+				errs[z] = true;
+				var p = s.p as Prod;
+				if (errExpect >= 3 || p?.alts[0].hint != null ||
+						((int)s.q & 1) != 0 &&
+							(errExpect == 2 || errExpect == 1 && s.p is K)) {
+					var e = p != null ? p.alts[0].hint ?? (object)p.name : s.p;
+					var d = m.a.hint ?? m.a.name.ToString();
+					d = dump <= 0 ? d
+						: dump <= 2 ? $"{Esc(e)} expected by {d}"
+						: $"{Esc(e)} expected by {d}!{m.step} {Dump(m, true)}";
+					t.AddHead(new Tr {
+						name = m.a.name, from = m.from, to = m.to,
+						err = m.step, info = e, dump = d
+					});
+				}
 			}
 			return t;
 		}
@@ -337,10 +344,11 @@ namespace qutum.parser
 
 		string Dump(Match m, bool leaf)
 		{
-			return treeDump <= 0 || treeDump == 1 && !leaf ? null :
-				$"{(treeDump <= 2 ? m.a.name.ToString() : m.a.ToString())} :: {Dump(scan.Tokens(m.from, m.to))}";
+			return dump <= 0 || dump == 1 && !leaf ? null :
+				(dump <= 2 ? m.a.hint ?? m.a.name.ToString() : m.a.ToString())
+				+ $" :: {Dump(scan.Tokens(m.from, m.to))}";
 		}
-		string Dump(object v) => treeDumper?.Invoke(v) ?? Esc(v.ToString());
+		string Dump(object v) => dumper?.Invoke(v) ?? Esc(v.ToString());
 		static string Esc(object v)
 		{
 			return v.ToString().Replace("\n", "\\n").Replace("\r", "\\r").Replace("\t", "\\t");
@@ -404,7 +412,7 @@ namespace qutum.parser
 				.SelectMany(x => prods[x].alts)))
 				c.keep = 1;
 			boot = new ParserChar(prods["gram"]) {
-				greedy = false, treeKeep = false, treeDump = 0
+				greedy = false, keep = false, dump = 0
 			};
 		}
 
@@ -415,8 +423,8 @@ namespace qutum.parser
 			var top = boot.Load(bscan).Parse();
 			if (top.err != 0) {
 				using var bscan2 = new BootScan(gram);
-				var dump = boot.treeDump; boot.treeDump = 3;
-				boot.Load(bscan2).Parse().Dump(); boot.treeDump = dump;
+				var dump = boot.dump; boot.dump = 3;
+				boot.Load(bscan2).Parse().Dump(); boot.dump = dump;
 				var e = new Exception(); e.Data["err"] = top;
 				throw e;
 			}

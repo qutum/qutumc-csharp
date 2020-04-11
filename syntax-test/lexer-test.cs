@@ -27,7 +27,8 @@ namespace qutum.test.syntax
 		void Check(string input, string s)
 		{
 			env.WriteLine(input);
-			l.errMerge = true;
+			l.mergeErr = true;
+			l.eof = false;
 			using var __ = l.Load(new ScanByte(Encoding.UTF8.GetBytes(input)));
 			while (l.Next())
 				;

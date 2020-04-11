@@ -5,7 +5,6 @@
 // http://qutum.com
 //
 
-#pragma warning disable CS0649
 using qutum.parser;
 using System;
 using System.Text;
@@ -14,7 +13,7 @@ namespace qutum.syntax
 {
 	enum Lex : sbyte
 	{
-		CONTENT = -2, // lexes for contents, 10b
+		EFFECT = -2, // effective lexes, 10b
 
 		SP = 1, COMM, COMMB, EOL, IND, DED,
 
@@ -92,8 +91,9 @@ namespace qutum.syntax
 		int nn, nf, ne; // end of each number part
 		int indent; // indent count of last line
 		bool crlf; // \r\n found
-		public bool allValue; // set all tokens value
-		public bool allSpace; // keep all spaces and comments
+		public bool eof = true; // insert eol at scan end
+		public bool allValue = false; // set all tokens value
+		public bool allSpace = false; // keep all spaces and comments
 
 		public override void Dispose() { base.Dispose(); indent = 0; crlf = false; }
 
@@ -108,9 +108,13 @@ namespace qutum.syntax
 
 		protected override void Error(Lex key, int part, bool end, int b, int f, int to)
 		{
-			if (part < 0 && LineStart(f)) // EOL at scan end
-				while (indent > 0) // clear indents
-					Add(Lex.DED, f, f, --indent);
+			if (part < 0) {
+				if (eof && !LineStart(f))
+					Add(Lex.EOL, f, f, null);
+				if (eof || LineStart(f)) // EOL at scan end
+					while (indent > 0) // clear indents
+						Add(Lex.DED, f, f, --indent);
+			}
 			base.Error(key, part, end, b, f, to);
 		}
 
@@ -156,7 +160,7 @@ namespace qutum.syntax
 				else if (allSpace)
 					Add(key, from, to, null); // SP
 				from = -1;
-				return; // already make tokens
+				return; // tokens already made
 
 			case Lex.EOL:
 				if (!crlf && to == f + 2) { // \r\n found
@@ -335,7 +339,7 @@ namespace qutum.syntax
 		{
 			if (testee == key) return true;
 			// kind contains lex
-			return key < 0 && testee > Lex.DED && (Lex.CONTENT & key) == Lex.CONTENT;
+			return key < 0 && testee > Lex.DED && (Lex.EFFECT & key) == Lex.EFFECT;
 		}
 	}
 }

@@ -27,7 +27,7 @@ namespace qutum.parser
 		public Lexer(string grammar) : base(grammar) { }
 
 		protected int from = -1;
-		public bool errMerge = false; // add error token into corrent tokens
+		public bool mergeErr = false; // add error token into corrent tokens
 		public readonly List<Token<K>> errs = new List<Token<K>>();
 
 		public override IDisposable Load(Scan<byte, byte> scan)
@@ -67,7 +67,7 @@ namespace qutum.parser
 			var e = new Token<K> {
 				key = key, from = f, to = to, value = value, err = ~tokenn
 			};
-			if (errMerge) Add(e);
+			if (mergeErr) Add(e);
 			else errs.Add(e);
 		}
 
@@ -81,8 +81,10 @@ namespace qutum.parser
 
 		public (int fromL, int fromC, int toL, int toC) LineCol(int from, int to)
 		{
-			var (fl, fc) = LineCol(Token(from).from);
-			var (tl, tc) = LineCol(Token(to - 1).to - 1);
+			if (tokenn == 0)
+				return (1, 1, 1, 1);
+			var (fl, fc) = LineCol(from < tokenn ? Token(from).from : Token(from - 1).to);
+			var (tl, tc) = LineCol(Math.Max(Token(to - 1).from, Token(to - 1).to - 1));
 			return (fl, fc, tl, tc);
 		}
 	}
@@ -124,7 +126,11 @@ namespace qutum.parser
 		}
 
 		// lexer results keep available
-		public virtual void Dispose() { scan.Dispose(); scan = default; }
+		public virtual void Dispose()
+		{
+			scan.Dispose(); scan = default;
+			Array.Fill(tokens, default, 0, tokenn);
+		}
 
 		public bool Next()
 		{
@@ -237,7 +243,7 @@ namespace qutum.parser
 			range = R | R-R | \\E =+
 			eol   = S* comm? \r?\n S*
 			comm  = \=\= V*") {
-			greedy = false, treeKeep = false, treeDump = 0
+			greedy = false, keep = false, dump = 0
 		};
 
 		public LexerBase(string gram)
@@ -246,8 +252,8 @@ namespace qutum.parser
 			var top = boot.Load(bscan).Parse();
 			if (top.err != 0) {
 				using var bscan2 = new BootScan(gram);
-				var dump = boot.treeDump; boot.treeDump = 3;
-				boot.Load(bscan2).Parse().Dump(); boot.treeDump = dump;
+				var dump = boot.dump; boot.dump = 3;
+				boot.Load(bscan2).Parse().Dump(); boot.dump = dump;
 				var e = new Exception(); e.Data["err"] = top;
 				throw e;
 			}
@@ -323,7 +329,7 @@ namespace qutum.parser
 					aus = Aus;
 				});
 			}
-			if (boot.treeDump > 0) BootDump(start, "");
+			if (boot.dump > 0) BootDump(start, "");
 		}
 
 		void BootByte(string gram, ref Unit u, K k, int part, Unit ok, Unit err,
