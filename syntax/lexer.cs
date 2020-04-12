@@ -89,13 +89,49 @@ namespace qutum.syntax
 		byte[] bs = new byte[4096]; // buffer used for some tokens
 		int bn;
 		int nn, nf, ne; // end of each number part
-		int indent; // indent count of last line
+		int indent; // indent count of current line
+		int indentNew = -1; // indent count at line start, -1 not line start
+		int indentFrom, indentTo;
 		bool crlf; // \r\n found
 		public bool eof = true; // insert eol at scan end
 		public bool allValue = false; // set all tokens value
-		public bool allSpace = false; // keep all spaces and comments
+		public bool allBlank = false; // keep all spaces, comments and empty lines
 
-		public override void Dispose() { base.Dispose(); indent = 0; crlf = false; }
+		public override void Dispose()
+		{
+			base.Dispose();
+			indent = indentNew = 0; crlf = false;
+		}
+
+		void Indent()
+		{
+			if (indentNew >= 0) {
+				while (indentNew > indent)
+					base.Add(Lex.IND, indentFrom, indentTo, ++indent); // more indents
+				while (indentNew < indent)
+					base.Add(Lex.DED, indentFrom, indentTo, --indent); // less indents
+			}
+			indentNew = -1;
+		}
+
+		protected override void Add(Lex key, int f, int to, object value)
+		{
+			Indent();
+			base.Add(key, f, to, value);
+		}
+
+		protected override void Error(Lex key, int part, bool end, int b, int f, int to)
+		{
+			base.Error(key, part, end, b, f, to);
+			if (part < 0) { // scan end
+				end = true;
+				from = -1;
+				if (eof)
+					Token(Lex.EOL, 1, ref end, f, f);
+				if (eof || allBlank)
+					Indent();
+			}
+		}
 
 		int ScanBs(int f, int to, int x)
 		{
@@ -106,72 +142,56 @@ namespace qutum.syntax
 			return n;
 		}
 
-		protected override void Error(Lex key, int part, bool end, int b, int f, int to)
-		{
-			if (part < 0) {
-				if (eof && !LineStart(f))
-					Add(Lex.EOL, f, f, null);
-				if (eof || LineStart(f)) // EOL at scan end
-					while (indent > 0) // clear indents
-						Add(Lex.DED, f, f, --indent);
-			}
-			base.Error(key, part, end, b, f, to);
-		}
-
-		bool LineStart(int f) => tokenn == 0 // scan start
-			|| tokens[tokenn - 1].key == Lex.EOL && tokens[tokenn - 1].to == f; // follow a EOL token
-
 		protected override void Token(Lex key, int part, ref bool end, int f, int to)
 		{
 			object v = null;
 			if (from < 0) {
 				from = f; bn = 0;
-				if (key != Lex.SP && LineStart(f)) // no indent at line start
-					while (indent > 0) // clear indents
-						Add(Lex.DED, f, f, --indent);
 			}
 			switch (key) {
 
 			case Lex.SP:
 				if (part == 1) {
-					// line start, save the byte to check indents
-					bs[0] = LineStart(f) ? scan.Token(f) : (byte)0;
+					bs[0] = 0;
+					if (f < 1 || scan.Token(f - 1) == '\n')
+						bs[0] = scan.Token(f); // line start, save the byte to check indents
 					return;
 				}
 				if (bs[0] != 0) // for line start
 					if (f < to && (bs[1] = scan.Token(f)) != bs[0]) { // mix \s and \t
-						bs[0] = 0; // error, not line start
+						bs[0] = 0; // to be not line start
 						AddErr(Lex.SP, f, to, "do not mix tabs and spaces for indent");
 					}
 					else if (bs[0] == ' ' && (to - from & 3) != 0) { // check \s width of 4
-						bs[0] = 0; // error, not line start
+						bs[0] = 0; // to be not line start
 						AddErr(Lex.SP, f, to, $"{to - from + 3 >> 2 << 2} spaces expected");
 					}
 				if (!end)
 					return;
 				if (bs[0] != 0) { // for line start
-					var ind = to - from; // indent count
-					if (bs[0] == ' ') ind = ind + 2 >> 2;
-					while (ind > indent)
-						Add(Lex.IND, from, to, ++indent); // more indents
-					while (ind < indent)
-						Add(Lex.DED, from, to, --indent); // less indents
+					indentNew = to - from; // indent count
+					if (bs[0] == ' ') indentNew = indentNew + 2 >> 2;
+					indentFrom = from; indentTo = to;
 				}
-				else if (allSpace)
+				else if (allBlank)
 					Add(key, from, to, null); // SP
 				from = -1;
-				return; // tokens already made
+				goto End; // tokens already made
 
 			case Lex.EOL:
 				if (!crlf && to == f + 2) { // \r\n found
 					AddErr(key, f, to, @"use LF \n eol instead of CRLF \r\n");
 					crlf = true;
 				}
-				break;
+				if (allBlank
+					|| tokenn > 0 && tokens[tokenn - 1].key != Lex.EOL) // not empty line
+					Add(key, from, to, null);
+				indentNew = 0; // EOL or clear indents of empty lines
+				goto End;
 
 			case Lex.COMM:
-				if (!allSpace)
-					return;
+				if (!allBlank)
+					goto End;
 				break;
 
 			case Lex.COMMB:
@@ -182,8 +202,8 @@ namespace qutum.syntax
 				if (to - f != bn - from || scan.Token(f) != '#') // check end part length
 					return;
 				end = true;
-				if (!allSpace)
-					return;
+				if (!allBlank)
+					goto End;
 				key = Lex.COMM; v = nameof(Lex.COMMB); // as COMM
 				break;
 
@@ -203,10 +223,11 @@ namespace qutum.syntax
 					return;
 				if (end && scan.Token(f) != (key == Lex.STR ? '"' : '`')) { // \n found
 					Error(key, part, true, (byte)'\n', f, to);
-					return;
+					goto End;
 				}
 				if (end) // " or ` as end
 					break;
+				// TODO split words
 				ScanBs(f, to, bn);
 				if (bs[bn] != '\\')
 					bn += to - f;
@@ -226,6 +247,7 @@ namespace qutum.syntax
 				return; // inside string or word
 
 			case Lex.WORD:
+				// TODO check length
 				bn = ScanBs(from, to, 0);
 				break;
 
@@ -251,10 +273,10 @@ namespace qutum.syntax
 					bn = ScanBs(from, to, 0);
 				break;
 			}
-			if (end) {
-				Add(key, from, to, v ?? (bn > 0 ? Encoding.UTF8.GetString(bs, 0, bn) : null));
-				from = -1;
-			}
+			if (!end)
+				return;
+			Add(key, from, to, v ?? (bn > 0 ? Encoding.UTF8.GetString(bs, 0, bn) : null));
+		End: from = -1;
 		}
 
 		int Hex(int x) => (bs[x] & 15) + (bs[x] < 'A' ? 0 : 9);

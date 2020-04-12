@@ -22,13 +22,12 @@ namespace qutum.test.syntax
 
 		public void Dispose() => env.Dispose();
 
-		readonly Lexer l = new Lexer();
+		readonly Lexer l = new Lexer { eof = false };
 
 		void Check(string input, string s)
 		{
 			env.WriteLine(input);
 			l.mergeErr = true;
-			l.eof = false;
 			using var __ = l.Load(new ScanByte(Encoding.UTF8.GetBytes(input)));
 			while (l.Next())
 				;
@@ -39,20 +38,22 @@ namespace qutum.test.syntax
 
 		void CheckSp(string input, string s)
 		{
-			l.allSpace = true;
+			l.allBlank = true;
 			try {
 				Check(input, s);
 			}
 			finally {
-				l.allSpace = false;
+				l.allBlank = false;
 			}
 		}
 
 		[TestMethod]
 		public void LexComm()
 		{
-			CheckSp(@"\####\\####\ ", "COMM=COMMB SP=");
-			CheckSp(@"\### \## ###\ ###\ ab", "COMM=COMMB SP= COMM=");
+			CheckSp("\\####\\\\####\\ ", "COMM=COMMB SP=");
+			CheckSp("\\### \\## ###\\ ###\\ ab", "COMM=COMMB SP= COMM=");
+			CheckSp("\\### \\## ###\\ ###\\ \nab", "COMM=COMMB SP= COMM= EOL= WORD=ab");
+			Check("\\### \\## ###\\ ###\\ \nab", "WORD=ab");
 		}
 
 		[TestMethod]
@@ -60,34 +61,69 @@ namespace qutum.test.syntax
 		{
 			CheckSp("\\####\\\t \r\n\r\n\\####\\ \t \n",
 				@"COMM=COMMB SP= EOL!use LF \n eol instead of CRLF \r\n EOL= EOL= COMM=COMMB SP= EOL=");
+			Check("\\####\\\t \r\n\r\n\\####\\ \t \n", @"EOL!use LF \n eol instead of CRLF \r\n");
 		}
 
 		[TestMethod]
 		public void LexIndent1()
 		{
 			CheckSp("    \n\t\t\t\n\t\n    \n", "IND=1 EOL= IND=2 IND=3 EOL= DED=2 DED=1 EOL= EOL= DED=0");
+			CheckSp("\ta\n\t\t\tb\n\t\tc\nd\ne",
+				"IND=1 WORD=a EOL= IND=2 IND=3 WORD=b EOL= DED=2 WORD=c EOL= DED=1 DED=0 WORD=d EOL= WORD=e");
 		}
 
 		[TestMethod]
 		public void LexIndent2()
-		{
-			CheckSp("\n\ta\n\t\t\ta\n\t\ta\na\na",
-				"EOL= IND=1 WORD=a EOL= IND=2 IND=3 WORD=a EOL= DED=2 WORD=a EOL= DED=1 DED=0 WORD=a EOL= WORD=a");
-		}
-
-		[TestMethod]
-		public void LexIndent3()
 		{
 			CheckSp("\t\t####\n", "IND=1 IND=2 COMM= EOL= DED=1 DED=0");
 			CheckSp("\\####\\\t\t\n", "COMM=COMMB SP= EOL=");
 		}
 
 		[TestMethod]
+		public void LexIndent3()
+		{
+			Check("\n\ta\n\t\t\n\n\tb\n\t\t\t\n\t\tc\n\n\t\nd\ne",
+				"IND=1 WORD=a EOL= WORD=b EOL= IND=2 WORD=c EOL= DED=1 DED=0 WORD=d EOL= WORD=e");
+			Check("\t\t#### \n\ta \n\\####\\  b\n\t\t\\####\\\tc",
+				"IND=1 WORD=a EOL= DED=0 WORD=b EOL= IND=1 IND=2 WORD=c");
+		}
+
+		[TestMethod]
 		public void LexIndent4()
 		{
+			CheckSp("a \t", "WORD=a SP=");
 			CheckSp(" \t", "SP!do not mix tabs and spaces for indent SP=");
 			CheckSp("\t    ", "SP!do not mix tabs and spaces for indent SP=");
 			CheckSp(" ", "SP!4 spaces expected SP="); CheckSp("       ", "SP!8 spaces expected SP=");
+		}
+
+		[TestMethod]
+		public void LexEof1()
+		{
+			CheckSp("a\t", "WORD=a SP=");
+			CheckSp("\ta\t", "IND=1 WORD=a SP=");
+			CheckSp("a\n\t", "WORD=a EOL= IND=1");
+			CheckSp("\ta\n", "IND=1 WORD=a EOL= DED=0");
+			Check("a\t", "WORD=a");
+			Check("\ta\t", "IND=1 WORD=a");
+			Check("a\n\t\t\n\t", "WORD=a EOL=");
+			Check("\ta\n\t\t\n", "IND=1 WORD=a EOL=");
+		}
+
+		[TestMethod]
+		public void LexEof2()
+		{
+			l.eof = true;
+			CheckSp("a\n", "WORD=a EOL= EOL=");
+			CheckSp("a\t", "WORD=a SP= EOL=");
+			CheckSp("\ta\t", "IND=1 WORD=a SP= EOL= DED=0");
+			CheckSp("a\n\t", "WORD=a EOL= IND=1 EOL= DED=0");
+			CheckSp("\ta\n", "IND=1 WORD=a EOL= DED=0 EOL=");
+			Check("a\n", "WORD=a EOL=");
+			Check("a\t", "WORD=a EOL=");
+			Check("\ta\t", "IND=1 WORD=a EOL= DED=0");
+			Check("a\n\t\t\n\t", "WORD=a EOL=");
+			Check("\ta\n\t\t\n", "IND=1 WORD=a EOL= DED=0");
 		}
 
 		[TestMethod]
@@ -102,6 +138,8 @@ namespace qutum.test.syntax
 		{
 			Check("\"abc  def\"", "STR=abc  def");
 			Check("\"a", "STR!"); Check("\"a\nb\"", "STR!\n WORD=b STR!");
+			var s = string.Join("", Enumerable.Range(1000, 5000).ToArray());
+			CheckSp($"\"{s}\"", $"STR={s}");
 		}
 
 		[TestMethod]
@@ -147,6 +185,11 @@ namespace qutum.test.syntax
 		public void LexWord2()
 		{
 			Check("a..", "WORD=a.."); Check("A1.b_..c.d'__.__", "WORD=A1.b_..c.d APO= WORD=__.__");
+		}
+
+		[TestMethod]
+		public void LexWords()
+		{
 			Check("`a", "WORDS!"); Check("`a\nb`", "WORDS!\n WORD=b WORDS!");
 			Check("`abc  def`", "WORDS=abc  def");
 			Check(@"`\tabc\r\ndef`", "WORDS=\tabc\r\ndef");

@@ -17,7 +17,7 @@ namespace qutum.parser
 		public K key;
 		public object value;
 		public int from, to; // from input index to index excluded, scan.Loc()
-		public int err; // ~token index this error found before
+		public int err; // token ~index this error found before
 
 		public override string ToString() => $"{key}{(err < 0 ? "!" : "=")}{value}";
 	}
@@ -55,18 +55,14 @@ namespace qutum.parser
 			if (end) from = -1;
 		}
 
-		protected void Add(K key, int f, int to, object value)
+		protected virtual void Add(K key, int f, int to, object value)
 		{
-			Add(new Token<K> {
-				key = key, from = f, to = to, value = value
-			});
+			Add(new Token<K> { key = key, from = f, to = to, value = value });
 		}
 
 		protected void AddErr(K key, int f, int to, object value)
 		{
-			var e = new Token<K> {
-				key = key, from = f, to = to, value = value, err = ~tokenn
-			};
+			var e = new Token<K> { key = key, from = f, to = to, value = value, err = ~tokenn };
 			if (mergeErr) Add(e);
 			else errs.Add(e);
 		}
@@ -83,8 +79,17 @@ namespace qutum.parser
 		{
 			if (tokenn == 0)
 				return (1, 1, 1, 1);
-			var (fl, fc) = LineCol(from < tokenn ? Token(from).from : Token(from - 1).to);
-			var (tl, tc) = LineCol(Math.Max(Token(to - 1).from, Token(to - 1).to - 1));
+			int f, t;
+			if (from >= 0) {
+				f = from < tokenn ? Token(from).from : Token(from - 1).to;
+				t = from < to ? Token(to - 1).to - 1 : f;
+			}
+			else {
+				from = ~from; to = ~to;
+				f = from < errs.Count ? errs[from].from : errs[from - 1].to;
+				t = from < to ? errs[to - 1].to - 1 : f;
+			}
+			var (fl, fc) = LineCol(f); var (tl, tc) = LineCol(t);
 			return (fl, fc, tl, tc);
 		}
 	}
