@@ -389,7 +389,7 @@ namespace qutum.test.parser
 		[TestMethod]
 		public void Recovery1()
 		{
-			var p = new ParserStr("|=),\n S=A|S,A? \n A=M|A\\+M \n M=V|M\\*V \n V=0|1|2|3|4|5") {
+			var p = new ParserStr("S=A|S,A? =|\n A=M|A\\+M \n M=V|M\\*V \n V=0|1|2|3|4|5") {
 				dump = 3
 			};
 			p.Parse("0,").H("S").H("A").H("M").H("V").N0().N0().N0().N0();
@@ -407,7 +407,7 @@ namespace qutum.test.parser
 		[TestMethod]
 		public void Recovery2()
 		{
-			var p = new ParserStr("|=),\n S=A|S,A? \n A=M|A\\+M \n M=V|M\\*V \n V=0|1|2|3|4|5") {
+			var p = new ParserStr("S=A|S,A? =|\n A=M|A\\+M \n M=V|M\\*V \n V=0|1|2|3|4|5") {
 				dump = 3
 			};
 			var t = p.Parse("0+,1*,2#");
@@ -435,7 +435,7 @@ namespace qutum.test.parser
 		[TestMethod]
 		public void Recovery3()
 		{
-			var p = new ParserStr("|=),\n S=A|S,A? =*\n A=M|A\\+M \n M=V|M\\*V \n V=(A)|N \n N=0|1|2|3|4|5") {
+			var p = new ParserStr("S=A|S,A? =*|\n A=M|A\\+M \n M=V|M\\*V \n V=(A)|N =|\n N=0|1|2|3|4|5") {
 				dump = 3
 			};
 			var t = p.Parse("()");
@@ -477,7 +477,7 @@ namespace qutum.test.parser
 		[TestMethod]
 		public void Recovery4()
 		{
-			var p = new ParserStr("|=)}\n P=S+ \n S=V|{S+} =*\n V=(N)|N \n N=0|1|2|3|4|5") {
+			var p = new ParserStr("P=S+ \n S=V|{S+} =*|\n V=(N)|N =|\n N=0|1|2|3|4|5") {
 				dump = 3
 			};
 			var t = p.Parse("{()");

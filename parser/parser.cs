@@ -18,7 +18,7 @@ namespace qutum.parser
 	public class Tree<N, T> : LinkTree<T> where T : Tree<N, T>
 	{
 		public N name;
-		public int from, to; // from token index to index excluded
+		public int from, to; // from token index to index excluded, for error tokens may < 0
 		public int err; // no error: 0, error: -1, error step: > 0, recovered ~step: < -1
 		public object info; // error Token, expected Alt hint/name or K, or recovered K
 		public string dump;
@@ -71,8 +71,8 @@ namespace qutum.parser
 			internal N name;
 			internal Con[] s;
 			internal sbyte greedy; // parser.greedy:0, greedy: 1, back greedy: -1
-			internal byte reck; // bit-or of reck index
 			internal sbyte keep; // parser.keep: 0, thru: -1, keep: 1
+			internal int recover; // no: -1, recover: Con index > 0
 			internal string hint;
 
 			public override string ToString()
@@ -85,12 +85,12 @@ namespace qutum.parser
 		}
 
 		readonly Prod start;
-		readonly K[] reck; // recovery K, recovery matches which step > 0
 		Match[] matchs = new Match[16384];
 		int matchn, completen;
-		readonly List<int> locs = new List<int>(); // loc to match index
-		int loc; // current token loc
-		internal int largest, largestLoc;
+		readonly List<int> locs = new List<int>(); // matchn before each token
+		int loc; // next token index
+		readonly List<K> reck = new List<K>();
+		internal int largest, largestLoc; // largest number of new matches before each token, and the loc
 		internal Sc scan;
 		public bool greedy = false; // for any Alt eg. S=AB A=1|12 B=23|2  gready: (12)3  back greedy: 1(23)
 		public int recovery = 10; // no recovery: 0, how many times to recover at eof: > 0
@@ -111,7 +111,7 @@ namespace qutum.parser
 				$"{(tail >= 0 ? "^" : tail == -1 ? "p" : tail == -2 ? "s" : tail == -3 ? "?" : "r")} {a}";
 		}
 
-		ParserBase(Prod start) { this.start = start; reck = Array.Empty<K>(); }
+		ParserBase(Prod start) => this.start = start;
 
 		public ParserBase<K, Tk, N, Tr, Sc> Load(Sc scan) { this.scan = scan; return this; }
 
@@ -171,7 +171,7 @@ namespace qutum.parser
 				if (Eq.Equals(m.a.name, start.name) && m.from == 0 && m.a.s[m.step].p == null)
 					return x;
 			}
-			if (reck.Length > 0 && rec > 0) {
+			if (reck.Count > 0 && rec > 0) {
 				recs ??= new Tr();
 				recs.Add(Rejected());
 				if (shift == 0)
@@ -261,19 +261,18 @@ namespace qutum.parser
 
 		bool Recover(bool eof)
 		{
-			for (int r = 0; r < reck.Length; r++)
-				if (eof || scan.Is(reck[r])) {
+			foreach (var r in reck) {
+				if (eof || scan.Is(r))
 					for (int x = matchn - 1; x >= 0; x--) {
-						var m = matchs[x]; var y = m.step;
-						if (y > 0 && (m.a.reck & 1 << r) != 0)
-							for (object v; (v = m.a.s[y++].p) != null;)
-								if (v is K k && scan.Is(k, reck[r])) {
-									Add(m.a, m.from, m.to, y, x, -4);
-									goto Rec;
-								}
+						var m = matchs[x];
+						if (m.step <= m.a.recover && m.step > 0
+							&& scan.Is((K)m.a.s[m.a.recover].p, r)) {
+							Add(m.a, m.from, m.to, m.a.recover + 1, x, -4);
+							goto Rec;
+						}
 					}
 				Rec:;
-				}
+			}
 			return completen < matchn;
 		}
 
@@ -292,7 +291,8 @@ namespace qutum.parser
 					Debug.Assert(p.a == m.a);
 					t.AddHead(new Tr {
 						name = p.a.name, from = p.from, to = p.to, err = -p.step,
-						info = (K)p.a.s[p.step - 1].p
+						info = (K)p.a.s[p.step - 1].p,
+						dump = dump >= 1 ? Dump(scan.Token(p.to - 1)) : null,
 					});
 				}
 			if (up != null && up != t)
@@ -322,13 +322,13 @@ namespace qutum.parser
 				errs[z] = true;
 				var p = s.p as Prod;
 				if (errExpect >= 3 || p?.alts[0].hint != null ||
-						((int)s.q & 1) != 0 &&
+						((int)s.q & 1) > 0 &&
 							(errExpect == 2 || errExpect == 1 && s.p is K)) {
 					var e = p != null ? p.alts[0].hint ?? (object)p.name : s.p;
 					var d = m.a.hint ?? m.a.name.ToString();
 					d = dump <= 0 ? d
-						: dump <= 2 ? $"{Esc(e)} expected by {d}"
-						: $"{Esc(e)} expected by {d}!{m.step} {Dump(m, true)}";
+						: dump <= 2 ? $"{Esc(e)} expected for {d}"
+						: $"{Esc(e)} expected for {d}!{m.step} {Dump(m, true)}";
 					t.AddHead(new Tr {
 						name = m.a.name, from = m.from, to = m.to,
 						err = m.step, info = e, dump = d
@@ -362,24 +362,22 @@ namespace qutum.parser
 			var scan = new BootScan("");
 			// prod name, prod-or-key-with-qua-alt1 con1|alt2 con2  \x1 is |
 			var grammar = new Dictionary<string, string> {
-			{ "gram",  "rec? eol* prod prods* eol*" },
+			{ "gram",  "eol* prod prods* eol*" },
 			{ "prods", "eol+ prod" },
 			{ "prod",  "name S* = con* alt* hint?" },
 			{ "name",  "W+" },
 			{ "con",   "W+|sym|S+" }, // word to prod name or scan.Keys
 			{ "sym",   "Q|O+|\\ E" }, // unescaped to scan.Keys except Qua
 			{ "alt",   "ahint? \x1 S* con*" },
-			{ "hint",  "= hintg? hintk? S* hintw" },
+			{ "hint",  "= hintg? hintk? hintr? S* hintw" },
 			{ "hintg", "*" }, // hint greedy
 			{ "hintk", "+|-" }, // hint keep
+			{ "hintr", "\x1" }, // hint recover
 			{ "hintw", "H*" }, // hint words
 			{ "hinte", "eol" }, // to split prod into lines
 			{ "ahint", "hint? hinte" },
 			{ "eol",   "S* comm? \r? \n S*" },
-			{ "comm",  "= = V*" },
-			{ "rec",   "\x1 = recs+" },
-			{ "recs",  "reck|S+" },
-			{ "reck",  "W+|O+|\\ E" } }; // unescape to scan.Keys
+			{ "comm",  "= = V*" } }; // unescape to scan.Keys
 
 			// build prod
 			var prods = grammar.ToDictionary(
@@ -408,7 +406,7 @@ namespace qutum.parser
 			prods["hint"].alts[0].greedy = 1;
 			// keep these in the tree
 			foreach (var c in prods["con"].alts.Take(1) // word
-				.Concat(new[] { "prod", "alt", "name", "sym", "hintg", "hintk", "hintw", "hinte", "reck" }
+				.Concat(new[] { "prod", "alt", "name", "sym", "hintg", "hintk", "hintr", "hintw", "hinte" }
 				.SelectMany(x => prods[x].alts)))
 				c.keep = 1;
 			boot = new ParserChar(prods["gram"]) {
@@ -437,13 +435,8 @@ namespace qutum.parser
 			//     \ hintg or hintk ... hintw
 			//     \ hinte
 			//     \ word or sym ...
-			//   \ hintg or hintk ... hintw
+			//   \ hintg or hintk or hintr ... hintw
 			// \ prod ...
-			reck = top.Where(t => t.name == "reck")
-				.SelectMany(t => scan.Keys(BootScan.Unesc(gram, t.from, t.to)))
-				.ToArray();
-			if (reck.Length > 4)
-				throw new Exception("too many recovery keys");
 			var prods = top.Where(t => t.name == "prod");
 			var names = prods.ToDictionary(
 				p => p.head.dump = boot.scan.Tokens(p.head.from, p.head.to),
@@ -472,23 +465,30 @@ namespace qutum.parser
 						new Con { p = v, q = v != null && z[x + 1] is Qua r ? r : One })
 						.Where(v => !(v.p is Qua))
 						.ToArray();
-					var rk = (byte)reck.Select((r, x) =>
-						z.Any(v => v is K k && scan.Is(k, r)) ? 1 << x : 0).Sum();
-					return new Alt {
-						name = prod.name, s = s, reck = rk
-					};
+					return new Alt { name = prod.name, s = s, recover = -1 };
 				}).ToArray();
 				// build hint
 				int ax = 0;
 				p.Where(t => t.name == "alt").Append(p).Each((t, x) => {
-					sbyte g = 0, k = 0;
+					sbyte g = 0, k = 0; bool r = false;
 					foreach (var h in t) {
 						if (h.name == "hintg") g = 1;
 						if (h.name == "hintk") k = (sbyte)(gram[h.from] == '+' ? 1 : -1);
-						if (h.name == "hintw")
+						if (h.name == "hintr") r = true;
+						if (h.name == "hintw") {
 							for (var w = boot.scan.Tokens(h.from, h.to); ax <= x; ax++) {
-								az[ax].greedy = g; az[ax].keep = k; az[ax].hint = w != "" ? w : null;
+								var a = az[ax];
+								a.greedy = g; a.keep = k; a.hint = w != "" ? w : null;
+								if (r) // search Con for last index of One or More K to recover
+									for (int y = a.s.Length - 1; y > 0; y--)
+										if (a.s[y].p is K key && ((int)a.s[y].q & 1) > 0) {
+											a.recover = y;
+											if (!reck.Contains(key))
+												reck.Add(key);
+											break;
+										}
 							}
+						}
 						// each hint is for only one line
 						if (h.name == "hinte") ax = x + 1;
 					}

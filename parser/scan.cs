@@ -191,8 +191,8 @@ namespace qutum.parser
 				'B' => t < 127 && B[t],       // byte
 				'R' => t < 127 && B[t] && t != '-' && t != '^', // range
 				'Q' => t == '?' || t == '*' || t == '+',        // quantifier
-				'H' => t >= ' ' && t < 127 && t != '=' || t == '\t', // hint
-				'V' => t >= ' ' && t != 127 || t == '\t',            // comment, also utf
+				'H' => t >= ' ' && t < 127 && t != '=' && t != '|', // hint
+				'V' => t >= ' ' && t != 127 || t == '\t',           // comment, also utf
 				_ => t == key,
 			};
 		}
