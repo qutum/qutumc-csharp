@@ -10,4 +10,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)parser.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)lexer.cs" />
   </ItemGroup>
+  <ItemGroup>
+    <Content Include="$(MSBuildThisFileDirectory)doc-zh.txt" />
+  </ItemGroup>
 </Project>
