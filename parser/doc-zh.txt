@@ -11,9 +11,9 @@ qutum.parser.BootScan
 输入string，输出自举char流，支持空白、词、数字、量词、转义、utf等
 
 
-qutum.parser.Lexer
+qutum.parser.LexerBase
 
-词法解析器，输入byte流，输出token流，及行列定位，DFA算法
+词法解析器，输入byte流，行列定位，DFA算法
 
 token定义为：一个步骤或以空格分隔多个步骤
 每个步骤为一个分支，或以 | 分隔多个分支，|可以后接空格
@@ -30,12 +30,21 @@ token定义为：一个步骤或以空格分隔多个步骤
 默认字节范围为 32-126的ascii字符及\t \n \r
 转义：\s 空格 \t \n \r \d 数字 \x 十六进制 \a 字母 \u 所有字符含utf \U 128以上的utf字符
 
-qutum.parser.LexerEnum
+qutum.parser.Lexer
 
-以enum成员为token名的词法解析器
+以enum成员为token名，输出token流的词法解析器
 
+
+qutum.parser.ParserBase
+
+语法解析器，基于Earley算法，输出语法树
+支持量词、greedy串联贪婪匹配、语法树节点保留或穿透、寻找前方key或从当前位置错误恢复
+
+qutum.parser.ParserStr
+
+以ScanStr为输入的语法解析器
 
 qutum.parser.Parser
 
-语法解析器，基于Earley算法，生成语法树
-支持量词、greedy贪婪匹配、语法树节点保留或穿透、寻找前方token进行错误恢复
+指定Scan为输入的语法解析器
+
