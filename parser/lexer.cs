@@ -82,12 +82,12 @@ namespace qutum.parser
 			int f, t;
 			if (from >= 0) {
 				f = from < tokenn ? Token(from).from : Token(from - 1).to;
-				t = from < to ? Token(to - 1).to - 1 : f;
+				t = from < to ? Math.Max(Token(to - 1).to - 1, f) : f;
 			}
 			else {
 				from = ~from; to = ~to;
 				f = from < errs.Count ? errs[from].from : errs[from - 1].to;
-				t = from < to ? errs[to - 1].to - 1 : f;
+				t = from < to ? Math.Max(errs[to - 1].to - 1, f) : f;
 			}
 			var (fl, fc) = LineCol(f); var (tl, tc) = LineCol(t);
 			return (fl, fc, tl, tc);
@@ -133,7 +133,7 @@ namespace qutum.parser
 		// lexer results keep available
 		public virtual void Dispose()
 		{
-			scan.Dispose(); scan = default;
+			scan.Dispose(); scan = null;
 			Array.Fill(tokens, default, 0, tokenn);
 		}
 
@@ -209,7 +209,7 @@ namespace qutum.parser
 		public ArraySegment<T> Tokens(int from, int to)
 		{
 			if (to > tokenn) throw new IndexOutOfRangeException();
-			return new ArraySegment<T>(tokens, from, to - from);
+			return tokens.AsSeg(from, to);
 		}
 
 		IEnumerable<T> Scan<K, T>.Tokens(int from, int to) => Tokens(from, to);

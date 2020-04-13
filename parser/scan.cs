@@ -89,10 +89,7 @@ namespace qutum.parser
 
 		public byte Token(int x) => input[x];
 
-		public ArraySegment<byte> Tokens(int from, int to)
-		{
-			return new ArraySegment<byte>(input, from, to - from);
-		}
+		public ArraySegment<byte> Tokens(int from, int to) => input.AsSeg(from, to);
 
 		IEnumerable<byte> Scan<byte, byte>.Tokens(int from, int to) => Tokens(from, to);
 

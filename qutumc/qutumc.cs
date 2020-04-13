@@ -26,7 +26,7 @@ namespace qutum.compile
 					file = Console.ReadLine();
 				}
 				var bs = File.ReadAllBytes(file);
-				var p = new Parsers(new Lexer { allValue = true }) { treeDump = 1 };
+				var p = new Parser(new Lexer { allValue = true });
 				using var __ = p.scan.Load(new ScanByte(bs));
 				var top = p.Parse();
 				top.Dump((Func<int, int, (int, int, int, int)>)p.scan.LineCol);

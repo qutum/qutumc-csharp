@@ -186,7 +186,7 @@ namespace qutum.syntax
 				if (allBlank
 					|| tokenn > 0 && tokens[tokenn - 1].key != Lex.EOL) // not empty line
 					Add(key, from, to, null);
-				indentNew = 0; // EOL or clear indents of empty lines
+				indentNew = 0; indentFrom = indentTo = to; // EOL or clear indents of empty lines
 				goto End;
 
 			case Lex.COMM:

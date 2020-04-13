@@ -21,6 +21,12 @@ namespace qutum
 		{
 			int x = 0; foreach (var t in s) a(t, x++);
 		}
+
+		public static ArraySegment<T> AsSeg<T>(this T[] s)
+			=> new ArraySegment<T>(s);
+
+		public static ArraySegment<T> AsSeg<T>(this T[] s, int from, int to)
+			=> new ArraySegment<T>(s, from, to - from);
 	}
 
 	public class LinkTree<T> : IEnumerable<T> where T : LinkTree<T>
@@ -155,7 +161,7 @@ namespace qutum
 		}
 		IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
-		class Backwarder : IEnumerable<T>
+		struct Backwarder : IEnumerable<T>
 		{
 			internal T tail;
 
