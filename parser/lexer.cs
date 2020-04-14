@@ -248,7 +248,7 @@ namespace qutum.parser
 			range = R | R-R | \\E =+
 			eol   = S* comm? \r?\n S*
 			comm  = \=\= V*") {
-			greedy = false, keep = false, dump = 0
+			greedy = false, tree = false, dump = 0
 		};
 
 		public LexerBase(string gram)

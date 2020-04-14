@@ -117,7 +117,7 @@ namespace qutum.test.parser
 		[TestMethod]
 		public void ErrHint()
 		{
-			var p = new ParserStr("S=A B =start \n A=1|2 =A12 ==oh||no\n |3 =A3 \n B= =empty \n |4 =B4") {
+			var p = new ParserStr("S=A B =start \n A=1|2 =A12 ==oh||no\n |3 =A3 \n B= =\tempty \n |4 =B4") {
 				dump = 3
 			};
 			IsNull(p.Parse("").t.head);
@@ -376,13 +376,13 @@ namespace qutum.test.parser
 		}
 
 		[TestMethod]
-		public void KeepHint()
+		public void TreeHint()
 		{
 			var p = new ParserStr("S=A B C\n A=1 =+\n B=1 =-\n C=1") {
-				keep = true, dump = 3
+				tree = true, dump = 3
 			};
 			p.Parse("111").H("A").N("C").N0();
-			p.keep = false;
+			p.tree = false;
 			p.Parse("111").H("A").N0();
 		}
 

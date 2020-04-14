@@ -63,16 +63,17 @@ namespace qutum.parser
 		}
 		struct Con
 		{
-			internal object p; // Prod or K or null;
+			internal object p; // Prod or K or null for complete;
 			internal Qua q;
 		}
 		sealed class Alt
 		{
 			internal N name;
 			internal Con[] s;
-			internal sbyte greedy; // parser.greedy:0, greedy: 1, back greedy: -1
-			internal sbyte keep; // parser.keep: 0, thru: -1, keep: 1
+			internal sbyte greedy; // as parser.greedy:0, greedy: 1, back greedy: -1
+			internal sbyte tree; // as parser.tree: 0, thru: -1, make: 1
 			internal bool token; // save first shift token to Tree.info
+			internal bool errExpect; // make expect Tree when error
 			internal int recover; // no: -1, recover at Con index of last One or More K: > 0,
 								  // or recover at last Con without scan: s.Length
 			internal string hint;
@@ -96,9 +97,9 @@ namespace qutum.parser
 		internal Sc scan;
 		public bool greedy = false; // for any Alt eg. S=AB A=1|12 B=23|2  gready: (12)3  back greedy: 1(23)
 		public int recover = 10; // no recovery: 0, how many times to recover at eof: > 0
-		public bool keep = true;
+		public bool tree = true; // make Trees from complete Alts
 		public int dump = 0; // no: 0, tokens for tree leaf: 1, tokens: 2, tokens and Alt: 3
-		public int errExpect = 2; // hint only: 0, and One or More K: 1, and One or More: 2, all: 3
+		public int errExpect = 2; // no: 0, One or More: 2, all: 3
 		public Func<object, string> dumper = null;
 
 		struct Match
@@ -117,7 +118,7 @@ namespace qutum.parser
 
 		public ParserBase<K, Tk, N, Tr, Sc> Load(Sc scan) { this.scan = scan; return this; }
 
-		// build a Tree from matched and kept Alts, Tree.tokens unset
+		// make a Tree from complete Alts, Tree.tokens unset
 		public virtual Tr Parse()
 		{
 			int m = Earley(out Tr recs, recover);
@@ -288,9 +289,11 @@ namespace qutum.parser
 			var m = matchs[match];
 			if (m.from == m.to && m.step == 0 && m.a.s.Length > 1)
 				return null;
-			Tr t = (m.a.keep == 0 ? keep : m.a.keep > 0) ? null : up, New = null;
+			Tr t = (m.a.tree == 0 ? tree : m.a.tree > 0) ? null : up, New = null;
 			if (t == null)
-				t = New = new Tr { name = m.a.name, from = m.from, to = m.to };
+				t = New = new Tr {
+					name = m.a.name, from = m.from, to = m.to
+				};
 			for (var mp = m; mp.tail != -1; mp = matchs[mp.prev])
 				if (mp.tail >= 0)
 					Accepted(mp.tail, t);
@@ -331,18 +334,15 @@ namespace qutum.parser
 					else
 						continue;
 				errs[z] = true;
-				var p = s.p as Prod;
-				if (errExpect >= 3 || p?.alts[0].hint != null ||
-						((int)s.q & 1) > 0 &&
-							(errExpect == 2 || errExpect == 1 && s.p is K)) {
-					var e = p != null ? p.alts[0].hint ?? (object)p.name : s.p;
+				if (m.a.errExpect || errExpect >= 3 || errExpect == 2 && ((int)s.q & 1) > 0) {
+					var exp = s.p is Prod p ? p.alts[0].hint ?? (object)p.name : s.p;
 					var d = m.a.hint ?? m.a.name.ToString();
 					d = dump <= 0 ? d
-						: dump <= 2 ? $"{Esc(e)} expected for {d}"
-						: $"{Esc(e)} expected for {d}!{m.step} {Dump(m, true)}";
+						: dump <= 2 ? $"{Esc(exp)} expected for {d}"
+						: $"{Esc(exp)} expected for {d}!{m.step} {Dump(m, true)}";
 					t.AddHead(new Tr {
 						name = m.a.name, from = m.from, to = m.to,
-						err = m.step, info = e, dump = d
+						err = m.step, info = exp, dump = d
 					});
 				}
 			}
@@ -380,14 +380,15 @@ namespace qutum.parser
 			{ "con",   "W+|sym|S+" }, // word to prod name or scan.Keys
 			{ "sym",   "Q|O+|\\ E" }, // unescaped to scan.Keys except Qua
 			{ "alt",   "ahint? \x1 S* con*" },
-			{ "hint",  "= hintg? hintk? hintt? hintr? S* hintw" },
+			{ "hint",  "= hintg? hintt? hintk? hintr? hinte? S* hintw" },
 			{ "hintg", "*" }, // hint greedy
-			{ "hintk", "+|-" }, // hint keep
-			{ "hintt", "_" }, // hint token
+			{ "hintt", "+|-" }, // hint tree
+			{ "hintk", "_" }, // hint token
 			{ "hintr", "\x1|\x1 \x1" }, // hint recover
+			{ "hinte", "!" }, // hint expect
 			{ "hintw", "H*" }, // hint words
-			{ "hinte", "eol" }, // to split prod into lines
-			{ "ahint", "hint? hinte" },
+			{ "hint_", "eol" }, // to split prod into lines
+			{ "ahint", "hint? hint_" },
 			{ "eol",   "S* comm? \r? \n S*" },
 			{ "comm",  "= = V*" } }; // unescape to scan.Keys
 
@@ -416,13 +417,14 @@ namespace qutum.parser
 				}).ToArray();
 			// spaces before hintw are greedy
 			prods["hint"].alts[0].greedy = 1;
-			// keep these in the tree
+			// make these trees
 			foreach (var c in prods["con"].alts.Take(1) // word
-				.Concat(new[] { "prod", "alt", "name", "sym", "hintg", "hintk", "hintt", "hintr", "hintw", "hinte" }
+				.Concat(new[] { "prod", "alt", "name", "sym",
+					"hintg", "hintt", "hintk", "hintr", "hinte", "hintw", "hint_" }
 				.SelectMany(x => prods[x].alts)))
-				c.keep = 1;
+				c.tree = 1;
 			boot = new ParserChar(prods["gram"]) {
-				greedy = false, keep = false, dump = 0
+				greedy = false, tree = false, dump = 0
 			};
 		}
 
@@ -444,10 +446,10 @@ namespace qutum.parser
 			//   \ word or sym or alt ...
 			//   \ con .tokens refer prod.name
 			//   \ alt .name == prod.name
-			//     \ hintg or hintk ... hintw
+			//     \ hintg or ... hintw
 			//     \ hinte
 			//     \ word or sym ...
-			//   \ hintg or hintk or hintr ... hintw
+			//   \ hintg or ... hintw
 			// \ prod ...
 			var prods = top.Where(t => t.name == "prod");
 			var names = prods.ToDictionary(
@@ -483,17 +485,18 @@ namespace qutum.parser
 				// build hint
 				int ax = 0;
 				p.Where(t => t.name == "alt").Append(p).Each((t, x) => {
-					sbyte g = 0, k = 0; bool tk = false; int r = -1;
+					sbyte g = 0, tr = 0; bool k = false, e = false; int r = -1;
 					foreach (var h in t) {
 						if (h.name == "hintg") g = 1;
-						if (h.name == "hintk") k = (sbyte)(gram[h.from] == '+' ? 1 : -1);
-						if (h.name == "hintt") tk = true;
+						if (h.name == "hintt") tr = (sbyte)(gram[h.from] == '+' ? 1 : -1);
+						if (h.name == "hintk") k = true;
 						if (h.name == "hintr") r = h.to - h.from;
+						if (h.name == "hinte") e = true;
 						if (h.name == "hintw") { // apply hints
 							var w = boot.scan.Tokens(h.from, h.to);
 							for (; ax <= x; ax++) {
 								var a = az[ax];
-								a.greedy = g; a.keep = k; a.token = tk;
+								a.greedy = g; a.tree = tr; a.token = k; a.errExpect = e;
 								a.hint = w != "" ? w : null;
 								if (r == 1) // search Con for recovery
 									for (int y = a.s.Length - 1; y > 0; y--)
@@ -510,7 +513,7 @@ namespace qutum.parser
 							}
 						}
 						// each hint is for only one line
-						if (h.name == "hinte") ax = x + 1;
+						if (h.name == "hint_") ax = x + 1;
 					}
 				});
 				prod.alts = az;
