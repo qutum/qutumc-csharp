@@ -14,7 +14,7 @@ namespace qutum.syntax
 	enum Syn
 	{
 		all = 1,
-		block, nest, stats, right, stat,
+		block, nest, stats, headr, stat,
 		bin,
 		opb, opr, exp,
 	}
@@ -29,14 +29,13 @@ namespace qutum.syntax
 		all   = block+ | IND all DED block*
 		block = exp stats?					=+ block
 		nest  = IND block DED				= nested block
-		stats = IND right? stat+ DED		= statements
-		right = IND stat+ DED				= statements of right datum
+		stats = IND headr? stat+ DED		= statements
+		headr = IND stat+ DED				=+ statements of head right datum
 		stat  = bin							= statment
 		      | EFFECT SP EOL				=| statement expected
 		bin   = opb block | opb EOL nest	=|| binary statement
 
-		opb = ADD|SUB|MUL|DIV	=+ binary operator
-		opr = EFFECT			=+ postfix operator
+		opb = OPBIN				=+ binary operator
 		exp = EFFECT+ EOL		=+| expression
 		";
 

@@ -289,8 +289,8 @@ namespace qutum.test.syntax
 		[TestMethod]
 		public void LexSymbol3()
 		{
-			Check(@"===\=<<=<=<>=>", "EQ= SEQ= IEQ= SHL= SEQ= LEQ= LT= GEQ= GT=");
-			Check("---++&&||", "NOT= SUB= XOR= AND= OR=");
+			Check(@"===\=<<=<=<>=>", "EQ= SEQ= UEQ= SHL= SEQ= LEQ= LT= GEQ= GT=");
+			Check("---&&||", "NOT= SUB= AND= OR=");
 		}
 	}
 }

@@ -20,12 +20,12 @@ namespace qutum.parser
 		public N name;
 		public int from, to; // from token index to index excluded, for error tokens may < 0
 		public int err; // no error: 0, error: -1, error step: > 0, recovered ~step: < -1
-		public object info; // error Token, expected Alt hint/name or K, or recovered K
+		public object info; // error Token, expected Alt hint/name or K, or recovered Prod hint/name or K
 		public string dump;
 
 		public override string ToString()
 		{
-			return $"{from}:{to}{(err == 0 ? "" : err < -1 ? "" + err : "!")} {dump ?? info ?? name}";
+			return $"{from}:{to}{(err == 0 ? info : err < -1 ? "" + err : "!")} {dump ?? info ?? name}";
 		}
 
 		public override string ToString(object extra)
@@ -33,7 +33,7 @@ namespace qutum.parser
 			if (!(extra is Func<int, int, (int, int, int, int)> loc))
 				return ToString();
 			var (fl, fc, tl, tc) = loc(from, to);
-			return $"{fl}.{fc}:{tl}.{tc}{(err == 0 ? "" : err < -1 ? "" + err : "!")} {dump ?? info ?? name}";
+			return $"{fl}.{fc}:{tl}.{tc}{(err == 0 ? info : err < -1 ? "" + err : "!")} {dump ?? info ?? name}";
 		}
 	}
 
@@ -72,6 +72,7 @@ namespace qutum.parser
 			internal Con[] s;
 			internal sbyte greedy; // parser.greedy:0, greedy: 1, back greedy: -1
 			internal sbyte keep; // parser.keep: 0, thru: -1, keep: 1
+			internal bool token; // save first shift token to Tree.info
 			internal int recover; // no: -1, recover at Con index of last One or More K: > 0,
 								  // or recover at last Con without scan: s.Length
 			internal string hint;
@@ -293,14 +294,16 @@ namespace qutum.parser
 			for (var mp = m; mp.tail != -1; mp = matchs[mp.prev])
 				if (mp.tail >= 0)
 					Accepted(mp.tail, t);
+				else if (mp.tail == -2 && mp.a.token)
+					t.info = scan.Token(mp.to - 1);
 				else if (mp.tail == -4) {
 					Debug.Assert(mp.a == m.a);
-					var p = mp.a.s[mp.step - 1].p;
+					var p = m.a.s[mp.step - 1].p;
 					t.AddHead(new Tr {
-						name = mp.a.name, from = mp.from, to = mp.to, err = ~mp.a.recover,
-						info = p is Prod cp ? (object)cp.name : (K)p,
-						dump = dump < 2 ? null :
-							$"{mp.a.hint ?? mp.a.name.ToString()} :: {Dump(scan.Token(mp.to - 1))}",
+						name = m.a.name, from = mp.from, to = mp.to, err = ~m.a.recover,
+						info = p is Prod cp ? cp.alts[0].hint ?? (object)cp.name : p,
+						dump = dump < 2 ? null : $"{m.a.name} :: recover " +
+							$"{(p is Prod pp ? pp.name : p)} at {Dump(scan.Token(mp.to - 1))}",
 					});
 				}
 			if (up != null && up != t)
@@ -377,9 +380,10 @@ namespace qutum.parser
 			{ "con",   "W+|sym|S+" }, // word to prod name or scan.Keys
 			{ "sym",   "Q|O+|\\ E" }, // unescaped to scan.Keys except Qua
 			{ "alt",   "ahint? \x1 S* con*" },
-			{ "hint",  "= hintg? hintk? hintr? S* hintw" },
+			{ "hint",  "= hintg? hintk? hintt? hintr? S* hintw" },
 			{ "hintg", "*" }, // hint greedy
 			{ "hintk", "+|-" }, // hint keep
+			{ "hintt", "_" }, // hint token
 			{ "hintr", "\x1|\x1 \x1" }, // hint recover
 			{ "hintw", "H*" }, // hint words
 			{ "hinte", "eol" }, // to split prod into lines
@@ -414,7 +418,7 @@ namespace qutum.parser
 			prods["hint"].alts[0].greedy = 1;
 			// keep these in the tree
 			foreach (var c in prods["con"].alts.Take(1) // word
-				.Concat(new[] { "prod", "alt", "name", "sym", "hintg", "hintk", "hintr", "hintw", "hinte" }
+				.Concat(new[] { "prod", "alt", "name", "sym", "hintg", "hintk", "hintt", "hintr", "hintw", "hinte" }
 				.SelectMany(x => prods[x].alts)))
 				c.keep = 1;
 			boot = new ParserChar(prods["gram"]) {
@@ -479,15 +483,18 @@ namespace qutum.parser
 				// build hint
 				int ax = 0;
 				p.Where(t => t.name == "alt").Append(p).Each((t, x) => {
-					sbyte g = 0, k = 0; int r = -1;
+					sbyte g = 0, k = 0; bool tk = false; int r = -1;
 					foreach (var h in t) {
 						if (h.name == "hintg") g = 1;
 						if (h.name == "hintk") k = (sbyte)(gram[h.from] == '+' ? 1 : -1);
+						if (h.name == "hintt") tk = true;
 						if (h.name == "hintr") r = h.to - h.from;
-						if (h.name == "hintw") {
-							for (var w = boot.scan.Tokens(h.from, h.to); ax <= x; ax++) {
+						if (h.name == "hintw") { // apply hints
+							var w = boot.scan.Tokens(h.from, h.to);
+							for (; ax <= x; ax++) {
 								var a = az[ax];
-								a.greedy = g; a.keep = k; a.hint = w != "" ? w : null;
+								a.greedy = g; a.keep = k; a.token = tk;
+								a.hint = w != "" ? w : null;
 								if (r == 1) // search Con for recovery
 									for (int y = a.s.Length - 1; y > 0; y--)
 										if (a.s[y].p is K key && ((int)a.s[y].q & 1) > 0) {

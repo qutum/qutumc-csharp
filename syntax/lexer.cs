@@ -11,20 +11,30 @@ using System.Text;
 
 namespace qutum.syntax
 {
-	enum Lex : sbyte
+	enum Lex
 	{
-		EFFECT = -2, // effective lexes, 10b
+		EFFECT = 0x1FFE0, // effective lexes
+		LITERAL = 0x0020, // literals
+		OPARI = 0x0040, // arithmetic operators
+		OPCOM = 0x0080, // comparison operators
+		OPLOG = 0x0100, // logical operators
+		OPBIN = 0x8000, // binary operators
+		OPPRE = 0x4000, // prefix operators
+		OPPOST = 0x2000, // postfix operators
+		OTHER = 0x10000,
 
-		SP = 1, COMM, COMMB, EOL, IND, DED,
+		EOL = 1, IND, DED, SP, COMM, COMMB,
 
-		STR, STRB, WORD, WORDS, HEX, NUM, INT, FLOAT,
-
-		LP, RP, LSB, RSB, LCB, RCB,
+		LP = OTHER | 1, RP, LSB, RSB, LCB, RCB,
 		APO, BAPO, COM, DOT,
-		ADD, SUB, MUL, DIV, MOD, DIVF, MODF, SHL, SHR,
-		EQ, IEQ, LEQ, GEQ, LT, GT,
-		NOT, XOR, AND, OR,
 		EXC, AT, HASH, DOL, CIR, AMP, COL, SCOL, SEQ, QUE, BSL, VER, TIL,
+
+		SUB = OPBIN | OPPRE | OPARI | 2,
+		ADD = OPBIN | OPARI | 1, MUL, DIV, MOD, DIVF, MODF, SHL, SHR,
+		EQ = OPBIN | OPCOM | 1, UEQ, LEQ, GEQ, LT, GT,
+		NOT = OPPRE | OPLOG | 1, AND = OPBIN | OPLOG | 2, OR,
+
+		STR = LITERAL | 1, STRB, WORD, WORDS, HEX, NUM, INT, FLOAT,
 	}
 
 	class Lexer : Lexer<Lex>
@@ -40,25 +50,6 @@ namespace qutum.syntax
 		==BAPO  = `
 		COM   = ,
 		DOT   = .
-		ADD   = \+
-		SUB   = -
-		MUL   = \*
-		DIV   = /
-		MOD   = %
-		DIVF  = //
-		MODF  = %%
-		SHL   = <<
-		SHR   = >>
-		EQ    = ==
-		IEQ   = \\=
-		LEQ   = <=
-		GEQ   = >=
-		LT    = <
-		GT    = >
-		NOT   = --
-		XOR   = \+\+
-		AND   = &&
-		OR    = \|\|
 		EXC   = !
 		AT    = @
 		HASH  = #
@@ -72,8 +63,28 @@ namespace qutum.syntax
 		BSL   = \\
 		VER   = \|
 		TIL   = ~
-		SP    = \s|\t  |+\s+|+\t+
+
+		ADD   = \+
+		SUB   = -
+		MUL   = \*
+		DIV   = /
+		MOD   = %
+		DIVF  = //
+		MODF  = %%
+		SHL   = <<
+		SHR   = >>
+		EQ    = ==
+		UEQ   = \\=
+		LEQ   = <=
+		GEQ   = >=
+		LT    = <
+		GT    = >
+		NOT   = --
+		AND   = &&
+		OR    = \|\|
+
 		EOL   = \n|\r\n
+		SP    = \s|\t  |+\s+|+\t+
 		COMM  = ##     |[\u^\n]+
 		COMMB = \\+##  *+##\\+| +#|  +[\u^#]+
 		STRB  = \\+""  *+""\\+| +""| +[\u^""]+
@@ -101,6 +112,13 @@ namespace qutum.syntax
 		{
 			base.Dispose();
 			indent = indentNew = 0; crlf = false;
+		}
+
+		public override bool Is(Lex testee, Lex key)
+		{
+			if (testee == key) return true;
+			// key as kind contains testee
+			return ((int)key & 0x1f) == 0 && (key & testee) != 0;
 		}
 
 		void Indent()
@@ -150,6 +168,17 @@ namespace qutum.syntax
 			}
 			switch (key) {
 
+			case Lex.EOL:
+				if (!crlf && to == f + 2) { // \r\n found
+					AddErr(key, f, to, @"use LF \n eol instead of CRLF \r\n");
+					crlf = true;
+				}
+				if (allBlank
+					|| tokenn > 0 && tokens[tokenn - 1].key != Lex.EOL) // not empty line
+					Add(key, from, to, null);
+				indentNew = 0; indentFrom = indentTo = to; // EOL or clear indents of empty lines
+				goto End;
+
 			case Lex.SP:
 				if (part == 1) {
 					bs[0] = 0;
@@ -177,17 +206,6 @@ namespace qutum.syntax
 					Add(key, from, to, null); // SP
 				from = -1;
 				goto End; // tokens already made
-
-			case Lex.EOL:
-				if (!crlf && to == f + 2) { // \r\n found
-					AddErr(key, f, to, @"use LF \n eol instead of CRLF \r\n");
-					crlf = true;
-				}
-				if (allBlank
-					|| tokenn > 0 && tokens[tokenn - 1].key != Lex.EOL) // not empty line
-					Add(key, from, to, null);
-				indentNew = 0; indentFrom = indentTo = to; // EOL or clear indents of empty lines
-				goto End;
 
 			case Lex.COMM:
 				if (!allBlank)
@@ -356,12 +374,5 @@ namespace qutum.syntax
 			1e20f, 1e21f, 1e22f, 1e23f, 1e24f, 1e25f, 1e26f, 1e27f, 1e28f, 1e29f,
 			1e30f, 1e31f, 1e32f, 1e33f, 1e34f, 1e35f, 1e36f, 1e37f, 1e38f, float.PositiveInfinity,
 		};
-
-		public override bool Is(Lex testee, Lex key)
-		{
-			if (testee == key) return true;
-			// kind contains lex
-			return key < 0 && testee > Lex.DED && (Lex.EFFECT & key) == Lex.EFFECT;
-		}
 	}
 }
