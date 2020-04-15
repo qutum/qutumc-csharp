@@ -227,7 +227,8 @@ namespace qutum.parser
 			for (int x = locs[loc], y = locs[++loc]; x < y; x++) {
 				var m = matchs[x];
 				if (m.a.s[m.step].p is K k && scan.Is(k))
-					Add(m.a, m.from, m.to, m.step + 1, m.tail != -2 ? x : m.prev, -2); // m.to < loc
+					Add(m.a, m.from, m.to, m.step + 1, // m.to < loc
+						m.tail != -2 || m.a.token ? x : m.prev, -2);
 			}
 			return matchn - locs[loc];
 		}

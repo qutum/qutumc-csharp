@@ -26,7 +26,8 @@ namespace qutum.test.syntax
 			var (fl, fc, tl, tc) = t.p.scan.LineCol(t.t.from, t.t.to);
 			if (from != null) AreEqual($"{from}", $"{fl}.{fc}");
 			if (to != null) AreEqual($"{to}", $"{tl}.{tc}");
-			if (t.t.err != 0 && v != null) AreEqual(v, t.t.info);
+			if (v != null)
+				AreEqual(v, v is Lex && t.t.info is Token<Lex> tk ? tk.key : t.t.info);
 			return t;
 		}
 		public static (Tree, Parser) V(this (Tree t, Parser p) t, params object[] vs)
@@ -84,48 +85,189 @@ namespace qutum.test.syntax
 		}
 
 		[TestMethod]
-		public void RecoverBinary()
+		public void Blocks()
 		{
-			var t = Parse("a\n\t+");
-			t = t/**/	.H(Syn.block).H(Syn.exp).V(Lex.WORD, "a", Lex.EOL);
-			t = t/**/				.N(Syn.opb).V(Lex.ADD).N(Syn.bin, -5).N0().N0();
-			t = t/**/.N(Syn.all, -1, 2.3).V(Lex.DED, 0);
-			t = t/**/				.H(Syn.bin, 2).N0().N0();
-			t = Parse("\t\ta\n\t\t\t+\n\t\tc\n\t\td");
-			t = t/**/	.H(Syn.block).H(Syn.exp).V(Lex.WORD, "a", Lex.EOL);
-			t = t/**/				.N(Syn.opb).V(Lex.ADD).N(Syn.bin, -5).N0();
-			t = t/**/	.N(Syn.block).H(Syn.exp).V(Lex.WORD, "c", Lex.EOL).N0();
-			t = t/**/	.N(Syn.block).H(Syn.exp).V(Lex.WORD, "d", Lex.EOL).N0().N0();
-			t = t/**/.N(Syn.all, -1, 3.1, 3.2).V(Lex.DED, 2);
-			t = t/**/				.H(Syn.bin, 2).N0().N0();
-			t = Parse("a\n\t+\n\t* b\nc");
-			t = t/**/	.H(Syn.block).H(Syn.exp).V(Lex.WORD, "a", Lex.EOL);
-			t = t/**/				.N(Syn.opb).V(Lex.ADD).N(Syn.bin, -5);
-			t = t/**/				.N(Syn.opb).V(Lex.MUL);
-			t = t/**/				.N(Syn.block).H(Syn.exp).V(Lex.WORD, "b", Lex.EOL).N0().N0();
-			t = t/**/	.N(Syn.block).H(Syn.exp).V(Lex.WORD, "c", Lex.EOL).N0().N0();
-			t = t/**/.N(Syn.all, -1, 3.2).V(Lex.MUL);
-			t = t/**/				.H(Syn.bin, 2).N0().N0();
+			var t = Parse(@"
+			a
+			b");
+			t = t/**/	.H(Syn.Block).H(Syn.exp).V(Lex.WORD, "a", Lex.EOL).N0();
+			t = t/**/	.N(Syn.Block).H(Syn.exp).V(Lex.WORD, "b", Lex.EOL).N0().N0().N0();
+			t = Parse(@"
+					a
+				b
+				c
+			d");
+			t = t/**/	.H(Syn.Block).H(Syn.exp).V(Lex.WORD, "a", Lex.EOL).N0();
+			t = t/**/	.N(Syn.Block).H(Syn.exp).V(Lex.WORD, "b", Lex.EOL).N0();
+			t = t/**/	.N(Syn.Block).H(Syn.exp).V(Lex.WORD, "c", Lex.EOL).N0();
+			t = t/**/	.N(Syn.Block).H(Syn.exp).V(Lex.WORD, "d", Lex.EOL).N0().N0().N0();
 		}
 
 		[TestMethod]
-		public void RecoverStat()
+		public void Binary()
 		{
-			var t = Parse("a\n\tb\n\t+ 1");
-			t = t/**/	.H(Syn.block).H(Syn.exp).V(Lex.WORD, "a", Lex.EOL);
-			t = t/**/				.N(Syn.stat, -3);
-			t = t/**/				.N(Syn.opb).V(Lex.ADD);
-			t = t/**/				.N(Syn.block).H(Syn.exp).V(Lex.INT, 1, Lex.EOL).N0().N0().N0();
-			t = t/**/.N(Syn.all, -1, 2.3).V(Lex.EOL).N0();
-			t = Parse("a\n\tb\n\t+ 1\n\tc\nd");
-			t = t/**/	.H(Syn.block).H(Syn.exp).V(Lex.WORD, "a", Lex.EOL);
-			t = t/**/				.N(Syn.stat, -3);
-			t = t/**/				.N(Syn.opb).V(Lex.ADD);
-			t = t/**/				.N(Syn.block).H(Syn.exp).V(Lex.INT, 1, Lex.EOL).N0();
-			t = t/**/				.N(Syn.stat, -3).N0();
-			t = t/**/	.N(Syn.block).H(Syn.exp).V(Lex.WORD, "d", Lex.EOL).N0().N0();
-			t = t/**/.N(Syn.all, -1, 2.3).V(Lex.EOL);
-			t = t/**/.N(Syn.all, -1, 4.3).V(Lex.EOL).N0();
+			var t = Parse(@"
+			a
+				- 1
+				* 2");
+			t = t/**/	.H(Syn.Block).H(Syn.exp).V(Lex.WORD, "a", Lex.EOL);
+			t = t/**/				.N(Syn.stat, v: Lex.SUB);
+			t = t/**/					.H(Syn.exp).V(Lex.INT, 1, Lex.EOL).N0();
+			t = t/**/				.N(Syn.stat, v: Lex.MUL);
+			t = t/**/					.H(Syn.exp).V(Lex.INT, 2, Lex.EOL).N0().N0().N0().N0();
+		}
+
+		[TestMethod]
+		public void Prefix()
+		{
+			var t = Parse(@"
+			-
+				1");
+			t = t/**/	.H(Syn.Block).H(Syn.pre, v: Lex.SUB);
+			t = t/**/					.H(Syn.exp).V(Lex.INT, 1, Lex.EOL).N0().N0().N0().N0();
+			t = Parse(@"
+			-
+				1
+				* 2");
+			t = t/**/	.H(Syn.Block).H(Syn.pre, v: Lex.SUB);
+			t = t/**/					.H(Syn.exp).V(Lex.INT, 1, Lex.EOL).N0();
+			t = t/**/				.N(Syn.stat, v: Lex.MUL);
+			t = t/**/					.H(Syn.exp).V(Lex.INT, 2, Lex.EOL).N0().N0().N0().N0();
+		}
+
+		[TestMethod]
+		public void HeadRight()
+		{
+			var t = Parse(@"
+			a
+					+a
+				-b");
+		}
+
+		[TestMethod]
+		public void Nested1()
+		{
+			p.dump = 3;
+			var t = Parse(@"
+			a + b
+				*2
+				## comment
+					<< c
+						+ 1
+				- d");
+			t = Parse(@"
+			a
+				+ 2
+
+					- b
+				* c");
+		}
+
+		[TestMethod]
+		public void Nested2()
+		{
+			Parse(@"
+			a
+				+ b
+					* c
+				/
+					d
+						+e
+			b
+				- c
+			");
+			Parse(@"
+			a
+					+ b
+				* c
+					- d
+			b
+				/ c
+			");
+		}
+
+		[TestMethod]
+		public void RecoverBinary1()
+		{
+			var t = Parse(@"
+			a
+				+");
+			t = t/**/	.H(Syn.Block).H(Syn.exp).V(Lex.WORD, "a", Lex.EOL);
+			t = t/**/				.N(Syn.stat, v: Lex.ADD);
+			t = t/**/					.H(Syn.right, -4).N0().N0().N0();
+			t = t/**/.N(Syn.all, -1, 3.6, 3.6, Lex.DED);
+			t = t/**/	.H(Syn.right, 1).N0().N0();
+		}
+
+		[TestMethod]
+		public void RecoverBinary2()
+		{
+			var t = Parse(@"
+			a
+				+
+			c
+			d");
+			t = t/**/	.H(Syn.Block).H(Syn.exp).V(Lex.WORD, "a", Lex.EOL);
+			t = t/**/				.N(Syn.stat, v: Lex.ADD);
+			t = t/**/					.H(Syn.right, -4).N0().N0();
+			t = t/**/	.N(Syn.Block).H(Syn.exp).V(Lex.WORD, "c", Lex.EOL).N0();
+			t = t/**/	.N(Syn.Block).H(Syn.exp).V(Lex.WORD, "d", Lex.EOL).N0().N0();
+			t = t/**/.N(Syn.all, -1, 4.1, 4.3, v: Lex.DED);
+			t = t/**/	.H(Syn.right, 1).N0().N0();
+		}
+
+		[TestMethod]
+		public void RecoverBinary3()
+		{
+			var t = Parse(@"
+			a
+				+
+				* b
+			c");
+			t = t/**/	.H(Syn.Block).H(Syn.exp).V(Lex.WORD, "a", Lex.EOL);
+			t = t/**/				.N(Syn.stat, v: Lex.ADD);
+			t = t/**/					.H(Syn.right, -4).N0();
+			t = t/**/				.N(Syn.stat, v: Lex.MUL);
+			t = t/**/					.H(Syn.exp).V(Lex.WORD, "b", Lex.EOL).N0().N0();
+			t = t/**/	.N(Syn.Block).H(Syn.exp).V(Lex.WORD, "c", Lex.EOL).N0().N0();
+			t = t/**/.N(Syn.all, -1, 4.5, 4.5, v: Lex.MUL);
+			t = t/**/	.H(Syn.right, 1).N0().N0();
+		}
+
+		[TestMethod]
+		public void RecoverStat1()
+		{
+			var t = Parse(@"
+			a
+				b
+				+ 1");
+			t = t/**/	.H(Syn.Block).H(Syn.exp).V(Lex.WORD, "a", Lex.EOL);
+			t = t/**/				.N(Syn.stat, -4);
+			t = t/**/				.N(Syn.stat, v: Lex.ADD);
+			t = t/**/					.H(Syn.exp).V(Lex.INT, 1, Lex.EOL).N0().N0().N0();
+			t = t/**/.N(Syn.all, -1, 3.5, 3.5).V(Lex.WORD, "b");
+			t = t/**/	.H(Syn.stat, 1).N0().N0();
+		}
+
+		[TestMethod]
+		public void RecoverStat2()
+		{
+			var t = Parse(@"
+			a
+				b
+				+ 1
+				c
+			d");
+			t = t/**/	.H(Syn.Block).H(Syn.exp).V(Lex.WORD, "a", Lex.EOL);
+			t = t/**/				.N(Syn.stat, -4);
+			t = t/**/				.N(Syn.stat, v: Lex.ADD);
+			t = t/**/					.H(Syn.exp).V(Lex.INT, 1, Lex.EOL).N0();
+			t = t/**/				.N(Syn.stat, -4).N0();
+			t = t/**/	.N(Syn.Block).H(Syn.exp).V(Lex.WORD, "d", Lex.EOL).N0().N0();
+			t = t/**/.N(Syn.all, -1, 3.5, 3.5).V(Lex.WORD, "b");
+			t = t/**/	.H(Syn.stat, 1).N0();
+			t = t/**/.N(Syn.all, -1, 5.5, 5.5).V(Lex.WORD, "c");
+			t = t/**/	.H(Syn.stat, 1).N0().N0();
 		}
 	}
 }
