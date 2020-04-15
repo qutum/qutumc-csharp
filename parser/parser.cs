@@ -19,7 +19,7 @@ namespace qutum.parser
 	{
 		public N name;
 		public int from, to; // from token index to index excluded, for error tokens may < 0
-		public int err; // no error: 0, error: -1, error step: > 0, recovered ~step: < -1
+		public int err; // no error: 0, error: -1, error step: > 0, recovered: -4
 		public object info; // error Token, expected Alt hint/name or K, or recovered Prod hint/name or K
 		public string dump;
 
@@ -88,7 +88,7 @@ namespace qutum.parser
 		}
 
 		readonly Prod start;
-		List<K> reck;
+		readonly List<K> reck;
 		Match[] matchs = new Match[16384];
 		int matchn, completen;
 		readonly List<int> locs = new List<int>(); // matchn before each token
@@ -227,7 +227,8 @@ namespace qutum.parser
 			for (int x = locs[loc], y = locs[++loc]; x < y; x++) {
 				var m = matchs[x];
 				if (m.a.s[m.step].p is K k && scan.Is(k))
-					Add(m.a, m.from, m.to, m.step + 1, m.tail != -2 ? x : m.prev, -2); // m.to < loc
+					Add(m.a, m.from, m.to, m.step + 1, // m.to < loc
+						m.tail != -2 || m.a.token ? x : m.prev, -2);
 			}
 			return matchn - locs[loc];
 		}
@@ -303,8 +304,7 @@ namespace qutum.parser
 					Debug.Assert(mp.a == m.a);
 					var p = m.a.s[mp.step - 1].p;
 					t.AddHead(new Tr {
-						name = m.a.name, from = mp.from, to = mp.to, err = ~m.a.recover,
-						info = p is Prod cp ? cp.alts[0].hint ?? (object)cp.name : p,
+						name = m.a.name, from = mp.from, to = mp.to, err = -4, info = m.a.hint,
 						dump = dump < 2 ? null : $"{m.a.name} :: recover " +
 							$"{(p is Prod pp ? pp.name : p)} at {Dump(scan.Token(mp.to - 1))}",
 					});
@@ -456,7 +456,7 @@ namespace qutum.parser
 				p => p.head.dump = boot.scan.Tokens(p.head.from, p.head.to),
 				p => new Prod { name = Name(p.head.dump) }
 			);
-			reck = new List<K>();
+			var reck = new List<K>();
 
 			foreach (var p in prods) {
 				var prod = names[p.head.dump];
@@ -519,6 +519,7 @@ namespace qutum.parser
 				prod.alts = az;
 			}
 			start = names[prods.First().head.dump];
+			this.reck = reck;
 		}
 	}
 }

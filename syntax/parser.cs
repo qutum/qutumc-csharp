@@ -14,34 +14,40 @@ namespace qutum.syntax
 	enum Syn
 	{
 		all = 1,
-		block, nest, stats, headr, stat,
-		bin,
+		block, nest, inest, ileft, right, istat, headr,
 		opb, opr, exp,
 	}
 
 	class Tree : Tree<Syn, Tree>
 	{
+		public override int dumpOrder => err == 0 && info is Token<Lex> ? 0 : 1; // is binary operator
 	}
 
 	class Parser : Parser<Lex, Syn, Tree, Lexer>
 	{
 		static readonly string grammar = @"
 		all   = block+ | IND all DED block*
-		block = exp stats?					=+ block
-		nest  = IND block DED				= nested block
-		stats = IND headr? stat+ DED		= statements
-		headr = IND stat+ DED				=+ statements of head right datum
-		stat  = bin							= statment
-		      | EFFECT SP EOL				=| statement expected
-		bin   = opb block | opb EOL nest	=|| binary statement
+		block = exp | istat DED
+		nest  = IND block DED			= nested block
+		inest = IND block				= nested block
 
-		opb = OPBIN				=+ binary operator
-		exp = EFFECT+ EOL		=+| expression
+		ileft = istat					= left side
+		      | exp IND					= expression statement
+		      | exp IND IND headr DED	= expression with head right statement
+		right = block					=		right side
+		      | EOL nest				=||!	right side
+		istat = ileft EOL				=|		statement expected == forward to recover
+		      | OPPRE EOL inest			=+_!	prefix statement
+		      | ileft OPBIN right		=+_!	binary statement
+		headr = headr OPBIN right		=+_||!	head right statement
+		      |
+
+		exp = EFFECT+ EOL		=+|! expression
 		";
 
 		public Parser(Lexer l) : base(grammar, l)
 		{
-			keep = false;
+			tree = false;
 			errExpect = 0;
 			dump = 1;
 			dumper = o => !(o is ArraySegment<Token<Lex>> s) ? null
