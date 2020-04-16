@@ -90,9 +90,9 @@ namespace qutum.syntax
 		STRB  = \\+""  *+""\\+| +""| +[\u^""]+
 		STR   = ""     *""|\n| +[\t\s!-~\U^""\\]+| +\\[0tnr"".`\\]| +\\x\x\x| +\\u\x\x\x\x
 		WORDS = `      *`| \n| +[\t\s!-~\U^`\\]+|  +\\[0tnr"".`\\]| +\\x\x\x| +\\u\x\x\x\x
-		WORD  = [\a_]|[\a_][\d\a_]+  |+.+| +.+[\a_]|+.+[\a_][\d\a_]+
-		HEX   = 0[xX]|\+0[xX]|-0[xX]  \x|_\x  |+\x+|+_\x+
-		NUM   = 0|\+0|-0|[1-9]|\+[1-9]|-[1-9] |+\d+|+_\d+ |.\d+ |+_\d+ |[eE]\d+|[eE][\+\-]\d+ |[fF]
+		WORD  = [\a_]|[\a_][\d\a_]+  |+.+| +.+[\a_]| +.+[\a_][\d\a_]+
+		HEX   = 0[xX]  \x|_\x  |+\x+|+_\x+
+		NUM   = 0|[1-9]  |+\d+|+_\d+  |.\d+  |+_\d+  |[eE]\d+|[eE][\+\-]\d+  |[fF]
 		";
 
 		public Lexer() : base(Grammar) { }
@@ -301,9 +301,8 @@ namespace qutum.syntax
 
 		object Hex()
 		{
-			var neg = bs[0] == '-';
 			uint v = 0;
-			for (int x = neg || bs[0] == '+' ? 3 : 2; x < bn; x++)
+			for (int x = 2; x < bn; x++)
 				if (bs[x] != '_')
 					if (v < 0x1000_0000)
 						v = v << 4 | (uint)Hex(x);
@@ -311,25 +310,23 @@ namespace qutum.syntax
 						AddErr(Lex.INT, from, from + bn, "hexadecimal out of range");
 						return 0;
 					}
-			return neg ? (int)-v : (int)v;
+			return v;
 		}
 
 		object Num(ref Lex key)
 		{
-			var neg = bs[0] == '-';
-			int x = neg || bs[0] == '+' ? 1 : 0;
-			int v = 0, dot = 0, e = 0;
+			uint v = 0; int x = 0, dot = 0, e = 0;
 			if (nn == bn) {
 				key = Lex.INT; // as INT
 				for (; x < nn; x++)
 					if (bs[x] != '_')
-						if (v < 214748364 || v == 214748364 && bs[x] <= (neg ? '8' : '7'))
+						if (v < 214748364 || v == 214748364 && bs[x] <= '8')
 							v = v * 10 + bs[x] - '0';
 						else {
 							AddErr(key, from, from + nn, "integer out of range");
 							return 0;
 						}
-				return neg ? -v : v;
+				return v;
 			}
 			key = Lex.FLOAT; // as FLOAT
 			for (; x < nn; x++)
@@ -349,10 +346,9 @@ namespace qutum.syntax
 							break;
 			if (v == 0)
 				return 0f;
-			if (neg)
-				v = -v;
 			if (nf < ne) {
-				for (x = (neg = bs[nf + 1] == '-') || bs[nf + 1] == '+' ? nf + 1 : nf; ++x < ne;)
+				bool neg = bs[nf + 1] == '-';
+				for (x = neg || bs[nf + 1] == '+' ? nf + 1 : nf; ++x < ne;)
 					e = e * 10 + bs[x] - '0';
 				if (neg)
 					e = -e;

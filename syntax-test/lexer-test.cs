@@ -202,36 +202,30 @@ namespace qutum.test.syntax
 		public void LexHex1()
 		{
 			Check("0x0", "INT=0"); Check("0xF", "INT=15"); Check("0xx", "HEX!x");
-			Check("+0x0A", "INT=10");
-			Check("0x7fffffff", "INT=2147483647"); Check("0x80_00_00_00", "INT=-2147483648");
-			Check("0xffff_fffe", "INT=-2"); Check("0xffff_fffe_", "INT=-2 WORD=_");
+			Check("+0x0A", "ADD= INT=10"); Check("-0x0A", "SUB= INT=10");
 			Check("0x_0", "INT=0"); Check("0x__0", "HEX!_ WORD=_0"); Check("1x1", "INT=1 WORD=x1");
 		}
 
 		[TestMethod]
 		public void LexHex2()
 		{
-			Check("-0x0", "INT=0"); Check("-0xF", "INT=-15");
-			Check("-0x7fffffff", "INT=-2147483647"); Check("-0x80000000", "INT=-2147483648");
-			Check("-0xff_ff_ff_fe", "INT=2");
+			Check("0x7fffffff", "INT=2147483647"); Check("0x80_00_00_00", "INT=2147483648");
+			Check("0xffff_fffe", "INT=4294967294"); Check("0xffff_fffe_", "INT=4294967294 WORD=_");
 		}
 
 		[TestMethod]
 		public void LexInt1()
 		{
 			Check("0", "INT=0"); Check("0a", "INT=0 WORD=a");
-			Check("+09", "INT=9"); Check("9876", "INT=9876");
+			Check("+09", "ADD= INT=9"); Check("9876", "INT=9876");
 			Check("2_", "INT=2 WORD=_"); Check("23__3", "INT=23 WORD=__3");
-			Check("2_14_7483_647", "INT=2147483647");
-			Check("+214_7483_648", "INT!integer out of range INT=0");
 		}
 
 		[TestMethod]
 		public void LexInt2()
 		{
-			Check("-000", "INT=0"); Check("-1x1", "INT=-1 WORD=x1"); Check("-0a", "INT=0 WORD=a");
-			Check("-09", "INT=-9"); Check("-2_", "INT=-2 WORD=_");
-			Check("-2_14_7483_647", "INT=-2147483647"); Check("-2147483648", "INT=-2147483648");
+			Check("2_14_7483_648", "INT=2147483648");
+			Check("+214_7483_649", "ADD= INT!integer out of range INT=0");
 		}
 
 		[TestMethod]
@@ -283,7 +277,6 @@ namespace qutum.test.syntax
 		{
 			Check("([{)]}", "LP= LSB= LCB= RP= RSB= RCB=");
 			Check("*/%//%%", "MUL= DIV= MOD= DIVF= MODF="); Check("<<>>", "SHL= SHR=");
-			Check("+5-5+_5-_5", "INT=5 INT=-5 ADD= WORD=_5 SUB= WORD=_5");
 		}
 
 		[TestMethod]
