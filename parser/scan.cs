@@ -18,8 +18,9 @@ namespace qutum.parser
 		int Loc();
 		T Token();
 		bool Is(K key);
+		bool Is(int loc, K key);
 		bool Is(K testee, K key);
-		T Token(int x);
+		T Token(int loc);
 		// tokens from index to index excluded
 		IEnumerable<T> Tokens(int from, int to);
 		// tokens from index to index excluded
@@ -52,9 +53,11 @@ namespace qutum.parser
 
 		public virtual bool Is(char key) => input[loc] == key;
 
+		public virtual bool Is(int loc, char key) => input[loc] == key;
+
 		public virtual bool Is(char testee, char key) => testee == key;
 
-		public char Token(int x) => input[x];
+		public char Token(int loc) => input[loc];
 
 		public string Tokens(int from, int to) => input[from..to];
 
@@ -85,9 +88,11 @@ namespace qutum.parser
 
 		public virtual bool Is(byte key) => input[loc] == key;
 
+		public virtual bool Is(int loc, byte key) => input[loc] == key;
+
 		public virtual bool Is(byte testee, byte key) => testee == key;
 
-		public byte Token(int x) => input[x];
+		public byte Token(int loc) => input[loc];
 
 		public ArraySegment<byte> Tokens(int from, int to) => input.AsSeg(from, to);
 
@@ -118,9 +123,11 @@ namespace qutum.parser
 
 		public virtual bool Is(byte key) => input[loc] == key;
 
+		public virtual bool Is(int loc, byte key) => input[loc] == key;
+
 		public virtual bool Is(byte testee, byte key) => testee == key;
 
-		public byte Token(int x) => input[x];
+		public byte Token(int loc) => input[loc];
 
 		public ArraySegment<byte> Tokens(int from, int to) => input.Slice(from, to - from);
 
@@ -137,24 +144,25 @@ namespace qutum.parser
 	public class ScanByteList : Scan<byte, byte>
 	{
 		protected List<byte> input;
-		protected IEnumerator<byte> iter;
 		protected int loc = -1;
 
-		public ScanByteList(List<byte> input) { this.input = input; iter = input.GetEnumerator(); }
+		public ScanByteList(List<byte> input) => this.input = input;
 
-		public void Dispose() { input = null; iter = null; loc = -1; }
+		public void Dispose() { input = null;  loc = -1; }
 
-		public bool Next() { loc++; return iter.MoveNext(); }
+		public bool Next() => ++loc < input.Count;
 
 		public int Loc() => loc;
 
-		public byte Token() => iter.Current;
+		public byte Token() => input[loc];
 
-		public virtual bool Is(byte key) => iter.Current == key;
+		public virtual bool Is(byte key) => input[loc] == key;
+
+		public virtual bool Is(int loc, byte key) => input[loc] == key;
 
 		public virtual bool Is(byte testee, byte key) => testee == key;
 
-		public byte Token(int x) => input[x];
+		public byte Token(int loc) => input[loc];
 
 		public IEnumerable<byte> Tokens(int from, int to) => input.GetRange(from, to - from);
 
@@ -173,9 +181,11 @@ namespace qutum.parser
 	{
 		public BootScan(string input) : base(input) { }
 
-		// for boot grammar
 		public override bool Is(char key) => Is(input[loc], key);
 
+		public override bool Is(int loc, char key) => Is(input[loc], key);
+
+		// for boot grammar
 		public override bool Is(char t, char key)
 		{
 			return key switch
@@ -224,6 +234,7 @@ namespace qutum.parser
 				't' => "\t",
 				'n' => "\n",
 				'r' => "\r",
+				'0' => "\0",
 				'd' => lexer ? "0123456789" : "d",
 				'x' => lexer ? "0123456789ABCDEFabcdef" : "x",
 				'a' => lexer ? "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz" : "a",

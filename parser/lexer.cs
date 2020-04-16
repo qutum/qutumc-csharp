@@ -69,7 +69,7 @@ namespace qutum.parser
 
 		protected static EqualityComparer<K> Eq = EqualityComparer<K>.Default;
 
-		public sealed override bool Is(K key) => Is(Token().key, key);
+		public sealed override bool Is(int loc, K key) => Is(Token(loc).key, key);
 
 		public override bool Is(K testee, K key) => Eq.Equals(testee, key);
 
@@ -200,11 +200,13 @@ namespace qutum.parser
 
 		public T Token() => tokens[loc];
 
-		public abstract bool Is(K key);
+		public bool Is(K key) => Is(loc, key);
+
+		public abstract bool Is(int loc, K key);
 
 		public abstract bool Is(K key, K testee);
 
-		public T Token(int x) => x < tokenn ? tokens[x] : throw new IndexOutOfRangeException();
+		public T Token(int loc) => loc < tokenn ? tokens[loc] : throw new IndexOutOfRangeException();
 
 		public ArraySegment<T> Tokens(int from, int to)
 		{

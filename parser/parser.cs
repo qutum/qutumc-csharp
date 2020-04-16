@@ -74,7 +74,7 @@ namespace qutum.parser
 			internal sbyte tree; // as parser.tree: 0, thru: -1, make: 1
 			internal bool token; // save first shift token to Tree.info
 			internal bool errExpect; // make expect Tree when error
-			internal int recover; // no: -1, recover at Con index of last One or More K: > 0,
+			internal int recover; // no: -1, recover at last One or More K index: > 0,
 								  // or recover at last Con without scan: s.Length
 			internal string hint;
 
@@ -88,12 +88,13 @@ namespace qutum.parser
 		}
 
 		readonly Prod start;
-		readonly List<K> reck;
+		readonly List<Alt> reca = new List<Alt>();
 		Match[] matchs = new Match[16384];
 		int matchn, completen;
 		readonly List<int> locs = new List<int>(); // matchn before each token
 		int loc; // next token index
 		internal int largest, largestLoc; // largest number of new matches before each token, and the loc
+		readonly int[] recm; // latest match index of each recovery Alt
 		internal Sc scan;
 		public bool greedy = false; // for any Alt eg. S=AB A=1|12 B=23|2  gready: (12)3  back greedy: 1(23)
 		public int recover = 10; // no recovery: 0, how many times to recover at eof: > 0
@@ -114,13 +115,14 @@ namespace qutum.parser
 				$"{(tail >= 0 ? "^" : tail == -1 ? "p" : tail == -2 ? "s" : tail == -3 ? "?" : "r")} {a}";
 		}
 
-		ParserBase(Prod start) => this.start = start;
+		ParserBase(Prod start) { this.start = start; recm = Array.Empty<int>(); }
 
 		public ParserBase<K, Tk, N, Tr, Sc> Load(Sc scan) { this.scan = scan; return this; }
 
 		// make a Tree from complete Alts, Tree.tokens unset
 		public virtual Tr Parse()
 		{
+			Array.Fill(recm, -1, 0, recm.Length);
 			int m = Earley(out Tr recs, recover);
 			Tr t = m >= 0 ? Accepted(m, null) : Rejected();
 			if (recs != null)
@@ -136,6 +138,7 @@ namespace qutum.parser
 
 		public virtual bool Check()
 		{
+			Array.Fill(recm, -1, 0, recm.Length);
 			bool gre = greedy; greedy = false;
 			int m = Earley(out _, 0); greedy = gre;
 			Array.Fill(matchs, default, 0, matchn);
@@ -174,7 +177,7 @@ namespace qutum.parser
 				if (Eq.Equals(m.a.name, start.name) && m.from == 0 && m.a.s[m.step].p == null)
 					return x;
 			}
-			if (reck?.Count != 0 && rec > 0) {
+			if (reca.Count > 0 && rec > 0) {
 				recs ??= new Tr();
 				recs.Add(Rejected());
 				if (shift == 0)
@@ -264,24 +267,37 @@ namespace qutum.parser
 			matchs[matchn++] = u;
 			if (pto < loc && step > 0 && (int)a.s[--u.step].q > 1)
 				matchs[matchn++] = u; // prev and tail kept
+			if (step > 0 && a.recover >= 0)
+				recm[reca.IndexOf(a)] = step <= a.recover ? matchn - 1 : -1;
 		}
 
 		bool Recover(bool eof, ref int shift)
 		{
 			shift = eof ? -1 : 0;
-			if (eof || reck == null || reck.Exists(k => scan.Is(k)))
-				for (int x = matchn - 1; x >= 0; x--) {
-					var m = matchs[x]; var r = m.a.recover; var s = m.a.s;
-					if (m.step <= r && m.step > 0
-						&& (eof ? s[m.step].p != null
-							: r == s.Length ? m.step == r - 2 : scan.Is((K)s[r].p))) {
-						if (r == s.Length) {
-							--loc; shift = -2;
+			int max = -1;
+			for (int ax = 0; ax < reca.Count; ax++) {
+				var x = recm[ax];
+				if (x < 0)
+					continue;
+				var m = matchs[x]; var r = m.a.recover; var s = m.a.s;
+				if (r < s.Length)
+					for (int y = loc - 2; y >= m.to; y--)
+						if (scan.Is(y, (K)s[r].p)) {
+							recm[ax] = -1;
+							goto Cont;
 						}
-						Add(m.a, m.from, m.to, Math.Min(r + 1, s.Length - 1), x, -4);
-						break;
-					}
+				if (eof ? s[m.step].p != null
+						: r == s.Length ? m.step == r - 2 : scan.Is((K)s[r].p))
+					max = Math.Max(max, x);
+				Cont:;
+			}
+			if (max >= 0) {
+				var m = matchs[max];
+				if (m.a.recover == m.a.s.Length) {
+					--loc; shift = -2;
 				}
+				Add(m.a, m.from, m.to, Math.Min(m.a.recover + 1, m.a.s.Length - 1), max, -4);
+			}
 			return completen < matchn;
 		}
 
@@ -413,7 +429,7 @@ namespace qutum.parser
 						};
 					}).Append(new ParserChar.Con { q = One })
 					.ToArray();
-					return new ParserChar.Alt { name = kv.Key, s = s };
+					return new ParserChar.Alt { name = kv.Key, s = s, recover = -1 };
 				}).ToArray();
 			// spaces before hintw are greedy
 			prods["hint"].alts[0].greedy = 1;
@@ -456,7 +472,6 @@ namespace qutum.parser
 				p => p.head.dump = boot.scan.Tokens(p.head.from, p.head.to),
 				p => new Prod { name = Name(p.head.dump) }
 			);
-			var reck = new List<K>();
 
 			foreach (var p in prods) {
 				var prod = names[p.head.dump];
@@ -498,17 +513,16 @@ namespace qutum.parser
 								var a = az[ax];
 								a.greedy = g; a.tree = tr; a.token = k; a.errExpect = e;
 								a.hint = w != "" ? w : null;
-								if (r == 1) // search Con for recovery
+								if (r == 1) // search last K for recovery
 									for (int y = a.s.Length - 1; y > 0; y--)
-										if (a.s[y].p is K key && ((int)a.s[y].q & 1) > 0) {
+										if (a.s[y].p is K && ((int)a.s[y].q & 1) > 0) {
 											a.recover = y;
-											if (reck?.Contains(key) == false)
-												reck.Add(key);
+											reca.Add(a);
 											break;
 										}
-								if (r == 2) { // recover in place
+								if (r == 2) { // recover last any Con
 									a.recover = a.s.Length;
-									reck = null;
+									reca.Add(a);
 								}
 							}
 						}
@@ -519,7 +533,7 @@ namespace qutum.parser
 				prod.alts = az;
 			}
 			start = names[prods.First().head.dump];
-			this.reck = reck;
+			recm = new int[reca.Count];
 		}
 	}
 }
