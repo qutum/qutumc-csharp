@@ -87,7 +87,8 @@ namespace qutum.test.syntax
 		[TestMethod]
 		public void Blocks()
 		{
-			var t = Parse(@"
+			var t = Parse("").Eq(Syn.all, 0).H0().N0();
+			t = Parse(@"
 			a
 			b");
 			t = t/**/	.H(Syn.Block).H(Syn.exp).V(Lex.WORD, "a", Lex.EOL).N0();
@@ -108,8 +109,8 @@ namespace qutum.test.syntax
 		{
 			var t = Parse(@"
 			a
-				- 1
-				* 2");
+				-1
+				*2");
 			t = t/**/	.H(Syn.Block).H(Syn.exp).V(Lex.WORD, "a", Lex.EOL);
 			t = t/**/				.N(Syn.stat, v: Lex.SUB);
 			t = t/**/					.H(Syn.exp).V(Lex.INT, 1, Lex.EOL).N0();
@@ -128,7 +129,7 @@ namespace qutum.test.syntax
 			t = Parse(@"
 			-
 				1
-				* 2");
+				*2");
 			t = t/**/	.H(Syn.Block).H(Syn.pre, v: Lex.SUB);
 			t = t/**/					.H(Syn.exp).V(Lex.INT, 1, Lex.EOL).N0();
 			t = t/**/				.N(Syn.stat, v: Lex.MUL);
@@ -140,8 +141,22 @@ namespace qutum.test.syntax
 		{
 			var t = Parse(@"
 			a
-					+a
-				-b");
+					+1
+				*2");
+			t = t/**/	.H(Syn.Block).H(Syn.exp).V(Lex.WORD, "a", Lex.EOL);
+			t = t/**/				.N(Syn.headr).H(Syn.stat, v: Lex.ADD);
+			t = t/**/							.H(Syn.exp).V(Lex.INT, 1, Lex.EOL).N0().N0();
+			t = t/**/				.N(Syn.stat, v: Lex.MUL);
+			t = t/**/					.H(Syn.exp).V(Lex.INT, 2, Lex.EOL).N0().N0().N0().N0();
+			t = Parse(@"
+			a
+						+1
+				*2");
+			t = t/**/	.H(Syn.Block).H(Syn.exp).V(Lex.WORD, "a", Lex.EOL);
+			t = t/**/				.N(Syn.headr).H(Syn.stat, v: Lex.ADD);
+			t = t/**/							.H(Syn.exp).V(Lex.INT, 1, Lex.EOL).N0().N0();
+			t = t/**/				.N(Syn.stat, v: Lex.MUL);
+			t = t/**/					.H(Syn.exp).V(Lex.INT, 2, Lex.EOL).N0().N0().N0().N0();
 		}
 
 		[TestMethod]
@@ -149,24 +164,38 @@ namespace qutum.test.syntax
 		{
 			p.dump = 3;
 			var t = Parse(@"
-			a + b
-				*2
-				## comment
-					<< c
-						+ 1
-				- d");
-			t = Parse(@"
 			a
-				+ 2
-
+				+2
 					- b
 				* c");
+			t = t/**/	.H(Syn.Block).H(Syn.exp).V(Lex.WORD, "a", Lex.EOL);
+			t = t/**/				.N(Syn.stat, v: Lex.ADD);
+			t = t/**/					.H(Syn.exp).V(Lex.INT, 2, Lex.EOL);
+			t = t/**/					.N(Syn.stat, v: Lex.SUB);
+			t = t/**/						.H(Syn.exp).V(Lex.WORD, "b", Lex.EOL).N0().N0();
+			t = t/**/				.N(Syn.stat, v: Lex.MUL);
+			t = t/**/					.H(Syn.exp).V(Lex.WORD, "c", Lex.EOL).N0().N0().N0().N0();
+			t = Parse(@"
+			a + b
+				*2
+					<< c
+						+1
+				- d");
+			t = t/**/	.H(Syn.Block).H(Syn.exp).V(Lex.WORD, "a", Lex.ADD, Lex.WORD, "b", Lex.EOL);
+			t = t/**/				.N(Syn.stat, v: Lex.MUL);
+			t = t/**/					.H(Syn.exp).V(Lex.INT, 2, Lex.EOL);
+			t = t/**/					.N(Syn.stat, v: Lex.SHL);
+			t = t/**/						.H(Syn.exp).V(Lex.WORD, "c", Lex.EOL);
+			t = t/**/						.N(Syn.stat, v: Lex.ADD);
+			t = t/**/							.H(Syn.exp).V(Lex.INT, 1, Lex.EOL).N0().N0().N0();
+			t = t/**/				.N(Syn.stat, v: Lex.SUB);
+			t = t/**/					.H(Syn.exp).V(Lex.WORD, "d", Lex.EOL).N0().N0().N0().N0();
 		}
 
 		[TestMethod]
 		public void Nested2()
 		{
-			Parse(@"
+			var t = Parse(@"
 			a
 				+ b
 					* c
@@ -174,9 +203,20 @@ namespace qutum.test.syntax
 					d
 						+e
 			b
-				- c
-			");
-			Parse(@"
+				- c");
+			t = t/**/	.H(Syn.Block).H(Syn.exp).V(Lex.WORD, "a", Lex.EOL);
+			t = t/**/				.N(Syn.stat, v: Lex.ADD);
+			t = t/**/					.H(Syn.exp).V(Lex.WORD, "b", Lex.EOL);
+			t = t/**/					.N(Syn.stat, v: Lex.MUL);
+			t = t/**/						.H(Syn.exp).V(Lex.WORD, "c", Lex.EOL).N0().N0();
+			t = t/**/				.N(Syn.stat, v: Lex.DIV);
+			t = t/**/					.H(Syn.exp).V(Lex.WORD, "d", Lex.EOL);
+			t = t/**/					.N(Syn.stat, v: Lex.ADD);
+			t = t/**/						.H(Syn.exp).V(Lex.WORD, "e", Lex.EOL).N0().N0().N0();
+			t = t/**/	.N(Syn.Block).H(Syn.exp).V(Lex.WORD, "b", Lex.EOL);
+			t = t/**/				.N(Syn.stat, v: Lex.SUB);
+			t = t/**/					.H(Syn.exp).V(Lex.WORD, "c", Lex.EOL).N0().N0().N0();
+			t = Parse(@"
 			a
 					+ b
 				* c
@@ -184,6 +224,16 @@ namespace qutum.test.syntax
 			b
 				/ c
 			");
+			t = t/**/	.H(Syn.Block).H(Syn.exp).V(Lex.WORD, "a", Lex.EOL);
+			t = t/**/				.N(Syn.headr).H(Syn.stat, v: Lex.ADD);
+			t = t/**/							.H(Syn.exp).V(Lex.WORD, "b", Lex.EOL).N0().N0();
+			t = t/**/				.N(Syn.stat, v: Lex.MUL);
+			t = t/**/					.H(Syn.exp).V(Lex.WORD, "c", Lex.EOL);
+			t = t/**/					.N(Syn.stat, v: Lex.SUB);
+			t = t/**/						.H(Syn.exp).V(Lex.WORD, "d", Lex.EOL).N0().N0().N0();
+			t = t/**/	.N(Syn.Block).H(Syn.exp).V(Lex.WORD, "b", Lex.EOL);
+			t = t/**/				.N(Syn.stat, v: Lex.DIV);
+			t = t/**/					.H(Syn.exp).V(Lex.WORD, "c", Lex.EOL).N0().N0().N0();
 		}
 
 		[TestMethod]
@@ -245,7 +295,7 @@ namespace qutum.test.syntax
 			t = t/**/				.N(Syn.stat, -4);
 			t = t/**/				.N(Syn.stat, v: Lex.ADD);
 			t = t/**/					.H(Syn.exp).V(Lex.INT, 1, Lex.EOL).N0().N0().N0();
-			t = t/**/.N(Syn.all, -1, 3.5, 3.5).V(Lex.WORD, "b");
+			t = t/**/.N(Syn.all, -1, 3.6, 3.6, Lex.EOL);
 			t = t/**/	.H(Syn.stat, 1).N0().N0();
 		}
 
@@ -255,7 +305,7 @@ namespace qutum.test.syntax
 			var t = Parse(@"
 			a
 				b
-				+ 1
+				+1
 				c
 			d");
 			t = t/**/	.H(Syn.Block).H(Syn.exp).V(Lex.WORD, "a", Lex.EOL);
@@ -264,10 +314,29 @@ namespace qutum.test.syntax
 			t = t/**/					.H(Syn.exp).V(Lex.INT, 1, Lex.EOL).N0();
 			t = t/**/				.N(Syn.stat, -4).N0();
 			t = t/**/	.N(Syn.Block).H(Syn.exp).V(Lex.WORD, "d", Lex.EOL).N0().N0();
-			t = t/**/.N(Syn.all, -1, 3.5, 3.5).V(Lex.WORD, "b");
+			t = t/**/.N(Syn.all, -1, 3.6, 3.6, Lex.EOL);
 			t = t/**/	.H(Syn.stat, 1).N0();
-			t = t/**/.N(Syn.all, -1, 5.5, 5.5).V(Lex.WORD, "c");
+			t = t/**/.N(Syn.all, -1, 5.6, 5.6, Lex.EOL);
 			t = t/**/	.H(Syn.stat, 1).N0().N0();
+		}
+
+
+		[TestMethod]
+		public void RecoverHeadRight()
+		{
+			var t = Parse(@"
+			a
+						+1
+					*2
+				-3");
+			t = t/**/	.H(Syn.Block).H(Syn.exp).V(Lex.WORD, "a", Lex.EOL);
+			t = t/**/				.N(Syn.headr).H(Syn.stat, v: Lex.ADD);
+			t = t/**/							.H(Syn.exp).V(Lex.INT, 1, Lex.EOL).N0().N0();
+			t = t/**/				.N(Syn.headr, -4);
+			t = t/**/				.N(Syn.stat, v: Lex.SUB);
+			t = t/**/					.H(Syn.exp).V(Lex.INT, 3, Lex.EOL).N0().N0().N0();
+			t = t/**/.N(Syn.all, -1, 4.6, 4.6, Lex.MUL);
+			t = t/**/	.H(Syn.headr, 2, v: Lex.DED).N0();
 		}
 	}
 }

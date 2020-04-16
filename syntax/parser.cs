@@ -26,20 +26,20 @@ namespace qutum.syntax
 	class Parser : Parser<Lex, Syn, Tree, Lexer>
 	{
 		static readonly string grammar = @"
-		all   = Block+ | IND all DED Block*
+		all   = Block* | IND all DED Block*
 		Block = block					=+
 
 		block = exp stats?				=	block
 		      | pre	stat* DED			=	prefix and statements
 		stats = IND headr? stat* DED	=	statements
 		headr = IND stat+ DED			=+	statements of head right datum
-		      | IND headr DED			=|!	forward to recover
+		      | IND headr DED			=|!	statements of head right datum
 		right = block					=	right side
 		      | EOL nest				=||!right side
 		nest  = IND block DED			=	block
 
 		pre   = OPPRE EOL IND block		=+_!prefix statement
-		stat  =	SP? EOL					=|!	statement
+		stat  =	EFFECT SP EOL			=|!	statement == leading DED exclusive
 		      | OPBIN right				=+_	binary statement
 
 		exp = EFFECT+ EOL		=+|! expression
