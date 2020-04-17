@@ -16,7 +16,7 @@ namespace qutum.syntax
 		all = 1, Block,
 		block, stats, headr, nest,
 		pre, right, stat,
-		exp,
+		line,
 	}
 
 	class Tree : Tree<Syn, Tree>
@@ -29,20 +29,20 @@ namespace qutum.syntax
 		all   = Block* | IND all DED Block*
 		Block = block					=+
 
-		block = exp stats?				=	block
+		block = line stats?				=	block
 		      | pre	stat* DED			=	prefix and statements
 		stats = IND headr? stat* DED	=	statements
 		headr = IND stat+ DED			=+	statements of head right datum
-		      | IND headr DED			=|!	statements of head right datum
+		      | IND headr DED			=!|IND	statements of head right datum
 		right = block					=	right side
-		      | EOL nest				=||!right side
-		nest  = IND block DED			=	block
+		      | EOL nest				=!|	right side
+		nest  = IND block DED			=!|IND	nested block
 
 		pre   = OPPRE EOL IND block		=+_!prefix statement
-		stat  =	EFFECT SP EOL			=|!	statement == leading DED exclusive
+		stat  =	EFFECT SP EOL			=!|	statement == leading DED exclusive
 		      | OPBIN right				=+_	binary statement
 
-		exp = EFFECT+ EOL		=+|! expression
+		line  = LITERAL+ EOL		=+!| expression
 		";
 
 		public Parser(Lexer l) : base(grammar, l)
