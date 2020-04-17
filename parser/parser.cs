@@ -74,8 +74,9 @@ namespace qutum.parser
 			internal sbyte tree; // as parser.tree: 0, thru: -1, make: 1
 			internal bool token; // save first shift token to Tree.info
 			internal bool errExpect; // make expect Tree when error
-			internal int recover; // no: -1, recover at last One or More K index: > 0,
-								  // or recover at last Con without scan: s.Length
+			internal int recover; // no: -1, recover ahead to last One or More K index: > 0,
+								  // recover just at last One or More Prod index without shift: > 0
+			internal K recPair; // skip each pair of this and recovery K, no skip: recovery K
 			internal string hint;
 
 			public override string ToString()
@@ -279,24 +280,29 @@ namespace qutum.parser
 				var x = recm[ax];
 				if (x < 0)
 					continue;
-				var m = matchs[x]; var r = m.a.recover; var s = m.a.s;
-				if (r < s.Length)
-					for (int y = loc - 2; y >= m.to; y--)
-						if (scan.Is(y, (K)s[r].p)) {
-							recm[ax] = -1;
-							goto Cont;
-						}
-				if (eof ? s[m.step].p != null
-						: r == s.Length ? m.step == r - 2 : scan.Is((K)s[r].p))
+				var m = matchs[x]; var pair = 0;
+				if (m.a.s[m.a.recover].p is K k)
+					for (int y = m.to; y <= loc - 2; y++)
+						if (scan.Is(y, k))
+							if (pair == 0) {
+								recm[ax] = -1;
+								goto Cont;
+							}
+							else
+								pair--;
+						else if (scan.Is(y, m.a.recPair))
+							pair++;
+				if (m.a.s[m.a.recover].p is K k2 ? pair == 0 && (eof || scan.Is(k2))
+					: m.step == m.a.recover && (eof || m.to == loc - 1))
 					max = Math.Max(max, x);
 				Cont:;
 			}
 			if (max >= 0) {
 				var m = matchs[max];
-				if (m.a.recover == m.a.s.Length) {
+				if (m.a.s[m.a.recover].p is Prod) {
 					--loc; shift = -2;
 				}
-				Add(m.a, m.from, m.to, Math.Min(m.a.recover + 1, m.a.s.Length - 1), max, -4);
+				Add(m.a, m.from, m.to, m.a.recover + 1, max, -4);
 			}
 			return completen < matchn;
 		}
@@ -396,12 +402,12 @@ namespace qutum.parser
 			{ "con",   "W+|sym|S+" }, // word to prod name or scan.Keys
 			{ "sym",   "Q|O+|\\ E" }, // unescaped to scan.Keys except Qua
 			{ "alt",   "ahint? \x1 S* con*" },
-			{ "hint",  "= hintg? hintt? hintk? hintr? hinte? S* hintw" },
+			{ "hint",  "= hintg? hintt? hintk? hinte? hintr? S* hintw" },
 			{ "hintg", "*" }, // hint greedy
 			{ "hintt", "+|-" }, // hint tree
 			{ "hintk", "_" }, // hint token
-			{ "hintr", "\x1|\x1 \x1" }, // hint recover
 			{ "hinte", "!" }, // hint expect
+			{ "hintr", "\x1|\x1 W+|\x1 O|\x1 \\ E" }, // hint recover
 			{ "hintw", "H*" }, // hint words
 			{ "hint_", "eol" }, // to split prod into lines
 			{ "ahint", "hint? hint_" },
@@ -437,7 +443,7 @@ namespace qutum.parser
 			foreach (var c in prods["con"].alts.Take(1) // word
 				.Concat(new[] { "prod", "alt", "name", "sym",
 					"hintg", "hintt", "hintk", "hintr", "hinte", "hintw", "hint_" }
-				.SelectMany(x => prods[x].alts)))
+					.SelectMany(x => prods[x].alts)))
 				c.tree = 1;
 			boot = new ParserChar(prods["gram"]) {
 				greedy = false, tree = false, dump = 0
@@ -460,8 +466,8 @@ namespace qutum.parser
 			// \ prod
 			//   \ name
 			//   \ word or sym or alt ...
-			//   \ con .tokens refer prod.name
-			//   \ alt .name == prod.name
+			//   \ con // .tokens refer prod.name
+			//   \ alt // .name == prod.name
 			//     \ hintg or ... hintw
 			//     \ hinte
 			//     \ word or sym ...
@@ -479,15 +485,15 @@ namespace qutum.parser
 				var az = p.Where(t => t.name == "alt").Prepend(p).Select(ta => {
 					// prod name or keys or quantifier ...
 					var z = ta.Where(t => t.name == "sym" || t.name == "con").SelectMany(t =>
-						t.name == "sym" ?
-							gram[t.from] == '?' ? new object[] { Opt } :
-							gram[t.from] == '*' ? new object[] { Any } :
-							gram[t.from] == '+' ? new object[] { More } :
-							scan.Keys(BootScan.Unesc(gram, t.from, t.to)).Cast<object>()
+						t.name == "sym"
+							? gram[t.from] == '?' ? new object[] { Opt }
+							: gram[t.from] == '*' ? new object[] { Any }
+							: gram[t.from] == '+' ? new object[] { More }
+							: scan.Keys(BootScan.Unesc(gram, t.from, t.to)).Cast<object>()
 						// for word, search product names first, then scan keys
 						: names.TryGetValue(t.dump = boot.scan.Tokens(t.from, t.to), out Prod p)
-							? new object[] { p } :
-							scan.Keys(t.dump).Cast<object>())
+							? new object[] { p }
+							: scan.Keys(t.dump).Cast<object>())
 						.Append(null)
 						.ToArray();
 					// build alt
@@ -500,29 +506,29 @@ namespace qutum.parser
 				// build hint
 				int ax = 0;
 				p.Where(t => t.name == "alt").Append(p).Each((t, x) => {
-					sbyte g = 0, tr = 0; bool k = false, e = false; int r = -1;
+					sbyte g = 0, tr = 0; bool k = false, e = false; TreeStr r = null;
 					foreach (var h in t) {
 						if (h.name == "hintg") g = 1;
 						if (h.name == "hintt") tr = (sbyte)(gram[h.from] == '+' ? 1 : -1);
 						if (h.name == "hintk") k = true;
-						if (h.name == "hintr") r = h.to - h.from;
 						if (h.name == "hinte") e = true;
+						if (h.name == "hintr") r = h;
 						if (h.name == "hintw") { // apply hints
 							var w = boot.scan.Tokens(h.from, h.to);
 							for (; ax <= x; ax++) {
 								var a = az[ax];
 								a.greedy = g; a.tree = tr; a.token = k; a.errExpect = e;
 								a.hint = w != "" ? w : null;
-								if (r == 1) // search last K for recovery
-									for (int y = a.s.Length - 1; y > 0; y--)
-										if (a.s[y].p is K && ((int)a.s[y].q & 1) > 0) {
-											a.recover = y;
+								if (r != null) {
+									for (int y = a.s.Length - 2; y > 0; y--)
+										if (((int)a.s[y].q & 1) > 0) {
+											a.recover = y; // last One or More index found
 											reca.Add(a);
 											break;
 										}
-								if (r == 2) { // recover last any Con
-									a.recover = a.s.Length;
-									reca.Add(a);
+									if (a.recover > 0 && a.s[a.recover].p is K p)
+										a.recPair = r.to - r.from == 1 ? p :
+											scan.Keys(BootScan.Unesc(gram, r.from + 1, r.to)).First();
 								}
 							}
 						}
