@@ -92,10 +92,9 @@ namespace qutum.parser
 		readonly Prod start;
 		readonly List<Alt> reca = new List<Alt>();
 		Match[] matchs = new Match[16384];
-		int matchn, completen;
+		internal int matchn, completen;
+		internal int locn; // token count
 		readonly List<int> locs = new List<int>(); // matchn before each token
-		int loc; // next token index
-		internal int largest, largestLoc; // largest number of new matches before each token, and the loc
 		readonly int[] recm; // latest match index of each recovery Alt
 		internal Sc scan;
 		public bool greedy = false; // for any Alt eg. S=AB A=1|12 B=23|2  gready: (12)3  back greedy: 1(23)
@@ -124,43 +123,40 @@ namespace qutum.parser
 		// make a Tree from complete Alts, Tree.tokens unset
 		public virtual Tr Parse()
 		{
-			Array.Fill(recm, -1, 0, recm.Length);
-			int m = Earley(out Tr recs, recover);
-			Tr t = m >= 0 ? Accepted(m, null) : Rejected();
-			if (recs != null)
-				if (m >= 0)
-					t.AddNextSub(recs);
-				else
-					t = recs.head.Remove().AddNextSub(recs);
-			Array.Fill(matchs, default, 0, matchn);
 			matchn = 0;
+			Array.Fill(recm, -1, 0, recm.Length);
+			int m = Earley(out Tr err, recover);
+			Tr t = m >= 0
+				? Accepted(m, null).AddNextSub(err)
+				: err.head.Remove().AddNextSub(err);
+			Array.Fill(matchs, default, 0, matchn);
 			locs.Clear();
 			return t;
 		}
 
 		public virtual bool Check()
 		{
+			matchn = 0;
 			Array.Fill(recm, -1, 0, recm.Length);
 			bool gre = greedy; greedy = false;
 			int m = Earley(out _, 0); greedy = gre;
 			Array.Fill(matchs, default, 0, matchn);
-			matchn = 0;
 			locs.Clear();
 			return m >= 0;
 		}
 
-		int Earley(out Tr recs, int rec)
+		int Earley(out Tr err, int rec)
 		{
-			locs.Add(loc = 0);
+			locs.Add(locn = 0);
 			foreach (var x in start.alts)
 				Add(x, 0, 0, 0, -1, -1);
-			largest = largestLoc = 0;
-			recs = null;
+			err = null;
+			if (rec == 0) rec = -1;
 			int shift = 0;
 		Loop: do {
 				int c, p;
-				Complete(locs[loc]); c = matchn;
-				Predict(locs[loc]); p = matchn;
+				Complete(locs[locn]); c = matchn;
+				Predict(locs[locn]); p = matchn;
 				for (; ; ) {
 					Complete(c);
 					if (c == (c = matchn))
@@ -169,21 +165,20 @@ namespace qutum.parser
 					if (p == (p = matchn))
 						break;
 				}
-				if (matchn - locs[loc] > largest)
-					largest = matchn - locs[largestLoc = loc];
 			} while ((shift = Shift(shift)) > 0);
 
 			completen = matchn;
-			for (int x = locs[loc]; x < matchn; x++) {
+			for (int x = locs[locn]; x < matchn; x++) {
 				var m = matchs[x];
 				if (Eq.Equals(m.a.name, start.name) && m.from == 0 && m.a.s[m.step].p == null)
 					return x;
 			}
+			err ??= new Tr();
+			if (rec != 0)
+				err.Add(Rejected());
 			if (reca.Count > 0 && rec > 0) {
-				recs ??= new Tr();
-				recs.Add(Rejected());
 				if (shift == 0)
-					for (; ; locs.Add(matchn), ++loc)
+					for (; ; locs.Add(matchn), ++locn)
 						if (Recover(false, ref shift))
 							goto Loop;
 						else if (!scan.Next())
@@ -201,7 +196,7 @@ namespace qutum.parser
 				var m = matchs[x];
 				if (m.a.s[m.step].p is Prod p)
 					foreach (var alt in p.alts)
-						Add(alt, loc, loc, 0, x, -1);
+						Add(alt, locn, locn, 0, x, -1);
 				if (((int)m.a.s[m.step].q & 1) == 0)
 					Add(m.a, m.from, m.to, m.step + 1, x, -3); // m.to == loc
 			}
@@ -209,10 +204,10 @@ namespace qutum.parser
 
 		void Complete(int empty)
 		{
-			for (int x = locs[loc]; x < matchn; x++) {
+			for (int x = locs[locn]; x < matchn; x++) {
 				var m = matchs[x];
-				if ((x >= empty || m.from == loc) && m.a.s[m.step].p == null)
-					for (int px = locs[m.from], py = m.from < loc ? locs[m.from + 1] : matchn;
+				if ((x >= empty || m.from == locn) && m.a.s[m.step].p == null)
+					for (int px = locs[m.from], py = m.from < locn ? locs[m.from + 1] : matchn;
 							px < py; px++) {
 						var pm = matchs[px];
 						if (pm.a.s[pm.step].p is Prod p && Eq.Equals(p.name, m.a.name))
@@ -228,22 +223,22 @@ namespace qutum.parser
 			if (shift >= 0)
 				locs.Add(matchn);
 			else
-				locs[loc + 1] = matchn;
-			for (int x = locs[loc], y = locs[++loc]; x < y; x++) {
+				locs[locn + 1] = matchn;
+			for (int x = locs[locn], y = locs[++locn]; x < y; x++) {
 				var m = matchs[x];
 				if (m.a.s[m.step].p is K k && scan.Is(k))
 					Add(m.a, m.from, m.to, m.step + 1, // m.to < loc
 						m.tail != -2 || m.a.token ? x : m.prev, -2);
 			}
-			return matchn - locs[loc];
+			return matchn - locs[locn];
 		}
 
 		void Add(Alt a, int from, int pto, int step, int prev, int tail)
 		{
 			var u = new Match {
-				a = a, from = from, to = loc, step = step, prev = prev, tail = tail
+				a = a, from = from, to = locn, step = step, prev = prev, tail = tail
 			};
-			for (int x = locs[loc]; x < matchn; x++) {
+			for (int x = locs[locn]; x < matchn; x++) {
 				var m = matchs[x];
 				if (m.a == a && m.from == from && m.step == step) {
 					if ((a.greedy == 0 ? !greedy : a.greedy < 0) || m.tail == -1 || u.tail == -1)
@@ -267,7 +262,7 @@ namespace qutum.parser
 			}
 			if (matchn + 2 > matchs.Length) Array.Resize(ref matchs, matchs.Length << 1);
 			matchs[matchn++] = u;
-			if (pto < loc && step > 0 && (int)a.s[--u.step].q > 1)
+			if (pto < locn && step > 0 && (int)a.s[--u.step].q > 1)
 				matchs[matchn++] = u; // prev and tail kept
 			if (step > 0 && a.recover >= 0)
 				recm[reca.IndexOf(a)] = step <= a.recover ? matchn - 1 : -1;
@@ -283,7 +278,7 @@ namespace qutum.parser
 					continue;
 				var m = matchs[x]; var pair = 0;
 				if (m.a.s[m.a.recover].p is K k)
-					for (int y = m.to; y <= loc - 2; y++)
+					for (int y = m.to; y <= locn - 2; y++)
 						if (scan.Is(y, k))
 							if (pair == 0) {
 								recm[ax] = -1; // closed
@@ -298,14 +293,14 @@ namespace qutum.parser
 							goto Cont;
 						}
 				if (m.a.s[m.a.recover].p is K k2 ? pair == 0 && (eof || scan.Is(k2))
-					: m.step == m.a.recover && (eof || m.to == loc - 1))
+					: m.step == m.a.recover && (eof || m.to == locn - 1))
 					max = Math.Max(max, x);
 				Cont:;
 			}
 			if (max >= 0) {
 				var m = matchs[max];
 				if (m.a.s[m.a.recover].p is Prod) {
-					--loc; shift = -2;
+					--locn; shift = -2;
 				}
 				Add(m.a, m.from, m.to, m.a.recover + 1, max, -4);
 			}
@@ -345,10 +340,10 @@ namespace qutum.parser
 
 		Tr Rejected()
 		{
-			int from = locs[loc] < matchn ? loc : loc - 1, x = locs[from];
+			int from = locs[locn] < matchn ? locn : locn - 1, x = locs[from];
 			var t = new Tr {
-				name = start.name, from = from, to = loc, err = -1,
-				info = from < loc ? (object)scan.Token(from) : null
+				name = start.name, from = from, to = locn, err = -1,
+				info = from < locn ? (object)scan.Token(from) : null
 			};
 			var errs = new bool[matchn];
 			for (int y = matchn - 1, z; (z = y) >= x; y--) {

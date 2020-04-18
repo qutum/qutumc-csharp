@@ -22,7 +22,7 @@ namespace qutum.test.parser
 		{
 			var t = p.Load(new ScanStr(input)).Parse().Dump();
 			using var env = EnvWriter.Begin();
-			env.WriteLine($"---- largest {p.largest} ----");
+			env.WriteLine($"---- match {p.matchn} / loc {p.locn} = {p.matchn / Math.Max(p.locn, 1)} ----");
 			return (t, p.scan);
 		}
 
@@ -147,11 +147,11 @@ namespace qutum.test.parser
 			var p = new ParserStr("S= aa B \nB= A a \nA= a A|a") { dump = 3 };
 			IsFalse(p.Check("aa")); IsFalse(p.Check("aaa"));
 			IsTrue(p.Check("aaaa")); IsTrue(p.Check("aaaaa")); IsTrue(p.Check("aaaaaa"));
-			IsTrue(p.Check("aaaaaaa")); AreEqual(11, p.largest);
+			IsTrue(p.Check("aaaaaaa")); AreEqual(49, p.matchn);
 			p = new ParserStr("S= aa B \nB= A a \nA= A a|a") { dump = 3 };
-			IsTrue(p.Check("aaaaaaa")); AreEqual(5, p.largest);
+			IsTrue(p.Check("aaaaaaa")); AreEqual(29, p.matchn);
 			p = new ParserStr("S= aa B \nB= A a \nA= a+") { dump = 3 };
-			IsTrue(p.Check("aaaaaaa")); AreEqual(5, p.largest);
+			IsTrue(p.Check("aaaaaaa")); AreEqual(28, p.matchn);
 		}
 
 		[TestMethod]
@@ -341,7 +341,7 @@ namespace qutum.test.parser
 		{
 			var p = new ParserStr("S=a+") { dump = 3 };
 			IsFalse(p.Check("")); IsTrue(p.Check("a")); IsTrue(p.Check("aaaaaa"));
-			IsTrue(p.Check("aaaaaaa")); AreEqual(2, p.largest);
+			IsTrue(p.Check("aaaaaaa")); AreEqual(15, p.matchn);
 		}
 
 		[TestMethod]
@@ -352,7 +352,7 @@ namespace qutum.test.parser
 			p.Parse("apqpqpqb").H("A", v: "apq").N("B", v: "pqpqb").N0();
 			p.greedy = true;
 			p.Parse("apqpqpqb").H("A", v: "apqpq").N("B", v: "pqb").N0();
-			AreEqual(10, p.largest);
+			AreEqual(34, p.matchn);
 		}
 
 		[TestMethod]
@@ -360,7 +360,7 @@ namespace qutum.test.parser
 		{
 			var p = new ParserStr("S=a*") { dump = 3 };
 			IsTrue(p.Check("")); IsTrue(p.Check("a")); IsTrue(p.Check("aaaaaa"));
-			IsTrue(p.Check("aaaaaaa")); AreEqual(2, p.largest);
+			IsTrue(p.Check("aaaaaaa")); AreEqual(16, p.matchn);
 		}
 
 		[TestMethod]
@@ -369,10 +369,10 @@ namespace qutum.test.parser
 			var p = new ParserStr("S=A B \n A=a P* \n B=P* b \n P=p|q") { dump = 3 };
 			IsTrue(p.Check("ab")); IsTrue(p.Check("apqb")); IsTrue(p.Check("apqpqb"));
 			p.Parse("apqpqpqb").H("A", 0, 1).N("B").H("P", 1).U().T("P", 6).U().N0();
-			AreEqual(20, p.largest);
+			AreEqual(107, p.matchn);
 			p.greedy = true;
 			p.Parse("apqpqpqb").H("A").H("P", 1).U().T("P", 6).U().N("B", v: "b").N0();
-			AreEqual(20, p.largest);
+			AreEqual(107, p.matchn);
 		}
 
 		[TestMethod]

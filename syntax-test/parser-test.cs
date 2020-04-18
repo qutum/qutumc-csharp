@@ -80,7 +80,7 @@ namespace qutum.test.syntax
 				p.scan.Dispose();
 			p.scan.Load(new ScanByte(Encoding.UTF8.GetBytes(input)));
 			var t = p.Parse().Dump((Func<int, int, (int, int, int, int)>)p.scan.LineCol);
-			env.WriteLine($"---- largest {p.largest} ----");
+			env.WriteLine($"---- match {p.matchn} / loc {p.locn} = {p.matchn / Math.Max(p.locn, 1)} ----");
 			return (t, p);
 		}
 
