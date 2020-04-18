@@ -287,42 +287,6 @@ namespace qutum.test.syntax
 		}
 
 		[TestMethod]
-		public void RecoverStat1()
-		{
-			var t = Parse(@"
-			a
-				b
-				+ 1");
-			t = t/**/	.H(Syn.Block).H(Syn.line).V(Lex.WORD, "a", Lex.EOL);
-			t = t/**/				.N(Syn.stat, -4);
-			t = t/**/				.N(Syn.stat, v: Lex.ADD);
-			t = t/**/					.H(Syn.line).V(Lex.INT, 1, Lex.EOL).N0().N0().N0();
-			t = t/**/.N(Syn.all, -1, 3.6, 3.6, Lex.EOL);
-			t = t/**/	.H(Syn.stat, 1).N0().N0();
-		}
-
-		[TestMethod]
-		public void RecoverStat2()
-		{
-			var t = Parse(@"
-			a
-				b
-				+1
-				c
-			d");
-			t = t/**/	.H(Syn.Block).H(Syn.line).V(Lex.WORD, "a", Lex.EOL);
-			t = t/**/				.N(Syn.stat, -4);
-			t = t/**/				.N(Syn.stat, v: Lex.ADD);
-			t = t/**/					.H(Syn.line).V(Lex.INT, 1, Lex.EOL).N0();
-			t = t/**/				.N(Syn.stat, -4).N0();
-			t = t/**/	.N(Syn.Block).H(Syn.line).V(Lex.WORD, "d", Lex.EOL).N0().N0();
-			t = t/**/.N(Syn.all, -1, 3.6, 3.6, Lex.EOL);
-			t = t/**/	.H(Syn.stat, 1).N0();
-			t = t/**/.N(Syn.all, -1, 5.6, 5.6, Lex.EOL);
-			t = t/**/	.H(Syn.stat, 1).N0().N0();
-		}
-
-		[TestMethod]
 		public void RecoverBlock()
 		{
 			var t = Parse(@"
@@ -382,7 +346,7 @@ namespace qutum.test.syntax
 			t = t/**/				.N(Syn.stat, v: Lex.SUB);
 			t = t/**/					.H(Syn.line).V(Lex.INT, 3, Lex.EOL).N0().N0().N0();
 			t = t/**/.N(Syn.all, -1, 4.6, 4.6, Lex.MUL);
-			t = t/**/	.H(Syn.headr, 2, v: Lex.DED).N0();
+			t = t/**/	.H(Syn.headr, 2, v: Lex.DED).N0().N0();
 			t = Parse(@"
 			a
 						+1
@@ -397,7 +361,7 @@ namespace qutum.test.syntax
 			t = t/**/				.N(Syn.stat, v: Lex.SUB);
 			t = t/**/					.H(Syn.line).V(Lex.INT, 3, Lex.EOL).N0().N0().N0();
 			t = t/**/.N(Syn.all, -1, 4.6, 4.6, Lex.MUL);
-			t = t/**/	.H(Syn.headr, 2, v: Lex.DED).N0();
+			t = t/**/	.H(Syn.headr, 2, v: Lex.DED).N0().N0();
 		}
 
 		[TestMethod]
@@ -407,13 +371,51 @@ namespace qutum.test.syntax
 			a */
 						+1
 				*2");
-			t = t/**/	.H(Syn.Block).H(Syn.line).V(Lex.WORD, "a", Lex.MUL, Lex.DIV, Lex.EOL);
+			t = t/**/	.H(Syn.Block).H(Syn.line).H(Syn.line, -4).N0();
 			t = t/**/				.N(Syn.headr).H(Syn.stat, v: Lex.ADD);
 			t = t/**/							.H(Syn.line).V(Lex.INT, 1, Lex.EOL).N0().N0();
 			t = t/**/				.N(Syn.stat, v: Lex.MUL);
 			t = t/**/					.H(Syn.line).V(Lex.INT, 2, Lex.EOL).N0().N0().N0();
 			t = t/**/.N(Syn.all, -1, 2.6, 2.6, Lex.MUL);
-			t = t/**/	.H(Syn.line, 1, v: Lex.EOL).N0();
+			t = t/**/	.H(Syn.line, 2).N(Syn.line, 1).N0().N0();
+		}
+
+		[TestMethod]
+		public void RecoverStat1()
+		{
+			var t = Parse(@"
+			a
+				)
+				+ 1");
+			t = t/**/	.H(Syn.Block).H(Syn.line).V(Lex.WORD, "a", Lex.EOL);
+			t = t/**/				.N(Syn.line).H(Syn.line, -4).N0();
+			t = t/**/				.N(Syn.stat, v: Lex.ADD);
+			t = t/**/					.H(Syn.line).V(Lex.INT, 1, Lex.EOL).N0().N0().N0();
+			t = t/**/.N(Syn.all, -1, 3.5, 3.5, Lex.RP);
+			t = t/**/	.H(Syn.line, 1).N0().N0();
+		}
+
+		[TestMethod]
+		public void RecoverStat2()
+		{
+			var t = Parse(@"
+			a
+				*)
+				+1
+				-]
+			d");
+			t = t/**/	.H(Syn.Block).H(Syn.line).V(Lex.WORD, "a", Lex.EOL);
+			t = t/**/				.N(Syn.stat, v: Lex.MUL);
+			t = t/**/					.H(Syn.line).H(Syn.line, -4).N0().N0();
+			t = t/**/				.N(Syn.stat, v: Lex.ADD);
+			t = t/**/					.H(Syn.line).V(Lex.INT, 1, Lex.EOL).N0();
+			t = t/**/				.N(Syn.stat, v: Lex.SUB);
+			t = t/**/					.H(Syn.line).H(Syn.line, -4).N0().N0().N0();
+			t = t/**/	.N(Syn.Block).H(Syn.line).V(Lex.WORD, "d", Lex.EOL).N0().N0();
+			t = t/**/.N(Syn.all, -1, 3.6, 3.6, Lex.RP);
+			t = t/**/	.H(Syn.stat, 1).N(Syn.line, 1).N0();
+			t = t/**/.N(Syn.all, -1, 5.6, 5.6, Lex.RSB);
+			t = t/**/	.H(Syn.stat, 1).N(Syn.line, 1).N0().N0();
 		}
 	}
 }

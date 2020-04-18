@@ -29,20 +29,20 @@ namespace qutum.syntax
 		all   = Block* | IND all DED Block*
 		Block = block					=+
 
-		block = line stats?				=	block
-		      | pre	stat* DED			=	prefix and statements
-		stats = IND headr? stat* DED	=	statements
-		headr = IND stat+ DED			=+	statements of head right datum
+		block = line stats?				=		block
+		      | pre	stat* DED			=		prefix and statements
+		stats = IND headr? stat* DED	=		statements
+		headr = IND stat+ DED			=+		statements of head right datum
 		      | IND headr DED			=!|IND	statements of head right datum
-		right = block					=	right side
-		      | EOL nest				=!|	right side
+		right = block					=		right side
+		      | EOL nest				=!|		right side
 		nest  = IND block DED			=!|IND	nested block
 
-		pre   = OPPRE EOL IND block		=+_!prefix statement
-		stat  =	EFFECT SP EOL			=!|	statement == leading DED exclusive
-		      | OPBIN right				=+_	binary statement
+		pre   = OPPRE EOL IND block		=+_!	prefix statement
+		stat  =	OPBIN right				=+_!	statement
+		      | line stats?						== no prefix statement
 
-		line  = LITERAL+ EOL		=+!| expression
+		line  = SP?	LITERAL+ EOL		=+!|^DED	expression
 		";
 
 		public Parser(Lexer l) : base(grammar, l)

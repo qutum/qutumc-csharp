@@ -77,6 +77,7 @@ namespace qutum.parser
 			internal int recover; // no: -1, recover ahead to last One or More K index: > 0,
 								  // recover just at last One or More Prod index without shift: > 0
 			internal K recPair; // skip each pair of this and recovery K, no skip: recovery K
+			internal K recDeny; // deny this K when recover ahead, nothing denied: recovery K
 			internal string hint;
 
 			public override string ToString()
@@ -285,13 +286,17 @@ namespace qutum.parser
 					for (int y = m.to; y <= loc - 2; y++)
 						if (scan.Is(y, k))
 							if (pair == 0) {
-								recm[ax] = -1;
+								recm[ax] = -1; // closed
 								goto Cont;
 							}
 							else
 								pair--;
 						else if (scan.Is(y, m.a.recPair))
 							pair++;
+						else if (scan.Is(y, m.a.recDeny)) {
+							recm[ax] = -1;
+							goto Cont;
+						}
 				if (m.a.s[m.a.recover].p is K k2 ? pair == 0 && (eof || scan.Is(k2))
 					: m.step == m.a.recover && (eof || m.to == loc - 1))
 					max = Math.Max(max, x);
@@ -402,12 +407,13 @@ namespace qutum.parser
 			{ "con",   "W+|sym|S+" }, // word to prod name or scan.Keys
 			{ "sym",   "Q|O+|\\ E" }, // unescaped to scan.Keys except Qua
 			{ "alt",   "ahint? \x1 S* con*" },
-			{ "hint",  "= hintg? hintt? hintk? hinte? hintr? S* hintw" },
+			{ "hint",  "= hintg? hintt? hintk? hinte? hintr? hintd? S* hintw" },
 			{ "hintg", "*" }, // hint greedy
 			{ "hintt", "+|-" }, // hint tree
 			{ "hintk", "_" }, // hint token
 			{ "hinte", "!" }, // hint expect
 			{ "hintr", "\x1|\x1 W+|\x1 O|\x1 \\ E" }, // hint recover
+			{ "hintd", "^ W+|^ O|^ \\ E" }, // hint recovery deny
 			{ "hintw", "H*" }, // hint words
 			{ "hint_", "eol" }, // to split prod into lines
 			{ "ahint", "hint? hint_" },
@@ -442,7 +448,7 @@ namespace qutum.parser
 			// make these trees
 			foreach (var c in prods["con"].alts.Take(1) // word
 				.Concat(new[] { "prod", "alt", "name", "sym",
-					"hintg", "hintt", "hintk", "hintr", "hinte", "hintw", "hint_" }
+					"hintg", "hintt", "hintk", "hinte", "hintr", "hintd", "hintw", "hint_" }
 					.SelectMany(x => prods[x].alts)))
 				c.tree = 1;
 			boot = new ParserChar(prods["gram"]) {
@@ -506,13 +512,14 @@ namespace qutum.parser
 				// build hint
 				int ax = 0;
 				p.Where(t => t.name == "alt").Append(p).Each((t, x) => {
-					sbyte g = 0, tr = 0; bool k = false, e = false; TreeStr r = null;
+					sbyte g = 0, tr = 0; bool k = false, e = false; TreeStr r = null, d = null;
 					foreach (var h in t) {
 						if (h.name == "hintg") g = 1;
 						if (h.name == "hintt") tr = (sbyte)(gram[h.from] == '+' ? 1 : -1);
 						if (h.name == "hintk") k = true;
 						if (h.name == "hinte") e = true;
 						if (h.name == "hintr") r = h;
+						if (h.name == "hintd") d = h;
 						if (h.name == "hintw") { // apply hints
 							var w = boot.scan.Tokens(h.from, h.to);
 							for (; ax <= x; ax++) {
@@ -526,9 +533,12 @@ namespace qutum.parser
 											reca.Add(a);
 											break;
 										}
-									if (a.recover > 0 && a.s[a.recover].p is K p)
+									if (a.recover > 0 && a.s[a.recover].p is K p) {
 										a.recPair = r.to - r.from == 1 ? p :
 											scan.Keys(BootScan.Unesc(gram, r.from + 1, r.to)).First();
+										a.recDeny = d == null ? p :
+											scan.Keys(BootScan.Unesc(gram, d.from + 1, d.to)).First();
+									}
 								}
 							}
 						}
