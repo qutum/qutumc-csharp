@@ -2,35 +2,38 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.29911.84
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "qutumc", "qutumc\qutumc.csproj", "{8E770D23-EF44-45B1-92CE-EA2222976693}"
-EndProject
-Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "syntax", "syntax\syntax.shproj", "{B03C1F0C-12FE-45CE-8387-08794D0B6AEC}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{C7D083B7-4D27-415A-A549-7977A39B97DF}"
+	ProjectSection(SolutionItems) = preProject
+		.editorconfig = .editorconfig
+		LICENSE = LICENSE
+		README.md = README.md
+	EndProjectSection
 EndProject
 Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "parser", "parser\parser.shproj", "{64DCF327-7366-419B-9CA0-E55413B7AECD}"
+EndProject
+Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "syntax", "syntax\syntax.shproj", "{B03C1F0C-12FE-45CE-8387-08794D0B6AEC}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "parser-test", "parser-test\parser-test.csproj", "{4CF28C6F-6AD0-4FB3-8473-8800224DF879}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "syntax-test", "syntax-test\syntax-test.csproj", "{E3D7251A-F9FD-4992-9C7B-7BB7E94EA3F5}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "qutumc", "qutumc\qutumc.csproj", "{8E770D23-EF44-45B1-92CE-EA2222976693}"
+EndProject
 Global
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution
-		parser\parser.projitems*{4cf28c6f-6ad0-4fb3-8473-8800224df879}*SharedItemsImports = 5
 		parser\parser.projitems*{64dcf327-7366-419b-9ca0-e55413b7aecd}*SharedItemsImports = 13
-		parser\parser.projitems*{8e770d23-ef44-45b1-92ce-ea2222976693}*SharedItemsImports = 5
-		syntax\syntax.projitems*{8e770d23-ef44-45b1-92ce-ea2222976693}*SharedItemsImports = 5
-		syntax\syntax.projitems*{b03c1f0c-12fe-45ce-8387-08794d0b6aec}*SharedItemsImports = 13
+		parser\parser.projitems*{4cf28c6f-6ad0-4fb3-8473-8800224df879}*SharedItemsImports = 5
 		parser\parser.projitems*{e3d7251a-f9fd-4992-9c7b-7bb7e94ea3f5}*SharedItemsImports = 5
+		parser\parser.projitems*{8e770d23-ef44-45b1-92ce-ea2222976693}*SharedItemsImports = 5
+		syntax\syntax.projitems*{b03c1f0c-12fe-45ce-8387-08794d0b6aec}*SharedItemsImports = 13
 		syntax\syntax.projitems*{e3d7251a-f9fd-4992-9c7b-7bb7e94ea3f5}*SharedItemsImports = 5
+		syntax\syntax.projitems*{8e770d23-ef44-45b1-92ce-ea2222976693}*SharedItemsImports = 5
 	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{8E770D23-EF44-45B1-92CE-EA2222976693}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{8E770D23-EF44-45B1-92CE-EA2222976693}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{8E770D23-EF44-45B1-92CE-EA2222976693}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{8E770D23-EF44-45B1-92CE-EA2222976693}.Release|Any CPU.Build.0 = Release|Any CPU
 		{4CF28C6F-6AD0-4FB3-8473-8800224DF879}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{4CF28C6F-6AD0-4FB3-8473-8800224DF879}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{4CF28C6F-6AD0-4FB3-8473-8800224DF879}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -39,6 +42,10 @@ Global
 		{E3D7251A-F9FD-4992-9C7B-7BB7E94EA3F5}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{E3D7251A-F9FD-4992-9C7B-7BB7E94EA3F5}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{E3D7251A-F9FD-4992-9C7B-7BB7E94EA3F5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8E770D23-EF44-45B1-92CE-EA2222976693}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8E770D23-EF44-45B1-92CE-EA2222976693}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8E770D23-EF44-45B1-92CE-EA2222976693}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8E770D23-EF44-45B1-92CE-EA2222976693}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

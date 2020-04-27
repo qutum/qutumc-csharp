@@ -11,7 +11,7 @@ using System.Linq;
 
 namespace qutum.syntax
 {
-	enum Syn
+	public enum Syn
 	{
 		all = 1, Block,
 		block, stats, headr, nest,
@@ -19,11 +19,11 @@ namespace qutum.syntax
 		line,
 	}
 
-	class Tree : Tree<Syn, Tree>
+	public class Tree : Tree<Syn, Tree>
 	{
 	}
 
-	class Parser : Parser<Lex, Syn, Tree, Lexer>
+	public class Parser : Parser<Lex, Syn, Tree, Lexer>
 	{
 		static readonly string grammar = @"
 		all   = Block* | IND all DED Block*
