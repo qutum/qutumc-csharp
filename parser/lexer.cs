@@ -20,6 +20,11 @@ namespace qutum.parser
 		public int err; // token ~index this error found before
 
 		public override string ToString() => $"{key}{(err < 0 ? "!" : "=")}{value}";
+
+		public string ToString(Func<object, string> dumper)
+		{
+			return $"{key}{(err < 0 ? "!" : "=")}{dumper(value)}";
+		}
 	}
 
 	public class Lexer<K> : LexerBase<K, Token<K>> where K : struct

@@ -7,11 +7,12 @@
 
 using qutum.parser;
 using System;
+using System.Collections.Generic;
 using System.Text;
 
 namespace qutum.syntax
 {
-	enum Lex
+	public enum Lex
 	{
 		EFFECT = 0x1FFE0, // effective lexes
 		LITERAL = 0x0020, // literals
@@ -23,21 +24,21 @@ namespace qutum.syntax
 		OPPOST = 0x2000, // postfix operators
 		OTHER = 0x10000,
 
-		EOL = 1, IND, DED, SP, COMM, COMMB,
+		EOL = 1, IND, DED, SP, COMM, COMMB, PATH,
 
 		LP = OTHER | 1, RP, LSB, RSB, LCB, RCB,
-		APO, BAPO, COM, DOT,
+		APO, BAPO, COM,
 		EXC, AT, HASH, DOL, CIR, AMP, COL, SCOL, SEQ, QUE, BSL, VER, TIL,
 
-		SUB = OPBIN | OPPRE | OPARI | 2,
-		ADD = OPBIN | OPARI | 1, MUL, DIV, MOD, DIVF, MODF, SHL, SHR,
+		ADD = OPBIN | OPPRE | OPARI | 1, SUB = OPBIN | OPPRE | OPARI | 2,
+		MUL = OPBIN | OPARI | 3, DIV, MOD, DIVF, MODF, SHL, SHR,
 		EQ = OPBIN | OPCOM | 1, UEQ, LEQ, GEQ, LT, GT,
 		NOT = OPPRE | OPLOG | 1, AND = OPBIN | OPLOG | 2, OR,
 
-		STR = LITERAL | 1, STRB, WORD, WORDS, HEX, NUM, INT, FLOAT,
+		STR = LITERAL | 1, STRB, NAME, ONAME, ONAME1, HEX, NUM, INT, FLOAT,
 	}
 
-	class Lexer : Lexer<Lex>
+	public class Lexer : Lexer<Lex>
 	{
 		static readonly string Grammar = @"
 		LP    = (
@@ -49,7 +50,6 @@ namespace qutum.syntax
 		APO   = '
 		==BAPO  = `
 		COM   = ,
-		DOT   = .
 		EXC   = !
 		AT    = @
 		HASH  = #
@@ -88,9 +88,10 @@ namespace qutum.syntax
 		COMM  = ##     |[\u^\n]+
 		COMMB = \\+##  *+##\\+| +#|  +[\u^#]+
 		STRB  = \\+""  *+""\\+| +""| +[\u^""]+
-		STR   = ""     *""|\n| +[\t\s!-~\U^""\\]+| +\\[0tnr"".`\\]| +\\x\x\x| +\\u\x\x\x\x
-		WORDS = `      *`| \n| +[\t\s!-~\U^`\\]+|  +\\[0tnr"".`\\]| +\\x\x\x| +\\u\x\x\x\x
-		WORD  = [\a_]|[\a_][\d\a_]+  |+.+| +.+[\a_]| +.+[\a_][\d\a_]+
+		STR   = ""     *""|\n|    +[\t\s!-~\U^""\\]+| +\\[0tnr"".`\\]| +\\x\x\x| +\\u\x\x\x\x
+		PATH  = `|.`   *`| \n|+.| +[\t\s!-~\U^.`\\]+| +\\[0tnr"".`\\]| +\\x\x\x| +\\u\x\x\x\x
+		NAME  =     [\a_]|  [\a_][\d\a_]+
+		ONAME = .| .[\a_]| .[\a_][\d\a_]+
 		HEX   = 0[xX]  \x|_\x  |+\x+|+_\x+
 		NUM   = 0|[1-9]  |+\d+|+_\d+  |.\d+  |+_\d+  |[eE]\d+|[eE][\+\-]\d+  |[fF]
 		";
@@ -104,6 +105,7 @@ namespace qutum.syntax
 		int indentNew = -1; // indent count at line start, -1 not line start
 		int indentFrom, indentTo;
 		bool crlf; // \r\n found
+		List<string> path = new List<string>();
 		public bool eof = true; // insert eol at scan end
 		public bool allValue = false; // set all tokens value
 		public bool allBlank = false; // keep all spaces, comments and empty lines
@@ -111,7 +113,7 @@ namespace qutum.syntax
 		public override void Dispose()
 		{
 			base.Dispose();
-			indent = indentNew = 0; crlf = false;
+			indent = indentNew = 0; crlf = false; path.Clear();
 		}
 
 		public override bool Is(Lex testee, Lex key)
@@ -135,11 +137,16 @@ namespace qutum.syntax
 		protected override void Add(Lex key, int f, int to, object value)
 		{
 			Indent();
+			if (key == Lex.ONAME && tokenn > 0 && tokens[tokenn - 1].to == f
+				&& tokens[tokenn - 1].key >= Lex.NAME && tokens[tokenn - 1].key <= Lex.ONAME1)
+				key = Lex.ONAME1; // output name tightly follows previous name, high precedence
 			base.Add(key, f, to, value);
 		}
 
 		protected override void Error(Lex key, int part, bool end, int b, int f, int to)
 		{
+			if (key == Lex.PATH)
+				key = Lex.NAME;
 			base.Error(key, part, end, b, f, to);
 			if (part < 0) { // scan end
 				end = true;
@@ -164,7 +171,7 @@ namespace qutum.syntax
 		{
 			object v = null;
 			if (from < 0) {
-				from = f; bn = 0;
+				from = f; bn = 0; path.Clear();
 			}
 			switch (key) {
 
@@ -236,38 +243,15 @@ namespace qutum.syntax
 				break;
 
 			case Lex.STR:
-			case Lex.WORDS:
 				if (part == 1)
 					return;
-				if (end && scan.Token(f) != (key == Lex.STR ? '"' : '`')) { // \n found
-					Error(key, part, true, (byte)'\n', f, to);
-					goto End;
-				}
-				if (end) // " or ` as end
+				if (end) {
+					if (scan.Token(f) != '"') // \n found
+						AddErr(key, f, to, "\" expected");
 					break;
-				// TODO split words
-				ScanBs(f, to, bn);
-				if (bs[bn] != '\\')
-					bn += to - f;
-				else // unescape
-					switch (bs[bn + 1]) {
-					case (byte)'0': bs[bn++] = (byte)'\0'; break;
-					case (byte)'t': bs[bn++] = (byte)'\t'; break;
-					case (byte)'n': bs[bn++] = (byte)'\n'; break;
-					case (byte)'r': bs[bn++] = (byte)'\r'; break;
-					case (byte)'x': bs[bn++] = (byte)(Hex(bn + 1) << 4 | Hex(bn + 2)); break;
-					case (byte)'u':
-						Span<char> u = stackalloc char[1];
-						u[0] = (char)(Hex(bn + 2) << 12 | Hex(bn + 3) << 8 | Hex(bn + 4) << 4 | Hex(bn + 5));
-						bn += Encoding.UTF8.GetBytes(u, bs.AsSpan(bn)); break;
-					default: bs[bn++] = bs[bn]; break;
-					}
-				return; // inside string or word
-
-			case Lex.WORD:
-				// TODO check length
-				bn = ScanBs(from, to, 0);
-				break;
+				}
+				ScanBs(f, to, bn); Unesc(f, to);
+				return; // inside string
 
 			case Lex.HEX:
 				if (!end)
@@ -286,6 +270,40 @@ namespace qutum.syntax
 				v = Num(ref key);
 				break;
 
+			case Lex.NAME:
+			case Lex.ONAME:
+				f = key == Lex.NAME ? from : from + 1;
+				if (to - f > 40) {
+					AddErr(key, f, to, "too long");
+					to = f + 40;
+				}
+				bn = ScanBs(f, to, 0);
+				break;
+
+			case Lex.PATH:
+				if (part == 1)
+					return;
+				var split = end || scan.Token(f) == '.';
+				if (split) {
+					if (bn > 40) {
+						AddErr(Lex.NAME, to - 1, to - 1, "too long");
+						bn = 40;
+					}
+					path.Add(Encoding.UTF8.GetString(bs, 0, bn));
+					bn = 0;
+				}
+				if (end) {
+					if (scan.Token(f) != '`') // \n found
+						AddErr(Lex.NAME, f, to, "` expected");
+					key = scan.Token(from) != '.' ? Lex.NAME : Lex.ONAME;
+					v = path.ToArray();
+					break;
+				}
+				if (!split) {
+					ScanBs(f, to, bn); Unesc(f, to);
+				}
+				return; // inside path
+
 			default:
 				if (allValue)
 					bn = ScanBs(from, to, 0);
@@ -295,6 +313,25 @@ namespace qutum.syntax
 				return;
 			Add(key, from, to, v ?? (bn > 0 ? Encoding.UTF8.GetString(bs, 0, bn) : null));
 		End: from = -1;
+		}
+
+		void Unesc(int f, int to)
+		{
+			if (bs[bn] != '\\')
+				bn += to - f;
+			else // unescape
+				switch (bs[bn + 1]) {
+				case (byte)'0': bs[bn++] = (byte)'\0'; break;
+				case (byte)'t': bs[bn++] = (byte)'\t'; break;
+				case (byte)'n': bs[bn++] = (byte)'\n'; break;
+				case (byte)'r': bs[bn++] = (byte)'\r'; break;
+				case (byte)'x': bs[bn++] = (byte)(Hex(bn + 1) << 4 | Hex(bn + 2)); break;
+				case (byte)'u':
+					Span<char> u = stackalloc char[1];
+					u[0] = (char)(Hex(bn + 2) << 12 | Hex(bn + 3) << 8 | Hex(bn + 4) << 4 | Hex(bn + 5));
+					bn += Encoding.UTF8.GetBytes(u, bs.AsSpan(bn)); break;
+				default: bs[bn++] = bs[bn]; break;
+				}
 		}
 
 		int Hex(int x) => (bs[x] & 15) + (bs[x] < 'A' ? 0 : 9);

@@ -31,10 +31,12 @@ namespace qutum.test.syntax
 			using var __ = l.Load(new ScanByte(Encoding.UTF8.GetBytes(input)));
 			while (l.Next())
 				;
-			var z = string.Join(" ", l.Tokens(0, l.Loc()).Select(t => t.ToString()).ToArray());
+			var z = string.Join(" ", l.Tokens(0, l.Loc()).Select(t => t.ToString(Dump)).ToArray());
 			env.WriteLine(z);
 			AreEqual(s, z);
 		}
+
+		static string Dump(object v) => v is object[] s ? string.Join(',', s) + "," : v?.ToString() ?? "";
 
 		void CheckSp(string input, string s)
 		{
@@ -52,8 +54,8 @@ namespace qutum.test.syntax
 		{
 			CheckSp("\\####\\\\####\\ ", "COMM=COMMB SP=");
 			CheckSp("\\### \\## ###\\ ###\\ ab", "COMM=COMMB SP= COMM=");
-			CheckSp("\\### \\## ###\\ ###\\ \nab", "COMM=COMMB SP= COMM= EOL= WORD=ab");
-			Check("\\### \\## ###\\ ###\\ \nab", "WORD=ab");
+			CheckSp("\\### \\## ###\\ ###\\ \nab", "COMM=COMMB SP= COMM= EOL= NAME=ab");
+			Check("\\### \\## ###\\ ###\\ \nab", "NAME=ab");
 		}
 
 		[TestMethod]
@@ -69,7 +71,7 @@ namespace qutum.test.syntax
 		{
 			CheckSp("    \n\t\t\t\n\t\n    \n", "IND=1 EOL= IND=2 IND=3 EOL= DED=2 DED=1 EOL= EOL= DED=0");
 			CheckSp("\ta\n\t\t\tb\n\t\tc\nd\ne",
-				"IND=1 WORD=a EOL= IND=2 IND=3 WORD=b EOL= DED=2 WORD=c EOL= DED=1 DED=0 WORD=d EOL= WORD=e");
+				"IND=1 NAME=a EOL= IND=2 IND=3 NAME=b EOL= DED=2 NAME=c EOL= DED=1 DED=0 NAME=d EOL= NAME=e");
 		}
 
 		[TestMethod]
@@ -83,15 +85,15 @@ namespace qutum.test.syntax
 		public void LexIndent3()
 		{
 			Check("\n\ta\n\t\t\n\n\tb\n\t\t\t\n\t\tc\n\n\t\nd\ne",
-				"IND=1 WORD=a EOL= WORD=b EOL= IND=2 WORD=c EOL= DED=1 DED=0 WORD=d EOL= WORD=e");
+				"IND=1 NAME=a EOL= NAME=b EOL= IND=2 NAME=c EOL= DED=1 DED=0 NAME=d EOL= NAME=e");
 			Check("\t\t#### \n\ta \n\\####\\  b\n\t\t\\####\\\tc",
-				"IND=1 WORD=a EOL= DED=0 WORD=b EOL= IND=1 IND=2 WORD=c");
+				"IND=1 NAME=a EOL= DED=0 NAME=b EOL= IND=1 IND=2 NAME=c");
 		}
 
 		[TestMethod]
 		public void LexIndent4()
 		{
-			CheckSp("a \t", "WORD=a SP=");
+			CheckSp("a \t", "NAME=a SP=");
 			CheckSp(" \t", "SP!do not mix tabs and spaces for indent SP=");
 			CheckSp("\t    ", "SP!do not mix tabs and spaces for indent SP=");
 			CheckSp(" ", "SP!4 spaces expected SP="); CheckSp("       ", "SP!8 spaces expected SP=");
@@ -100,30 +102,30 @@ namespace qutum.test.syntax
 		[TestMethod]
 		public void LexEof1()
 		{
-			CheckSp("a\t", "WORD=a SP=");
-			CheckSp("\ta\t", "IND=1 WORD=a SP=");
-			CheckSp("a\n\t", "WORD=a EOL= IND=1");
-			CheckSp("\ta\n", "IND=1 WORD=a EOL= DED=0");
-			Check("a\t", "WORD=a");
-			Check("\ta\t", "IND=1 WORD=a");
-			Check("a\n\t\t\n\t", "WORD=a EOL=");
-			Check("\ta\n\t\t\n", "IND=1 WORD=a EOL=");
+			CheckSp("a\t", "NAME=a SP=");
+			CheckSp("\ta\t", "IND=1 NAME=a SP=");
+			CheckSp("a\n\t", "NAME=a EOL= IND=1");
+			CheckSp("\ta\n", "IND=1 NAME=a EOL= DED=0");
+			Check("a\t", "NAME=a");
+			Check("\ta\t", "IND=1 NAME=a");
+			Check("a\n\t\t\n\t", "NAME=a EOL=");
+			Check("\ta\n\t\t\n", "IND=1 NAME=a EOL=");
 		}
 
 		[TestMethod]
 		public void LexEof2()
 		{
 			l.eof = true;
-			CheckSp("a\n", "WORD=a EOL= EOL=");
-			CheckSp("a\t", "WORD=a SP= EOL=");
-			CheckSp("\ta\t", "IND=1 WORD=a SP= EOL= DED=0");
-			CheckSp("a\n\t", "WORD=a EOL= IND=1 EOL= DED=0");
-			CheckSp("\ta\n", "IND=1 WORD=a EOL= DED=0 EOL=");
-			Check("a\n", "WORD=a EOL=");
-			Check("a\t", "WORD=a EOL=");
-			Check("\ta\t", "IND=1 WORD=a EOL= DED=0");
-			Check("a\n\t\t\n\t", "WORD=a EOL=");
-			Check("\ta\n\t\t\n", "IND=1 WORD=a EOL= DED=0");
+			CheckSp("a\n", "NAME=a EOL= EOL=");
+			CheckSp("a\t", "NAME=a SP= EOL=");
+			CheckSp("\ta\t", "IND=1 NAME=a SP= EOL= DED=0");
+			CheckSp("a\n\t", "NAME=a EOL= IND=1 EOL= DED=0");
+			CheckSp("\ta\n", "IND=1 NAME=a EOL= DED=0 EOL=");
+			Check("a\n", "NAME=a EOL=");
+			Check("a\t", "NAME=a EOL=");
+			Check("\ta\t", "IND=1 NAME=a EOL= DED=0");
+			Check("a\n\t\t\n\t", "NAME=a EOL=");
+			Check("\ta\n\t\t\n", "IND=1 NAME=a EOL= DED=0");
 		}
 
 		[TestMethod]
@@ -137,7 +139,7 @@ namespace qutum.test.syntax
 		public void LexString1()
 		{
 			Check("\"abc  def\"", "STR=abc  def");
-			Check("\"a", "STR!"); Check("\"a\nb\"", "STR!\n WORD=b STR!");
+			Check("\"a", "STR!"); Check("\"a\nb\"", "STR!\" expected STR=a NAME=b STR!");
 			var s = string.Join("", Enumerable.Range(1000, 5000).ToArray());
 			CheckSp($"\"{s}\"", $"STR={s}");
 		}
@@ -174,28 +176,46 @@ namespace qutum.test.syntax
 		}
 
 		[TestMethod]
-		public void LexWord1()
+		public void LexName1()
 		{
-			Check("abc", "WORD=abc"); Check("Abc123", "WORD=Abc123");
-			Check("_123", "WORD=_123"); Check("__a4", "WORD=__a4"); Check("_A__b_", "WORD=_A__b_");
-			Check("_123 __", "WORD=_123 WORD=__");
+			Check("abc", "NAME=abc"); Check("Abc123", "NAME=Abc123");
+			Check("_123", "NAME=_123"); Check("__a4", "NAME=__a4"); Check("_A__b_", "NAME=_A__b_");
+			Check("_123 __", "NAME=_123 NAME=__");
 		}
 
 		[TestMethod]
-		public void LexWord2()
+		public void LexName2()
 		{
-			Check("a..", "WORD=a.."); Check("A1.b_..c.d'__.__", "WORD=A1.b_..c.d APO= WORD=__.__");
+			Check("a..", "NAME=a ONAME1= ONAME1=");
+			Check("A1.b_..c'__.__", "NAME=A1 ONAME1=b_ ONAME1= ONAME1=c APO= NAME=__ ONAME1=__");
 		}
 
 		[TestMethod]
-		public void LexWords()
+		public void LexName3()
 		{
-			Check("`a", "WORDS!"); Check("`a\nb`", "WORDS!\n WORD=b WORDS!");
-			Check("`abc  def`", "WORDS=abc  def");
-			Check(@"`\tabc\r\ndef`", "WORDS=\tabc\r\ndef");
-			Check(@"`\x09a.bc\x0d\x0a..def`", "WORDS=\ta.bc\r\n..def");
-			Check(@"`abc\\\0\x7edef\.\`\u597d吗`", "WORDS=abc\\\0~def.`好吗");
-			Check(@"`\a\x0\uaa`", "WORDS!\\ WORDS!\\ WORDS!\\ WORDS=ax0uaa");
+			Check("a .. .b", "NAME=a ONAME= ONAME1= ONAME=b");
+			Check("A1 .b_..c .d", "NAME=A1 ONAME=b_ ONAME1= ONAME1=c ONAME=d");
+		}
+
+		[TestMethod]
+		public void LexPath1()
+		{
+			Check("``", "NAME=,"); Check("`a", "NAME!");
+			Check("`a\nb`", "NAME!` expected NAME=a, NAME=b NAME!");
+			Check("`abc  def`", "NAME=abc  def,");
+			Check(@"`\tabc\`..\.\ndef.`", "NAME=\tabc`,,.\ndef,,");
+			Check(@"`..\x09abc\x0adef`", "NAME=,,\tabc\ndef,");
+			Check(@"`abc\\\0\x7edef\u597d吗\x2e`", "NAME=abc\\\0~def好吗.,");
+			Check(@"`1.2\a\x0\uaa`", "NAME!\\ NAME!\\ NAME!\\ NAME=1,2ax0uaa,");
+		}
+
+		[TestMethod]
+		public void LexPath2()
+		{
+			Check(".``", "ONAME=,");
+			Check(".`a\n", "NAME!` expected ONAME=a,");
+			Check(".`a`.b.`c`", "ONAME=a, ONAME1=b ONAME1=c,");
+			Check("a .`b.b`.`c` .`d`.``", "NAME=a ONAME=b,b, ONAME1=c, ONAME=d, ONAME1=,");
 		}
 
 		[TestMethod]
@@ -203,22 +223,22 @@ namespace qutum.test.syntax
 		{
 			Check("0x0", "INT=0"); Check("0xF", "INT=15"); Check("0xx", "HEX!x");
 			Check("+0x0A", "ADD= INT=10"); Check("-0x0A", "SUB= INT=10");
-			Check("0x_0", "INT=0"); Check("0x__0", "HEX!_ WORD=_0"); Check("1x1", "INT=1 WORD=x1");
+			Check("0x_0", "INT=0"); Check("0x__0", "HEX!_ NAME=_0"); Check("1x1", "INT=1 NAME=x1");
 		}
 
 		[TestMethod]
 		public void LexHex2()
 		{
 			Check("0x7fffffff", "INT=2147483647"); Check("0x80_00_00_00", "INT=2147483648");
-			Check("0xffff_fffe", "INT=4294967294"); Check("0xffff_fffe_", "INT=4294967294 WORD=_");
+			Check("0xffff_fffe", "INT=4294967294"); Check("0xffff_fffe_", "INT=4294967294 NAME=_");
 		}
 
 		[TestMethod]
 		public void LexInt1()
 		{
-			Check("0", "INT=0"); Check("0a", "INT=0 WORD=a");
+			Check("0", "INT=0"); Check("0a", "INT=0 NAME=a");
 			Check("+09", "ADD= INT=9"); Check("9876", "INT=9876");
-			Check("2_", "INT=2 WORD=_"); Check("23__3", "INT=23 WORD=__3");
+			Check("2_", "INT=2 NAME=_"); Check("23__3", "INT=23 NAME=__3");
 		}
 
 		[TestMethod]
@@ -231,7 +251,7 @@ namespace qutum.test.syntax
 		[TestMethod]
 		public void LexFloat1()
 		{
-			Check("0f", "FLOAT=0"); Check("00.0x", "FLOAT=0 WORD=x"); Check("0.000f", "FLOAT=0");
+			Check("0f", "FLOAT=0"); Check("00.0x", "FLOAT=0 NAME=x"); Check("0.000f", "FLOAT=0");
 			Check("340282347999999999999999999999999999999.99999", "FLOAT=3.4028235E+38");
 			Check("340282430000000000000000000000000000000.5", "FLOAT!float out of range FLOAT=0");
 		}
@@ -241,7 +261,7 @@ namespace qutum.test.syntax
 		{
 			Check("1234.0", "FLOAT=1234"); Check("553.2", "FLOAT=553.2"); Check("34_8.5", "FLOAT=348.5");
 			Check("1.00_0_01000000000000000000000000000000000000000000000001", "FLOAT=1.00001");
-			Check("1.0__0", "FLOAT=1 WORD=__0");
+			Check("1.0__0", "FLOAT=1 NAME=__0");
 		}
 
 		[TestMethod]
@@ -269,7 +289,7 @@ namespace qutum.test.syntax
 		[TestMethod]
 		public void LexSymbol1()
 		{
-			Check("a:b.0'.c", "WORD=a COL= WORD=b. INT=0 APO= DOT= WORD=c");
+			Check("a:b,0';.c", "NAME=a COL= NAME=b COM= INT=0 APO= SCOL= ONAME=c");
 		}
 
 		[TestMethod]
