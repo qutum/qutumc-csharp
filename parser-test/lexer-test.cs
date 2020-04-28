@@ -385,41 +385,29 @@ namespace qutum.test.parser
 		}
 
 		[TestMethod]
-		public void LexUtf1()
+		public void LexByte1()
 		{
-			Throw(() => new Lexer<Tag>("A=\\U+ \n B=\\U\\u"), "Prefix of B.1 and A.1");
-			Throw(() => new Lexer<Tag>("A=\\U+ \n B=\\U\\U"), "B.1 and A.1 conflict");
-			Throw(() => new Lexer<Tag>("A=\\u+ \n B=\\u"), "B.1 and A.1 conflict");
+			Throw(() => new Lexer<Tag>("A=\\B+ \n B=\\B\\b"), "Prefix of B.1 and A.1");
+			Throw(() => new Lexer<Tag>("A=\\B+ \n B=\\B\\B"), "B.1 and A.1 conflict");
+			Throw(() => new Lexer<Tag>("A=\\B+ \n B=\\b"), "Prefix of B.1 and A.1");
 		}
 
 		[TestMethod]
-		public void LexUtf3()
+		public void LexByte2()
 		{
-			var l = new Lexer<Tag>("A=a\\U\\Uz \n B=a");
-			Check(l, "a你好za很好z", "A=a你好z A=a很好z");
-			Check(l, "a\x80\x100z", "A=a\x80\x100z");
-			Check(l, "a\u0080aa", "A!a B=a");
+			var l = new Lexer<Tag>("A=a\\B\\B\\Bz|a\\B\\Bz \n B=a");
+			Check(l, "a你za好z", "A=a你z A=a好z");
+			Check(l, "a\x80z", "A=a\x80z");
 		}
 
 		[TestMethod]
-		public void LexUtf4()
+		public void LexByte3()
 		{
-			var l = new Lexer<Tag>(@"A=a[\U\u^z]+z");
+			var l = new Lexer<Tag>("A=a[\\B\\b^z]+z \n B=[a\\B^\\B]");
 			Check(l, "a好za大家\t都好z", "A=a好z A=a大家\t都好z");
-			var bs = Encoding.UTF8.GetBytes("a好"); bs[2] = 0;
-			Check(l, bs, "A!\0 0!\xbd");
-		}
-
-		[TestMethod]
-		public void LexUtf5()
-		{
-			var l = new Lexer<Tag>("A=[a\\U^\\U] \n B=a\\U+ b");
-			Check(l, "a", "A=a");
-			Check(l, "a你好b", "B=a你好b");
-			Check(l, new byte[] { (byte)'a', 0xc0 }, "B!");
-			Check(l, new byte[] { (byte)'a', 0xe0, 0xc0 }, "B!\xc0");
-			Check(l, new byte[] { (byte)'a', 0xc0, (byte)'b', (byte)'a' }, "B!b A=a");
-			Check(l, new byte[] { (byte)'a', 0xe0, 0xc0, (byte)'a' }, "B!\xc0 A=a");
+			Check(l, "a", "B=a");
+			var bs = Encoding.UTF8.GetBytes("a好z"); bs[2] = 0;
+			Check(l, bs, "A=" + Encoding.UTF8.GetString(bs));
 		}
 	}
 }

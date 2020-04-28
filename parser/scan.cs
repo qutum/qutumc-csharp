@@ -199,14 +199,14 @@ namespace qutum.parser
 				'R' => t < 127 && B[t] && t != '-' && t != '^', // range
 				'Q' => t == '?' || t == '*' || t == '+',        // quantifier
 				'H' => t >= ' ' && t < 127 && t != '=' && t != '|', // hint
-				'V' => t >= ' ' && t != 127 || t == '\t',           // comment, also utf
+				'V' => t >= ' ' || t == '\t',                       // comment
 				_ => t == key,
 			};
 		}
 
 		static readonly bool[] W = new bool[127], X = new bool[127], O = new bool[127], B = new bool[127];
 		internal static readonly bool[] RI = new bool[127]; // default inclusive range
-		static readonly string All; // all ascii and utf
+		static readonly string All; // all bytes
 
 		static BootScan()
 		{
@@ -220,7 +220,7 @@ namespace qutum.parser
 				B[t] = (W[t] || O[t]) && t != '[' && t != ']' || t == '=';
 				RI[t] = t >= ' ' || t == '\t' || t == '\n' || t == '\r';
 			}
-			All = new string(Enumerable.Range(0, 128).Select(b => (char)b).Append('\x80').ToArray());
+			All = new string(Enumerable.Range(0, 129).Select(b => (char)b).ToArray());
 		}
 
 		// for general grammar
@@ -238,8 +238,8 @@ namespace qutum.parser
 				'd' => lexer ? "0123456789" : "d",
 				'x' => lexer ? "0123456789ABCDEFabcdef" : "x",
 				'a' => lexer ? "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz" : "a",
-				'U' => lexer ? "\x80" : "U",
-				'u' => lexer ? All : "u",
+				'B' => lexer ? "\x80" : "B",
+				'b' => lexer ? All : "b",
 				_ => s[f].ToString(),
 			};
 		}

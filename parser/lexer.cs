@@ -108,11 +108,11 @@ namespace qutum.parser
 			internal K key;
 			internal int part; // first is 1
 			internal int pren; // number of bytes to this unit
-			internal Unit[] next; // utf-8: <=bf [128], <=df [129], <=ef [130], <=f7 [131], or [132]
+			internal Unit[] next; // >=128: [128]
 			internal Unit go; // when next==null or next[byte]==null or backward
 							  // go.next != null, to start: token end or error
 			internal int mode; // match to token: 1, mismatch to error: -1, mismatch to backward: 0
-							   // no backward neither cross parts nor inside utf nor inside byte repeat
+							   // no backward neither cross parts nor inside byte repeat
 
 			internal Unit(LexerBase<K, T> l) => id = ++l.id;
 		}
@@ -162,8 +162,7 @@ namespace qutum.parser
 				else // scan ended, token not
 					goto Go;
 			var b = bytes[bt & 15];
-			if (u.next[b < 128 ? b : b > 0xf7 ? 132 : b > 0xef ? 131 : b > 0xdf ? 130 : b > 0xbf ? 129 : 128]
-					is Unit v) {
+			if (u.next[b < 128 ? b : 128] is Unit v) {
 				u = v; ++bt;
 				if (u.next != null)
 					goto Next;
@@ -255,7 +254,7 @@ namespace qutum.parser
 			range = R | R-R | \\E =+
 			eol   = S* comm? \r?\n S*
 			comm  = \=\= V*") {
-			greedy = false, tree = false, dump = 0
+			greedy = false, tree = false, dump = 3
 		};
 
 		public LexerBase(string gram)
@@ -334,7 +333,7 @@ namespace qutum.parser
 					.ToArray();
 					if (aus != null) {
 						u = pus[part];
-						for (int x = 0; x <= 129; x++)
+						for (int x = 0; x <= 128; x++)
 							if (u.next[x] != null && aus.Any(au => au.next[x] != null))
 								throw new Exception($"{k}.{part} and {k}.{part - 1} conflict over repeat");
 					}
@@ -384,37 +383,30 @@ namespace qutum.parser
 			var go = u; var mode = 0; // mismatch to backward
 			if (bx == bn - 1) // last byte of alt
 				{ go = ok; mode = 1; } // match part
-			else if (rep || ns[nn] > 127) // inside byte repeat or utf
+			else if (rep) // inside byte repeat
 				{ go = err; mode = -1; } // mismatch to error
-			var next = BootNext(k, part, u, ns, nn, go, mode, null, err);
+			var next = BootNext(k, part, u, ns, nn, go, mode, null);
 			if (rep)
-				BootNext(k, part, next, ns, nn, go, mode, u, err);
+				BootNext(k, part, next, ns, nn, go, mode, u);
 			u = next;
 		}
 
-		Unit BootNext(K key, int part, Unit u, byte[] ns, int nn, Unit go, int mode, Unit repFrom, Unit err)
+		Unit BootNext(K key, int part, Unit u, byte[] ns, int nn, Unit go, int mode, Unit repFrom)
 		{
-			var utf = ns[nn] > 127;
-			if (utf) --nn;
-			Unit n = utf ? u.next?[129]?.next[128] : u.next?[ns[1]];
+			Unit n = u.next?[ns[1]];
 			if (u.next == null)
-				u.next = new Unit[133];
+				u.next = new Unit[129];
 			else
 				// all already nexts must be the same
 				for (int x = 1; x <= nn; x++)
 					if (u.next[ns[x]] != n)
-						throw new Exception($"Prefix of {key}.{part} and {(n ?? u).key}.{(n ?? u).part}"
-							+ " must be the same or distinct");
+						throw new Exception($"Prefix of {key}.{part} and {(n ?? u.next[ns[x]]).key}"
+							+ $".{(n ?? u.next[ns[x]]).part} must be the same or distinct");
 			if (n == null) {
-				n = repFrom != null ? u // repeat byte or utf
+				n = repFrom != null ? u // repeat byte
 					: new Unit(this) { key = key, part = part, pren = nn, go = go, mode = mode };
 				for (int x = 1; x <= nn; x++)
 					u.next[ns[x]] = n;
-				if (utf)
-					if (repFrom == null)
-						BootNextU(key, part, u, n, err); // build utf for first unit of byte repeat
-					else // build for next unit of byte repeat
-						Array.Copy(repFrom.next, 129, n.next, 129, 4);
 			}
 			else if (n.pren != nn) // all already nexts must be the same
 				throw new Exception($"Prefix of {key}.{part} and {n.key}.{n.part}"
@@ -424,20 +416,6 @@ namespace qutum.parser
 			else if (repFrom == null || repFrom == u)
 				BootMode(key, part, n, go, mode); // check mode for already exist next
 			return n;
-		}
-
-		void BootNextU(K key, int part, Unit u, Unit n, Unit err)
-		{
-			var a129 = new Unit(this) { key = key, part = part, pren = 1, go = err, mode = -1, next = new Unit[133] };
-			var a130 = new Unit(this) { key = key, part = part, pren = 1, go = err, mode = -1, next = new Unit[133] };
-			var b130 = new Unit(this) { key = key, part = part, pren = 1, go = err, mode = -1, next = new Unit[133] };
-			var a131 = new Unit(this) { key = key, part = part, pren = 1, go = err, mode = -1, next = new Unit[133] };
-			var b131 = new Unit(this) { key = key, part = part, pren = 1, go = err, mode = -1, next = new Unit[133] };
-			var c131 = new Unit(this) { key = key, part = part, pren = 1, go = err, mode = -1, next = new Unit[133] };
-			// TODO [132]
-			(u.next[129] = a129).next[128] = n; // c0
-			((u.next[130] = a130).next[128] = b130).next[128] = n; // e0
-			(((u.next[131] = a131).next[128] = b131).next[128] = c131).next[128] = n; // f0
 		}
 
 		static void BootMode(K key, int part, Unit u, Unit go, int mode)
@@ -467,15 +445,15 @@ namespace qutum.parser
 				uz[u.go] = true;
 			if (u.next == null)
 				return;
-			foreach (var n in u.next.Append(u.next?[129]?.next[128]).Distinct().Where(n => n != null))
+			foreach (var n in u.next.Where(n => n != null).Distinct())
 				if (n == u)
 					env.WriteLine("  +");
-				else if (n.next?[128] == null) {
-					var s = u.next.Append(u.next?[129]?.next[128]).Select(
+				else {
+					var s = u.next.Select(
 						(nn, b) => nn != n ? null
 						: b > ' ' && b < 127 ? ((char)b).ToString()
 						: b == ' ' ? "\\s" : b == '\t' ? "\\t" : b == '\n' ? "\\n" : b == '\r' ? "\\r"
-						: b >= 128 ? "\\U"
+						: b >= 128 ? "\\B"
 						: $"\\x{b:x}")
 						.Where(x => x != null);
 					using var ind = EnvWriter.Indent("  ");
