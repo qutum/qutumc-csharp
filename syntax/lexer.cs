@@ -24,23 +24,24 @@ namespace qutum.syntax
 		OPPOST = 0x2000, // postfix operators
 		OTHER = 0x10000,
 
-		EOL = 1, IND, DED, SP, COMM, COMMB, PATH,
+		EOL = 1, IND, DED, SP, COMM, COMMB, PATH, NUM,
 
 		LP = OTHER | 1, RP, LSB, RSB, LCB, RCB,
-		APO, BAPO, COM,
-		EXC, AT, HASH, DOL, CIR, AMP, COL, SCOL, SEQ, QUE, BSL, VER, TIL,
+		APO, COM, EXC, AT, HASH, DOL, CIR, AMP, COL, SCOL, SEQ, QUE, BSL, VER, TIL,
 
 		ADD = OPBIN | OPPRE | OPARI | 1, SUB = OPBIN | OPPRE | OPARI | 2,
 		MUL = OPBIN | OPARI | 3, DIV, MOD, DIVF, MODF, SHL, SHR,
 		EQ = OPBIN | OPCOM | 1, UEQ, LEQ, GEQ, LT, GT,
 		NOT = OPPRE | OPLOG | 1, AND = OPBIN | OPLOG | 2, OR,
 
-		STR = LITERAL | 1, STRB, NAME, ONAME, ONAME1, HEX, NUM, INT, FLOAT,
+		STR = LITERAL | 1, STRB, NAME, ONAME, ONAME1, HEX, INT, FLOAT,
 	}
 
 	public class Lexer : Lexer<Lex>
 	{
 		static readonly string Grammar = @"
+		==BAPO  = `
+		==DOT   = .
 		LP    = (
 		RP    = )
 		LSB   = \[
@@ -48,7 +49,6 @@ namespace qutum.syntax
 		LCB   = {
 		RCB   = }
 		APO   = '
-		==BAPO  = `
 		COM   = ,
 		EXC   = !
 		AT    = @

@@ -254,7 +254,7 @@ namespace qutum.parser
 			range = R | R-R | \\E =+
 			eol   = S* comm? \r?\n S*
 			comm  = \=\= V*") {
-			greedy = false, tree = false, dump = 3
+			greedy = false, tree = false, dump = 0
 		};
 
 		public LexerBase(string gram)
@@ -289,7 +289,7 @@ namespace qutum.parser
 			// \ prod ...
 			start = new Unit(this) { mode = -1 }; start.go = start;
 
-			var ns = new byte[130];
+			var ns = new byte[129];
 			// build prod
 			foreach (var prod in top) {
 				var k = Keys(boot.scan.Tokens(prod.head.from, prod.head.to)).Single();
@@ -350,7 +350,7 @@ namespace qutum.parser
 			int nn = 0;
 			if (gram[x] == '\\') {
 				foreach (var c in BootScan.Unesc(gram, x, b.to, true))
-					ns[++nn] = (byte)c;
+					ns[nn++] = (byte)c;
 				x += 2;
 			}
 			// build range
@@ -370,13 +370,13 @@ namespace qutum.parser
 					x = r.to;
 				}
 				for (byte y = 0; y <= 128; y++)
-					if (rs[y]) ns[++nn] = y;
+					if (rs[y]) ns[nn++] = y;
 				if (nn == 0)
 					throw new Exception($"No byte in {k}.{part} :{boot.scan.Tokens(b.from, b.to)}");
 				++x; // ]
 			}
 			else // single byte
-				ns[++nn] = (byte)gram[x++];
+				ns[nn++] = (byte)gram[x++];
 
 			// buid next
 			var rep = x < b.to; // byte repeat +
@@ -393,19 +393,19 @@ namespace qutum.parser
 
 		Unit BootNext(K key, int part, Unit u, byte[] ns, int nn, Unit go, int mode, Unit repFrom)
 		{
-			Unit n = u.next?[ns[1]];
+			Unit n = u.next?[ns[0]];
 			if (u.next == null)
 				u.next = new Unit[129];
 			else
 				// all already nexts must be the same
-				for (int x = 1; x <= nn; x++)
+				for (int x = 0; x < nn; x++)
 					if (u.next[ns[x]] != n)
 						throw new Exception($"Prefix of {key}.{part} and {(n ?? u.next[ns[x]]).key}"
 							+ $".{(n ?? u.next[ns[x]]).part} must be the same or distinct");
 			if (n == null) {
 				n = repFrom != null ? u // repeat byte
 					: new Unit(this) { key = key, part = part, pren = nn, go = go, mode = mode };
-				for (int x = 1; x <= nn; x++)
+				for (int x = 0; x < nn; x++)
 					u.next[ns[x]] = n;
 			}
 			else if (n.pren != nn) // all already nexts must be the same
@@ -453,8 +453,8 @@ namespace qutum.parser
 						(nn, b) => nn != n ? null
 						: b > ' ' && b < 127 ? ((char)b).ToString()
 						: b == ' ' ? "\\s" : b == '\t' ? "\\t" : b == '\n' ? "\\n" : b == '\r' ? "\\r"
-						: b >= 128 ? "\\B"
-						: $"\\x{b:x}")
+						: b >= 128 ? "\\B" : b == 0 ? "\\0"
+						: $"\\x{b:x02}")
 						.Where(x => x != null);
 					using var ind = EnvWriter.Indent("  ");
 					BootDump(n, string.Join(' ', s), uz);

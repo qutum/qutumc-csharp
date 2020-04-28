@@ -237,7 +237,7 @@ namespace qutum.test.syntax
 		public void LexInt1()
 		{
 			Check("0", "INT=0"); Check("0a", "INT=0 NAME=a");
-			Check("+09", "ADD= INT=9"); Check("9876", "INT=9876");
+			Check("+09", "ADD= INT=9"); Check("-9876", "SUB= INT=9876");
 			Check("2_", "INT=2 NAME=_"); Check("23__3", "INT=23 NAME=__3");
 		}
 
@@ -251,7 +251,7 @@ namespace qutum.test.syntax
 		[TestMethod]
 		public void LexFloat1()
 		{
-			Check("0f", "FLOAT=0"); Check("00.0x", "FLOAT=0 NAME=x"); Check("0.000f", "FLOAT=0");
+			Check("-0f", "SUB= FLOAT=0"); Check("00.0x", "FLOAT=0 NAME=x"); Check("0.000f", "FLOAT=0");
 			Check("340282347999999999999999999999999999999.99999", "FLOAT=3.4028235E+38");
 			Check("340282430000000000000000000000000000000.5", "FLOAT!float out of range FLOAT=0");
 		}
