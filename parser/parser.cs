@@ -419,7 +419,7 @@ namespace qutum.parser
 			{ "hintk", "_" }, // hint token
 			{ "hinte", "!" }, // hint expect
 			{ "hintr", "\x1|\x1 W+|\x1 O|\x1 \\ E" }, // hint recover
-			{ "hintd", "^ W+|^ O|^ \\ E" }, // hint recovery deny
+			{ "hintd", "\x1 W+|\x1 O|\x1 \\ E" }, // hint recovery deny
 			{ "hintw", "H*" }, // hint words
 			{ "hint_", "eol" }, // to split prod into lines
 			{ "ahint", "hint? hint_" },
