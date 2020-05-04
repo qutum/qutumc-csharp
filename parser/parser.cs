@@ -70,6 +70,7 @@ namespace qutum.parser
 		{
 			internal N name;
 			internal Con[] s;
+			internal bool prior; // prior than other Alts of the same Prod
 			internal sbyte greedy; // as parser.greedy:0, greedy: 1, back greedy: -1
 			internal sbyte tree; // as parser.tree: 0, thru: -1, make: 1
 			internal bool token; // save first shift token to Tree.info
@@ -238,6 +239,15 @@ namespace qutum.parser
 			var u = new Match {
 				a = a, from = from, to = locn, step = step, prev = prev, tail = tail
 			};
+			if (a.prior && (tail >= 0 || tail == -2) && a.s[step].p == null)
+				for (int x = locs[locn]; x < matchn; x++) {
+					var m = matchs[x];
+					if (!m.a.prior && m.from == from && m.a.s[m.step].p == null
+							&& Eq.Equals(m.a.name, a.name)) {
+						matchs[x] = u;
+						return;
+					}
+				}
 			for (int x = locs[locn]; x < matchn; x++) {
 				var m = matchs[x];
 				if (m.a == a && m.from == from && m.step == step) {
@@ -402,7 +412,8 @@ namespace qutum.parser
 			{ "con",   "W+|sym|S+" }, // word to prod name or scan.Keys
 			{ "sym",   "Q|O+|\\ E" }, // unescaped to scan.Keys except Qua
 			{ "alt",   "ahint? \x1 S* con*" },
-			{ "hint",  "= hintg? hintt? hintk? hinte? hintr? hintd? S* hintw" },
+			{ "hint",  "= hintp? hintg? hintt? hintk? hinte? hintr? hintd? S* hintw" },
+			{ "hintp", "^" }, // hint prior
 			{ "hintg", "*" }, // hint greedy
 			{ "hintt", "+|-" }, // hint tree
 			{ "hintk", "_" }, // hint token
@@ -443,7 +454,7 @@ namespace qutum.parser
 			// make these trees
 			foreach (var c in prods["con"].alts.Take(1) // word
 				.Concat(new[] { "prod", "alt", "name", "sym",
-					"hintg", "hintt", "hintk", "hinte", "hintr", "hintd", "hintw", "hint_" }
+					"hintp", "hintg", "hintt", "hintk", "hinte", "hintr", "hintd", "hintw", "hint_" }
 					.SelectMany(x => prods[x].alts)))
 				c.tree = 1;
 			boot = new ParserChar(prods["gram"]) {
@@ -507,8 +518,9 @@ namespace qutum.parser
 				// build hint
 				int ax = 0;
 				p.Where(t => t.name == "alt").Append(p).Each((t, x) => {
-					sbyte g = 0, tr = 0; bool k = false, e = false; TreeStr r = null, d = null;
+					bool p = false, k = false, e = false; sbyte g = 0, tr = 0; TreeStr r = null, d = null;
 					foreach (var h in t) {
+						if (h.name == "hintp") p = true;
 						if (h.name == "hintg") g = 1;
 						if (h.name == "hintt") tr = (sbyte)(gram[h.from] == '+' ? 1 : -1);
 						if (h.name == "hintk") k = true;
@@ -519,7 +531,7 @@ namespace qutum.parser
 							var w = boot.scan.Tokens(h.from, h.to);
 							for (; ax <= x; ax++) {
 								var a = az[ax];
-								a.greedy = g; a.tree = tr; a.token = k; a.errExpect = e;
+								a.prior = p; a.greedy = g; a.tree = tr; a.token = k; a.errExpect = e;
 								a.hint = w != "" ? w : null;
 								if (r != null) {
 									for (int y = a.s.Length - 2; y > 0; y--)
@@ -528,10 +540,10 @@ namespace qutum.parser
 											reca.Add(a);
 											break;
 										}
-									if (a.recover > 0 && a.s[a.recover].p is K p) {
-										a.recPair = r.to - r.from == 1 ? p :
+									if (a.recover > 0 && a.s[a.recover].p is K pr) {
+										a.recPair = r.to - r.from == 1 ? pr :
 											scan.Keys(BootScan.Unesc(gram, r.from + 1, r.to)).First();
-										a.recDeny = d == null ? p :
+										a.recDeny = d == null ? pr :
 											scan.Keys(BootScan.Unesc(gram, d.from + 1, d.to)).First();
 									}
 								}

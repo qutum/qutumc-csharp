@@ -387,6 +387,20 @@ namespace qutum.test.parser
 		}
 
 		[TestMethod]
+		public void TreePrior1()
+		{
+			var p = new ParserStr("S=.E =^ \n | E \n E=W|P \n W=a \n P=.W") { dump = 3 };
+			p.Parse(".a").H("E").H("W").N0();
+		}
+
+		[TestMethod]
+		public void TreePrior2()
+		{
+			var p = new ParserStr("S=.E \n | E =^ \n E=W|P \n W=a \n P=.W") { dump = 3 };
+			p.Parse(".a").H("E").H("P").N0();
+		}
+
+		[TestMethod]
 		public void Recovery1()
 		{
 			var p = new ParserStr("S=A|S,A? =|\n A=M|A\\+M \n M=V|M\\*V \n V=0|1|2|3|4|5") {
