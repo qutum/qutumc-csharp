@@ -16,18 +16,18 @@ namespace qutum.syntax
 	{
 		BLANK = 0x0020, // blanks
 		LITERAL = 0x0040, // literals
-		OPBIN = 0x0080, // binary operators
-		OPPRE = 0x0100, // prefix operators
-		OPPOST = 0x0200, // postfix operators
-		OP2 = 0x1_0000,
-		OP33 = 0x2_0000,
-		OP35 = 0x4_0000,
-		OP43 = 0x8_0000,
-		OP45 = 0x10_0000,
-		OP6 = 0x20_0000,
-		OP7 = 0x40_0000,
-		OP8 = 0x80_0000,
-		OP9 = 0x100_0000,
+		BIN = 0x0080, // binary operators
+		PRE = 0x0100, // prefix operators
+		POST = 0x0200, // postfix operators
+		BIN2 = 0x1_0000,
+		BIN33 = 0x2_0000,
+		BIN35 = 0x4_0000,
+		BIN43 = 0x8_0000,
+		BIN45 = 0x10_0000,
+		BIN6 = 0x20_0000,
+		BIN7 = 0x40_0000,
+		BIN8 = 0x80_0000,
+		BIN9 = 0x100_0000,
 
 		EOL = BLANK | 1, IND, DED, SP, COMM, COMMB, PATH, NUM,
 
@@ -35,13 +35,13 @@ namespace qutum.syntax
 		APO, COM, AT, HASH, DOL, CIR, COL, SCOL, SEQ, QUE, BSL, TIL,
 
 		// bitwise operators
-		SHL = OPBIN | OP33 | 1, SHR, BNOT = OPPRE | 1, BAND = OPBIN | OP35 | 1, BXOR, BOR,
+		SHL = BIN | BIN33 | 1, SHR, BNOT = PRE | 1, BAND = BIN | BIN35 | 1, BXOR, BOR,
 		// arithmetic operators
-		ADD = OPBIN | OP45 | OPPRE | 2, SUB, MUL = OPBIN | OP43 | 1, DIV, MOD, DIVF, MODF,
+		ADD = BIN | BIN45 | PRE | 2, SUB, MUL = BIN | BIN43 | 1, DIV, MOD, DIVF, MODF,
 		// comparison operators
-		EQ = OPBIN | OP6 | 1, UEQ, LEQ, GEQ, LT, GT,
+		EQ = BIN | BIN6 | 1, UEQ, LEQ, GEQ, LT, GT,
 		// logical operators
-		NOT = OPPRE | 4, AND = OPBIN | OP7 | 1, OR,
+		NOT = PRE | 4, AND = BIN | BIN7 | 1, OR,
 
 		STR = LITERAL | 1, STRB, NAME, ONAME, ONAME1, HEX, INT, FLOAT,
 	}
