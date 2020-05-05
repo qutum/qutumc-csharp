@@ -115,9 +115,9 @@ namespace qutum.test.syntax
 			t = t/**/				.N(Syn.stat, v: Lex.SUB);
 			t = t/**/					.H(Syn.e1).V(Lex.INT, 1).N0();
 			t = t/**/				.N(Syn.stat, v: Lex.MUL);
-			t = t/**/					.H(Syn.e45, v: Lex.ADD);
-			t = t/**/						.H(Syn.e1).V(Lex.INT, 2);
-			t = t/**/						.N(Syn.e1).V(Lex.INT, 3).N0().N0().N0().N0().N0();
+			t = t/**/					.H(Syn.e1).V(Lex.INT, 2);
+			t = t/**/					.N(Syn.b45, v: Lex.ADD);
+			t = t/**/						.H(Syn.e1).V(Lex.INT, 3).N0().N0().N0().N0().N0();
 		}
 
 		[TestMethod]
@@ -130,10 +130,10 @@ namespace qutum.test.syntax
 			t = t/**/					.H(Syn.e1).V(Lex.INT, 1).N0().N0().N0().N0();
 			t = Parse(@"
 			-
-				1
+				-1
 				*2");
 			t = t/**/	.H(Syn.Block).H(Syn.pre, v: Lex.SUB);
-			t = t/**/					.H(Syn.e1).V(Lex.INT, 1).N0();
+			t = t/**/					.H(Syn.e1, v: Lex.SUB).H(Syn.e1).V(Lex.INT, 1).N0().N0();
 			t = t/**/				.N(Syn.stat, v: Lex.MUL);
 			t = t/**/					.H(Syn.e1).V(Lex.INT, 2).N0().N0().N0().N0();
 		}
@@ -378,7 +378,7 @@ namespace qutum.test.syntax
 			t = t/**/				.N(Syn.stat, v: Lex.MUL);
 			t = t/**/					.H(Syn.e1).V(Lex.INT, 2).N0().N0().N0();
 			t = t/**/.N(Syn.all, -1, 2.7, 2.7, Lex.DIV);
-			t = t/**/	.H(Syn.e43, 2).N0().N0();
+			t = t/**/	.H(Syn.b43, 1).N0().N0();
 		}
 
 		[TestMethod]
@@ -416,7 +416,7 @@ namespace qutum.test.syntax
 			t = t/**/.N(Syn.all, -1, 3.6, 3.6, Lex.RP);
 			t = t/**/	.H(Syn.stat, 1).N(Syn.line, 1).N0();
 			t = t/**/.N(Syn.all, -1, 5.8, 5.8, Lex.EOL);
-			t = t/**/	.H(Syn.e45, 2).N(Syn.e45, 2).N0().N0();
+			t = t/**/	.H(Syn.b45, 1).N(Syn.e1, 1).N0().N0();
 		}
 	}
 }

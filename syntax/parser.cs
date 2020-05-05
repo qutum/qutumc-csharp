@@ -16,8 +16,9 @@ namespace qutum.syntax
 		all = 1, Block,
 		block, stats, headr, nest,
 		pre, right, stat,
-		line, Line, e9,
-		e1, e2, e33, e35, e43, e45, e5, e6, e7,
+		line, Line,
+		b2, b33, b35, b43, b45, feed, b6, b7,
+		e1, e2, e33, e35, e43, e45, e5, e6, e9,
 	}
 
 	public class Tree : Tree<Syn, Tree>
@@ -42,29 +43,28 @@ namespace qutum.syntax
 		pre   = PRE EOL IND block		=+_!	prefix statement
 		stat  =	BIN right				=^+_!	statement == prior than prefix expression
 		      | Line stats?				=+-		statement
-		line  = SP?	e9 EOL				=^!||BLANK
-		Line  = SP?	e9 EOL				=!||BLANK
+		line  = SP? e9 EOL				=^!||BLANK
+		Line  = SP? e9 EOL				=!||BLANK
 
-		e1    = LITERAL					=+_
-		      | LP e9 RP				=!
-		      | PRE e1					=+_		prefix expression
-		e2    = e1						=		expression
-		      | e2 BIN2 e1				=+_!	binary operator
-		e33   = e2						=		expression
-		      | e33 BIN33 e2			=+_!	binary operator
-		e35   = e33						=		expression
-		      | e35 BIN35 e33			=+_!	binary operator
-		e43   = e35						=		expression
-		      | e43 BIN43 e35			=+_!	binary operator
-		e45   = e43						=		expression
-		      | e45 BIN45 e43			=+_!	binary operator
-		e5    = e45						=		expression
-		      | e45 e45+				=+		datum feed
-		e6    = e5						=		expression
-		      | e6 BIN6 e5				=+_!	binary operator
-		e7    = e6						=		expression
-		      | e7 BIN7 e6				=+_!	binary operator
-		e9    = e7						=		expression
+		e1    = LITERAL					=+_		literal
+		      | LP e9 RP				=+-!|LP	parenthesis
+		      | PRE e1					=+_!	prefix operator
+		b2    = BIN2 e1					=+_!	binary operator
+		b33   = BIN33 e2				=+_!	binary operator
+		b35   = BIN35 e33				=+_!	binary operator
+		b43   = BIN43 e35				=+_!	binary operator
+		b45   = BIN45 e43				=+_!	binary operator
+		feed  = e45+					=+!		datum feed
+		b6    = BIN6 e5					=+_!	binary operator
+		b7    = BIN7 e6					=+_!	binary operator
+		e2    = e1 b2*										=+-	expression
+		e33   = e1 b2* b33*									=+-	expression
+		e35   = e1 b2* b33* b35*							=+-	expression
+		e43   = e1 b2* b33* b35* b43*						=+-	expression
+		e45   = e1 b2* b33* b35* b43* b45*					=+-	expression
+		e5    = e1 b2* b33* b35* b43* b45* feed?			=*+-expression
+		e6    = e1 b2* b33* b35* b43* b45* feed? b6*		=*+-expression
+		e9    = e1 b2* b33* b35* b43* b45* feed? b6* b7*	=*	expression
 		";
 
 		public Parser(Lexer l) : base(grammar, l)
