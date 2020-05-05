@@ -403,22 +403,42 @@ namespace qutum.test.parser
 		[TestMethod]
 		public void TreeHint2()
 		{
-			var p = new ParserStr("S=U*D* \n U=A*V* =+-\n V=B*C* =+-\n A=a \n B=b \n C=c \n D=d") {
+			var p = new ParserStr("S=Z*U* \n U=A*V* =+-\n V=B*C* =+-\n Z=z \n A=a \n B=b \n C=c") {
 				tree = true, dump = 3
 			};
-			var t = p.Parse("abcd");
-			t = t/**/.H("U").H("A");
+			var t = p.Parse("zabc");
+			t = t/**/.H("Z");
+			t = t/**/.N("U").H("A");
 			t = t/**/		.N("V").H("B");
-			t = t/**/				.N("C").N0().N0();
-			t = t/**/.N("D").N0();
-			t = p.Parse("abd");
-			t = t/**/.H("U").H("A");
-			t = t/**/		.N("B").N0();
-			t = t/**/.N("D").N0();
-			t = p.Parse("bcd");
-			t = t/**/.H("U").H("B");
-			t = t/**/		.N("C").N0();
-			t = t/**/.N("D").N0();
+			t = t/**/				.N("C").N0().N0().N0();
+			t = p.Parse("zab");
+			t = t/**/.H("Z");
+			t = t/**/.N("U").H("A");
+			t = t/**/		.N("B").N0().N0();
+			t = p.Parse("zbc");
+			t = t/**/.H("Z");
+			t = t/**/.N("U").H("B");
+			t = t/**/		.N("C").N0().N0();
+			t = p.Parse("abc");
+			t = t/**/.H("A");
+			t = t/**/.N("V").H("B");
+			t = t/**/		.N("C").N0().N0();
+			p.Parse("ab").H("A").N("B").N0();
+			p.Parse("bc").H("B").N("C").N0();
+		}
+
+		[TestMethod]
+		public void TreeHint3()
+		{
+			var p = new ParserStr("S=Z*U* \n U=A*V* =+-\n V=B*C* =+-\n Z=z =-\n A=a \n B=b \n C=c") {
+				tree = true, dump = 3
+			};
+			var t = p.Parse("zabc");
+			t = t/**/.H("A");
+			t = t/**/.N("V").H("B");
+			t = t/**/		.N("C").N0().N0();
+			p.Parse("zab").H("A").N("B").N0();
+			p.Parse("zbc").H("B").N("C").N0();
 			t = p.Parse("abc");
 			t = t/**/.H("A");
 			t = t/**/.N("V").H("B");

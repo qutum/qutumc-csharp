@@ -72,8 +72,8 @@ namespace qutum.parser
 			internal Con[] s;
 			internal bool prior; // prior than other Alts of the same Prod or of all recovery
 			internal sbyte greedy; // as parser.greedy:0, greedy: 1, back greedy: -1
-			internal sbyte tree; // as parser.tree: 0, make: 2, skip: -1
-								 // make if prev or next exists and 2 or more subs: 1
+			internal sbyte tree; // as parser.tree: 0, make: 2, omit: -1
+								 // omit if no prev nor next or has 0 or 1 sub: 1
 			internal bool token; // save first shift token to Tree.info
 			internal bool errExpect; // make expect Tree when error
 			internal int recover; // no: -1, recover ahead to last One or More K index: > 0,
@@ -128,8 +128,9 @@ namespace qutum.parser
 			matchn = 0;
 			Array.Fill(recm, -1, 0, recm.Length);
 			int m = Earley(out Tr err, recover);
+			bool _ = false;
 			Tr t = m >= 0
-				? Accepted(m, null, out _).AddNextSub(err)
+				? Accepted(m, null, ref _).AddNextSub(err)
 				: err.head.Remove().AddNextSub(err);
 			Array.Fill(matchs, default, 0, matchn);
 			locs.Clear();
@@ -321,9 +322,8 @@ namespace qutum.parser
 			return completen < matchn;
 		}
 
-		Tr Accepted(int match, Tr up, out bool skipSelf)
+		Tr Accepted(int match, Tr up, ref bool omitSelf)
 		{
-			skipSelf = false;
 			var m = matchs[match];
 			if (m.from == m.to && m.step == 0 && m.a.s.Length > 1)
 				return null;
@@ -331,15 +331,18 @@ namespace qutum.parser
 			t ??= new Tr {
 				name = m.a.name, from = m.from, to = m.to
 			};
-			bool skipSub = false;
+			bool omitSub = false;
 			for (var mp = m; mp.tail != -1; mp = matchs[mp.prev])
 				if (mp.tail >= 0)
-					Accepted(mp.tail, t, out skipSub);
+					if (t == up)
+						Accepted(mp.tail, t, ref omitSelf);
+					else
+						Accepted(mp.tail, t, ref omitSub);
 				else if (mp.tail == -2 && mp.a.token)
 					t.info = scan.Token(mp.to - 1);
 				else if (mp.tail == -4) {
 					Debug.Assert(mp.a == m.a);
-					skipSub = m.a.tree == 1;
+					omitSelf = omitSub = m.a.tree == 1;
 					var p = m.a.s[mp.step - 1].p;
 					t.AddHead(new Tr {
 						name = m.a.name, from = mp.from, to = mp.to, err = -4, info = m.a.hint,
@@ -347,19 +350,17 @@ namespace qutum.parser
 							$"{(p is Prod pp ? pp.name : p)} at {Dump(scan.Token(mp.to - 1))}",
 					});
 				}
-			if (t == up)
-				skipSelf = skipSub;
-			else {
-				skipSelf = m.a.tree == 1;
-				if (skipSub && t.head != null && t.head.next == null)
+			if (t != up) {
+				if (omitSub && t.head != null && t.head.next == null)
 					t.AddSub(t.head.Remove());
-				if (skipSelf && up != null && t.head?.next == null) {
-					skipSelf = false;
-					up.AddHead(t.head?.Remove());
-				}
-				else {
+				if (m.a.tree != 1 || up == null || t.head?.next != null) {
 					up?.AddHead(t);
 					t.dump = Dump(m, t.head == null);
+					omitSelf = m.a.tree == 1;
+				}
+				else if (t.head != null) {
+					up.AddHead(t.head.Remove());
+					omitSelf = false;
 				}
 			}
 			return t;
