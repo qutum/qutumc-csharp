@@ -14,25 +14,34 @@ namespace qutum.syntax
 {
 	public enum Lex
 	{
-		EFFECT = 0x1FFE0, // effective lexes
-		LITERAL = 0x0020, // literals
-		OPARI = 0x0040, // arithmetic operators
-		OPCOM = 0x0080, // comparison operators
-		OPLOG = 0x0100, // logical operators
-		OPBIN = 0x8000, // binary operators
-		OPPRE = 0x4000, // prefix operators
-		OPPOST = 0x2000, // postfix operators
-		OTHER = 0x10000,
+		BLANK = 0x0020, // blanks
+		LITERAL = 0x0040, // literals
+		OPBIN = 0x0080, // binary operators
+		OPPRE = 0x0100, // prefix operators
+		OPPOST = 0x0200, // postfix operators
+		OP2 = 0x1_0000,
+		OP33 = 0x2_0000,
+		OP35 = 0x4_0000,
+		OP43 = 0x8_0000,
+		OP45 = 0x10_0000,
+		OP6 = 0x20_0000,
+		OP7 = 0x40_0000,
+		OP8 = 0x80_0000,
+		OP9 = 0x100_0000,
 
-		EOL = 1, IND, DED, SP, COMM, COMMB, PATH, NUM,
+		EOL = BLANK | 1, IND, DED, SP, COMM, COMMB, PATH, NUM,
 
-		LP = OTHER | 1, RP, LSB, RSB, LCB, RCB,
-		APO, COM, EXC, AT, HASH, DOL, CIR, AMP, COL, SCOL, SEQ, QUE, BSL, VER, TIL,
+		LP = 1, RP, LSB, RSB, LCB, RCB,
+		APO, COM, AT, HASH, DOL, CIR, COL, SCOL, SEQ, QUE, BSL, TIL,
 
-		ADD = OPBIN | OPPRE | OPARI | 1, SUB = OPBIN | OPPRE | OPARI | 2,
-		MUL = OPBIN | OPARI | 3, DIV, MOD, DIVF, MODF, SHL, SHR,
-		EQ = OPBIN | OPCOM | 1, UEQ, LEQ, GEQ, LT, GT,
-		NOT = OPPRE | OPLOG | 1, AND = OPBIN | OPLOG | 2, OR,
+		// bitwise operators
+		SHL = OPBIN | OP33 | 1, SHR, BNOT = OPPRE | 1, BAND = OPBIN | OP35 | 1, BXOR, BOR,
+		// arithmetic operators
+		ADD = OPBIN | OP45 | OPPRE | 2, SUB, MUL = OPBIN | OP43 | 1, DIV, MOD, DIVF, MODF,
+		// comparison operators
+		EQ = OPBIN | OP6 | 1, UEQ, LEQ, GEQ, LT, GT,
+		// logical operators
+		NOT = OPPRE | 4, AND = OPBIN | OP7 | 1, OR,
 
 		STR = LITERAL | 1, STRB, NAME, ONAME, ONAME1, HEX, INT, FLOAT,
 	}
@@ -42,6 +51,9 @@ namespace qutum.syntax
 		static readonly string Grammar = @"
 		==BAPO  = `
 		==DOT   = .
+		==EXC   = !
+		==AMP   = &
+		==VER   = \|
 		LP    = (
 		RP    = )
 		LSB   = \[
@@ -50,20 +62,23 @@ namespace qutum.syntax
 		RCB   = }
 		APO   = '
 		COM   = ,
-		EXC   = !
 		AT    = @
 		HASH  = #
 		DOL   = $
 		CIR   = ^
-		AMP   = &
 		COL   = :
 		SCOL  = ;
 		SEQ   = =
 		QUE   = \?
 		BSL   = \\
-		VER   = \|
 		TIL   = ~
 
+		SHL   = <<
+		SHR   = >>
+		BNOT   = --
+		BAND   = &&
+		BXOR   = \+\+
+		BOR    = \|\|
 		ADD   = \+
 		SUB   = -
 		MUL   = \*
@@ -71,17 +86,15 @@ namespace qutum.syntax
 		MOD   = %
 		DIVF  = //
 		MODF  = %%
-		SHL   = <<
-		SHR   = >>
 		EQ    = ==
 		UEQ   = \\=
 		LEQ   = <=
 		GEQ   = >=
 		LT    = <
 		GT    = >
-		NOT   = --
-		AND   = &&
-		OR    = \|\|
+		NOT   = !
+		AND   = &
+		OR    = \|
 
 		EOL   = \n|\r\n
 		SP    = \s|\t  |+\s+|+\t+

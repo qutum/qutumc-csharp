@@ -296,14 +296,15 @@ namespace qutum.test.syntax
 		public void LexSymbol2()
 		{
 			Check("([{)]}", "LP= LSB= LCB= RP= RSB= RCB=");
-			Check("*/%//%%", "MUL= DIV= MOD= DIVF= MODF="); Check("<<>>", "SHL= SHR=");
+			Check("*/%//%%", "MUL= DIV= MOD= DIVF= MODF=");
+			Check("<<>>---&&+++||", "SHL= SHR= BNOT= SUB= BAND= BXOR= ADD= BOR=");
 		}
 
 		[TestMethod]
 		public void LexSymbol3()
 		{
 			Check(@"===\=<<=<=<>=>", "EQ= SEQ= UEQ= SHL= SEQ= LEQ= LT= GEQ= GT=");
-			Check("---&&||", "NOT= SUB= AND= OR=");
+			Check("!!&|", "NOT= NOT= AND= OR=");
 		}
 	}
 }
