@@ -72,7 +72,8 @@ namespace qutum.parser
 			internal Con[] s;
 			internal bool prior; // prior than other Alts of the same Prod or of all recovery
 			internal sbyte greedy; // as parser.greedy:0, greedy: 1, back greedy: -1
-			internal sbyte tree; // as parser.tree: 0, thru: -1, make: 1
+			internal sbyte tree; // as parser.tree: 0, make: 2, skip: -1
+								 // make if prev or next exists and 2 or more subs: 1
 			internal bool token; // save first shift token to Tree.info
 			internal bool errExpect; // make expect Tree when error
 			internal int recover; // no: -1, recover ahead to last One or More K index: > 0,
@@ -128,7 +129,7 @@ namespace qutum.parser
 			Array.Fill(recm, -1, 0, recm.Length);
 			int m = Earley(out Tr err, recover);
 			Tr t = m >= 0
-				? Accepted(m, null).AddNextSub(err)
+				? Accepted(m, null, out _).AddNextSub(err)
 				: err.head.Remove().AddNextSub(err);
 			Array.Fill(matchs, default, 0, matchn);
 			locs.Clear();
@@ -320,23 +321,25 @@ namespace qutum.parser
 			return completen < matchn;
 		}
 
-		Tr Accepted(int match, Tr up)
+		Tr Accepted(int match, Tr up, out bool skipSelf)
 		{
+			skipSelf = false;
 			var m = matchs[match];
 			if (m.from == m.to && m.step == 0 && m.a.s.Length > 1)
 				return null;
-			Tr t = (m.a.tree == 0 ? tree : m.a.tree > 0) ? null : up, New = null;
-			if (t == null)
-				t = New = new Tr {
-					name = m.a.name, from = m.from, to = m.to
-				};
+			Tr t = (m.a.tree == 0 ? tree : m.a.tree > 0) ? null : up;
+			t ??= new Tr {
+				name = m.a.name, from = m.from, to = m.to
+			};
+			bool skipSub = false;
 			for (var mp = m; mp.tail != -1; mp = matchs[mp.prev])
 				if (mp.tail >= 0)
-					Accepted(mp.tail, t);
+					Accepted(mp.tail, t, out skipSub);
 				else if (mp.tail == -2 && mp.a.token)
 					t.info = scan.Token(mp.to - 1);
 				else if (mp.tail == -4) {
 					Debug.Assert(mp.a == m.a);
+					skipSub = m.a.tree == 1;
 					var p = m.a.s[mp.step - 1].p;
 					t.AddHead(new Tr {
 						name = m.a.name, from = mp.from, to = mp.to, err = -4, info = m.a.hint,
@@ -344,10 +347,21 @@ namespace qutum.parser
 							$"{(p is Prod pp ? pp.name : p)} at {Dump(scan.Token(mp.to - 1))}",
 					});
 				}
-			if (up != null && up != t)
-				up.AddHead(t);
-			if (New != null)
-				t.dump = Dump(m, t.head == null);
+			if (t == up)
+				skipSelf = skipSub;
+			else {
+				skipSelf = m.a.tree == 1;
+				if (skipSub && t.head != null && t.head.next == null)
+					t.AddSub(t.head.Remove());
+				if (skipSelf && up != null && t.head?.next == null) {
+					skipSelf = false;
+					up.AddHead(t.head?.Remove());
+				}
+				else {
+					up?.AddHead(t);
+					t.dump = Dump(m, t.head == null);
+				}
+			}
 			return t;
 		}
 
@@ -418,7 +432,7 @@ namespace qutum.parser
 			{ "hint",  "= hintp? hintg? hintt? hintk? hinte? hintr? hintd? S* hintw" },
 			{ "hintp", "^" }, // hint prior
 			{ "hintg", "*" }, // hint greedy
-			{ "hintt", "+|-" }, // hint tree
+			{ "hintt", "+|-|+ -" }, // hint tree
 			{ "hintk", "_" }, // hint token
 			{ "hinte", "!" }, // hint expect
 			{ "hintr", "\x1|\x1 W+|\x1 O|\x1 \\ E" }, // hint recover
@@ -452,6 +466,8 @@ namespace qutum.parser
 					.ToArray();
 					return new ParserChar.Alt { name = kv.Key, s = s, recover = -1 };
 				}).ToArray();
+			// hint tree is greedy
+			prods["hintt"].alts[2].greedy = 1;
 			// spaces before hintw are greedy
 			prods["hint"].alts[0].greedy = 1;
 			// make these trees
@@ -459,7 +475,7 @@ namespace qutum.parser
 				.Concat(new[] { "prod", "alt", "name", "sym",
 					"hintp", "hintg", "hintt", "hintk", "hinte", "hintr", "hintd", "hintw", "hint_" }
 					.SelectMany(x => prods[x].alts)))
-				c.tree = 1;
+				c.tree = 2;
 			boot = new ParserChar(prods["gram"]) {
 				greedy = false, tree = false, dump = 0
 			};
@@ -525,7 +541,8 @@ namespace qutum.parser
 					foreach (var h in t) {
 						if (h.name == "hintp") p = true;
 						if (h.name == "hintg") g = 1;
-						if (h.name == "hintt") tr = (sbyte)(gram[h.from] == '+' ? 1 : -1);
+						if (h.name == "hintt")
+							tr = (sbyte)(gram[h.from] == '+' ? h.from == h.to - 1 ? 2 : 1 : -1);
 						if (h.name == "hintk") k = true;
 						if (h.name == "hinte") e = true;
 						if (h.name == "hintr") r = h;

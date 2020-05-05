@@ -70,7 +70,7 @@ namespace qutum
 		// add subs of t after tail
 		public T AddSub(T t)
 		{
-			if (t == null || t.head == null)
+			if (t?.head == null)
 				return (T)this;
 			var x = t.head;
 			t.head = t.tail = null;

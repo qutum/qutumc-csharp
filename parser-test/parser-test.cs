@@ -107,6 +107,20 @@ namespace qutum.test.parser
 		}
 
 		[TestMethod]
+		public void AltPrior1()
+		{
+			var p = new ParserStr("S=.E =^ \n | E \n E=W|P \n W=a \n P=.W") { dump = 3 };
+			p.Parse(".a").H("E").H("W").N0();
+		}
+
+		[TestMethod]
+		public void AltPrior2()
+		{
+			var p = new ParserStr("S=.E \n | E =^ \n E=W|P \n W=a \n P=.W") { dump = 3 };
+			p.Parse(".a").H("E").H("P").N0();
+		}
+
+		[TestMethod]
 		public void Esc()
 		{
 			var p = new ParserStr(@"S = \ss\tt\r\n\\/ | \|or\=eq\*s\+p\?q");
@@ -376,7 +390,7 @@ namespace qutum.test.parser
 		}
 
 		[TestMethod]
-		public void TreeHint()
+		public void TreeHint1()
 		{
 			var p = new ParserStr("S=A B C\n A=1 =+\n B=1 =-\n C=1") {
 				tree = true, dump = 3
@@ -387,17 +401,30 @@ namespace qutum.test.parser
 		}
 
 		[TestMethod]
-		public void TreePrior1()
+		public void TreeHint2()
 		{
-			var p = new ParserStr("S=.E =^ \n | E \n E=W|P \n W=a \n P=.W") { dump = 3 };
-			p.Parse(".a").H("E").H("W").N0();
-		}
-
-		[TestMethod]
-		public void TreePrior2()
-		{
-			var p = new ParserStr("S=.E \n | E =^ \n E=W|P \n W=a \n P=.W") { dump = 3 };
-			p.Parse(".a").H("E").H("P").N0();
+			var p = new ParserStr("S=U*D* \n U=A*V* =+-\n V=B*C* =+-\n A=a \n B=b \n C=c \n D=d") {
+				tree = true, dump = 3
+			};
+			var t = p.Parse("abcd");
+			t = t/**/.H("U").H("A");
+			t = t/**/		.N("V").H("B");
+			t = t/**/				.N("C").N0().N0();
+			t = t/**/.N("D").N0();
+			t = p.Parse("abd");
+			t = t/**/.H("U").H("A");
+			t = t/**/		.N("B").N0();
+			t = t/**/.N("D").N0();
+			t = p.Parse("bcd");
+			t = t/**/.H("U").H("B");
+			t = t/**/		.N("C").N0();
+			t = t/**/.N("D").N0();
+			t = p.Parse("abc");
+			t = t/**/.H("A");
+			t = t/**/.N("V").H("B");
+			t = t/**/		.N("C").N0().N0();
+			p.Parse("ab").H("A").N("B").N0();
+			p.Parse("bc").H("B").N("C").N0();
 		}
 
 		[TestMethod]
