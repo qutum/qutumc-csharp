@@ -37,7 +37,7 @@ qutum.parser.Lexer
 qutum.parser.ParserBase
 
 语法解析器，基于Earley算法，输出语法树
-支持量词、greedy串联贪婪匹配、语法树节点保留或穿透、寻找前方key或从当前位置错误恢复
+支持量词、greedy串联贪婪匹配、优先分支、语法树节点保留或穿透、寻找前方key或从当前位置错误恢复
 
 qutum.parser.ParserStr
 

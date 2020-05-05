@@ -70,7 +70,7 @@ namespace qutum.parser
 		{
 			internal N name;
 			internal Con[] s;
-			internal bool prior; // prior than other Alts of the same Prod
+			internal bool prior; // prior than other Alts of the same Prod or of all recovery
 			internal sbyte greedy; // as parser.greedy:0, greedy: 1, back greedy: -1
 			internal sbyte tree; // as parser.tree: 0, thru: -1, make: 1
 			internal bool token; // save first shift token to Tree.info
@@ -304,8 +304,11 @@ namespace qutum.parser
 						}
 				if (m.a.s[m.a.recover].p is K k2 ? pair == 0 && (eof || scan.Is(k2))
 					: m.step == m.a.recover && (eof || m.to == locn - 1))
-					max = Math.Max(max, x);
-				Cont:;
+					if (max < 0
+						|| m.a.prior && !matchs[max].a.prior
+						|| m.a.prior == matchs[max].a.prior && x > max)
+						max = x;
+					Cont:;
 			}
 			if (max >= 0) {
 				var m = matchs[max];
