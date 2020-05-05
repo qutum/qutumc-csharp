@@ -41,7 +41,7 @@ namespace qutum.syntax
 
 		pre   = PRE EOL IND block		=+_!	prefix statement
 		stat  =	BIN right				=^+_!	statement == prior than prefix expression
-		      | Line stats?
+		      | Line stats?				=+-		statement
 		line  = SP?	e9 EOL				=^!||BLANK
 		Line  = SP?	e9 EOL				=!||BLANK
 

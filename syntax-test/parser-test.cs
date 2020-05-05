@@ -167,29 +167,28 @@ namespace qutum.test.syntax
 			p.dump = 3;
 			var t = Parse(@"
 			a
-				+2
-					- b
-				* c");
+				b
+					c
+				* d");
 			t = t/**/	.H(Syn.Block).H(Syn.e1).V(Lex.NAME, "a");
-			t = t/**/				.N(Syn.stat, v: Lex.ADD);
-			t = t/**/					.H(Syn.e1).V(Lex.INT, 2);
-			t = t/**/					.N(Syn.stat, v: Lex.SUB);
-			t = t/**/						.H(Syn.e1).V(Lex.NAME, "b").N0().N0();
+			t = t/**/				.N(Syn.stat);
+			t = t/**/					.H(Syn.e1).V(Lex.NAME, "b");
+			t = t/**/					.N(Syn.e1).V(Lex.NAME, "c").N0();
 			t = t/**/				.N(Syn.stat, v: Lex.MUL);
-			t = t/**/					.H(Syn.e1).V(Lex.NAME, "c").N0().N0().N0().N0();
+			t = t/**/					.H(Syn.e1).V(Lex.NAME, "d").N0().N0().N0().N0();
 			t = Parse(@"
 			a
-				*2
-					<< c
-						+1
+				*b
+					-2
+						+c
 				- d");
 			t = t/**/	.H(Syn.Block).H(Syn.e1).V(Lex.NAME, "a");
 			t = t/**/				.N(Syn.stat, v: Lex.MUL);
-			t = t/**/					.H(Syn.e1).V(Lex.INT, 2);
-			t = t/**/					.N(Syn.stat, v: Lex.SHL);
-			t = t/**/						.H(Syn.e1).V(Lex.NAME, "c");
+			t = t/**/					.H(Syn.e1).V(Lex.NAME, "b");
+			t = t/**/					.N(Syn.stat, v: Lex.SUB);
+			t = t/**/						.H(Syn.e1).V(Lex.INT, 2);
 			t = t/**/						.N(Syn.stat, v: Lex.ADD);
-			t = t/**/							.H(Syn.e1).V(Lex.INT, 1).N0().N0().N0();
+			t = t/**/							.H(Syn.e1).V(Lex.NAME, "c").N0().N0().N0();
 			t = t/**/				.N(Syn.stat, v: Lex.SUB);
 			t = t/**/					.H(Syn.e1).V(Lex.NAME, "d").N0().N0().N0().N0();
 		}
