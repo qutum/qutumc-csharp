@@ -157,16 +157,19 @@ namespace qutum.parser
 			if (rec == 0) rec = -1;
 			int shift = 0;
 		Loop: do {
-				int c, p;
-				Complete(locs[locn]); c = matchn;
-				Predict(locs[locn]); p = matchn;
-				for (; ; ) {
-					Complete(c);
-					if (c == (c = matchn))
+				int c, p, cc, pp;
+				Complete(locs[locn]); cc = c = matchn;
+				Predict(locs[locn]); pp = p = matchn;
+				for (bool re = false; ; ) {
+					re = Complete(c) | re;
+					if (!re && c == (c = matchn))
 						break;
-					Predict(p);
-					if (p == (p = matchn))
+					re = Predict(p) | re;
+					if (!re && p == (p = matchn))
 						break;
+					if (re) {
+						c = cc; p = pp; re = false;
+					}
 				}
 			} while ((shift = Shift(shift)) > 0);
 
@@ -193,20 +196,23 @@ namespace qutum.parser
 			return -1;
 		}
 
-		void Predict(int x)
+		bool Predict(int x)
 		{
+			bool back = false;
 			for (; x < matchn; x++) {
 				var m = matchs[x];
 				if (m.a.s[m.step].p is Prod p)
 					foreach (var alt in p.alts)
-						Add(alt, locn, locn, 0, x, -1);
+						back = Add(alt, locn, locn, 0, x, -1) | back;
 				if (((int)m.a.s[m.step].q & 1) == 0)
-					Add(m.a, m.from, m.to, m.step + 1, x, -3); // m.to == loc
+					back = Add(m.a, m.from, m.to, m.step + 1, x, -3) | back; // m.to == loc
 			}
+			return back;
 		}
 
-		void Complete(int empty)
+		bool Complete(int empty)
 		{
+			bool back = false;
 			for (int x = locs[locn]; x < matchn; x++) {
 				var m = matchs[x];
 				if ((x >= empty || m.from == locn) && m.a.s[m.step].p == null)
@@ -214,9 +220,10 @@ namespace qutum.parser
 							px < py; px++) {
 						var pm = matchs[px];
 						if (pm.a.s[pm.step].p is Prod p && Eq.Equals(p.name, m.a.name))
-							Add(pm.a, pm.from, pm.to, pm.step + 1, px, x); // pm.to <= loc
+							back = Add(pm.a, pm.from, pm.to, pm.step + 1, px, x) | back; // pm.to <= loc
 					}
 			}
+			return back;
 		}
 
 		int Shift(int shift)
@@ -236,7 +243,7 @@ namespace qutum.parser
 			return matchn - locs[locn];
 		}
 
-		void Add(Alt a, int from, int pto, int step, int prev, int tail)
+		bool Add(Alt a, int from, int pto, int step, int prev, int tail)
 		{
 			var u = new Match {
 				a = a, from = from, to = locn, step = step, prev = prev, tail = tail
@@ -247,14 +254,14 @@ namespace qutum.parser
 					if (!m.a.prior && m.from == from && m.a.s[m.step].p == null
 							&& Eq.Equals(m.a.name, a.name)) {
 						matchs[x] = u;
-						return;
+						return true;
 					}
 				}
 			for (int x = locs[locn]; x < matchn; x++) {
 				var m = matchs[x];
 				if (m.a == a && m.from == from && m.step == step) {
 					if ((a.greedy == 0 ? !greedy : a.greedy < 0) || m.tail == -1 || u.tail == -1)
-						return;
+						return false;
 					bool g = false; var w = u;
 					for (int mp = m.prev, wp = w.prev; ;) {
 						Debug.Assert(m.tail != -1 && w.tail != -1);
@@ -269,7 +276,7 @@ namespace qutum.parser
 							wp = (w = matchs[wp]).tail != -1 ? w.prev : -1;
 					}
 					if (g) matchs[x] = u;
-					return;
+					return g;
 				}
 			}
 			if (matchn + 2 > matchs.Length) Array.Resize(ref matchs, matchs.Length << 1);
@@ -278,6 +285,7 @@ namespace qutum.parser
 				matchs[matchn++] = u; // prev and tail kept
 			if (step > 0 && a.recover >= 0)
 				recm[reca.IndexOf(a)] = step <= a.recover ? matchn - 1 : -1;
+			return false;
 		}
 
 		bool Recover(bool eof, ref int shift)
