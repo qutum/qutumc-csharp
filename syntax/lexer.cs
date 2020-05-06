@@ -14,11 +14,11 @@ namespace qutum.syntax
 {
 	public enum Lex
 	{
+		LITERAL = 0x0010, // literals
 		BLANK = 0x0020, // blanks
-		LITERAL = 0x0040, // literals
-		BIN = 0x0080, // binary operators
-		PRE = 0x0100, // prefix operators
-		POST = 0x0200, // postfix operators
+		BIN = 0x0040, // binary operators
+		PRE = 0x0080, // prefix operators
+		POST = 0x0100, // postfix operators
 		BIN2 = 0x1_0000,
 		BIN33 = 0x2_0000,
 		BIN35 = 0x4_0000,
@@ -32,7 +32,9 @@ namespace qutum.syntax
 		EOL = BLANK | 1, IND, DED, SP, COMM, COMMB, PATH, NUM,
 
 		LP = 1, RP, LSB, RSB, LCB, RCB,
-		APO, COM, AT, HASH, DOL, CIR, COL, SCOL, SEQ, QUE, BSL, TIL,
+
+		RNAME, RNAME1,
+		STR = LITERAL | 1, STRB, NAME, HEX, INT, FLOAT,
 
 		// bitwise operators
 		SHL = BIN | BIN33 | 1, SHR, BNOT = PRE | 1, BAND = BIN | BIN35 | 1, BXOR, BOR,
@@ -42,37 +44,35 @@ namespace qutum.syntax
 		EQ = BIN | BIN6 | 1, UEQ, LEQ, GEQ, LT, GT,
 		// logical operators
 		NOT = PRE | 4, AND = BIN | BIN7 | 1, OR,
-
-		STR = LITERAL | 1, STRB, NAME, ONAME, ONAME1, HEX, INT, FLOAT,
 	}
 
 	public class Lexer : Lexer<Lex>
 	{
 		static readonly string Grammar = @"
-		==BAPO  = `
+		==APO   = '
+		==BAPO  = ` == path
+		==COM   = ,
 		==DOT   = .
-		==EXC   = !
-		==AMP   = &
-		==VER   = \|
+		==EXC   = ! == not
+		==AT    = @
+		==HASH  = #
+		==DOL   = $
+		==CIR   = ^
+		==AMP   = & == and
+		==COL   = :
+		==SCOL  = ;
+		==SEQ   = =
+		==QUE   = \?
+		==BSL   = \\ == byte block
+		==VER   = \| == or
+		==TIL   = ~
+
 		LP    = (
 		RP    = )
 		LSB   = \[
 		RSB   = \]
 		LCB   = {
 		RCB   = }
-		APO   = '
-		COM   = ,
-		AT    = @
-		HASH  = #
-		DOL   = $
-		CIR   = ^
-		COL   = :
-		SCOL  = ;
-		SEQ   = =
-		QUE   = \?
-		BSL   = \\
-		TIL   = ~
-
 		SHL   = <<
 		SHR   = >>
 		BNOT   = --
@@ -87,7 +87,7 @@ namespace qutum.syntax
 		DIVF  = //
 		MODF  = %%
 		EQ    = ==
-		UEQ   = \\=
+		UEQ   = /=
 		LEQ   = <=
 		GEQ   = >=
 		LT    = <
@@ -104,7 +104,7 @@ namespace qutum.syntax
 		STR   = ""     *""|\n|    +[\t\s!-~\B^""\\]+| +\\[0tnr"".`\\]| +\\x\x\x| +\\u\x\x\x\x
 		PATH  = `|.`   *`| \n|+.| +[\t\s!-~\B^.`\\]+| +\\[0tnr"".`\\]| +\\x\x\x| +\\u\x\x\x\x
 		NAME  =     [\a_]|  [\a_][\d\a_]+
-		ONAME = .| .[\a_]| .[\a_][\d\a_]+
+		RNAME = .| .[\a_]| .[\a_][\d\a_]+
 		HEX   = 0[xX]  \x|_\x  |+\x+|+_\x+
 		NUM   = 0|[1-9]  |+\d+|+_\d+  |.\d+  |+_\d+  |[eE]\d+|[eE][\+\-]\d+  |[fF]
 		";
@@ -133,7 +133,7 @@ namespace qutum.syntax
 		{
 			if (testee == key) return true;
 			// key as kind contains testee
-			return ((int)key & 0x1f) == 0 && (key & testee) != 0;
+			return ((int)key & 15) == 0 && (key & testee) != 0;
 		}
 
 		void Indent()
@@ -150,9 +150,9 @@ namespace qutum.syntax
 		protected override void Add(Lex key, int f, int to, object value)
 		{
 			Indent();
-			if (key == Lex.ONAME && tokenn > 0 && tokens[tokenn - 1].to == f
-				&& tokens[tokenn - 1].key >= Lex.NAME && tokens[tokenn - 1].key <= Lex.ONAME1)
-				key = Lex.ONAME1; // output name tightly follows previous name, high precedence
+			if (key == Lex.RNAME && tokenn > 0 && tokens[tokenn - 1].to == f
+				&& tokens[tokenn - 1].key < Lex.BLANK && tokens[tokenn - 1].key > 0)
+				key = Lex.RNAME1; // run name tightly follows previous token, high precedence
 			base.Add(key, f, to, value);
 		}
 
@@ -284,7 +284,7 @@ namespace qutum.syntax
 				break;
 
 			case Lex.NAME:
-			case Lex.ONAME:
+			case Lex.RNAME:
 				f = key == Lex.NAME ? from : from + 1;
 				if (to - f > 40) {
 					AddErr(key, f, to, "too long");
@@ -308,7 +308,7 @@ namespace qutum.syntax
 				if (end) {
 					if (scan.Token(f) != '`') // \n found
 						AddErr(Lex.NAME, f, to, "` expected");
-					key = scan.Token(from) != '.' ? Lex.NAME : Lex.ONAME;
+					key = scan.Token(from) != '.' ? Lex.NAME : Lex.RNAME;
 					v = path.ToArray();
 					break;
 				}

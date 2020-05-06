@@ -56,6 +56,7 @@ namespace qutum.test.syntax
 			CheckSp("\\### \\## ###\\ ###\\ ab", "COMM=COMMB SP= COMM=");
 			CheckSp("\\### \\## ###\\ ###\\ \nab", "COMM=COMMB SP= COMM= EOL= NAME=ab");
 			Check("\\### \\## ###\\ ###\\ \nab", "NAME=ab");
+			Check("\\\\", "COMMB!");
 		}
 
 		[TestMethod]
@@ -186,15 +187,16 @@ namespace qutum.test.syntax
 		[TestMethod]
 		public void LexName2()
 		{
-			Check("a..", "NAME=a ONAME1= ONAME1=");
-			Check("A1.b_..c'__.__", "NAME=A1 ONAME1=b_ ONAME1= ONAME1=c APO= NAME=__ ONAME1=__");
+			Check("a..", "NAME=a RNAME1= RNAME1=");
+			Check("1.).", "INT=1 RNAME1= RP= RNAME1=");
+			Check("A1.b_..c!__.__", "NAME=A1 RNAME1=b_ RNAME1= RNAME1=c NOT= NAME=__ RNAME1=__");
 		}
 
 		[TestMethod]
 		public void LexName3()
 		{
-			Check("a .. .b", "NAME=a ONAME= ONAME1= ONAME=b");
-			Check("A1 .b_..c .d", "NAME=A1 ONAME=b_ ONAME1= ONAME1=c ONAME=d");
+			Check("a .. .b", "NAME=a RNAME= RNAME1= RNAME=b");
+			Check("A1 .b_..c .d", "NAME=A1 RNAME=b_ RNAME1= RNAME1=c RNAME=d");
 		}
 
 		[TestMethod]
@@ -212,10 +214,10 @@ namespace qutum.test.syntax
 		[TestMethod]
 		public void LexPath2()
 		{
-			Check(".``", "ONAME=,");
-			Check(".`a\n", "NAME!` expected ONAME=a,");
-			Check(".`a`.b.`c`", "ONAME=a, ONAME1=b ONAME1=c,");
-			Check("a .`b.b`.`c` .`d`.``", "NAME=a ONAME=b,b, ONAME1=c, ONAME=d, ONAME1=,");
+			Check(".``", "RNAME=,");
+			Check(".`a\n", "NAME!` expected RNAME=a,");
+			Check(".`a`.b.`c`", "RNAME=a, RNAME1=b RNAME1=c,");
+			Check("a .`b.b`.`c` .`d`.``", "NAME=a RNAME=b,b, RNAME1=c, RNAME=d, RNAME1=,");
 		}
 
 		[TestMethod]
@@ -289,7 +291,7 @@ namespace qutum.test.syntax
 		[TestMethod]
 		public void LexSymbol1()
 		{
-			Check("a:b,0';.c", "NAME=a COL= NAME=b COM= INT=0 APO= SCOL= ONAME=c");
+			Check("',@#$^:;=?~", "0!' 0!, 0!@ 0!# 0!$ 0!^ 0!: 0!; 0!= 0!? 0!~");
 		}
 
 		[TestMethod]
@@ -303,7 +305,7 @@ namespace qutum.test.syntax
 		[TestMethod]
 		public void LexSymbol3()
 		{
-			Check(@"===\=<<=<=<>=>", "EQ= SEQ= UEQ= SHL= SEQ= LEQ= LT= GEQ= GT=");
+			Check("===/=<<=<=<>=>", "EQ= 0!= UEQ= SHL= 0!= LEQ= LT= GEQ= GT=");
 			Check("!!&|", "NOT= NOT= AND= OR=");
 		}
 	}
