@@ -385,13 +385,13 @@ namespace qutum.parser
 				{ go = ok; mode = 1; } // match part
 			else if (rep) // inside byte repeat
 				{ go = err; mode = -1; } // mismatch to error
-			var next = BootNext(k, part, u, ns, nn, go, mode, null);
+			var next = BootNext(k, part, u, ns, nn, go, mode, false);
 			if (rep)
-				BootNext(k, part, next, ns, nn, go, mode, u);
+				BootNext(k, part, next, ns, nn, go, mode, true);
 			u = next;
 		}
 
-		Unit BootNext(K key, int part, Unit u, byte[] ns, int nn, Unit go, int mode, Unit repFrom)
+		Unit BootNext(K key, int part, Unit u, byte[] ns, int nn, Unit go, int mode, bool rep)
 		{
 			Unit n = u.next?[ns[0]];
 			if (u.next == null)
@@ -403,17 +403,19 @@ namespace qutum.parser
 						throw new Exception($"Prefix of {key}.{part} and {(n ?? u.next[ns[x]]).key}"
 							+ $".{(n ?? u.next[ns[x]]).part} must be the same or distinct");
 			if (n == null) {
-				n = repFrom != null ? u // repeat byte
+				n = rep ? u // repeat byte
 					: new Unit(this) { key = key, part = part, pren = nn, go = go, mode = mode };
 				for (int x = 0; x < nn; x++)
 					u.next[ns[x]] = n;
+				if (rep && u.mode > 0 && mode < 0)
+					throw new Exception($"{key}.{part} and {u.key}.{u.part} conflict over repeat match");
 			}
 			else if (n.pren != nn) // all already nexts must be the same
 				throw new Exception($"Prefix of {key}.{part} and {n.key}.{n.part}"
 					+ " must be the same or distinct");
-			else if (repFrom != null != (n == u)) // already exist next must not conflict
+			else if (rep != (n == u)) // already exist next must not conflict
 				throw new Exception($"{key}.{part} and {n.key}.{n.part} conflict over byte repeat");
-			else if (repFrom == null || repFrom == u)
+			else if (!rep)
 				BootMode(key, part, n, go, mode); // check mode for already exist next
 			return n;
 		}

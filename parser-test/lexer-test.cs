@@ -238,17 +238,19 @@ namespace qutum.test.parser
 		[TestMethod]
 		public void LexRepeat5()
 		{
-			Throw(() => new Lexer<Tag>("A=a+c \n B=aa"), "B.1 and A.1 conflict");
-			Throw(() => new Lexer<Tag>("A=a+b \n B=abc"), "B.1 and A.1 conflict");
-			Throw(() => new Lexer<Tag>("A=ab+c \n B=abcd"), "B.1 and A.1 conflict");
-			Throw(() => new Lexer<Tag>("A=abc \n B=a+b"), "B.1 and A.1 conflict");
+			Throw(() => new Lexer<Tag>("A=a \n B=a+"), "B.1 and A.1 conflict");
+			Throw(() => new Lexer<Tag>("A=aa \n B=a+"), "B.1 and A.1 .*repeat");
+			Throw(() => new Lexer<Tag>("A=a \n B=a+b"), "B.1 and A.1 .*repeat");
+			Throw(() => new Lexer<Tag>("A=aa \n B=a+b"), "B.1 and A.1 .*repeat");
 		}
 
 		[TestMethod]
 		public void LexRepeat6()
 		{
-			Throw(() => new Lexer<Tag>("A=aa \n B=a+"), "B.1 and A.1 .*repeat");
-			Throw(() => new Lexer<Tag>("A=a \n B=a+"), "B.1 and A.1 conflict");
+			Throw(() => new Lexer<Tag>("A=a+c \n B=aa"), "B.1 and A.1 .*repeat");
+			Throw(() => new Lexer<Tag>("A=a+b \n B=abc"), "B.1 and A.1 .*repeat");
+			Throw(() => new Lexer<Tag>("A=ab+c \n B=abcd"), "B.1 and A.1 .*repeat");
+			Throw(() => new Lexer<Tag>("A=abc \n B=a+b"), "B.1 and A.1 .*repeat");
 		}
 
 		[TestMethod]
