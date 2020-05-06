@@ -16,18 +16,19 @@ namespace qutum.syntax
 	{
 		LITERAL = 0x0010, // literals
 		BLANK = 0x0020, // blanks
-		BIN = 0x0040, // binary operators
-		PRE = 0x0080, // prefix operators
+		PRE = 0x00c0, // prefix operators
+		PREPURE = 0x0040, // pure prefix
+		PREMIX = 0x0080, // mixed prefix
 		POST = 0x0100, // postfix operators
-		BIN2 = 0x1_0000,
-		BIN33 = 0x2_0000,
-		BIN35 = 0x4_0000,
-		BIN43 = 0x8_0000,
-		BIN45 = 0x10_0000,
-		BIN6 = 0x20_0000,
-		BIN7 = 0x40_0000,
-		BIN8 = 0x80_0000,
-		BIN9 = 0x100_0000,
+		BIN = 0xff000, // binary operators
+		BIN3 = 0x01000,
+		BIN43 = 0x02000,
+		BIN46 = 0x04000,
+		BIN53 = 0x08000,
+		BIN56 = 0x10000,
+		BIN6 = 0x20000,
+		BIN7 = 0x40000,
+		BIN8 = 0x80000,
 
 		EOL = BLANK | 1, IND, DED, SP, COMM, COMMB, PATH, NUM,
 
@@ -37,13 +38,13 @@ namespace qutum.syntax
 		STR = LITERAL | 1, STRB, NAME, HEX, INT, FLOAT,
 
 		// bitwise operators
-		SHL = BIN | BIN33 | 1, SHR, BNOT = PRE | 1, BAND = BIN | BIN35 | 1, BXOR, BOR,
+		SHL = BIN43 | 1, SHR, BNOT = PREPURE | 1, BAND = BIN46 | 1, BXOR, BOR,
 		// arithmetic operators
-		ADD = BIN | BIN45 | PRE | 2, SUB, MUL = BIN | BIN43 | 1, DIV, MOD, DIVF, MODF,
+		ADD = BIN56 | PREMIX | 1, SUB, MUL = BIN53 | 1, DIV, MOD, DIVF, MODF,
 		// comparison operators
-		EQ = BIN | BIN6 | 1, UEQ, LEQ, GEQ, LT, GT,
+		EQ = BIN6 | 1, UEQ, LEQ, GEQ, LT, GT,
 		// logical operators
-		NOT = PRE | 4, AND = BIN | BIN7 | 1, OR,
+		NOT = PREPURE | 2, AND = BIN7 | 1, OR,
 	}
 
 	public class Lexer : Lexer<Lex>
