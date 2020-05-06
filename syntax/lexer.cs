@@ -18,7 +18,7 @@ namespace qutum.syntax
 		BLANK = 0x0020, // blanks
 		PRE = 0x00c0, // prefix operators
 		PREPURE = 0x0040, // pure prefix
-		PREMIX = 0x0080, // mixed prefix
+		PREBIN = 0x0080, // binary prefix
 		POST = 0x0100, // postfix operators
 		BIN = 0xff000, // binary operators
 		BIN3 = 0x01000,
@@ -40,7 +40,7 @@ namespace qutum.syntax
 		// bitwise operators
 		SHL = BIN43 | 1, SHR, BNOT = PREPURE | 1, BAND = BIN46 | 1, BXOR, BOR,
 		// arithmetic operators
-		ADD = BIN56 | PREMIX | 1, SUB, MUL = BIN53 | 1, DIV, MOD, DIVF, MODF,
+		ADD = BIN56 | PREBIN | 1, SUB, MUL = BIN53 | 1, DIV, MOD, DIVF, MODF,
 		// comparison operators
 		EQ = BIN6 | 1, UEQ, LEQ, GEQ, LT, GT,
 		// logical operators

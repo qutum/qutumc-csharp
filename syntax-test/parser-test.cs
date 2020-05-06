@@ -89,39 +89,39 @@ namespace qutum.test.syntax
 		{
 			var t = Parse("").Eq(Syn.all, 0).H0().N0();
 			t = Parse(@"
-			a
-			b");
-			t = t/**/	.H(Syn.Block).H(Syn.e1).V(Lex.NAME, "a").N0();
-			t = t/**/	.N(Syn.Block).H(Syn.e1).V(Lex.NAME, "b").N0().N0().N0();
+			1
+			2");
+			t = t/**/	.H(Syn.Block).H(Syn.e1).V(Lex.INT, 1).N0();
+			t = t/**/	.N(Syn.Block).H(Syn.e1).V(Lex.INT, 2).N0().N0().N0();
 			t = Parse(@"
-					a
-				b
-				c
-			d");
-			t = t/**/	.H(Syn.Block).H(Syn.e1).V(Lex.NAME, "a").N0();
-			t = t/**/	.N(Syn.Block).H(Syn.e1).V(Lex.NAME, "b").N0();
-			t = t/**/	.N(Syn.Block).H(Syn.e1).V(Lex.NAME, "c").N0();
-			t = t/**/	.N(Syn.Block).H(Syn.e1).V(Lex.NAME, "d").N0().N0().N0();
+					1
+				2
+				3
+			4");
+			t = t/**/	.H(Syn.Block).H(Syn.e1).V(Lex.INT, 1).N0();
+			t = t/**/	.N(Syn.Block).H(Syn.e1).V(Lex.INT, 2).N0();
+			t = t/**/	.N(Syn.Block).H(Syn.e1).V(Lex.INT, 3).N0();
+			t = t/**/	.N(Syn.Block).H(Syn.e1).V(Lex.INT, 4).N0().N0().N0();
 		}
 
 		[TestMethod]
 		public void Binary()
 		{
 			var t = Parse(@"
-			a
-				-1
-				*2/3");
-			t = t/**/	.H(Syn.Block).H(Syn.e1).V(Lex.NAME, "a");
+			1
+				-2
+				*3/4");
+			t = t/**/	.H(Syn.Block).H(Syn.e1).V(Lex.INT, 1);
 			t = t/**/				.N(Syn.stat, v: Lex.SUB);
-			t = t/**/					.H(Syn.e1).V(Lex.INT, 1).N0();
+			t = t/**/					.H(Syn.e1).V(Lex.INT, 2).N0();
 			t = t/**/				.N(Syn.stat, v: Lex.MUL);
-			t = t/**/					.H(Syn.e1).V(Lex.INT, 2);
+			t = t/**/					.H(Syn.e1).V(Lex.INT, 3);
 			t = t/**/					.N(Syn.b53, v: Lex.DIV);
-			t = t/**/						.H(Syn.e1).V(Lex.INT, 3).N0().N0().N0().N0().N0();
+			t = t/**/						.H(Syn.e1).V(Lex.INT, 4).N0().N0().N0().N0().N0();
 		}
 
 		[TestMethod]
-		public void Prefix()
+		public void PrefixBlock()
 		{
 			var t = Parse(@"
 			-
@@ -131,34 +131,58 @@ namespace qutum.test.syntax
 			t = Parse(@"
 			-
 				-1
-				*2");
+				* --
+					2");
 			t = t/**/	.H(Syn.Block).H(Syn.bpre, v: Lex.SUB);
 			t = t/**/					.H(Syn.pre, v: Lex.SUB).H(Syn.e1).V(Lex.INT, 1).N0().N0();
 			t = t/**/				.N(Syn.stat, v: Lex.MUL);
-			t = t/**/					.H(Syn.e1).V(Lex.INT, 2).N0().N0().N0().N0();
+			t = t/**/					.H(Syn.bpre, v: Lex.BNOT);
+			t = t/**/						.H(Syn.e1).V(Lex.INT, 2).N0().N0().N0().N0().N0();
+		}
+
+		[TestMethod]
+		public void PrefixStat()
+		{
+			var t = Parse(@"
+			1
+				--2");
+			t = t/**/	.H(Syn.Block).H(Syn.e1).V(Lex.INT, 1);
+			t = t/**/				.N(Syn.prep, v: Lex.BNOT);
+			t = t/**/					.H(Syn.e1).V(Lex.INT, 2).N0().N0().N0();
+			t = Parse(@"
+			1
+				--2
+					*3
+				/4");
+			t = t/**/	.H(Syn.Block).H(Syn.e1).V(Lex.INT, 1);
+			t = t/**/				.N(Syn.stat);
+			t = t/**/					.H(Syn.prep, v: Lex.BNOT).H(Syn.e1).V(Lex.INT, 2).N0();
+			t = t/**/					.N(Syn.stat, v: Lex.MUL).H(Syn.e1).V(Lex.INT, 3).N0().N0();
+			t = t/**/				.N(Syn.stat, v: Lex.DIV);
+			t = t/**/					.H(Syn.e1).V(Lex.INT, 4).N0().N0().N0().N0();
 		}
 
 		[TestMethod]
 		public void HeadRight()
 		{
 			var t = Parse(@"
-			a
-					+1
-				*2");
-			t = t/**/	.H(Syn.Block).H(Syn.e1).V(Lex.NAME, "a");
+			1
+					+2
+				*3");
+			t = t/**/	.H(Syn.Block).H(Syn.e1).V(Lex.INT, 1);
 			t = t/**/				.N(Syn.headr).H(Syn.stat, v: Lex.ADD);
-			t = t/**/							.H(Syn.e1).V(Lex.INT, 1).N0().N0();
+			t = t/**/							.H(Syn.e1).V(Lex.INT, 2).N0().N0();
 			t = t/**/				.N(Syn.stat, v: Lex.MUL);
-			t = t/**/					.H(Syn.e1).V(Lex.INT, 2).N0().N0().N0().N0();
+			t = t/**/					.H(Syn.e1).V(Lex.INT, 3).N0().N0().N0().N0();
 			t = Parse(@"
-			a
-						+1
-				*2");
-			t = t/**/	.H(Syn.Block).H(Syn.e1).V(Lex.NAME, "a");
+			1
+						+2
+				*3");
+			t = t/**/	.H(Syn.Block).H(Syn.e1).V(Lex.INT, 1);
 			t = t/**/				.N(Syn.headr).H(Syn.stat, v: Lex.ADD);
-			t = t/**/							.H(Syn.e1).V(Lex.INT, 1).N0().N0();
+			t = t/**/							.H(Syn.e1).V(Lex.INT, 2).N0().N0();
 			t = t/**/				.N(Syn.stat, v: Lex.MUL);
-			t = t/**/					.H(Syn.e1).V(Lex.INT, 2).N0().N0().N0().N0();
+			t = t/**/					.H(Syn.e1).V(Lex.INT, 3).N0().N0().N0().N0();
 		}
 
 		[TestMethod]
@@ -166,86 +190,87 @@ namespace qutum.test.syntax
 		{
 			p.dump = 3;
 			var t = Parse(@"
-			a
-				b
-					c
-				* d");
-			t = t/**/	.H(Syn.Block).H(Syn.e1).V(Lex.NAME, "a");
+			1
+				2
+					3
+				* 4");
+			t = t/**/	.H(Syn.Block).H(Syn.e1).V(Lex.INT, 1);
 			t = t/**/				.N(Syn.stat);
-			t = t/**/					.H(Syn.e1).V(Lex.NAME, "b");
-			t = t/**/					.N(Syn.e1).V(Lex.NAME, "c").N0();
+			t = t/**/					.H(Syn.e1).V(Lex.INT, 2);
+			t = t/**/					.N(Syn.e1).V(Lex.INT, 3).N0();
 			t = t/**/				.N(Syn.stat, v: Lex.MUL);
-			t = t/**/					.H(Syn.e1).V(Lex.NAME, "d").N0().N0().N0().N0();
+			t = t/**/					.H(Syn.e1).V(Lex.INT, 4).N0().N0().N0().N0();
 			t = Parse(@"
-			a
-				*b
-					-2
-						+c
-				- d");
-			t = t/**/	.H(Syn.Block).H(Syn.e1).V(Lex.NAME, "a");
+			1
+				*2
+					-3
+						+4
+				- 5");
+			t = t/**/	.H(Syn.Block).H(Syn.e1).V(Lex.INT, 1);
 			t = t/**/				.N(Syn.stat, v: Lex.MUL);
-			t = t/**/					.H(Syn.e1).V(Lex.NAME, "b");
+			t = t/**/					.H(Syn.e1).V(Lex.INT, 2);
 			t = t/**/					.N(Syn.stat, v: Lex.SUB);
-			t = t/**/						.H(Syn.e1).V(Lex.INT, 2);
+			t = t/**/						.H(Syn.e1).V(Lex.INT, 3);
 			t = t/**/						.N(Syn.stat, v: Lex.ADD);
-			t = t/**/							.H(Syn.e1).V(Lex.NAME, "c").N0().N0().N0();
+			t = t/**/							.H(Syn.e1).V(Lex.INT, 4).N0().N0().N0();
 			t = t/**/				.N(Syn.stat, v: Lex.SUB);
-			t = t/**/					.H(Syn.e1).V(Lex.NAME, "d").N0().N0().N0().N0();
+			t = t/**/					.H(Syn.e1).V(Lex.INT, 5).N0().N0().N0().N0();
 		}
 
 		[TestMethod]
 		public void Nested2()
 		{
 			var t = Parse(@"
-			a
-				+ b
-					* c
-					/ d
-						+e
-			b
-				- c");
-			t = t/**/	.H(Syn.Block).H(Syn.e1).V(Lex.NAME, "a");
+			1
+				+ 2
+					* 3
+					/ 4
+						+5
+			6
+				- 7");
+			t = t/**/	.H(Syn.Block).H(Syn.e1).V(Lex.INT, 1);
 			t = t/**/				.N(Syn.stat, v: Lex.ADD);
-			t = t/**/					.H(Syn.e1).V(Lex.NAME, "b");
+			t = t/**/					.H(Syn.e1).V(Lex.INT, 2);
 			t = t/**/					.N(Syn.stat, v: Lex.MUL);
-			t = t/**/						.H(Syn.e1).V(Lex.NAME, "c").N0();
+			t = t/**/						.H(Syn.e1).V(Lex.INT, 3).N0();
 			t = t/**/					.N(Syn.stat, v: Lex.DIV);
-			t = t/**/						.H(Syn.e1).V(Lex.NAME, "d");
+			t = t/**/						.H(Syn.e1).V(Lex.INT, 4);
 			t = t/**/						.N(Syn.stat, v: Lex.ADD);
-			t = t/**/							.H(Syn.e1).V(Lex.NAME, "e").N0().N0().N0().N0();
-			t = t/**/	.N(Syn.Block).H(Syn.e1).V(Lex.NAME, "b");
+			t = t/**/							.H(Syn.e1).V(Lex.INT, 5).N0().N0().N0().N0();
+			t = t/**/	.N(Syn.Block).H(Syn.e1).V(Lex.INT, 6);
 			t = t/**/				.N(Syn.stat, v: Lex.SUB);
-			t = t/**/					.H(Syn.e1).V(Lex.NAME, "c").N0().N0().N0().N0();
+			t = t/**/					.H(Syn.e1).V(Lex.INT, 7).N0().N0().N0().N0();
 			t = Parse(@"
-			a
+			1
 				+
-					b
-						* c
-						/ d
-							+e
-			b
-				- c");
-			t = t/**/	.H(Syn.Block).H(Syn.e1).V(Lex.NAME, "a");
+					2
+						* 3
+						/ 4
+							+5
+			6
+				-
+					7");
+			t = t/**/	.H(Syn.Block).H(Syn.e1).V(Lex.INT, 1);
 			t = t/**/				.N(Syn.stat, v: Lex.ADD);
-			t = t/**/					.H(Syn.e1).V(Lex.NAME, "b");
+			t = t/**/					.H(Syn.e1).V(Lex.INT, 2);
 			t = t/**/					.N(Syn.stat, v: Lex.MUL);
-			t = t/**/						.H(Syn.e1).V(Lex.NAME, "c").N0();
+			t = t/**/						.H(Syn.e1).V(Lex.INT, 3).N0();
 			t = t/**/					.N(Syn.stat, v: Lex.DIV);
-			t = t/**/						.H(Syn.e1).V(Lex.NAME, "d");
+			t = t/**/						.H(Syn.e1).V(Lex.INT, 4);
 			t = t/**/						.N(Syn.stat, v: Lex.ADD);
-			t = t/**/							.H(Syn.e1).V(Lex.NAME, "e").N0().N0().N0().N0();
-			t = t/**/	.N(Syn.Block).H(Syn.e1).V(Lex.NAME, "b");
+			t = t/**/							.H(Syn.e1).V(Lex.INT, 5).N0().N0().N0().N0();
+			t = t/**/	.N(Syn.Block).H(Syn.e1).V(Lex.INT, 6);
 			t = t/**/				.N(Syn.stat, v: Lex.SUB);
-			t = t/**/					.H(Syn.e1).V(Lex.NAME, "c").N0().N0().N0().N0();
+			t = t/**/					.H(Syn.e1).V(Lex.INT, 7).N0().N0().N0().N0();
 		}
 
 		[TestMethod]
 		public void RecoverRight1()
 		{
 			var t = Parse(@"
-			a
+			1
 				+");
-			t = t/**/	.H(Syn.Block).H(Syn.e1).V(Lex.NAME, "a");
+			t = t/**/	.H(Syn.Block).H(Syn.e1).V(Lex.INT, 1);
 			t = t/**/				.N(Syn.stat, v: Lex.ADD);
 			t = t/**/					.H(Syn.right, -4).N0().N0().N0();
 			t = t/**/.N(Syn.all, -1, 3.6, 3.6, Lex.DED);
@@ -256,15 +281,15 @@ namespace qutum.test.syntax
 		public void RecoverRight2()
 		{
 			var t = Parse(@"
-			a
+			1
 				+
-			c
-			d");
-			t = t/**/	.H(Syn.Block).H(Syn.e1).V(Lex.NAME, "a");
+			2
+			3");
+			t = t/**/	.H(Syn.Block).H(Syn.e1).V(Lex.INT, 1);
 			t = t/**/				.N(Syn.stat, v: Lex.ADD);
 			t = t/**/					.H(Syn.right, -4).N0().N0();
-			t = t/**/	.N(Syn.Block).H(Syn.e1).V(Lex.NAME, "c").N0();
-			t = t/**/	.N(Syn.Block).H(Syn.e1).V(Lex.NAME, "d").N0().N0();
+			t = t/**/	.N(Syn.Block).H(Syn.e1).V(Lex.INT, 2).N0();
+			t = t/**/	.N(Syn.Block).H(Syn.e1).V(Lex.INT, 3).N0().N0();
 			t = t/**/.N(Syn.all, -1, 4.1, 4.3, v: Lex.DED);
 			t = t/**/	.H(Syn.right, 1).N0().N0();
 		}
@@ -273,16 +298,16 @@ namespace qutum.test.syntax
 		public void RecoverRight3()
 		{
 			var t = Parse(@"
-			a
+			1
 				+
-				* b
-			c");
-			t = t/**/	.H(Syn.Block).H(Syn.e1).V(Lex.NAME, "a");
+				* 2
+			3");
+			t = t/**/	.H(Syn.Block).H(Syn.e1).V(Lex.INT, 1);
 			t = t/**/				.N(Syn.stat, v: Lex.ADD);
 			t = t/**/					.H(Syn.right, -4).N0();
 			t = t/**/				.N(Syn.stat, v: Lex.MUL);
-			t = t/**/					.H(Syn.e1).V(Lex.NAME, "b").N0().N0();
-			t = t/**/	.N(Syn.Block).H(Syn.e1).V(Lex.NAME, "c").N0().N0();
+			t = t/**/					.H(Syn.e1).V(Lex.INT, 2).N0().N0();
+			t = t/**/	.N(Syn.Block).H(Syn.e1).V(Lex.INT, 3).N0().N0();
 			t = t/**/.N(Syn.all, -1, 4.5, 4.5, v: Lex.MUL);
 			t = t/**/	.H(Syn.right, 1).N0().N0();
 		}
@@ -291,43 +316,43 @@ namespace qutum.test.syntax
 		public void RecoverBlock()
 		{
 			var t = Parse(@"
-			a
+			1
 				+
-					b
-						* c
-					/ 1
-				- d
-			e");
-			t = t/**/	.H(Syn.Block).H(Syn.e1).V(Lex.NAME, "a");
+					2
+						* 3
+					/ 6
+				- 4
+			5");
+			t = t/**/	.H(Syn.Block).H(Syn.e1).V(Lex.INT, 1);
 			t = t/**/				.N(Syn.stat, v: Lex.ADD);
-			t = t/**/					.H(Syn.e1).V(Lex.NAME, "b");
+			t = t/**/					.H(Syn.e1).V(Lex.INT, 2);
 			t = t/**/					.N(Syn.stat, v: Lex.MUL);
-			t = t/**/						.H(Syn.e1).V(Lex.NAME, "c").N0();
+			t = t/**/						.H(Syn.e1).V(Lex.INT, 3).N0();
 			t = t/**/					.N(Syn.nest, -4).N0();
 			t = t/**/				.N(Syn.stat, v: Lex.SUB);
-			t = t/**/					.H(Syn.e1).V(Lex.NAME, "d").N0().N0();
-			t = t/**/	.N(Syn.Block).H(Syn.e1).V(Lex.NAME, "e").N0().N0();
+			t = t/**/					.H(Syn.e1).V(Lex.INT, 4).N0().N0();
+			t = t/**/	.N(Syn.Block).H(Syn.e1).V(Lex.INT, 5).N0().N0();
 			t = t/**/.N(Syn.all, -1, 6.6, 6.6, Lex.DIV);
 			t = t/**/	.H(Syn.nest, 2).N0().N0();
 			t = Parse(@"
-			a
+			1
 				+
-					b
-						* c
-					/ 1
-							/ 2
+					2
 						* 3
-				- d
-			e");
-			t = t/**/	.H(Syn.Block).H(Syn.e1).V(Lex.NAME, "a");
+					/ 6
+							/ 7
+						* 8
+				- 4
+			5");
+			t = t/**/	.H(Syn.Block).H(Syn.e1).V(Lex.INT, 1);
 			t = t/**/				.N(Syn.stat, v: Lex.ADD);
-			t = t/**/					.H(Syn.e1).V(Lex.NAME, "b");
+			t = t/**/					.H(Syn.e1).V(Lex.INT, 2);
 			t = t/**/					.N(Syn.stat, v: Lex.MUL);
-			t = t/**/						.H(Syn.e1).V(Lex.NAME, "c").N0();
+			t = t/**/						.H(Syn.e1).V(Lex.INT, 3).N0();
 			t = t/**/					.N(Syn.nest, -4).N0();
 			t = t/**/				.N(Syn.stat, v: Lex.SUB);
-			t = t/**/					.H(Syn.e1).V(Lex.NAME, "d").N0().N0();
-			t = t/**/	.N(Syn.Block).H(Syn.e1).V(Lex.NAME, "e").N0().N0();
+			t = t/**/					.H(Syn.e1).V(Lex.INT, 4).N0().N0();
+			t = t/**/	.N(Syn.Block).H(Syn.e1).V(Lex.INT, 5).N0().N0();
 			t = t/**/.N(Syn.all, -1, 6.6, 6.6, Lex.DIV);
 			t = t/**/	.H(Syn.nest, 2).N0().N0();
 		}
@@ -336,28 +361,28 @@ namespace qutum.test.syntax
 		public void RecoverHeadRight()
 		{
 			var t = Parse(@"
-			a
-						+1
-					*2
+			1
+						+2
+					*4
 				-3");
-			t = t/**/	.H(Syn.Block).H(Syn.e1).V(Lex.NAME, "a");
+			t = t/**/	.H(Syn.Block).H(Syn.e1).V(Lex.INT, 1);
 			t = t/**/				.N(Syn.headr).H(Syn.stat, v: Lex.ADD);
-			t = t/**/							.H(Syn.e1).V(Lex.INT, 1).N0().N0();
+			t = t/**/							.H(Syn.e1).V(Lex.INT, 2).N0().N0();
 			t = t/**/				.N(Syn.headr, -4);
 			t = t/**/				.N(Syn.stat, v: Lex.SUB);
 			t = t/**/					.H(Syn.e1).V(Lex.INT, 3).N0().N0().N0();
 			t = t/**/.N(Syn.all, -1, 4.6, 4.6, Lex.MUL);
 			t = t/**/	.H(Syn.headr, 2, v: Lex.DED).N0().N0();
 			t = Parse(@"
-			a
-						+1
-					*2
-							/4
-						+5
+			1
+						+2
+					*4
+							/5
+						+6
 				-3");
-			t = t/**/	.H(Syn.Block).H(Syn.e1).V(Lex.NAME, "a");
+			t = t/**/	.H(Syn.Block).H(Syn.e1).V(Lex.INT, 1);
 			t = t/**/				.N(Syn.headr).H(Syn.stat, v: Lex.ADD);
-			t = t/**/							.H(Syn.e1).V(Lex.INT, 1).N0().N0();
+			t = t/**/							.H(Syn.e1).V(Lex.INT, 2).N0().N0();
 			t = t/**/				.N(Syn.headr, -4);
 			t = t/**/				.N(Syn.stat, v: Lex.SUB);
 			t = t/**/					.H(Syn.e1).V(Lex.INT, 3).N0().N0().N0();
@@ -369,14 +394,14 @@ namespace qutum.test.syntax
 		public void RecoverLine()
 		{
 			var t = Parse(@"
-			a */
-						+1
-				*2");
-			t = t/**/	.H(Syn.Block).H(Syn.e1).V(Lex.NAME, "a").N(Syn.line, -4);
+			1 */
+						+2
+				*3");
+			t = t/**/	.H(Syn.Block).H(Syn.e1).V(Lex.INT, 1).N(Syn.line, -4);
 			t = t/**/				.N(Syn.headr).H(Syn.stat, v: Lex.ADD);
-			t = t/**/							.H(Syn.e1).V(Lex.INT, 1).N0().N0();
+			t = t/**/							.H(Syn.e1).V(Lex.INT, 2).N0().N0();
 			t = t/**/				.N(Syn.stat, v: Lex.MUL);
-			t = t/**/					.H(Syn.e1).V(Lex.INT, 2).N0().N0().N0();
+			t = t/**/					.H(Syn.e1).V(Lex.INT, 3).N0().N0().N0();
 			t = t/**/.N(Syn.all, -1, 2.7, 2.7, Lex.DIV);
 			t = t/**/	.H(Syn.b53, 1).N0().N0();
 		}
@@ -385,34 +410,34 @@ namespace qutum.test.syntax
 		public void RecoverStat1()
 		{
 			var t = Parse(@"
-			a
+			1
 				)
-				+ 1");
-			t = t/**/	.H(Syn.Block).H(Syn.e1).V(Lex.NAME, "a");
-			t = t/**/				.N(Syn.Line, -4);
+				+ 2");
+			t = t/**/	.H(Syn.Block).H(Syn.e1).V(Lex.INT, 1);
+			t = t/**/				.N(Syn.linep, -4);
 			t = t/**/				.N(Syn.stat, v: Lex.ADD);
-			t = t/**/					.H(Syn.e1).V(Lex.INT, 1).N0().N0().N0();
+			t = t/**/					.H(Syn.e1).V(Lex.INT, 2).N0().N0().N0();
 			t = t/**/.N(Syn.all, -1, 3.5, 3.5, Lex.RP);
-			t = t/**/	.H(Syn.Line, 1).N0().N0();
+			t = t/**/	.H(Syn.linep, 1).N0().N0();
 		}
 
 		[TestMethod]
 		public void RecoverStat2()
 		{
 			var t = Parse(@"
-			a
+			1
 				*)
-				+1
-				-2/
-			d");
-			t = t/**/	.H(Syn.Block).H(Syn.e1).V(Lex.NAME, "a");
+				+2
+				-3/
+			4");
+			t = t/**/	.H(Syn.Block).H(Syn.e1).V(Lex.INT, 1);
 			t = t/**/				.N(Syn.stat, v: Lex.MUL);
 			t = t/**/					.H(Syn.line, -4).N0();
 			t = t/**/				.N(Syn.stat, v: Lex.ADD);
-			t = t/**/					.H(Syn.e1).V(Lex.INT, 1).N0();
+			t = t/**/					.H(Syn.e1).V(Lex.INT, 2).N0();
 			t = t/**/				.N(Syn.stat, v: Lex.SUB);
-			t = t/**/					.H(Syn.e1).V(Lex.INT, 2).N(Syn.line, -4).N0().N0();
-			t = t/**/	.N(Syn.Block).H(Syn.e1).V(Lex.NAME, "d").N0().N0();
+			t = t/**/					.H(Syn.e1).V(Lex.INT, 3).N(Syn.line, -4).N0().N0();
+			t = t/**/	.N(Syn.Block).H(Syn.e1).V(Lex.INT, 4).N0().N0();
 			t = t/**/.N(Syn.all, -1, 3.6, 3.6, Lex.RP);
 			t = t/**/	.H(Syn.stat, 1).N(Syn.line, 1).N0();
 			t = t/**/.N(Syn.all, -1, 5.8, 5.8, Lex.EOL);

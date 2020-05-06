@@ -16,9 +16,9 @@ namespace qutum.syntax
 		all = 1, Block,
 		block, stats, headr, nest,
 		bpre, right, stat,
-		line, Line,
-		pre, b3, b43, b46, b53, b56, b6, b7,
-		e1, e3, e43, e46, e53, e56, e6, e9,
+		line, linep,
+		e1, pre, prep, b3, b43, b46, b53, b56, b6, b7, e9,
+		E1, Pre, Prep, B3, B43, B46, B53, B56, B6, B7, E9,
 	}
 
 	public class Tree : Tree<Syn, Tree>
@@ -41,27 +41,37 @@ namespace qutum.syntax
 		nest  = IND block DED			=!|IND	nested block
 
 		bpre  = PRE EOL IND block		=+_!	prefix
-		stat  =	BIN right				=^+_!	statement == prior than prefix expression
-		      | Line stats?				=+-		statement
-		line  = SP? e9 EOL				=^!||BLANK
-		Line  = SP? e9 EOL				=!||BLANK
+		stat  =	BIN right				=+_!	statement
+		      | linep stats?			=+-		statement
+		line  = SP? pre e9 EOL			=!||BLANK
+		linep = SP? prep e9 EOL			=!||BLANK == no leading prefix operator
 
-		e1    = LITERAL					=+_		literal
-		      | LP e9 RP				=+-!|LP	parenthesis
-		pre   = e1						=		datum
+		e1    = LITERAL E9*				=+_		literal
+		      | LP pre e9 RP E9*		=+-!|LP	parenthesis
+		E1    = LITERAL					=+_		literal
+		      | LP pre e9 RP			=+-!|LP	parenthesis
+		pre   = e1						=		expression
 		      | PRE pre					=+_!	prefix operator
-		b43   = BIN43 pre				=+_!	binary operator
-		b46   = BIN46 e43				=+_!	binary operator
-		b53   = BIN53 e46				=+_!	binary operator
-		b56   = BIN56 e53				=+_!	binary operator
-		b6    = BIN6 e56				=+_!	binary operator
-		b7    = BIN7 e6					=+_!	binary operator
-		e43   = pre b43*							=*+-expression
-		e46   = pre b43* b46*						=*+-expression
-		e53   = pre b43* b46* b53*					=*+-expression
-		e56   = pre b43* b46* b53* b56*				=*+-expression
-		e6    = pre b43* b46* b53* b56* b6*			=*+-expression
-		e9    = pre b43* b46* b53* b56* b6* b7*		=*	expression
+		prep  = e1						=		expression
+		      | PREPURE pre				=+_!	prefix operator
+		Pre   = E1						=		expression
+		      | PRE Pre					=+_!	prefix operator
+		Prep  = E1						=		expression
+		      | PREPURE Pre				=+_!	prefix operator
+		b43   = BIN43 pre							=+_!	binary operator
+		b46   = BIN46 pre b43*						=+_!	binary operator
+		b53   = BIN53 pre b43* b46*					=+_!	binary operator
+		b56   = BIN56 pre b43* b46* b53*			=+_!	binary operator
+		b6    = BIN6  pre b43* b46* b53* b56*		=+_!	binary operator
+		b7    = BIN7  pre b43* b46* b53* b56* b6*	=+_!	binary operator
+		e9    =      b43* b46* b53* b56* b6* b7*
+		B43   = BIN43 Pre							=+_!	binary operator
+		B46   = BIN46 Pre B43*						=+_!	binary operator
+		B53   = BIN53 Pre B43* B46*					=+_!	binary operator
+		B56   = BIN56 Pre B43* B46* B53*			=+_!	binary operator
+		B6    = BIN6  Pre B43* B46* B53* B56*		=+_!	binary operator
+		B7    = BIN7  Pre B43* B46* B53* B56* B6*	=+_!	binary operator
+		E9    = Prep B43* B46* B53* B56* B6* B7*	=+-		feed
 		";
 
 		public Parser(Lexer l) : base(grammar, l)
