@@ -33,7 +33,8 @@ namespace qutum.parser
 			if (!(extra is Func<int, int, (int, int, int, int)> loc))
 				return ToString();
 			var (fl, fc, tl, tc) = loc(from, to);
-			return $"{fl}.{fc}:{tl}.{tc}{(err == 0 ? info : err < -1 ? "" + err : "!")} {dump ?? info ?? name}";
+			return $"{fl}.{fc}:{tl}.{tc}{(err == 0 ? info != null ? " " + info : "" : err < -1 ? "" + err : "!")} "
+				+ (dump ?? info ?? name);
 		}
 	}
 
@@ -80,15 +81,13 @@ namespace qutum.parser
 								  // recover just at last One or More Prod index without shift: > 0
 			internal K recPair; // skip each pair of this and recovery K, no skip: recovery K
 			internal K recDeny; // deny this K when recover ahead, nothing denied: recovery K
-			internal string hint;
+			internal string hint, dump;
 
 			public override string ToString()
-			{
-				return name + "="
+				=> dump ??= name + "="
 					+ string.Join(' ', s.Where(c => c.p != null).Select(c =>
 					(c.p is Prod p ? p.name.ToString() : Esc(c.p))
 					+ (c.q == More ? "+" : c.q == Any ? "*" : c.q == Opt ? "?" : "")));
-			}
 		}
 
 		readonly Prod start;
@@ -160,7 +159,7 @@ namespace qutum.parser
 				int c, p, cc, pp;
 				Complete(locs[locn]); cc = c = matchn;
 				Predict(locs[locn]); pp = p = matchn;
-				for (bool re = false; ; ) {
+				for (bool re = false; ;) {
 					re = Complete(c) | re;
 					if (!re && c == (c = matchn))
 						break;
@@ -260,7 +259,8 @@ namespace qutum.parser
 			for (int x = locs[locn]; x < matchn; x++) {
 				var m = matchs[x];
 				if (m.a == a && m.from == from && m.step == step) {
-					if ((a.greedy == 0 ? !greedy : a.greedy < 0) || m.tail == -1 || u.tail == -1)
+					if ((a.greedy == 0 ? !greedy : a.greedy < 0) || m.tail == -1 || u.tail == -1
+						|| m.prev == prev && m.tail == tail)
 						return false;
 					bool g = false; var w = u;
 					for (int mp = m.prev, wp = w.prev; ;) {
@@ -275,7 +275,12 @@ namespace qutum.parser
 						if (y <= 0)
 							wp = (w = matchs[wp]).tail != -1 ? w.prev : -1;
 					}
-					if (g) matchs[x] = u;
+					if (g) {
+						matchs[x] = u;
+						if (x + 1 < matchn && (m = matchs[x + 1]).a == a && m.from == from
+							&& m.step == --u.step && (int)a.s[m.step].q > 1)
+							matchs[x + 1] = u;
+					}
 					return g;
 				}
 			}
