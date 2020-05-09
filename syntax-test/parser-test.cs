@@ -121,7 +121,7 @@ namespace qutum.test.syntax
 		}
 
 		[TestMethod]
-		public void PrefixBlock()
+		public void Prefix1()
 		{
 			var t = Parse(@"
 			-
@@ -141,7 +141,7 @@ namespace qutum.test.syntax
 		}
 
 		[TestMethod]
-		public void PrefixStat()
+		public void Prefix2()
 		{
 			var t = Parse(@"
 			1

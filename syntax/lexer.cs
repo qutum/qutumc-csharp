@@ -14,12 +14,12 @@ namespace qutum.syntax
 {
 	public enum Lex
 	{
-		LITERAL = 0x0010, // literals
-		BLANK = 0x0020, // blanks
-		PRE = 0x00c0, // prefix operators
-		PREPURE = 0x0040, // pure prefix
-		PREBIN = 0x0080, // binary prefix
-		POST = 0x0100, // postfix operators
+		BLANK = 0x0010, // blanks
+		DENSE = 0x0020, // dense before postfix
+		LITERAL = 0x0040, // literals
+		PRE = 0x0c00, // prefix operators
+		PREPURE = 0x0400, // pure prefix
+		PREBIN = 0x0800, // binary prefix
 		BIN = 0xff000, // binary operators
 		BIN3 = 0x01000,
 		BIN43 = 0x02000,
@@ -32,9 +32,9 @@ namespace qutum.syntax
 
 		EOL = BLANK | 1, IND, DED, SP, COMM, COMMB, PATH, NUM,
 
-		LP = 1, RP, LSB, RSB, LCB, RCB,
+		LP = 1, LSB, LCB, BIND,
 
-		RNAME, RNAME1,
+		RP = DENSE | 1, RSB, RCB, RNAME1, RNAME,
 		STR = LITERAL | 1, STRB, NAME, HEX, INT, FLOAT,
 
 		// bitwise operators
@@ -62,12 +62,13 @@ namespace qutum.syntax
 		==AMP   = & == and
 		==COL   = :
 		==SCOL  = ;
-		==SEQ   = =
+		==SEQ   = = == bind
 		==QUE   = \?
 		==BSL   = \\ == byte block
 		==VER   = \| == or
 		==TIL   = ~
 
+		BIND  = =
 		LP    = (
 		RP    = )
 		LSB   = \[
@@ -110,6 +111,13 @@ namespace qutum.syntax
 		NUM   = 0|[1-9]  |+\d+|+_\d+  |.\d+  |+_\d+  |[eE]\d+|[eE][\+\-]\d+  |[fF]
 		";
 
+		public override bool Is(Lex testee, Lex key)
+		{
+			if (testee == key) return true;
+			// key as kind contains testee
+			return ((int)key & 15) == 0 && (key & testee) != 0;
+		}
+
 		public Lexer() : base(Grammar) { }
 
 		byte[] bs = new byte[4096]; // buffer used for some tokens
@@ -130,13 +138,6 @@ namespace qutum.syntax
 			indent = indentNew = 0; crlf = false; path.Clear();
 		}
 
-		public override bool Is(Lex testee, Lex key)
-		{
-			if (testee == key) return true;
-			// key as kind contains testee
-			return ((int)key & 15) == 0 && (key & testee) != 0;
-		}
-
 		void Indent()
 		{
 			if (indentNew >= 0) {
@@ -152,7 +153,7 @@ namespace qutum.syntax
 		{
 			Indent();
 			if (key == Lex.RNAME && tokenn > 0 && tokens[tokenn - 1].to == f
-				&& tokens[tokenn - 1].key < Lex.BLANK && tokens[tokenn - 1].key > 0)
+				&& (tokens[tokenn - 1].key & (Lex.DENSE | Lex.LITERAL)) != 0)
 				key = Lex.RNAME1; // run name follows the previous token densely, high precedence
 			base.Add(key, f, to, value);
 		}

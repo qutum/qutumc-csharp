@@ -195,7 +195,7 @@ namespace qutum.test.syntax
 		[TestMethod]
 		public void LexName3()
 		{
-			Check("a .. .b", "NAME=a RNAME= RNAME1= RNAME=b");
+			Check("a ..).b", "NAME=a RNAME= RNAME1= RP= RNAME1=b");
 			Check("A1 .b_..c .d", "NAME=A1 RNAME=b_ RNAME1= RNAME1=c RNAME=d");
 		}
 
@@ -291,7 +291,7 @@ namespace qutum.test.syntax
 		[TestMethod]
 		public void LexSymbol1()
 		{
-			Check("',@#$^:;=?~", "0!' 0!, 0!@ 0!# 0!$ 0!^ 0!: 0!; 0!= 0!? 0!~");
+			Check("',@#$^:;?~", "0!' 0!, 0!@ 0!# 0!$ 0!^ 0!: 0!; 0!? 0!~");
 		}
 
 		[TestMethod]
@@ -305,7 +305,7 @@ namespace qutum.test.syntax
 		[TestMethod]
 		public void LexSymbol3()
 		{
-			Check("===/=<<=<=<>=>", "EQ= 0!= UEQ= SHL= 0!= LEQ= LT= GEQ= GT=");
+			Check("===/=<<=<=<>=>", "EQ= BIND= UEQ= SHL= BIND= LEQ= LT= GEQ= GT=");
 			Check("!!&|", "NOT= NOT= AND= OR=");
 		}
 	}
