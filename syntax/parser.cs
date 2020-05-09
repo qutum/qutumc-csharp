@@ -15,10 +15,10 @@ namespace qutum.syntax
 	{
 		all = 1, Block,
 		block, stats, headr, nest,
-		bpre, right, stat,
-		line, linep,
-		e1, pre, prep, b3, b43, b46, b53, b56, b6, b7, e9,
-		E1, Pre, Prep, B3, B43, B46, B53, B56, B6, B7, E9,
+		pre, right, stat,
+		line, linep, e0,
+		E1, E2, E2p, B3, B43, B46, B53, B56, B6, B7, E9,
+		e1, e2, e2p, b3, b43, b46, b53, b56, b6, b7, e9,
 	}
 
 	public class Tree : Tree<Syn, Tree>
@@ -32,7 +32,7 @@ namespace qutum.syntax
 		Block = block					=+
 
 		block = line stats?				=		block
-		      | bpre stat* DED			=		prefix block
+		      | pre stat* DED			=		prefix block
 		stats = IND headr? stat* DED	=		statements
 		headr = IND stat+ DED			=+		statements of head right datum
 		      | IND headr DED			=!|IND	statements of head right datum
@@ -40,38 +40,43 @@ namespace qutum.syntax
 		      | EOL nest				=!|		right side
 		nest  = IND block DED			=!|IND	nested block
 
-		bpre  = PRE EOL IND block		=+_!	prefix
+		pre  = PRE EOL IND block		=+_!	prefix
 		stat  =	BIN right				=+_!	statement
 		      | linep stats?			=+-		statement
-		line  = SP? pre e9 EOL			=!||BLANK
-		linep = SP? prep e9 EOL			=!||BLANK == no leading prefix operator
+		line  = SP? e2 e9 EOL			=*!||BLANK
+		linep = SP? e2p e9 EOL			=*!||BLANK == no leading binary prefix operator
 
-		e1    = LITERAL E9*				=+_		literal
-		      | LP pre e9 RP E9*		=+-!|LP	parenthesis
-		E1    = LITERAL					=+_		literal
-		      | LP pre e9 RP			=+-!|LP	parenthesis
-		pre   = e1						=		expression
-		      | PRE pre					=+_!	prefix operator
-		prep  = e1						=		expression
-		      | PREPURE pre				=+_!	prefix operator
-		Pre   = E1						=		expression
-		      | PRE Pre					=+_!	prefix operator
-		Prep  = E1						=		expression
-		      | PREPURE Pre				=+_!	prefix operator
-		b43   = BIN43 pre							=+_!	binary operator
-		b46   = BIN46 pre b43*						=+_!	binary operator
-		b53   = BIN53 pre b43* b46*					=+_!	binary operator
-		b56   = BIN56 pre b43* b46* b53*			=+_!	binary operator
-		b6    = BIN6  pre b43* b46* b53* b56*		=+_!	binary operator
-		b7    = BIN7  pre b43* b46* b53* b56* b6*	=+_!	binary operator
-		e9    =      b43* b46* b53* b56* b6* b7*
-		B43   = BIN43 Pre							=+_!	binary operator
-		B46   = BIN46 Pre B43*						=+_!	binary operator
-		B53   = BIN53 Pre B43* B46*					=+_!	binary operator
-		B56   = BIN56 Pre B43* B46* B53*			=+_!	binary operator
-		B6    = BIN6  Pre B43* B46* B53* B56*		=+_!	binary operator
-		B7    = BIN7  Pre B43* B46* B53* B56* B6*	=+_!	binary operator
-		E9    = Prep B43* B46* B53* B56* B6* B7*	=+-		feed
+		e0    = LITERAL					=+_			literal
+		      | LP e2 e9 RP				=+-!|LP	parenthesis
+
+		E1    = RNAME1					=+_		postfix expression
+		e1    = RNAME1					=+_		postfix expression
+		      | RNAME					=+_		run
+		      | E9+						=+_		feed
+
+		E2    = e0 E1*					=		expression
+		      | PRE E2					=+_!	prefix operator
+		E2p   = e0 E1*					=		expression
+		      | PREPURE E2				=+_!	prefix operator
+		e2    = e0 e1*					=*		expression
+		      | PRE e2					=+_!	prefix operator
+		e2p   = e0 e1*					=*		expression
+		      | PREPURE e2				=+_!	prefix operator
+
+		B43   = BIN43 E2							=+_!	binary operator
+		B46   = BIN46 E2 B43*						=+_!	binary operator
+		B53   = BIN53 E2 B43* B46*					=+_!	binary operator
+		B56   = BIN56 E2 B43* B46* B53*				=+_!	binary operator
+		B6    = BIN6  E2 B43* B46* B53* B56*		=+_!	binary operator
+		B7    = BIN7  E2 B43* B46* B53* B56* B6*	=+_!	binary operator
+		E9    = E2p B43* B46* B53* B56* B6* B7*		=+-
+		b43   = BIN43 e2							=*+_!	binary operator
+		b46   = BIN46 e2 b43*						=*+_!	binary operator
+		b53   = BIN53 e2 b43* b46*					=*+_!	binary operator
+		b56   = BIN56 e2 b43* b46* b53*				=*+_!	binary operator
+		b6    = BIN6  e2 b43* b46* b53* b56*		=*+_!	binary operator
+		b7    = BIN7  e2 b43* b46* b53* b56* b6*	=*+_!	binary operator
+		e9    =     b43* b46* b53* b56* b6* b7*
 		";
 
 		public Parser(Lexer l) : base(grammar, l)

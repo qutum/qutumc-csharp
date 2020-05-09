@@ -153,7 +153,7 @@ namespace qutum.syntax
 			Indent();
 			if (key == Lex.RNAME && tokenn > 0 && tokens[tokenn - 1].to == f
 				&& tokens[tokenn - 1].key < Lex.BLANK && tokens[tokenn - 1].key > 0)
-				key = Lex.RNAME1; // run name tightly follows previous token, high precedence
+				key = Lex.RNAME1; // run name follows the previous token densely, high precedence
 			base.Add(key, f, to, value);
 		}
 
