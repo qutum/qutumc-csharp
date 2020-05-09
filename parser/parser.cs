@@ -98,7 +98,8 @@ namespace qutum.parser
 		readonly List<int> locs = new List<int>(); // matchn before each token
 		readonly int[] recm; // latest match index of each recovery Alt
 		internal Sc scan;
-		public bool greedy = false; // for any Alt eg. S=AB A=1|12 B=23|2  gready: (12)3  back greedy: 1(23)
+		public bool greedy = false; // greedy: true, may or may not: false
+									// eg. S=AB A=1|12 B=23|2  gready: (12)3  back greedy: 1(23)
 		public int recover = 10; // no recovery: 0, how many times to recover at eof: > 0
 		public bool tree = true; // make Trees from complete Alts
 		public int dump = 0; // no: 0, tokens for tree leaf: 1, tokens: 2, tokens and Alt: 3
@@ -259,14 +260,14 @@ namespace qutum.parser
 			for (int x = locs[locn]; x < matchn; x++) {
 				var m = matchs[x];
 				if (m.a == a && m.from == from && m.step == step) {
-					if ((a.greedy == 0 ? !greedy : a.greedy < 0) || m.tail == -1 || u.tail == -1
+					if (a.greedy == 0 && !greedy || m.tail == -1 || u.tail == -1
 						|| m.prev == prev && m.tail == tail)
 						return false;
-					bool g = false; var w = u;
+					bool set = false; var w = u;
 					for (int mp = m.prev, wp = w.prev; ;) {
 						Debug.Assert(m.tail != -1 && w.tail != -1);
 						int y = (m.to - matchs[mp].to) - (w.to - matchs[wp].to);
-						if (y != 0) g = y < 0;
+						if (y != 0) set = y < 0 == a.greedy >= 0;
 						if (mp == wp)
 							break;
 						y = matchs[mp].to - matchs[wp].to;
@@ -275,13 +276,14 @@ namespace qutum.parser
 						if (y <= 0)
 							wp = (w = matchs[wp]).tail != -1 ? w.prev : -1;
 					}
-					if (g) {
+					if (set) {
 						matchs[x] = u;
-						if (x + 1 < matchn && (m = matchs[x + 1]).a == a && m.from == from
+						if (x + 1 < matchn && x + 1 != prev
+							&& (m = matchs[x + 1]).a == a && m.from == from
 							&& m.step == --u.step && (int)a.s[m.step].q > 1)
 							matchs[x + 1] = u;
 					}
-					return g;
+					return set;
 				}
 			}
 			if (matchn + 2 > matchs.Length) Array.Resize(ref matchs, matchs.Length << 1);
@@ -445,7 +447,7 @@ namespace qutum.parser
 			{ "alt",   "ahint? \x1 S* con*" },
 			{ "hint",  "= hintp? hintg? hintt? hintk? hinte? hintr? hintd? S* hintw" },
 			{ "hintp", "^" }, // hint prior
-			{ "hintg", "*" }, // hint greedy
+			{ "hintg", "*|/" }, // hint greedy
 			{ "hintt", "+|-|+ -" }, // hint tree
 			{ "hintk", "_" }, // hint token
 			{ "hinte", "!" }, // hint expect
@@ -554,7 +556,7 @@ namespace qutum.parser
 					bool p = false, k = false, e = false; sbyte g = 0, tr = 0; TreeStr r = null, d = null;
 					foreach (var h in t) {
 						if (h.name == "hintp") p = true;
-						if (h.name == "hintg") g = 1;
+						if (h.name == "hintg") g = (sbyte)(gram[h.from] == '*' ? 1 : -1);
 						if (h.name == "hintt")
 							tr = (sbyte)(gram[h.from] == '+' ? h.from == h.to - 1 ? 2 : 1 : -1);
 						if (h.name == "hintk") k = true;
