@@ -1,24 +1,30 @@
-<Project Sdk="Microsoft.NET.Sdk">
+<Project>
+	<PropertyGroup>
+		<BaseIntermediateOutputPath>..\obj\qutumc</BaseIntermediateOutputPath>
+		<BaseOutputPath>..\bin</BaseOutputPath>
+	</PropertyGroup>
+	<Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
 
-  <PropertyGroup>
-    <OutputType>Exe</OutputType>
-    <TargetFramework>netcoreapp3.1</TargetFramework>
-    <AssemblyName>qutumc</AssemblyName>
-    <RootNamespace>qutum.compile</RootNamespace>
-  </PropertyGroup>
+	<PropertyGroup>
+		<OutputType>Exe</OutputType>
+		<TargetFramework>net7.0</TargetFramework>
+		<AssemblyName>qutumc</AssemblyName>
+		<RootNamespace>qutum.compile</RootNamespace>
+	</PropertyGroup>
 
-  <PropertyGroup Condition="'$(Configuration)'=='Debug'">
-    <DebugSymbols>true</DebugSymbols>
-    <DebugType>embedded</DebugType>
-    <OutputPath>..\bin\</OutputPath>
-  </PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)'=='Debug'">
+		<DebugSymbols>true</DebugSymbols>
+		<DebugType>embedded</DebugType>
+		<OutputPath>..\bin\</OutputPath>
+	</PropertyGroup>
 
-  <PropertyGroup Condition="'$(Configuration)'=='Release'">
-    <DebugType>none</DebugType>
-    <OutputPath>..\bin\</OutputPath>
-  </PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)'=='Release'">
+		<DebugType>none</DebugType>
+		<OutputPath>..\bin\</OutputPath>
+	</PropertyGroup>
 
-  <Import Project="..\parser\parser.projitems" Label="Shared" />
-  <Import Project="..\syntax\syntax.projitems" Label="Shared" />
+	<Import Project="..\parser\parser.projitems" Label="Shared" />
+	<Import Project="..\syntax\syntax.projitems" Label="Shared" />
 
+	<Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
 </Project>
