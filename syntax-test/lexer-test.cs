@@ -157,23 +157,23 @@ namespace qutum.test.syntax
 		[TestMethod]
 		public void LexStringBlock1()
 		{
-			Check(@"\""abcdef""\", "STRB=abcdef"); Check(@"\\""abcdef""\\", "STRB=abcdef");
+			Check("""\"abcdef"\""", "STRB=abcdef"); Check("""\\"abcdef"\\""", "STRB=abcdef");
 			Check("\\\"a\\tc\ndef\"\\", "STRB=a\\tc\ndef");
 		}
 
 		[TestMethod]
 		public void LexStringBlock2()
 		{
-			Check(@"\""ab""cdef""\", "STRB=ab\"cdef");
-			Check(@"\""""abcdef""\", "STRB=\"abcdef");
-			Check(@"\""abcdef""""\", "STRB=abcdef\"");
+			Check("""\"ab"cdef"\""", "STRB=ab\"cdef");
+			Check("""\""abcdef"\""", "STRB=\"abcdef");
+			Check("""\"abcdef""\""", "STRB=abcdef\"");
 		}
 
 		[TestMethod]
 		public void LexStringBlock3()
 		{
-			Check(@"\""""\\abc""\\def""\\""\", "STRB=\"\\\\abc\"\\\\def\"\\\\");
-			Check(@"\\""""\abc""\def""\""\\", "STRB=\"\\abc\"\\def\"\\");
+			Check("""\""\\abc"\\def"\\"\""", "STRB=\"\\\\abc\"\\\\def\"\\\\");
+			Check("""\\""\abc"\def"\"\\""", "STRB=\"\\abc\"\\def\"\\");
 		}
 
 		[TestMethod]

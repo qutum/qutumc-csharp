@@ -239,7 +239,7 @@ namespace qutum.parser
 
 		// bootstrap
 
-		static readonly ParserStr boot = new ParserStr(@"
+		static readonly ParserStr boot = new ParserStr("""
 			gram  = eol* prod prods* eol*
 			prods = eol+ prod
 			prod  = key S*\=S* part1 part* =+
@@ -253,7 +253,8 @@ namespace qutum.parser
 			byte  = B \+? | [range* ^? range*] \+? | \\E \+? =+
 			range = R | R-R | \\E =+
 			eol   = S* comm? \r?\n S*
-			comm  = \=\= V*") {
+			comm  = \=\= V*
+			""") {
 			greedy = false, tree = false, dump = 0
 		};
 
@@ -272,20 +273,16 @@ namespace qutum.parser
 			// \ prod
 			//   \ key
 			//   \ part1
-			//     \ byte or range... or esc ...
-			//       \ qua
+			//     \ byte or range... or esc ... (qua)
 			//     \ alt1 ...
-			//       \ byte or range... or esc ...
-			//         \ qua
+			//       \ byte or range... or esc ... (qua)
 			//   \ part ...
 			//     \ mis
 			//     \ loop
-			//     \ byte or range... or esc ...
-			//       \ qua
+			//     \ byte or range... or esc ... (qua)
 			//     \ alt ...
 			//       \ loop
-			//       \ byte or range... or esc ...
-			//         \ qua
+			//       \ byte or range... or esc ... (qua)
 			// \ prod ...
 			start = new Unit(this) { mode = -1 }; start.go = start;
 

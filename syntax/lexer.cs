@@ -49,7 +49,7 @@ namespace qutum.syntax
 
 	public class Lexer : Lexer<Lex>
 	{
-		static readonly string Grammar = @"
+		static readonly string Grammar = """
 		==APO   = '
 		==BAPO  = ` == path
 		==COM   = ,
@@ -101,15 +101,15 @@ namespace qutum.syntax
 		EOL   = \n|\r\n
 		SP    = \s|\t  |+\s+|+\t+
 		COMM  = ##     |[\b^\n]+
-		COMMB = \\+##  +##\\+| +#|  +[\b^#]+
-		STRB  = \\+""  +""\\+| +""| +[\b^""]+
-		STR   = ""     *""|\n|    +[\t\s!-~\B^""\\]+| +\\[0tnr"".`\\]| +\\x\x\x| +\\u\x\x\x\x
+		COMMB = \\+## +##\\+| +#| +[\b^#]+
+		STRB  = \\+"   +"\\+| +"| +[\b^"]+
+		STR   = "      *"|\n|     +[\t\s!-~\B^""\\]+| +\\[0tnr"".`\\]| +\\x\x\x| +\\u\x\x\x\x
 		PATH  = `|.`   *`| \n|+.| +[\t\s!-~\B^.`\\]+| +\\[0tnr"".`\\]| +\\x\x\x| +\\u\x\x\x\x
 		NAME  =     [\a_]|  [\a_][\d\a_]+
 		RNAME = .| .[\a_]| .[\a_][\d\a_]+
 		HEX   = 0[xX]  \x|_\x  |+\x+|+_\x+
 		NUM   = 0|[1-9]  |+\d+|+_\d+  |.\d+  |+_\d+  |[eE]\d+|[eE][\+\-]\d+  |[fF]
-		";
+		""";
 
 		public override bool Is(Lex testee, Lex key)
 		{

@@ -171,11 +171,12 @@ namespace qutum.test.parser
 		[TestMethod]
 		public void MidRecu1()
 		{
-			var p = new ParserStr(@"
+			var p = new ParserStr("""
 				S	= If|X =-
 				If	= if \s S \s then \s S
 					| if \s S \s then \s S \s else \s S
-				X	= a|b|c|d|e|f|g|h|i|j") { dump = 3 };
+				X	= a|b|c|d|e|f|g|h|i|j
+				""") { dump = 3 };
 			p.Parse("if a then b").H("If").H(v: "a").N(v: "b").N0();
 			p.Parse("if a then b else c").H().H(v: "a").N(v: "b").N(v: "c").N0();
 			var t = p.Parse("if a then if b then c").H().H(v: "a");
@@ -205,11 +206,12 @@ namespace qutum.test.parser
 		[TestMethod]
 		public void MidRecu2()
 		{
-			var p = new ParserStr(@"
+			var p = new ParserStr("""
 				S	= If|X =-
 				If	= if \s S \s then \s S
 					| if \s S \s then \s S \s else \s S
-				X	= a|b|c|d|e|f|g|h|i|j") { dump = 3 };
+				X	= a|b|c|d|e|f|g|h|i|j
+				""") { dump = 3 };
 			p.Parse("if a then b").H("If").H(v: "a").N(v: "b").N0();
 			p.Parse("if a then b else c").H().H(v: "a").N(v: "b").N(v: "c").N0();
 			var t = p.Parse("if a then if b then c").H().H(v: "a");
@@ -247,12 +249,13 @@ namespace qutum.test.parser
 		[TestMethod]
 		public void AddMul()
 		{
-			var p = new ParserStr(@"
+			var p = new ParserStr("""
 				Expr  = Expr\+Mul | Mul
 				Mul   = Mul\*Value | Value
 				Value = (Expr) | Num
 				Num   = Num Digi | Digi
-				Digi  = 0|1|2|3|4|5|6|7|8|9") { dump = 3 };
+				Digi  = 0|1|2|3|4|5|6|7|8|9
+				""") { dump = 3 };
 			IsTrue(p.Check("1")); IsTrue(p.Check("07")); IsTrue(p.Check("(3)")); IsTrue(p.Check("(298)"));
 			IsFalse(p.Check("1 3")); IsFalse(p.Check("(2")); IsFalse(p.Check("39210)"));
 			IsTrue(p.Check("1*2")); IsTrue(p.Check("073*32")); IsTrue(p.Check("86*1231*787*99"));
@@ -271,12 +274,13 @@ namespace qutum.test.parser
 		[TestMethod]
 		public void AddMulErr()
 		{
-			var p = new ParserStr(@"
+			var p = new ParserStr("""
 				Expr  = Expr\+Mul | Mul     = expression
 				Mul   = Mul\*Value | Value  = expression
 				Value = (Expr) | Num        = value
 				Num   = Num Digi | Digi     = number
-				Digi  = 0|1|2|3|4|5|6|7|8|9 = digit") { dump = 3 };
+				Digi  = 0|1|2|3|4|5|6|7|8|9 = digit
+				""") { dump = 3 };
 			p.Parse("(1+2*").H("Mul", 3, 5, "value", 2).N0();
 			p.Parse("(*1*2+3)*4").H("Value", 0, 1, "expression", 1).N0();
 			p.Parse("(1+2*3))*4").H("Mul", 0, 7, '*', 1).N("Expr", 0, 7, '+', 1).N0();

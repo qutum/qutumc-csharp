@@ -27,7 +27,7 @@ namespace qutum.syntax
 
 	public class Parser : Parser<Lex, Syn, Tree, Lexer>
 	{
-		static readonly string grammar = @"
+		static readonly string grammar = """
 		all   = Block* | IND all DED Block*
 		Block = block					=+
 
@@ -78,7 +78,7 @@ namespace qutum.syntax
 		B7    = BIN7  E2 B43* B46* B53* B56* B6*			=+_!	binary operator
 		E9    =          E2p B43* B46* B53* B56* B6* B7*	=+-		serial feed
 		      | NAME BIND E2 B43* B46* B53* B56* B6* B7*	=+_!|	name feed
-		";
+		""";
 
 		public Parser(Lexer l) : base(grammar, l)
 		{
