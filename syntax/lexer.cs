@@ -118,7 +118,7 @@ namespace qutum.syntax
 			return ((int)key & 15) == 0 && (key & testee) != 0;
 		}
 
-		public Lexer() : base(Grammar) { }
+		public Lexer() : base(BootLexer.Gram<Lex>(Grammar)) { }
 
 		byte[] bs = new byte[4096]; // buffer used for some tokens
 		int bn;
