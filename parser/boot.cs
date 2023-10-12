@@ -105,7 +105,7 @@ public static class BootLexer
 		alt1  = \| S* byte+ =+
 		part  = S+ skip? loop? byte+ alt* =+
 		alt   = \| S* loop? byte+ =+
-		skip  = \| S* | \* =+
+		skip  = \* | \| S* =+
 		loop  = \+ =+
 		byte  = B \+? | [range* ^? range*] \+? | \\E \+? =+
 		range = R | R-R | \\E =+
@@ -226,6 +226,5 @@ public static class BootLexer
 			}
 			env.WriteLine();
 		}
-		env.WriteLine(";");
 	}
 }

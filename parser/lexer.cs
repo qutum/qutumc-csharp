@@ -114,9 +114,9 @@ public abstract partial class LexerBase<K, T> : ScanSeg<K, T> where T : struct
 		internal int pren; // number of bytes to this unit
 		internal Unit[] next; // >=128: [128]
 		internal Unit go; // when next==null or next[byte]==null or backward
-						  // go.next != null, to start: token end or error
-		internal int mode; // match to token: 1, mismatch to error: -1, mismatch to backward: 0
-						   // no backward neither cross parts nor inside byte repeat
+						  // go.next != null, go to start: token end or error
+		internal int mode; // match: 1, mismatch to error: -1, mismatch to backward input: 0
+						   // no backward cross parts nor inside byte repeat
 
 		internal Unit(LexerBase<K, T> l) => id = ++l.id;
 	}
@@ -129,7 +129,7 @@ public abstract partial class LexerBase<K, T> : ScanSeg<K, T> where T : struct
 	readonly byte[] bytes = new byte[17]; // latest bytes, [byte index & 15]
 	internal int tokenn, loc = -1;
 	internal T[] tokens = new T[65536];
-	readonly List<int> lines = new List<int>();
+	readonly List<int> lines = new();
 
 	public virtual IDisposable Load(Scan<byte, byte> scan)
 	{
@@ -159,7 +159,7 @@ public abstract partial class LexerBase<K, T> : ScanSeg<K, T> where T : struct
 			else if (u == start || bt > bn) {
 				if (bn >= 0) {
 					Error(start.key, -1, true, -1, bn, bn);
-					bn = -1;
+					bn = -1; // only one error at the end
 				}
 				return loc < tokenn;
 			}
@@ -171,24 +171,24 @@ public abstract partial class LexerBase<K, T> : ScanSeg<K, T> where T : struct
 			if (u.next != null)
 				goto Next;
 		}
-	Go: v = u.go;
+	Go: var go = u.go;
 		if (u.mode == 0) { // failed to greedy
-			u = v; --bt; // one byte backward // TODO backward directly, not one by one
+			u = go; --bt; // one byte backward // TODO backward directly, not one by one
 			goto Go;
 		}
 		if (u.mode > 0) { // match a part 
-			var e = v == start;
+			var e = go == start;
 			Token(u.key, u.part, ref e, bf, bt);
-			if (e) v = start;
+			if (e) go = start;
 		}
 		else { // error part
-			Error(u.key, u.part, v == start || bt >= bn,
+			Error(u.key, u.part, go == start || bt >= bn,
 				bt < bn ? bytes[bt & 15] : -1, bf, bt);
 			++bt; // shift a byte
 		}
-		if (v == start && loc < tokenn)
+		if (go == start && loc < tokenn)
 			return true;
-		u = v;
+		u = go;
 		goto Step;
 	}
 
@@ -245,28 +245,28 @@ public abstract partial class LexerBase<K, T> : ScanSeg<K, T> where T : struct
 	{
 		using var env = EnvWriter.Use();
 		var uz = us ?? new Dictionary<Unit, bool> { };
-		uz[u] = false;
+		uz[u] = false; // dumped
 		env.WriteLine($"{u.id}: {u.key}.{u.part} " +
 			$"{(u.mode < 0 ? "err" : u.mode > 0 ? "ok" : "back")}.{u.go.id} < {pre}");
 		if (!uz.ContainsKey(u.go))
-			uz[u.go] = true;
+			uz[u.go] = true; // not dumped yet
 		if (u.next == null)
 			return;
-		foreach (var n in u.next.Where(n => n != null).Distinct())
+		foreach (var n in u.next.Where(n => n != null).Distinct()) {
+			var s = u.next.Select(
+				(nn, b) => nn != n ? null
+				: b > ' ' && b < 127 ? ((char)b).ToString()
+				: b == ' ' ? "\\s" : b == '\t' ? "\\t" : b == '\n' ? "\\n" : b == '\r' ? "\\r"
+				: b >= 128 ? "\\U" : b == 0 ? "\\0"
+				: $"\\x{b:x02}")
+				.Where(x => x != null);
+			using var ind = EnvWriter.Indent("  ");
 			if (n == u)
-				env.WriteLine("  +");
-			else {
-				var s = u.next.Select(
-					(nn, b) => nn != n ? null
-					: b > ' ' && b < 127 ? ((char)b).ToString()
-					: b == ' ' ? "\\s" : b == '\t' ? "\\t" : b == '\n' ? "\\n" : b == '\r' ? "\\r"
-					: b >= 128 ? "\\U" : b == 0 ? "\\0"
-					: $"\\x{b:x02}")
-					.Where(x => x != null);
-				using var ind = EnvWriter.Indent("  ");
+				env.WriteLine($"+ < {string.Join(' ', s)}");
+			else
 				Dump(n, string.Join(' ', s), uz);
-			}
-		Go: if (us == null)
+		}
+	Go: if (us == null)
 			foreach (var go in uz)
 				if (go.Value) {
 					Dump(go.Key, $"{go.Key.key}.{go.Key.part - 1}", uz);
@@ -279,17 +279,31 @@ public class LexerGram<K>
 {
 	public readonly List<Prod> prods = new();
 	public class Prod : List<Part> { public K key; }
-	public class Part : List<Alt> { public bool skip; }
-	public class Alt : List<Elem> { public bool loop; }
+	public class Part : List<Alt>
+	{
+		// skip mismatched input and retry this part
+		public bool skip;
+	}
+	public class Alt : List<Elem>
+	{
+		// match to loop part
+		public bool loop;
+	}
 	public class Elem
 	{
-		public string str = ""; public ReadOnlyMemory<char> inc; public bool rep;
+		// byte sequence
+		public string str = "";
+		// inclusive range of one byte
+		public ReadOnlyMemory<char> inc;
+		// repeat last byte of sequence, or repeat inclusive range
+		public bool rep;
 	}
 	public const int AltByteN = 15;
 
 	public LexerGram<K> prod(K key) { prods.Add(new Prod { key = key }); return this; }
 	public LexerGram<K> part { get { prods[^1].Add(new Part()); return this; } }
 	public LexerGram<K> skip { get { prods[^1].Add(new Part { skip = true }); return this; } }
+	// element: string : byte sequence, ReadOnlyMemory<char> : inclusive range, .. : repeat
 	public LexerGram<K> this[params object[] elems] {
 		get {
 			Alt a = new();
@@ -313,27 +327,27 @@ public partial class LexerBase<K, T>
 	{
 		if (gram.prods.Count < 1)
 			throw new Exception("No product");
-		start = new Unit(this) { mode = -1 }; start.go = start;
+		start = new Unit(this);
 		// build prod
 		foreach (var prod in gram.prods) {
 			var k = prod.key;
-			if (prod.Count < 1) throw new Exception($"No part in {k}");
+			if (prod.Count == 0) throw new Exception($"No part in {k}");
 			// first unit of each part
 			var pus = prod.Skip(1).Select((_, px) => new Unit(this) { key = k, part = px + 2 })
 				.Prepend(start).Prepend(null)
 				.Append(start).ToArray(); // token end
 			prod.Each((p, part) => {
 				var u = pus[++part]; // first part is 1
-				if (p.Count < 1)
+				if (p.Count == 0)
 					throw new Exception($"No altern in {k}.{part}");
-				if (p.skip) // shift input and retry part like the start
-					if (part == 1)
-						throw new Exception("Can not skip first part {k}.{px}");
-					else { u.go = u; u.mode = -1; }
-				else if (p[0].Count == 0) // empty alt
-					if (part == 1)
-						throw new Exception($"Empty altern in first part {k}.{part}");
+				if (p[0].Count == 0) // empty alt for option part
+					if (part == 1) throw new Exception($"Empty altern in first part {k}.1");
+					else if (p.Count == 1) throw new Exception($"No byte in {k}.{part}");
+					else if (p.skip) throw new Exception($"Skip at empty {k}.{part}.1");
 					else { u.go = pus[part + 1]; u.mode = 1; }
+				else if (p.skip) // shift input and retry part like the start
+					if (part == 1) throw new Exception($"Skip at first part {k}.1");
+					else { u.go = u; u.mode = -1; }
 				else // no backward cross parts
 					{ u.go = start; u.mode = -1; }
 			});
@@ -345,19 +359,21 @@ public partial class LexerBase<K, T>
 				var Aus = p.Select((a, alt) => {
 					++alt;
 					var bn = a.Sum(b => b.str.Length + (b.inc.Length > 0 ? 1 : 0));
-					if (a.Count < 1 ? alt > 1 : bn < 1)
+					if (a.Count == 0 ? alt > 1 : bn == 0)
 						throw new Exception($"No byte in {k}.{part}.{alt}");
 					if (bn > LexerGram<K>.AltByteN)
 						throw new Exception($"{k}.{part}.{alt} exceeds {LexerGram<K>.AltByteN} bytes");
 					u = pus[part];
-					var ok = a.loop ? u : pus[part + 1]; // go for match
-					var err = u.mode < 0 ? u.go : u; // go for error
+					var ok = !a.loop ? pus[part + 1] // go for match
+						: part > 1 ? u : throw new Exception($"Can not loop first part {k}.1.{alt}");
+					var rep = p.skip ? u : start; // error for repeat
 					var bx = 0; // build units from elements
 					foreach (var e in a) {
 						for (int x = 0; x < e.str.Length; x++)
-							BuildByte(e.str.AsMemory(x, 1), e.rep, ref u, k, part, ++bx >= bn, ok, err);
+							BuildByte(e.str.AsMemory(x, 1), ref u, k, part, ++bx >= bn, ok,
+								e.rep && x == e.str.Length - 1 ? rep : null);
 						if (e.inc.Length > 0)
-							BuildByte(e.inc, e.rep, ref u, k, part, ++bx >= bn, ok, err);
+							BuildByte(e.inc, ref u, k, part, ++bx >= bn, ok, e.rep ? rep : null);
 					}
 					return u; // last unit of this alt
 				}).Where(u => u.next != null).ToArray();
@@ -373,17 +389,17 @@ public partial class LexerBase<K, T>
 		if (dump) Dump(start, "");
 	}
 
-	void BuildByte(ReadOnlyMemory<char> bs, bool rep,
-		ref Unit u, K k, int part, bool end, Unit ok, Unit err)
+	void BuildByte(ReadOnlyMemory<char> bs,
+		ref Unit u, K k, int part, bool end, Unit ok, Unit rep)
 	{
 		// buid next
 		var go = u; var mode = 0; // mismatch to backward
 		if (end) // last byte of alt
 			{ go = ok; mode = 1; } // match part
-		else if (rep) // inside byte repeat
-			{ go = err; mode = -1; } // mismatch to error
+		else if (rep != null) // inside byte repeat
+			{ go = rep; mode = -1; } // mismatch to error
 		var next = BuildNext(k, part, u, bs.Span, go, mode, false);
-		if (rep)
+		if (rep != null)
 			BuildNext(k, part, next, bs.Span, go, mode, true);
 		u = next;
 	}
@@ -394,7 +410,7 @@ public partial class LexerBase<K, T>
 		if (u.next == null)
 			u.next = new Unit[129];
 		else
-			// all already nexts must be the same
+			// all exist nexts must be the same
 			for (int x = 0; x < ns.Length; x++)
 				if (u.next[ns[x]] != n)
 					throw new Exception($"Prefix of {key}.{part} and {(n ?? u.next[ns[x]]).key}"

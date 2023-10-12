@@ -22,12 +22,12 @@ public class TestLexer : IDisposable
 
 	public void Dispose() => env.Dispose();
 
-	enum Tag { A = 1, B, BB, C, CC, D };
+	enum Tag { _, A, B, BB, C, CC, D };
 
 	class Lexer : Lexer<Tag>
 	{
 		public Lexer(LexerGram<Tag> grammar) : base(grammar, true) { }
-		public Lexer(string grammar) : base(BootLexer.Gram<Tag>(grammar), true) { }
+		public Lexer(string grammar) : base(BootLexer.Gram<Tag>(grammar, true), true) { }
 	}
 
 	void Check(Lexer<Tag> l, string input, string s) => Check(l, Encoding.UTF8.GetBytes(input), s);
@@ -60,7 +60,7 @@ public class TestLexer : IDisposable
 	{
 		var l = new Lexer("A=a \n B=b\n ==comm\n");
 		Check(l, "a", "A=a"); Check(l, "b", "B=b"); Check(l, "ab", "A=a B=b");
-		Check(l, "", ""); Check(l, "c", "0!c");
+		Check(l, "", ""); Check(l, "c", "_!c");
 	}
 
 	[TestMethod]
@@ -69,7 +69,7 @@ public class TestLexer : IDisposable
 		var l = new Lexer("A=a \n B=ab \n BB=bb \n C=cc");
 		Check(l, "a", "A=a"); Check(l, "ab", "B=ab");
 		Check(l, "abbb", "B=ab BB=bb"); Check(l, "ccbb", "C=cc BB=bb");
-		Check(l, "aabb", "A=a B=ab 0!b");
+		Check(l, "aabb", "A=a B=ab _!b"); Check(l, "bcc", "_!b C=cc");
 	}
 
 	[TestMethod]
@@ -77,7 +77,7 @@ public class TestLexer : IDisposable
 	{
 		var l = new Lexer("A=a \n B=abc \n BB=bc \n C=ccc \n D=cd");
 		Check(l, "abc", "B=abc"); Check(l, "aabcccc", "A=a B=abc C=ccc");
-		Check(l, "bcb", "BB=bc 0!b"); Check(l, "ccd", "0!c D=cd");
+		Check(l, "bcb", "BB=bc _!b"); Check(l, "ccd", "_!c D=cd");
 	}
 
 	[TestMethod]
@@ -85,16 +85,16 @@ public class TestLexer : IDisposable
 	{
 		var l = new Lexer("A=ab \n B=abc \n C=cc \n CC=ccc");
 		Check(l, "ab", "A=ab"); Check(l, "abc", "B=abc");
-		Check(l, "ababc", "A=ab B=abc"); Check(l, "abdcc", "A=ab 0!d C=cc");
-		Check(l, "abcc", "B=abc 0!c"); Check(l, "abccc", "B=abc C=cc");
-		Check(l, "ababcccc", "A=ab B=abc CC=ccc"); Check(l, "a", "0!a");
+		Check(l, "ababc", "A=ab B=abc"); Check(l, "abdcc", "A=ab _!d C=cc");
+		Check(l, "abcc", "B=abc _!c"); Check(l, "abccc", "B=abc C=cc");
+		Check(l, "ababcccc", "A=ab B=abc CC=ccc"); Check(l, "a", "_!a");
 	}
 
 	[TestMethod]
 	public void Lex24()
 	{
 		var l = new Lexer("A=ab \n B=abcd \n C=cccd");
-		Check(l, "a", "0!a"); Check(l, "ab", "A=ab"); Check(l, "abc", "A=ab 0!c");
+		Check(l, "a", "_!a"); Check(l, "ab", "A=ab"); Check(l, "abc", "A=ab _!c");
 		Check(l, "abcdab", "B=abcd A=ab"); Check(l, "abcccd", "A=ab C=cccd");
 	}
 
@@ -103,7 +103,7 @@ public class TestLexer : IDisposable
 	{
 		var l = new Lexer("A=a \n B=ab \n BB=ac \n C=abc");
 		Check(l, "a", "A=a"); Check(l, "ab", "B=ab"); Check(l, "ac", "BB=ac");
-		Check(l, "abc", "C=abc"); Check(l, "aabcc", "A=a C=abc 0!c");
+		Check(l, "abc", "C=abc"); Check(l, "aabcc", "A=a C=abc _!c");
 	}
 
 	[TestMethod]
@@ -139,9 +139,9 @@ public class TestLexer : IDisposable
 	public void LexRange3()
 	{
 		var l = new Lexer("A=[^abAB]c \n B=[AB][]");
-		Check(l, "ac", "0!a 0!c"); Check(l, "bc", "0!b 0!c");
+		Check(l, "ac", "_!a _!c"); Check(l, "bc", "_!b _!c");
 		Check(l, "cccc", "A=cc A=cc"); Check(l, "\nc", "A=\nc"); Check(l, "A~", "B=A~");
-		Check(l, "acc", "0!a A=cc");
+		Check(l, "acc", "_!a A=cc");
 	}
 
 	[TestMethod]
@@ -149,22 +149,22 @@ public class TestLexer : IDisposable
 	{
 		var l = new Lexer("A=\\x_");
 		Check(l, "3_", "A=3_"); Check(l, "b_", "A=b_");
-		Check(l, "G_", "0!G 0!_"); Check(l, "_", "0!_");
+		Check(l, "G_", "_!G _!_"); Check(l, "_", "_!_");
 	}
 
 	[TestMethod]
 	public void LexRange5()
 	{
 		var l = new Lexer("A=[^a-z0-9]_");
-		Check(l, "A_", "A=A_"); Check(l, ".._", "0!. A=._");
-		Check(l, "a_", "0!a 0!_"); Check(l, "2_", "0!2 0!_");
+		Check(l, "A_", "A=A_"); Check(l, ".._", "_!. A=._");
+		Check(l, "a_", "_!a _!_"); Check(l, "2_", "_!2 _!_");
 	}
 
 	[TestMethod]
 	public void LexRange6()
 	{
 		var l = new Lexer("A=[abc^b]_");
-		Check(l, "a_", "A=a_"); Check(l, "c_", "A=c_"); Check(l, "b_", "0!b 0!_");
+		Check(l, "a_", "A=a_"); Check(l, "c_", "A=c_"); Check(l, "b_", "_!b _!_");
 	}
 
 	[TestMethod]
@@ -172,7 +172,7 @@ public class TestLexer : IDisposable
 	{
 		var l = new Lexer("A=[!-~^\\d\\a]");
 		Check(l, "!_^/+", "A=! A=_ A=^ A=/ A=+");
-		Check(l, " 2Ab.", "0!  0!2 0!A 0!b A=.");
+		Check(l, " 2Ab.", "_!  _!2 _!A _!b A=.");
 	}
 
 	[TestMethod]
@@ -193,7 +193,7 @@ public class TestLexer : IDisposable
 	{
 		var l = new Lexer("A=ab|ac");
 		Check(l, "ab", "A=ab"); Check(l, "ac", "A=ac");
-		Check(l, "a", "0!a"); Check(l, "ad", "0!a 0!d"); Check(l, "abc", "A=ab 0!c");
+		Check(l, "a", "_!a"); Check(l, "ad", "_!a _!d"); Check(l, "abc", "A=ab _!c");
 	}
 
 	[TestMethod]
@@ -216,15 +216,15 @@ public class TestLexer : IDisposable
 	{
 		var l = new Lexer("A=a+");
 		Check(l, "a", "A=a"); Check(l, "aa", "A=aa"); Check(l, "aaa", "A=aaa");
-		Check(l, "baa", "0!b A=aa"); Check(l, "ab", "A=a 0!b");
+		Check(l, "baa", "_!b A=aa"); Check(l, "ab", "A=a _!b");
 	}
 
 	[TestMethod]
 	public void LexRepeat2()
 	{
 		var l = new Lexer("A=aa+");
-		Check(l, "a", "0!a"); Check(l, "aa", "A=aa"); Check(l, "aaa", "A=aaa");
-		Check(l, "baa", "0!b A=aa"); Check(l, "ab", "0!a 0!b");
+		Check(l, "a", "_!a"); Check(l, "aa", "A=aa"); Check(l, "aaa", "A=aaa");
+		Check(l, "baa", "_!b A=aa"); Check(l, "ab", "_!a _!b");
 	}
 
 	[TestMethod]
@@ -232,7 +232,8 @@ public class TestLexer : IDisposable
 	{
 		var l = new Lexer("A=ab+c");
 		Check(l, "abc", "A=abc"); Check(l, "abbc", "A=abbc"); Check(l, "abbbc", "A=abbbc");
-		Check(l, "ac", "0!a 0!c"); Check(l, "abb", "A!"); Check(l, "abbda", "A!d 0!a");
+		Check(l, "ac", "_!a _!c"); Check(l, "abb", "A!");
+		Check(l, "abbda", "A!d _!a"); Check(l, "abbabc", "A!a _!b _!c");
 	}
 
 	[TestMethod]
@@ -272,7 +273,7 @@ public class TestLexer : IDisposable
 	public void LexRepeat8()
 	{
 		var l = new Lexer("A=a+b \n B=a+c");
-		Check(l, "abaac", "A=ab B=aac"); Check(l, "b", "0!b"); Check(l, "c", "0!c");
+		Check(l, "abaac", "A=ab B=aac"); Check(l, "b", "_!b"); Check(l, "c", "_!c");
 	}
 
 	[TestMethod]
@@ -283,16 +284,107 @@ public class TestLexer : IDisposable
 	}
 
 	[TestMethod]
-	public void LexStep1()
+	public void LexPart1()
 	{
 		var l = new Lexer("A=aa b cde \n B=ab \n C=bc");
-		Check(l, "aabcdee", "A=aabcde 0!e"); Check(l, "abbc", "B=ab C=bc");
-		Check(l, "aa", "A!"); Check(l, "aabcdf", "A!c 0!d 0!f");
+		Check(l, "aabcdee", "A=aabcde _!e"); Check(l, "abbc", "B=ab C=bc");
+		Check(l, "aa", "A!"); Check(l, "aabcdf", "A!c _!d _!f");
 		Check(l, "aacab", "A!c B=ab");
 	}
 
 	[TestMethod]
-	public void LexStep2()
+	public void LexPart2()
+	{
+		var l = new Lexer("A=a bcd|bce f \n B=abcf \n BB=bca \n C=c");
+		Check(l, "abcdf", "A=abcdf"); Check(l, "abcef", "A=abcef");
+		Check(l, "abcf", "B=abcf"); Check(l, "abcc", "A!b C=c C=c");
+		Check(l, "abca", "A!b C=c A!");
+	}
+
+	[TestMethod]
+	public void LexPart3()
+	{
+		var l = new Lexer("A=a b+|c d");
+		Check(l, "abd", "A=abd"); Check(l, "abbd", "A=abbd");
+		Check(l, "ad", "A!d"); Check(l, "abbc", "A!c"); Check(l, "abbcd", "A!c _!d");
+		Check(l, "acd", "A=acd"); Check(l, "acbd", "A!b _!d");
+	}
+
+	[TestMethod]
+	public void LexPart4()
+	{
+		var l = new Lexer("A=a b+e|c d");
+		Check(l, "abed", "A=abed"); Check(l, "abbed", "A=abbed");
+		Check(l, "aecd", "A!e _!c _!d"); Check(l, "abbccd", "A!c _!c _!d");
+		Check(l, "acd", "A=acd"); Check(l, "acbd", "A!b _!d");
+	}
+
+	[TestMethod]
+	public void LexEmpty1()
+	{
+		var l = new Lexer("A=a |bc \n B=b \n D=d");
+		Check(l, "a", "A=a"); Check(l, "abc", "A=abc");
+		Check(l, "ad", "A=a D=d"); Check(l, "abcd", "A=abc D=d");
+		Check(l, "abd", "A=a B=b D=d");
+	}
+
+	[TestMethod]
+	public void LexEmpty2()
+	{
+		var l = new Lexer("A=a |bc d \n B=b \n D=d");
+		Check(l, "ad", "A=ad"); Check(l, "abcd", "A=abcd");
+		Check(l, "a", "A!"); Check(l, "abc", "A!");
+		Check(l, "abdd", "A!b D=d D=d");
+	}
+
+	[TestMethod]
+	public void LexEmpty3()
+	{
+		var l = new Lexer("A=a |bc b \n B=b \n D=d");
+		Check(l, "ab", "A=ab"); Check(l, "abcb", "A=abcb");
+		Check(l, "a", "A!"); Check(l, "abdd", "A=ab D=d D=d");
+	}
+
+	[TestMethod]
+	public void LexEmpty4()
+	{
+		var l = new Lexer("A=a |b+e d");
+		Check(l, "abed", "A=abed"); Check(l, "abbed", "A=abbed");
+		Check(l, "aebed", "A!e _!b _!e _!d"); Check(l, "abbcd", "A!c _!d");
+		Check(l, "ad", "A=ad");
+	}
+
+	[TestMethod]
+	public void LexLoop1()
+	{
+		var l = new Lexer("A=a +c|b d");
+		Check(l, "abd", "A=abd"); Check(l, "acbd", "A=acbd");
+		Check(l, "accd", "A!d"); Check(l, "accbd", "A=accbd");
+		Check(l, "ad", "A!d");
+	}
+
+	[TestMethod]
+	public void LexLoop2()
+	{
+		var l = new Lexer("A=a |+c|b+e d");
+		Check(l, "abed", "A=abed"); Check(l, "abbed", "A=abbed");
+		Check(l, "aebed", "A!e _!b _!e _!d"); Check(l, "abbcd", "A!c _!d");
+		Check(l, "accd", "A=accd"); Check(l, "acbed", "A=acbed");
+		Check(l, "ad", "A=ad");
+	}
+
+	[TestMethod]
+	public void LexLoop3()
+	{
+		var l = new Lexer("A=a | +c|b+e");
+		Check(l, "abed", "A=abe _!d"); Check(l, "abbe", "A=abbe");
+		Check(l, "aebe", "A=a _!e _!b _!e"); Check(l, "abbcbe", "A!c _!b _!e");
+		Check(l, "acc", "A=acc"); Check(l, "acbe", "A=acbe");
+		Check(l, "a", "A=a");
+	}
+
+	[TestMethod]
+	public void LexSkip1()
 	{
 		var l = new Lexer("A=a *b c \n B=d \n C=cd");
 		Check(l, "abcd", "A=abc B=d"); Check(l, "acbc", "A!c A=acbc");
@@ -300,81 +392,49 @@ public class TestLexer : IDisposable
 	}
 
 	[TestMethod]
-	public void LexStep3()
-	{
-		var l = new Lexer("A=a bcd|bce f \n B=abcf");
-		Check(l, "abcdf", "A=abcdf"); Check(l, "abcef", "A=abcef");
-		Check(l, "abcf", "B=abcf");
-	}
-
-	[TestMethod]
-	public void LexStep4()
-	{
-		var l = new Lexer("A=a b+|c d");
-		Check(l, "abd", "A=abd"); Check(l, "abbd", "A=abbd");
-		Check(l, "ad", "A!d"); Check(l, "abbc", "A!c"); Check(l, "abbcd", "A!c 0!d");
-		Check(l, "acd", "A=acd"); Check(l, "acbd", "A!b 0!d");
-	}
-
-	[TestMethod]
-	public void LexStep5()
-	{
-		var l = new Lexer("A=a b+e|c d");
-		Check(l, "abed", "A=abed"); Check(l, "abbed", "A=abbed");
-		Check(l, "aecd", "A!e 0!c 0!d"); Check(l, "abbcd", "A!c 0!d");
-		Check(l, "acd", "A=acd"); Check(l, "acbd", "A!b 0!d");
-	}
-
-	[TestMethod]
-	public void LexStep6()
-	{
-		var l = new Lexer("A=a *c|b+e d");
-		Check(l, "abed", "A=abed"); Check(l, "abbed", "A=abbed");
-		Check(l, "aecd", "A!e A=aecd"); Check(l, "abbcbed", "A!c A=abbcbed");
-		Check(l, "acd", "A=acd"); Check(l, "acbed", "A!b 0!e 0!d");
-	}
-
-	[TestMethod]
-	public void LexStep7()
-	{
-		var l = new Lexer("A=a *+c|b+e d");
-		Check(l, "abed", "A=abed"); Check(l, "abbed", "A=abbed");
-		Check(l, "aebed", "A!e A=aebed"); Check(l, "abbcbed", "A!c A=abbcbed");
-		Check(l, "acde", "A!d A!e A!"); Check(l, "acbed", "A=acbed");
-	}
-
-	[TestMethod]
-	public void LexStep8()
-	{
-		var l = new Lexer("A=a | +c|b+e d");
-		Check(l, "abed", "A=abed"); Check(l, "abbed", "A=abbed");
-		Check(l, "aebed", "A!e 0!b 0!e 0!d"); Check(l, "abbcbed", "A!c A=abbcbed");
-		Check(l, "acd", "A=acd"); Check(l, "acbed", "A=acbed");
-		Check(l, "ad", "A=ad");
-	}
-
-	[TestMethod]
-	public void LexStep9()
-	{
-		var l = new Lexer("A=a |+c|b+e");
-		Check(l, "abed", "A=abe 0!d"); Check(l, "abbe", "A=abbe");
-		Check(l, "aebe", "A=a 0!e 0!b 0!e"); Check(l, "abbcbe", "A!c A=abbcbe");
-		Check(l, "ac", "A=ac"); Check(l, "acbe", "A=acbe");
-		Check(l, "a", "A=a");
-	}
-
-	[TestMethod]
-	public void LexStep10()
+	public void LexSkip2()
 	{
 		var l = new Lexer("A=a *bc d \n B=d \n C=cd");
-		Check(l, "abcdd", "A=abcd B=d"); Check(l, "acbcd", "A!c A=acbcd");
+		Check(l, "abcdd", "A=abcd B=d"); Check(l, "abdbcd", "A!b A!d A=abdbcd");
 		Check(l, "abedd", "A!b A!e A!d A!d A!"); Check(l, "abebcdcd", "A!b A!e A=abebcd C=cd");
 	}
 
 	[TestMethod]
-	public void LexStep11()
+	public void LexSkip3()
 	{
+		var l = new Lexer("A=a *c|be d");
+		Check(l, "abed", "A=abed"); Check(l, "abbed", "A!b A=abbed");
+		Check(l, "acd", "A=acd"); Check(l, "acbed", "A!b _!e _!d");
+		Check(l, "abcd", "A!b A=abcd"); Check(l, "abbcd", "A!b A!b A=abbcd");
+		Check(l, "aecd", "A!e A=aecd");
+	}
+
+	[TestMethod]
+	public void LexSkip4()
+	{
+		var l = new Lexer("A=a *c|b+e d");
+		Check(l, "abed", "A=abed"); Check(l, "abbed", "A=abbed");
+		Check(l, "acd", "A=acd"); Check(l, "acbed", "A!b _!e _!d");
+		Check(l, "abbccd", "A!c A=abbccd"); Check(l, "abbcbed", "A!c A=abbcbed");
+		Check(l, "aecd", "A!e A=aecd");
+	}
+
+	[TestMethod]
+	public void LexSkip5()
+	{
+		var l = new Lexer("A=a *+c|b+e d");
+		Check(l, "abed", "A=abed"); Check(l, "abbed", "A=abbed");
+		Check(l, "acd", "A!d A!"); Check(l, "acbed", "A=acbed");
+		Check(l, "abbccd", "A!c A!d A!"); Check(l, "abbcbed", "A!c A=abbcbed");
+		Check(l, "aebed", "A!e A=aebed");
+	}
+
+	[TestMethod]
+	public void LexSkip6()
+	{
+		Throw(() => new Lexer(new LexerGram<Tag>().prod(Tag.A).skip["a"].part["b"]), "Skip");
 		Throw(() => new Lexer("A=*a b c"), "");
+		Throw(() => new Lexer("A=a *|b c"), "");
 	}
 
 	[TestMethod]
