@@ -115,7 +115,7 @@ public abstract partial class LexerBase<K, T> : ScanSeg<K, T> where T : struct
 		internal Unit[] next; // >=128: [128]
 		internal Unit go; // when next==null or next[byte]==null or backward
 						  // go.next != null, go to start: token end or error
-		internal int mode; // match: 1, mismatch to error: -1, mismatch to backward input: 0
+		internal int mode; // match: -1, mismatch to error: -3, mismatch to backward bytes: >=0
 						   // no backward cross parts nor inside byte repeat
 
 		internal Unit(LexerBase<K, T> l) => id = ++l.id;
@@ -172,11 +172,12 @@ public abstract partial class LexerBase<K, T> : ScanSeg<K, T> where T : struct
 				goto Next;
 		}
 	Go: var go = u.go;
-		if (u.mode == 0) { // failed to greedy
-			u = go; --bt; // one byte backward // TODO backward directly, not one by one
-			goto Go;
+		if (u.mode >= 0) { // failed to greedy
+			if (u.mode == 0)
+				Backward(u); // backward bytes directly
+			bt -= u.mode; u = u.go; go = u.go;
 		}
-		if (u.mode > 0) { // match a part 
+		if (u.mode == -1) { // match a part 
 			var e = go == start;
 			Token(u.key, u.part, ref e, bf, bt);
 			if (e) go = start;
@@ -190,6 +191,15 @@ public abstract partial class LexerBase<K, T> : ScanSeg<K, T> where T : struct
 			return true;
 		u = go;
 		goto Step;
+	}
+
+	private void Backward(Unit u)
+	{
+		var go = u.go;
+		if (go.mode < 0) u.mode = 1;
+		else {
+			Backward(go); u.mode = go.mode + 1; u.go = go.go;
+		}
 	}
 
 	// make each part of a token
@@ -247,7 +257,7 @@ public abstract partial class LexerBase<K, T> : ScanSeg<K, T> where T : struct
 		var uz = us ?? new Dictionary<Unit, bool> { };
 		uz[u] = false; // dumped
 		env.WriteLine($"{u.id}: {u.key}.{u.part} " +
-			$"{(u.mode < 0 ? "err" : u.mode > 0 ? "ok" : "back")}.{u.go.id} < {pre}");
+			$"{(u.mode >= 0 ? "back" : u.mode == -1 ? "ok" : "err")}.{u.go.id} < {pre}");
 		if (!uz.ContainsKey(u.go))
 			uz[u.go] = true; // not dumped yet
 		if (u.next == null)
@@ -344,12 +354,12 @@ public partial class LexerBase<K, T>
 					if (part == 1) throw new Exception($"Empty altern in first part {k}.1");
 					else if (p.Count == 1) throw new Exception($"No byte in {k}.{part}");
 					else if (p.skip) throw new Exception($"Skip at empty {k}.{part}.1");
-					else { u.go = pus[part + 1]; u.mode = 1; }
+					else { u.go = pus[part + 1]; u.mode = -1; }
 				else if (p.skip) // shift input and retry part like the start
 					if (part == 1) throw new Exception($"Skip at first part {k}.1");
-					else { u.go = u; u.mode = -1; }
+					else { u.go = u; u.mode = -3; }
 				else // no backward cross parts
-					{ u.go = start; u.mode = -1; }
+					{ u.go = start; u.mode = -3; }
 			});
 			Unit[] aus = null;
 			// build part
@@ -395,9 +405,9 @@ public partial class LexerBase<K, T>
 		// buid next
 		var go = u; var mode = 0; // mismatch to backward
 		if (end) // last byte of alt
-			{ go = ok; mode = 1; } // match part
+			{ go = ok; mode = -1; } // match part
 		else if (rep != null) // inside byte repeat
-			{ go = rep; mode = -1; } // mismatch to error
+			{ go = rep; mode = -3; } // mismatch to error
 		var next = BuildNext(k, part, u, bs.Span, go, mode, false);
 		if (rep != null)
 			BuildNext(k, part, next, bs.Span, go, mode, true);
@@ -420,7 +430,7 @@ public partial class LexerBase<K, T>
 				: new Unit(this) { key = key, part = part, pren = ns.Length, go = go, mode = mode };
 			for (int x = 0; x < ns.Length; x++)
 				u.next[ns[x]] = n;
-			if (rep && u.mode > 0 && mode < 0)
+			if (rep && u.mode == -1 && mode == -3)
 				throw new Exception($"{key}.{part} and {u.key}.{u.part} conflict over repeat match");
 		}
 		else if (n.pren != ns.Length) // all already nexts must be the same
@@ -435,16 +445,16 @@ public partial class LexerBase<K, T>
 
 	static void BuildMode(K key, int part, Unit u, Unit go, int mode)
 	{
-		if (u.mode + mode == 2) // both 1
+		if (u.mode + mode == -2) // both match
 			throw new Exception($"{key}.{part} and {u.key}.{u.part} conflict over match");
-		if (u.mode + mode == -2 && u.go != go) // both -1
+		if (u.mode + mode == -6 && u.go != go) // both error
 			throw new Exception($"{key}.{part} and {u.key}.{u.part} conflict over error");
-		if (u.mode + mode == -1) // -1 and 0
+		if (u.mode + mode == -3) // error and backward
 			throw new Exception($"{key}.{part} and {u.key}.{u.part} conflict over repeat");
 		if (u.mode == 0 && mode != 0) {
 			u.key = key; u.part = part; u.go = go; u.mode = mode;
 		}
-		else if (u.mode < 0 && mode > 0) {
+		else if (u.mode == -3 && mode == -1) {
 			u.go = go; u.mode = mode;
 		}
 	}
