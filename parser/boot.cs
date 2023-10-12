@@ -63,7 +63,8 @@ sealed class BootScan : ScanStr
 	{
 		if (s[f] != '\\')
 			return s[f..t];
-		return s[++f] switch {
+		char c = s[++f];
+		return c switch {
 			's' => " ",
 			't' => "\t",
 			'n' => "\n",
@@ -72,9 +73,9 @@ sealed class BootScan : ScanStr
 			'd' => lexer ? "0123456789" : "d",
 			'x' => lexer ? "0123456789ABCDEFabcdef" : "x",
 			'a' => lexer ? "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz" : "a",
-			'B' => lexer ? "\x80" : "B",
+			'u' => lexer ? "\x80" : "u",
 			'b' => lexer ? All : "b",
-			_ => s[f].ToString(),
+			_ => c < 129 ? Single[c] : c.ToString(),
 		};
 	}
 }

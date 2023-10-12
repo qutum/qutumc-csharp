@@ -455,15 +455,15 @@ public class TestLexer : IDisposable
 	[TestMethod]
 	public void LexByte1()
 	{
-		Throw(() => new Lexer("A=\\B+ \n B=\\B\\b"), "Prefix of B.1 and A.1");
-		Throw(() => new Lexer("A=\\B+ \n B=\\B\\B"), "B.1 and A.1 conflict");
-		Throw(() => new Lexer("A=\\B+ \n B=\\b"), "Prefix of B.1 and A.1");
+		Throw(() => new Lexer("A=\\u+ \n B=\\u\\b"), "Prefix of B.1 and A.1");
+		Throw(() => new Lexer("A=\\u+ \n B=\\u\\u"), "B.1 and A.1 conflict");
+		Throw(() => new Lexer("A=\\u+ \n B=\\b"), "Prefix of B.1 and A.1");
 	}
 
 	[TestMethod]
 	public void LexByte2()
 	{
-		var l = new Lexer("A=a\\B\\B\\Bz|a\\B\\Bz \n B=a");
+		var l = new Lexer("A=a\\u\\u\\uz|a\\u\\uz \n B=a");
 		Check(l, "a你za好z", "A=a你z A=a好z");
 		Check(l, "a\x80z", "A=a\x80z");
 	}
@@ -471,7 +471,7 @@ public class TestLexer : IDisposable
 	[TestMethod]
 	public void LexByte3()
 	{
-		var l = new Lexer("A=a[\\B\\b^z]+z \n B=[a\\B^\\B]");
+		var l = new Lexer("A=a[\\u\\b^z]+z \n B=[a\\u^\\u]");
 		Check(l, "a好za大家\t都好z", "A=a好z A=a大家\t都好z");
 		Check(l, "a", "B=a");
 		var bs = Encoding.UTF8.GetBytes("a好z"); bs[2] = 0;

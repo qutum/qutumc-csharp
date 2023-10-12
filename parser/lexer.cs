@@ -166,7 +166,7 @@ public abstract partial class LexerBase<K, T> : ScanSeg<K, T> where T : struct
 			else // scan ended, token not
 				goto Go;
 		var b = bytes[bt & 15];
-		if (u.next[b < 128 ? b : 128] is Unit v) {
+		if (u.next[b < 128 ? b : 128] is Unit v) { // one byte by one, even for utf
 			u = v; ++bt;
 			if (u.next != null)
 				goto Next;
