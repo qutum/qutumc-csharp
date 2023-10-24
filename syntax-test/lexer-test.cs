@@ -200,6 +200,13 @@ namespace qutum.test.syntax
 		}
 
 		[TestMethod]
+		public void LexName4()
+		{
+			Check("a234567890123456789012345678901234567890", "NAME=a234567890123456789012345678901234567890");
+			Check("a2345678901234567890123456789012345678901", "NAME!too long NAME=a234567890123456789012345678901234567890");
+		}
+
+		[TestMethod]
 		public void LexPath1()
 		{
 			Check("``", "NAME=,"); Check("`a", "NAME!");
@@ -225,14 +232,14 @@ namespace qutum.test.syntax
 		{
 			Check("0x0", "INT=0"); Check("0xF", "INT=15"); Check("0xx", "HEX!x");
 			Check("+0x0A", "ADD= INT=10"); Check("-0x0A", "SUB= INT=10");
-			Check("0x_0", "INT=0"); Check("0x__0", "HEX!_ NAME=_0"); Check("1x1", "INT=1 NAME=x1");
+			Check("0x_0", "INT=0"); Check("0x__0", "INT=0"); Check("1x1", "INT=1 NAME=x1");
 		}
 
 		[TestMethod]
 		public void LexHex2()
 		{
 			Check("0x7fffffff", "INT=2147483647"); Check("0x80_00_00_00", "INT=2147483648");
-			Check("0xffff_fffe", "INT=4294967294"); Check("0xffff_fffe_", "INT=4294967294 NAME=_");
+			Check("0xffff_fffe", "INT=4294967294"); Check("0xffff_fffe_", "HEX!");
 		}
 
 		[TestMethod]
@@ -240,7 +247,7 @@ namespace qutum.test.syntax
 		{
 			Check("0", "INT=0"); Check("0a", "INT=0 NAME=a");
 			Check("+09", "ADD= INT=9"); Check("-9876", "SUB= INT=9876");
-			Check("2_", "INT=2 NAME=_"); Check("23__3", "INT=23 NAME=__3");
+			Check("2_", "NUM!"); Check("23__3", "INT=233");
 		}
 
 		[TestMethod]
@@ -263,7 +270,7 @@ namespace qutum.test.syntax
 		{
 			Check("1234.0", "FLOAT=1234"); Check("553.2", "FLOAT=553.2"); Check("34_8.5", "FLOAT=348.5");
 			Check("1.00_0_01000000000000000000000000000000000000000000000001", "FLOAT=1.00001");
-			Check("1.0__0", "FLOAT=1 NAME=__0");
+			Check("1.0__0", "FLOAT=1");
 		}
 
 		[TestMethod]
