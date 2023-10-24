@@ -25,6 +25,30 @@ public static class Extension
 	public static ArraySegment<T> AsSeg<T>(this T[] s) => new(s);
 
 	public static ArraySegment<T> AsSeg<T>(this T[] s, int from, int to) => new(s, from, to - from);
+
+	public static IEnumerable<T> AsEnum<T>(this ReadOnlyMemory<T> s) => new MemoryEnum<T>(s);
+}
+
+public readonly struct MemoryEnum<T> : IEnumerable<T>
+{
+	readonly ReadOnlyMemory<T> mem;
+	public MemoryEnum(ReadOnlyMemory<T> mem) => this.mem = mem;
+
+	public IEnumerator<T> GetEnumerator() => new Enum { mem = mem };
+
+	IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+
+	struct Enum : IEnumerator<T>
+	{
+		internal ReadOnlyMemory<T> mem;
+		int x = -1;
+		public Enum() { }
+		public T Current => mem.Span[x];
+		object IEnumerator.Current => Current;
+		public bool MoveNext() => ++x < mem.Length;
+		public void Reset() => x = -1;
+		public void Dispose() { }
+	}
 }
 
 public class LinkTree<T> : IEnumerable<T> where T : LinkTree<T>

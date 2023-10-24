@@ -4,6 +4,7 @@
 // Under the terms of the GNU General Public License version 3
 // http://qutum.com
 //
+#pragma warning disable CA1816 // Dispose methods should call SuppressFinalize
 
 using System;
 using System.Collections.Generic;
@@ -148,7 +149,7 @@ public class ScanByteList : Scan<byte, byte>
 
 	public ScanByteList(List<byte> input) => this.input = input;
 
-	void IDisposable.Dispose() { input = null;  loc = -1; }
+	void IDisposable.Dispose() { input = null; loc = -1; }
 
 	public bool Next() => ++loc < input.Count;
 
