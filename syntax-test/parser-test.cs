@@ -39,9 +39,9 @@ namespace qutum.test.syntax
 					s[n++] = new Token<Lex> { key = l };
 				else
 					s[n - 1].value = vs[x];
-			AreEqual(t.p.dumper(s.AsSeg(0, n)),
+			AreEqual(t.p.dumper(s.Seg(0, n)),
 				t.p.dumper(t.t.from >= 0 ? t.p.scan.Tokens(t.t.from, t.t.to)
-				: t.p.scan.errs.GetRange(~t.t.from, ~t.t.to - ~t.t.from).ToArray().AsSeg()));
+				: t.p.scan.errs.GetRange(~t.t.from, ~t.t.to - ~t.t.from).ToArray().Seg()));
 			return t;
 		}
 

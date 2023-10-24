@@ -13,6 +13,8 @@ using System.Text;
 
 namespace qutum.syntax;
 
+using Set = ScanSet;
+
 public enum Lex
 {
 	BLANK = 0x0010, // blanks
@@ -100,46 +102,39 @@ public class Lexer : Lexer<Lex>
 		.prod(Lex.OR).part["|"]
 
 		.prod(Lex.EOL).part["\n"]["\r\n"]
-		.prod(Lex.SP).part[" \t".AsMemory()] // [\s\t]  |+\s+|+\t+
+		.prod(Lex.SP).part[" \t".Mem()] // [\s\t]  |+\s+|+\t+
 					.part[""][" ", ..].loop["\t", ..].loop
 
 		.prod(Lex.COMM).part["##"] // ##  |[\A^\n]+
-						.part[""][BootLexer.All.Exc("\n"), ..]
+						.part[""][Set.All.Exc("\n"), ..]
 		.prod(Lex.COMMB).part["\\", .., "##"] // \\+##  +##\\+|+#|+[\A^#]+
-						.part["##", "\\", ..].loop["#"].loop
-							[BootLexer.All.Exc("#"), ..].loop
+						.part["##", "\\", ..].loop["#"].loop[Set.All.Exc("#"), ..].loop
 		.prod(Lex.STRB).part["\\", .., "\""] // \\+"  +"\\+|+"|+[\A^"]+
-						.part["\"", "\\", ..].loop["\""].loop
-							[BootLexer.All.Exc("\""), ..].loop
+						.part["\"", "\\", ..].loop["\""].loop[Set.All.Exc("\""), ..].loop
 		.prod(Lex.STR).part["\""] // "  *"|\n|+[\l^""\\]+|+\\[0tnr"".`\\]|+\\x\x\x|+\\u\x\x\x\x
-					.skip["\"\n".AsMemory()]
-						[BootLexer.Line.Exc("\"\\"), ..].loop
-						["\\", "0tnr\".`\\".AsMemory()].loop
-						["\\x", BootLexer.Hex, BootLexer.Hex].loop
-						["\\u", BootLexer.Hex, BootLexer.Hex, BootLexer.Hex, BootLexer.Hex].loop
+					.skip["\"\n".Mem()]
+						[Set.Line.Exc("\"\\"), ..].loop
+						["\\", "0tnr\".`\\".Mem()].loop
+						["\\x", Set.Hex, Set.Hex].loop["\\u", Set.Hex, Set.Hex, Set.Hex, Set.Hex].loop
 		.prod(Lex.PATH).part["`"][".`"] // .?`  *`|\n|+.|+[\l^.`\\]+|+\\[0tnr"".`\\]|+\\x\x\x|+\\u\x\x\x\x
-					.skip["`\n".AsMemory()]["."].loop
-						[BootLexer.Line.Exc(".`\\"), ..].loop
-						["\\", "0tnr\".`\\".AsMemory()].loop
-						["\\x", BootLexer.Hex, BootLexer.Hex].loop
-						["\\u", BootLexer.Hex, BootLexer.Hex, BootLexer.Hex, BootLexer.Hex].loop
+					.skip["`\n".Mem()]["."].loop
+						[Set.Line.Exc(".`\\"), ..].loop
+						["\\", "0tnr\".`\\".Mem()].loop
+						["\\x", Set.Hex, Set.Hex].loop["\\u", Set.Hex, Set.Hex, Set.Hex, Set.Hex].loop
 
-		.prod(Lex.NAME).part[BootLexer.Alpha.Inc("_")] // [\a_]\w*
-							[BootLexer.Alpha.Inc("_"), BootLexer.Word, ..]
+		.prod(Lex.NAME).part[Set.Alpha.Inc("_")][Set.Alpha.Inc("_"), Set.Word, ..] // [\a_]\w*
 		.prod(Lex.RNAME).part["."] // .|.[\a_]\w*
-							[".", BootLexer.Alpha.Inc("_")]
-							[".", BootLexer.Alpha.Inc("_"), BootLexer.Word, ..]
+							[".", Set.Alpha.Inc("_")][".", Set.Alpha.Inc("_"), Set.Word, ..]
 		.prod(Lex.HEX).part["0x"]["0X"] // 0[xX]_*\x  |+_*\x+
-						.part[BootLexer.Hex]["_", .., BootLexer.Hex]
-						.part[""][BootLexer.Hex, ..].loop["_", .., BootLexer.Hex, ..].loop
+						.part[Set.Hex]["_", .., Set.Hex]
+						.part[""][Set.Hex, ..].loop["_", .., Set.Hex, ..].loop
 		.prod(Lex.NUM) // 0|[1-9]  |+_*\d+  |.\d+  |+_+\d+  |[eE][\+\-]?\d+  |[fF]
-						.part["0"][BootLexer.Dec.Exc("0")]
-						.part[""][BootLexer.Dec, ..].loop["_", .., BootLexer.Dec, ..].loop
-						.part[""][".", BootLexer.Dec, ..]
-						.part[""]["_", .., BootLexer.Dec, ..].loop
-						.part[""]["eE".AsMemory(), BootLexer.Dec, ..]
-							["eE".AsMemory(), "+-".AsMemory(), BootLexer.Dec, ..]
-						.part[""]["fF".AsMemory()]
+						.part["0"][Set.Dec.Exc("0")]
+						.part[""][Set.Dec, ..].loop["_", .., Set.Dec, ..].loop
+						.part[""][".", Set.Dec, ..]
+						.part[""]["_", .., Set.Dec, ..].loop
+						.part[""]["eE".Mem(), Set.Dec, ..]["eE".Mem(), "+-".Mem(), Set.Dec, ..]
+						.part[""]["fF".Mem()]
 	;
 
 	public override bool Is(Lex testee, Lex key)

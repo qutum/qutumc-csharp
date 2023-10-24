@@ -8,10 +8,7 @@
 
 using System;
 using System.Collections.Generic;
-using System.Dynamic;
 using System.Linq;
-using System.Linq.Expressions;
-using System.Numerics;
 using System.Text;
 
 namespace qutum.parser;
@@ -230,7 +227,7 @@ public abstract partial class LexerBase<K, T> : ScanSeg<K, T> where T : struct
 	public ArraySegment<T> Tokens(int from, int to)
 	{
 		if (to > tokenn) throw new IndexOutOfRangeException();
-		return tokens.AsSeg(from, to);
+		return tokens.Seg(from, to);
 	}
 
 	IEnumerable<T> Scan<K, T>.Tokens(int from, int to) => Tokens(from, to);
@@ -381,7 +378,7 @@ public partial class LexerBase<K, T>
 					var bx = 0; // build units from contents
 					foreach (var e in a) {
 						for (int x = 0; x < e.str.Length; x++)
-							BuildByte(e.str.AsMemory(x, 1), ref u, k, part, ++bx >= bn, ok,
+							BuildByte(e.str.Mem(x, x + 1), ref u, k, part, ++bx >= bn, ok,
 								e.rep && x == e.str.Length - 1 ? rep : null);
 						if (e.inc.Length > 0)
 							BuildByte(e.inc, ref u, k, part, ++bx >= bn, ok, e.rep ? rep : null);

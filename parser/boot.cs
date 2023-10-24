@@ -11,6 +11,8 @@ using System.Linq;
 
 namespace qutum.parser;
 
+using Set = ScanSet;
+
 sealed class BootScan : ScanStr
 {
 	public BootScan(string input) : base(input) { }
@@ -23,52 +25,18 @@ sealed class BootScan : ScanStr
 	public override bool Is(char t, char key) =>
 		key switch {
 			'S' => t is ' ' or '\t',   // space
-			'W' => t < 127 && W[t],    // word
-			'X' => t < 127 && X[t],    // hexadecimal
-			'O' => t < 127 && O[t],    // operator
-			'G' => t < 127 && G[t],    // operator for grammar
+			'W' => t < 127 && Set.W[t],    // word
+			'X' => t < 127 && Set.X[t],    // hexadecimal
+			'O' => t < 127 && Set.O[t],    // operator
+			'G' => t < 127 && Set.G[t],    // operator for grammar
 			'E' => t > ' ' && t < 127, // escape
-			'I' => t < 127 && I[t],    // single 
-			'R' => t < 127 && I[t] && t != '-' && t != '^', // range
+			'I' => t < 127 && Set.I[t],    // single 
+			'R' => t < 127 && Set.I[t] && t != '-' && t != '^', // range
 			'Q' => t is '?' or '*' or '+',                  // quantifier
 			'H' => t >= ' ' && t < 127 && t != '=' && t != '|', // hint
 			'V' => t is >= ' ' or '\t',                         // comment
 			_ => t == key,
 		};
-
-	internal static bool[] L = new bool[129], D = new bool[129], X = new bool[129],
-							A = new bool[129], W = new bool[129], O = new bool[129],
-							G = new bool[129], I = new bool[129],
-							RI = new bool[129]; // default inclusive range
-	internal static string All, Line, Dec, Hex, Alpha, Word, Op;
-	internal static string[] One; // one bytes
-
-	static BootScan()
-	{
-		foreach (var t in "!\"#$%&'()*+,-./:;<=>?@[\\]^`{|}~") {
-			O[t] = true;
-			G[t] = t is not ('*' or '+' or '=' or '?' or '\\' or '|');
-		}
-		for (char t = '\0'; t < 127; t++) {
-			L[t] = t is >= ' ' or '\t';
-			D[t] = t is >= '0' and <= '9';
-			X[t] = (D[t]) || t is >= 'a' and <= 'f' or >= 'A' and <= 'F';
-			A[t] = t is >= 'A' and <= 'Z' or >= 'a' and <= 'z';
-			W[t] = (D[t] || A[t]) || t == '_';
-			I[t] = (W[t] || G[t]) && t != '[' && t != ']' || t == '=';
-			RI[t] = t is >= ' ' or '\t' or '\n' or '\r';
-		}
-		L[128] = true;
-		var all = Enumerable.Range(0, 129);
-		All = new string(all.Select(b => (char)b).ToArray());
-		Line = new string(all.Where(b => L[b]).Select(b => (char)b).ToArray());
-		Dec = new string(all.Where(b => D[b]).Select(b => (char)b).ToArray());
-		Hex = new string(all.Where(b => X[b]).Select(b => (char)b).ToArray());
-		Alpha = new string(all.Where(b => A[b]).Select(b => (char)b).ToArray());
-		Word = new string(all.Where(b => W[b]).Select(b => (char)b).ToArray());
-		Op = new string(all.Where(b => O[b]).Select(b => (char)b).ToArray());
-		One = Enumerable.Range(0, 129).Select(b => new string((char)b, 1)).ToArray();
-	}
 
 	// for general grammar
 	internal static string Unesc(string s, int f, int t, bool lexer = false)
@@ -83,14 +51,14 @@ sealed class BootScan : ScanStr
 			'r' => "\r",
 			'0' => "\0",
 			_ => (lexer ? c : '\0') switch {
-				'A' => All,
-				'l' => Line,
-				'd' => Dec,
-				'x' => Hex,
-				'a' => Alpha,
-				'w' => Word,
+				'A' => Set.ALL,
+				'l' => Set.LINE,
+				'd' => Set.DEC,
+				'x' => Set.HEX,
+				'a' => Set.ALPHA,
+				'w' => Set.WORD,
 				'u' => "\x80",
-				_ => c < 129 ? One[c] : c.ToString(),
+				_ => c < 129 ? Set.ONE[c] : c.ToString(),
 			}
 		};
 	}
@@ -98,19 +66,6 @@ sealed class BootScan : ScanStr
 
 public static class BootLexer
 {
-	public static readonly ReadOnlyMemory<char> All = BootScan.All.AsMemory(),
-		Line = BootScan.Line.AsMemory(), Dec = BootScan.Dec.AsMemory(), Hex = BootScan.Hex.AsMemory(),
-		Alpha = BootScan.Alpha.AsMemory(), Word = BootScan.Word.AsMemory(), Op = BootScan.Op.AsMemory();
-
-	public static ReadOnlyMemory<char> Inc(this ReadOnlyMemory<char> inc, ReadOnlyMemory<char> more)
-		=> inc.AsEnum().Union(more.AsEnum()).ToArray().AsMemory();
-	public static ReadOnlyMemory<char> Inc(this ReadOnlyMemory<char> inc, string more)
-		=> Inc(inc, more.AsMemory());
-	public static ReadOnlyMemory<char> Exc(this ReadOnlyMemory<char> inc, ReadOnlyMemory<char> exc)
-		=> inc.AsEnum().Except(exc.AsEnum()).ToArray().AsMemory();
-	public static ReadOnlyMemory<char> Exc(this ReadOnlyMemory<char> inc, string exc)
-		=> Exc(inc, exc.AsMemory());
-
 	// gram
 	// \ prod
 	//   \ key
@@ -199,7 +154,7 @@ public static class BootLexer
 	{
 		var x = b.from;
 		if (gram[x] == '\\') { // escape bytes
-			es[en++] = BootScan.Unesc(gram, x, b.to, true).AsMemory();
+			es[en++] = BootScan.Unesc(gram, x, b.to, true).Mem();
 			x += 2;
 		}
 		// build range
@@ -207,7 +162,7 @@ public static class BootLexer
 			++x;
 			Span<bool> rs = stackalloc bool[129]; bool inc = true;
 			if (x != b.head?.from) // inclusive range omitted, use default
-				BootScan.RI.CopyTo(rs);
+				Set.RI.CopyTo(rs);
 			foreach (var r in b) {
 				inc &= x == (x = r.from); // before ^
 				if (gram[x] == '\\')
@@ -228,7 +183,7 @@ public static class BootLexer
 			++x; // range ]
 		}
 		else // single byte
-			es[en++] = BootScan.One[gram[x++]];
+			es[en++] = Set.ONE[gram[x++]];
 		// byte loop +
 		if (x < b.to)
 			es[en++] = Range.All;

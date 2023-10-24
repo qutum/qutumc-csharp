@@ -22,11 +22,15 @@ public static class Extension
 		int x = 0; foreach (var t in s) a(t, x++);
 	}
 
-	public static ArraySegment<T> AsSeg<T>(this T[] s) => new(s);
+	public static ArraySegment<T> Seg<T>(this T[] s) => new(s);
 
-	public static ArraySegment<T> AsSeg<T>(this T[] s, int from, int to) => new(s, from, to - from);
+	public static ArraySegment<T> Seg<T>(this T[] s, int from, int to) => new(s, from, to - from);
 
-	public static IEnumerable<T> AsEnum<T>(this ReadOnlyMemory<T> s) => new MemoryEnum<T>(s);
+	public static IEnumerable<T> Enum<T>(this ReadOnlyMemory<T> s) => new MemoryEnum<T>(s);
+
+	public static ReadOnlyMemory<char> Mem(this string s) => s.AsMemory();
+
+	public static ReadOnlyMemory<char> Mem(this string s, int from, int to) => s.AsMemory(from, to - from);
 }
 
 public readonly struct MemoryEnum<T> : IEnumerable<T>

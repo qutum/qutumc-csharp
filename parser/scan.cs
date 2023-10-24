@@ -95,7 +95,7 @@ public class ScanByte : ScanSeg<byte, byte>
 
 	public byte Token(int loc) => input[loc];
 
-	public ArraySegment<byte> Tokens(int from, int to) => input.AsSeg(from, to);
+	public ArraySegment<byte> Tokens(int from, int to) => input.Seg(from, to);
 
 	IEnumerable<byte> Scan<byte, byte>.Tokens(int from, int to) => Tokens(from, to);
 
@@ -176,4 +176,60 @@ public class ScanByteList : Scan<byte, byte>
 	}
 
 	public IEnumerable<byte> Keys(string text) => text.Select(k => (byte)k);
+}
+
+public static class ScanSet
+{
+
+	internal static bool[] L = new bool[129], D = new bool[129], X = new bool[129],
+							A = new bool[129], W = new bool[129], O = new bool[129],
+							G = new bool[129], I = new bool[129],
+							RI = new bool[129]; // default inclusive range
+	internal static string ALL, LINE, DEC, HEX, ALPHA, WORD, OP;
+	internal static string[] ONE; // one bytes
+
+	public static readonly ReadOnlyMemory<char> All, Line, Dec, Hex, Alpha, Word, Op;
+
+	static ScanSet()
+	{
+		foreach (var t in "!\"#$%&'()*+,-./:;<=>?@[\\]^`{|}~") {
+			O[t] = true;
+			G[t] = t is not ('*' or '+' or '=' or '?' or '\\' or '|');
+		}
+		for (char t = '\0'; t < 127; t++) {
+			L[t] = t is >= ' ' or '\t';
+			D[t] = t is >= '0' and <= '9';
+			X[t] = (D[t]) || t is >= 'a' and <= 'f' or >= 'A' and <= 'F';
+			A[t] = t is >= 'A' and <= 'Z' or >= 'a' and <= 'z';
+			W[t] = (D[t] || A[t]) || t == '_';
+			I[t] = (W[t] || G[t]) && t != '[' && t != ']' || t == '=';
+			RI[t] = t is >= ' ' or '\t' or '\n' or '\r';
+		}
+		L[128] = true;
+		var all = Enumerable.Range(0, 129);
+		ALL = new string(all.Select(b => (char)b).ToArray());
+		LINE = new string(all.Where(b => L[b]).Select(b => (char)b).ToArray());
+		DEC = new string(all.Where(b => D[b]).Select(b => (char)b).ToArray());
+		HEX = new string(all.Where(b => X[b]).Select(b => (char)b).ToArray());
+		ALPHA = new string(all.Where(b => A[b]).Select(b => (char)b).ToArray());
+		WORD = new string(all.Where(b => W[b]).Select(b => (char)b).ToArray());
+		OP = new string(all.Where(b => O[b]).Select(b => (char)b).ToArray());
+		ONE = Enumerable.Range(0, 129).Select(b => new string((char)b, 1)).ToArray();
+		All = ALL.Mem();
+		Line = LINE.Mem();
+		Dec = DEC.Mem();
+		Hex = HEX.Mem();
+		Alpha = ALPHA.Mem();
+		Word = WORD.Mem();
+		Op = OP.Mem();
+	}
+
+	public static ReadOnlyMemory<char> Inc(this ReadOnlyMemory<char> inc, ReadOnlyMemory<char> more)
+		=> inc.Enum().Union(more.Enum()).ToArray().AsMemory();
+	public static ReadOnlyMemory<char> Inc(this ReadOnlyMemory<char> inc, string more)
+		=> Inc(inc, more.Mem());
+	public static ReadOnlyMemory<char> Exc(this ReadOnlyMemory<char> inc, ReadOnlyMemory<char> exc)
+		=> inc.Enum().Except(exc.Enum()).ToArray().AsMemory();
+	public static ReadOnlyMemory<char> Exc(this ReadOnlyMemory<char> inc, string exc)
+		=> Exc(inc, exc.Mem());
 }
