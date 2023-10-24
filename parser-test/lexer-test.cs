@@ -124,7 +124,7 @@ public class TestLexer : IDisposable
 	[TestMethod]
 	public void LexRange1()
 	{
-		Throw(() => _ = new Lexer("A=a[^ab] \n B=ac"), "Prefix of B.1 and A.1");
+		Throw(() => _ = new Lexer("A=a[^ab] \n B=ac"), "Prefix.* of B.1 and A.1");
 	}
 
 	[TestMethod]
@@ -178,8 +178,8 @@ public class TestLexer : IDisposable
 	[TestMethod]
 	public void LexRange8()
 	{
-		Throw(() => new Lexer("A=a[ac] \n B=a[bc]"), "Prefix of B.1 and A.1");
-		Throw(() => new Lexer("A=a[abc] \n B=a[bc]"), "Prefix of B.1 and A.1");
+		Throw(() => new Lexer("A=a[ac] \n B=a[bc]"), "Prefix.* of B.1 and A.1");
+		Throw(() => new Lexer("A=a[abc] \n B=a[bc]"), "Prefix.* of B.1 and A.1");
 	}
 
 	[TestMethod]
@@ -208,7 +208,7 @@ public class TestLexer : IDisposable
 	public void LexAlt4()
 	{
 		Throw(() => new Lexer("A=a[a-c^ac]|a[b-b]"), "A.1 and A.1 conflict");
-		Throw(() => new Lexer("A=a[a-c^a]|ab"), "Prefix of A.1 and A.1");
+		Throw(() => new Lexer("A=a[a-c^a]|ab"), "Prefix.* of A.1 and A.1");
 	}
 
 	[TestMethod]
@@ -453,15 +453,15 @@ public class TestLexer : IDisposable
 	}
 
 	[TestMethod]
-	public void LexByte1()
+	public void LexUtf1()
 	{
-		Throw(() => new Lexer("A=\\u+ \n B=\\u\\b"), "Prefix of B.1 and A.1");
+		Throw(() => new Lexer("A=\\u+ \n B=\\u\\A"), "Prefix.* of B.1 and A.1");
 		Throw(() => new Lexer("A=\\u+ \n B=\\u\\u"), "B.1 and A.1 conflict");
-		Throw(() => new Lexer("A=\\u+ \n B=\\b"), "Prefix of B.1 and A.1");
+		Throw(() => new Lexer("A=\\u+ \n B=\\A"), "Prefix.* of B.1 and A.1");
 	}
 
 	[TestMethod]
-	public void LexByte2()
+	public void LexUtf2()
 	{
 		var l = new Lexer("A=a\\u\\u\\uz|a\\u\\uz \n B=a");
 		Check(l, "a你za好z", "A=a你z A=a好z");
@@ -469,9 +469,9 @@ public class TestLexer : IDisposable
 	}
 
 	[TestMethod]
-	public void LexByte3()
+	public void LexUtf3()
 	{
-		var l = new Lexer("A=a[\\u\\b^z]+z \n B=[a\\u^\\u]");
+		var l = new Lexer("A=a[\\u\\A^z]+z \n B=[a\\u^\\u]");
 		Check(l, "a好za大家\t都好z", "A=a好z A=a大家\t都好z");
 		Check(l, "a", "B=a");
 		var bs = Encoding.UTF8.GetBytes("a好z"); bs[2] = 0;

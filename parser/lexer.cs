@@ -4,6 +4,7 @@
 // Under the terms of the GNU General Public License version 3
 // http://qutum.com
 //
+#pragma warning disable CA1816 // Dispose methods should call SuppressFinalize
 
 using System;
 using System.Collections.Generic;
@@ -294,12 +295,12 @@ public class LexerGram<K>
 		// skip mismatched input and retry this part
 		public bool skip;
 	}
-	public class Alt : List<Elem>
+	public class Alt : List<Con>
 	{
 		// match to loop part
 		public bool loop;
 	}
-	public class Elem
+	public class Con
 	{
 		// byte sequence
 		public string str = "";
@@ -313,18 +314,18 @@ public class LexerGram<K>
 	public LexerGram<K> prod(K key) { prods.Add(new Prod { key = key }); return this; }
 	public LexerGram<K> part { get { prods[^1].Add(new Part()); return this; } }
 	public LexerGram<K> skip { get { prods[^1].Add(new Part { skip = true }); return this; } }
-	// element: string : byte sequence, ReadOnlyMemory<char> : inclusive range, .. : repeat
-	public LexerGram<K> this[params object[] elems] {
+	// content: string : byte sequence, ReadOnlyMemory<char> : inclusive range, .. : repeat
+	public LexerGram<K> this[params object[] cons] {
 		get {
 			Alt a = new();
 			prods[^1][^1].Add(a);
-			if (prods[^1][^1].Count == 1 && elems.Length == 1 && "".Equals(elems[0]))
+			if (prods[^1][^1].Count == 1 && cons.Length == 1 && "".Equals(cons[0]))
 				return this;
-			foreach (var e in elems)
-				if (e is Range) a[^1].rep = true;
-				else if (e is string str) a.Add(new Elem { str = str });
-				else if (e is ReadOnlyMemory<char> inc) a.Add(new Elem { inc = inc });
-				else throw new Exception("wrong altern element");
+			foreach (var v in cons)
+				if (v is Range) a[^1].rep = true;
+				else if (v is string str) a.Add(new Con { str = str });
+				else if (v is ReadOnlyMemory<char> inc) a.Add(new Con { inc = inc });
+				else throw new Exception($"wrong altern content {v?.GetType()}");
 			return this;
 		}
 	}
@@ -377,7 +378,7 @@ public partial class LexerBase<K, T>
 					var ok = !a.loop ? pus[part + 1] // go for match
 						: part > 1 ? u : throw new Exception($"Can not loop first part {k}.1.{alt}");
 					var rep = p.skip ? u : start; // error for repeat
-					var bx = 0; // build units from elements
+					var bx = 0; // build units from contents
 					foreach (var e in a) {
 						for (int x = 0; x < e.str.Length; x++)
 							BuildByte(e.str.AsMemory(x, 1), ref u, k, part, ++bx >= bn, ok,
@@ -385,7 +386,7 @@ public partial class LexerBase<K, T>
 						if (e.inc.Length > 0)
 							BuildByte(e.inc, ref u, k, part, ++bx >= bn, ok, e.rep ? rep : null);
 					}
-					return u; // last unit of this alt
+					return u; // the last unit of this alt
 				}).Where(u => u.next != null).ToArray();
 				if (aus != null) {
 					u = pus[part];
@@ -404,7 +405,7 @@ public partial class LexerBase<K, T>
 	{
 		// buid next
 		var go = u; var mode = 0; // mismatch to backward
-		if (end) // last byte of alt
+		if (end) // the last byte of alt
 			{ go = ok; mode = -1; } // match part
 		else if (rep != null) // inside byte repeat
 			{ go = rep; mode = -3; } // mismatch to error
@@ -421,9 +422,9 @@ public partial class LexerBase<K, T>
 			u.next = new Unit[129];
 		else
 			// all exist nexts must be the same
-			for (int x = 0; x < ns.Length; x++)
+			for (int x = 1; x < ns.Length; x++)
 				if (u.next[ns[x]] != n)
-					throw new Exception($"Prefix of {key}.{part} and {(n ?? u.next[ns[x]]).key}"
+					throw new Exception($"Prefix '{ns[x]}' of {key}.{part} and {(n ?? u.next[ns[x]]).key}"
 						+ $".{(n ?? u.next[ns[x]]).part} must be the same or distinct");
 		if (n == null) {
 			n = rep ? u // repeat byte
@@ -434,7 +435,7 @@ public partial class LexerBase<K, T>
 				throw new Exception($"{key}.{part} and {u.key}.{u.part} conflict over repeat match");
 		}
 		else if (n.pren != ns.Length) // all already nexts must be the same
-			throw new Exception($"Prefix of {key}.{part} and {n.key}.{n.part}"
+			throw new Exception($"Prefixs of {key}.{part} and {n.key}.{n.part}"
 				+ " must be the same or distinct");
 		else if (rep != (n == u)) // already exist next must not conflict
 			throw new Exception($"{key}.{part} and {n.key}.{n.part} conflict over byte repeat");
