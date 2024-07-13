@@ -191,7 +191,7 @@ public abstract partial class LexerBase<K, T> : ScanSeg<K, T> where T : struct
 		goto Step;
 	}
 
-	private void Backward(Unit u)
+	private static void Backward(Unit u)
 	{
 		var go = u.go;
 		if (go.mode < 0) u.mode = 1;
@@ -322,7 +322,7 @@ public class LexerGram<K>
 				if (v is Range) a[^1].rep = true;
 				else if (v is string str) a.Add(new Con { str = str });
 				else if (v is ReadOnlyMemory<char> inc) a.Add(new Con { inc = inc });
-				else throw new Exception($"wrong altern content {v?.GetType()}");
+				else throw new($"wrong altern content {v?.GetType()}");
 			return this;
 		}
 	}
@@ -334,12 +334,12 @@ public partial class LexerBase<K, T>
 	public LexerBase(LexerGram<K> gram, bool dump = false)
 	{
 		if (gram.prods.Count < 1)
-			throw new Exception("No product");
+			throw new("No product");
 		start = new Unit(this);
 		// build prod
 		foreach (var prod in gram.prods) {
 			var k = prod.key;
-			if (prod.Count == 0) throw new Exception($"No part in {k}");
+			if (prod.Count == 0) throw new($"No part in {k}");
 			// first unit of each part
 			var pus = prod.Skip(1).Select((_, px) => new Unit(this) { key = k, part = px + 2 })
 				.Prepend(start).Prepend(null)
@@ -347,14 +347,14 @@ public partial class LexerBase<K, T>
 			prod.Each((p, part) => {
 				var u = pus[++part]; // first part is 1
 				if (p.Count == 0)
-					throw new Exception($"No altern in {k}.{part}");
+					throw new($"No altern in {k}.{part}");
 				if (p[0].Count == 0) // empty alt for option part
-					if (part == 1) throw new Exception($"Empty altern in first part {k}.1");
-					else if (p.Count == 1) throw new Exception($"No byte in {k}.{part}");
-					else if (p.skip) throw new Exception($"Skip at empty {k}.{part}.1");
+					if (part == 1) throw new($"Empty altern in first part {k}.1");
+					else if (p.Count == 1) throw new($"No byte in {k}.{part}");
+					else if (p.skip) throw new($"Skip at empty {k}.{part}.1");
 					else { u.go = pus[part + 1]; u.mode = -1; }
 				else if (p.skip) // shift input and retry part like the start
-					if (part == 1) throw new Exception($"Skip at first part {k}.1");
+					if (part == 1) throw new($"Skip at first part {k}.1");
 					else { u.go = u; u.mode = -3; }
 				else // no backward cross parts
 					{ u.go = start; u.mode = -3; }
@@ -368,12 +368,12 @@ public partial class LexerBase<K, T>
 					++alt;
 					var bn = a.Sum(b => b.str.Length + (b.inc.Length > 0 ? 1 : 0));
 					if (a.Count == 0 ? alt > 1 : bn == 0)
-						throw new Exception($"No byte in {k}.{part}.{alt}");
+						throw new($"No byte in {k}.{part}.{alt}");
 					if (bn > LexerGram<K>.AltByteN)
-						throw new Exception($"{k}.{part}.{alt} exceeds {LexerGram<K>.AltByteN} bytes");
+						throw new($"{k}.{part}.{alt} exceeds {LexerGram<K>.AltByteN} bytes");
 					u = pus[part];
 					var ok = !a.loop ? pus[part + 1] // go for match
-						: part > 1 ? u : throw new Exception($"Can not loop first part {k}.1.{alt}");
+						: part > 1 ? u : throw new($"Can not loop first part {k}.1.{alt}");
 					var rep = p.skip ? u : start; // error for repeat
 					var bx = 0; // build units from contents
 					foreach (var e in a) {
@@ -389,7 +389,7 @@ public partial class LexerBase<K, T>
 					u = pus[part];
 					for (int x = 0; x <= 128; x++)
 						if (u.next[x] != null && aus.Any(au => au.next[x] != null))
-							throw new Exception($"{k}.{part} and {k}.{part - 1} conflict over repeat");
+							throw new($"{k}.{part} and {k}.{part - 1} conflict over repeat");
 				}
 				aus = Aus;
 			});
@@ -421,7 +421,7 @@ public partial class LexerBase<K, T>
 			// all exist nexts must be the same
 			for (int x = 1; x < ns.Length; x++)
 				if (u.next[ns[x]] != n)
-					throw new Exception($"Prefix '{ns[x]}' of {key}.{part} and {(n ?? u.next[ns[x]]).key}"
+					throw new($"Prefix '{ns[x]}' of {key}.{part} and {(n ?? u.next[ns[x]]).key}"
 						+ $".{(n ?? u.next[ns[x]]).part} must be the same or distinct");
 		if (n == null) {
 			n = rep ? u // repeat byte
@@ -429,13 +429,13 @@ public partial class LexerBase<K, T>
 			for (int x = 0; x < ns.Length; x++)
 				u.next[ns[x]] = n;
 			if (rep && u.mode == -1 && mode == -3)
-				throw new Exception($"{key}.{part} and {u.key}.{u.part} conflict over repeat match");
+				throw new($"{key}.{part} and {u.key}.{u.part} conflict over repeat match");
 		}
 		else if (n.pren != ns.Length) // all already nexts must be the same
-			throw new Exception($"Prefixs of {key}.{part} and {n.key}.{n.part}"
+			throw new($"Prefixs of {key}.{part} and {n.key}.{n.part}"
 				+ " must be the same or distinct");
 		else if (rep != (n == u)) // already exist next must not conflict
-			throw new Exception($"{key}.{part} and {n.key}.{n.part} conflict over byte repeat");
+			throw new($"{key}.{part} and {n.key}.{n.part} conflict over byte repeat");
 		else if (!rep)
 			BuildMode(key, part, n, go, mode); // check mode for already exist next
 		return n;
@@ -444,11 +444,11 @@ public partial class LexerBase<K, T>
 	static void BuildMode(K key, int part, Unit u, Unit go, int mode)
 	{
 		if (u.mode + mode == -2) // both match
-			throw new Exception($"{key}.{part} and {u.key}.{u.part} conflict over match");
+			throw new($"{key}.{part} and {u.key}.{u.part} conflict over match");
 		if (u.mode + mode == -6 && u.go != go) // both error
-			throw new Exception($"{key}.{part} and {u.key}.{u.part} conflict over error");
+			throw new($"{key}.{part} and {u.key}.{u.part} conflict over error");
 		if (u.mode + mode == -3) // error and backward
-			throw new Exception($"{key}.{part} and {u.key}.{u.part} conflict over repeat");
+			throw new($"{key}.{part} and {u.key}.{u.part} conflict over repeat");
 		if (u.mode == 0 && mode != 0) {
 			u.key = key; u.part = part; u.go = go; u.mode = mode;
 		}

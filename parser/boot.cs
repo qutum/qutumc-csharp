@@ -136,7 +136,7 @@ public static class BootLexer
 					var bytes = a.Where(t => t.name == "byte");
 					var bn = bytes.Count();
 					if (bn > LexerGram<K>.AltByteN)
-						throw new Exception($"{k}.{part}.{alt} exceeds {LexerGram<K>.AltByteN} bytes :"
+						throw new($"{k}.{part}.{alt} exceeds {LexerGram<K>.AltByteN} bytes :"
 							+ boot.scan.Tokens(a.from, a.to));
 					var en = 0;
 					bytes.Each((b, bx) => Byte(gram, k, part, alt, b, es, ref en));
@@ -178,7 +178,7 @@ public static class BootLexer
 			for (char y = '\0'; y <= 128; y++)
 				if (rs[y]) s[n++] = y;
 			if (n == 0)
-				throw new Exception($"No byte in {k}.{part} :{boot.scan.Tokens(b.from, b.to)}");
+				throw new($"No byte in {k}.{part} :{boot.scan.Tokens(b.from, b.to)}");
 			es[en++] = (ReadOnlyMemory<char>)s.AsMemory(0, n);
 			++x; // range ]
 		}

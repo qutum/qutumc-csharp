@@ -7,6 +7,7 @@
   </PropertyGroup>
   <PropertyGroup Label="Configuration" />
   <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)boot.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)lexer.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)parser.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)scan.cs" />

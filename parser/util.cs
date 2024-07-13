@@ -47,11 +47,11 @@ public readonly struct MemoryEnum<T> : IEnumerable<T>
 		internal ReadOnlyMemory<T> mem;
 		int x = -1;
 		public Enum() { }
-		public T Current => mem.Span[x];
-		object IEnumerator.Current => Current;
+		public readonly T Current => mem.Span[x];
+		readonly object IEnumerator.Current => Current;
 		public bool MoveNext() => ++x < mem.Length;
 		public void Reset() => x = -1;
-		public void Dispose() { }
+		public readonly void Dispose() { }
 	}
 }
 
