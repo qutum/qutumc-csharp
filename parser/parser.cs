@@ -31,7 +31,7 @@ public class Synt<N, T> : LinkTree<T> where T : Synt<N, T>
 
 	public override string ToString(object extra)
 	{
-		if (!(extra is Func<int, int, (int, int, int, int)> loc))
+		if (extra is not Func<int, int, (int, int, int, int)> loc)
 			return ToString();
 		var (fl, fc, tl, tc) = loc(from, to);
 		return $"{fl}.{fc}:{tl}.{tc}{(err == 0 ? info != null ? " " + info : ""
@@ -43,15 +43,15 @@ public class TreeStr : Synt<string, TreeStr>
 {
 }
 
-public class Parser<K, N, T, Sc> : ParserBase<K, Token<K>, N, T, Sc>
-	where K : struct where T : Synt<N, T>, new() where Sc : ScanSeg<K, Token<K>>
+public class Parser<K, N, T, Ler> : ParserBase<K, Token<K>, N, T, Ler>
+	where K : struct where T : Synt<N, T>, new() where Ler : ScanSeg<K, Token<K>>
 {
-	public Parser(string gram, Sc scan) : base(gram, scan) { }
+	public Parser(string gram, Ler ler) : base(gram, ler) { }
 }
 
 public class ParserStr : ParserChar
 {
-	public ParserStr(string gram, ScanStr scan = null) : base(gram, scan ?? new ScanStr("")) { }
+	public ParserStr(string gram, ScanStr ler = null) : base(gram, ler ?? new ScanStr("")) { }
 }
 
 public enum Qua : byte { Opt = 0, One = 1, Any = 2, More = 3 };
@@ -119,14 +119,14 @@ public partial class ParserBase<K, Tk, N, T, Ler> where T : Synt<N, T>, new() wh
 		internal int prev; // complete or option: >=0, predict: >=-1, shift: see code, repeat: kept
 		internal int tail; // Alt: >=0, predict: -1, shift: -2, option: -3, repeat: kept, recover: -4
 
-		public override string ToString()
+		public override readonly string ToString()
 			=> $"{from}:{to}{(a.s[step].p != null ? "'" : "#")}{step}" +
 			$"{(tail >= 0 ? "^" : tail == -1 ? "p" : tail == -2 ? "s" : tail == -3 ? "?" : "r")} {a}";
 	}
 
-	ParserBase(Prod start) { this.start = start; recm = Array.Empty<int>(); }
+	ParserBase(Prod start) { this.start = start; recm = []; }
 
-	public ParserBase<K, Tk, N, T, Ler> Load(Ler scan) { this.scan = scan; return this; }
+	public ParserBase<K, Tk, N, T, Ler> Load(Ler ler) { this.scan = ler; return this; }
 
 	// make Synt from complete Alts
 	public virtual T Parse()
@@ -439,11 +439,11 @@ public partial class ParserBase<K, Tk, N, T, Ler> where T : Synt<N, T>, new() wh
 
 public class ParserGram<K, N>
 {
-	public readonly List<Prod> prods = new();
+	public readonly List<Prod> prods = [];
 	public class Prod : List<Alt> { public N name; }
 	public class Alt : AltHint
 	{
-		public readonly List<object> cons = new();
+		public readonly List<object> cons = [];
 	}
 
 	public ParserGram<K, N> prod(N name) { prods.Add(new Prod { name = name }); return this; }
@@ -580,8 +580,7 @@ public partial class ParserBase<K, Tk, N, T, Ler>
 						: scan.Keys(BootScan.Unesc(gram, t.from, t.to)).Cast<object>()
 					// for word, search product names first, then scan keys
 					: names.TryGetValue(t.dump = boot.scan.Tokens(t.from, t.to), out Prod p)
-						? new object[] { p }
-						: scan.Keys(t.dump).Cast<object>())
+						? [p] : scan.Keys(t.dump).Cast<object>())
 					.Append(null)
 					.ToArray();
 				// build alt

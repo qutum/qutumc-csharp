@@ -13,10 +13,8 @@ namespace qutum.parser;
 
 using Set = ScanSet;
 
-sealed class BootScan : ScanStr
+sealed class BootScan(string input) : ScanStr(input)
 {
-	public BootScan(string input) : base(input) { }
-
 	public override bool Is(char key) => Is(input[loc], key);
 
 	public override bool Is(int loc, char key) => Is(input[loc], key);

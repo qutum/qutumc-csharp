@@ -37,12 +37,10 @@ public interface ScanSeg<K, T> : Scan<K, T>
 	new ArraySegment<T> Tokens(int from, int to);
 }
 
-public class ScanStr : Scan<char, char>
+public class ScanStr(string input) : Scan<char, char>
 {
-	protected string input;
+	protected string input = input;
 	protected int loc = -1;
-
-	public ScanStr(string input) => this.input = input;
 
 	void IDisposable.Dispose() { input = null; loc = -1; }
 
@@ -72,12 +70,10 @@ public class ScanStr : Scan<char, char>
 	public IEnumerable<char> Keys(string text) => text;
 }
 
-public class ScanByte : ScanSeg<byte, byte>
+public class ScanByte(byte[] input) : ScanSeg<byte, byte>
 {
-	protected byte[] input;
+	protected byte[] input = input;
 	protected int loc = -1;
-
-	public ScanByte(byte[] input) => this.input = input;
 
 	void IDisposable.Dispose() { input = null; loc = -1; }
 
@@ -107,12 +103,10 @@ public class ScanByte : ScanSeg<byte, byte>
 	public IEnumerable<byte> Keys(string text) => text.Select(k => (byte)k);
 }
 
-public class ScanByteSeg : ScanSeg<byte, byte>
+public class ScanByteSeg(ArraySegment<byte> input) : ScanSeg<byte, byte>
 {
-	protected ArraySegment<byte> input;
+	protected ArraySegment<byte> input = input;
 	protected int loc = -1;
-
-	public ScanByteSeg(ArraySegment<byte> input) => this.input = input;
 
 	void IDisposable.Dispose() { input = null; loc = -1; }
 
@@ -142,12 +136,10 @@ public class ScanByteSeg : ScanSeg<byte, byte>
 	public IEnumerable<byte> Keys(string text) => text.Select(k => (byte)k);
 }
 
-public class ScanByteList : Scan<byte, byte>
+public class ScanByteList(List<byte> input) : Scan<byte, byte>
 {
-	protected List<byte> input;
+	protected List<byte> input = input;
 	protected int loc = -1;
-
-	public ScanByteList(List<byte> input) => this.input = input;
 
 	void IDisposable.Dispose() { input = null; loc = -1; }
 

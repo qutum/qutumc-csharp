@@ -33,11 +33,8 @@ public static class Extension
 	public static ReadOnlyMemory<char> Mem(this string s, int from, int to) => s.AsMemory(from, to - from);
 }
 
-public readonly struct MemoryEnum<T> : IEnumerable<T>
+public readonly struct MemoryEnum<T>(ReadOnlyMemory<T> mem) : IEnumerable<T>
 {
-	readonly ReadOnlyMemory<T> mem;
-	public MemoryEnum(ReadOnlyMemory<T> mem) => this.mem = mem;
-
 	public IEnumerator<T> GetEnumerator() => new Enum { mem = mem };
 
 	IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
@@ -204,11 +201,11 @@ public class LinkTree<T> : IEnumerable<T> where T : LinkTree<T>
 
 partial class EnvWriter : StringWriter, IDisposable
 {
-	static readonly EnvWriter env = new EnvWriter();
+	static readonly EnvWriter env = new();
 
 	TextWriter output;
 	bool pressKey;
-	readonly List<string> indents = new();
+	readonly List<string> indents = [];
 	bool lineStart = true;
 
 	public static EnvWriter Begin(bool pressKey = false)
@@ -227,7 +224,7 @@ partial class EnvWriter : StringWriter, IDisposable
 
 	public static EnvWriter Indent(string ind = "\t")
 	{
-		env.indents.Add(ind ?? throw new ArgumentNullException());
+		env.indents.Add(ind ?? throw new ArgumentNullException(nameof(ind)));
 		return env;
 	}
 
@@ -388,6 +385,7 @@ partial class EnvWriter : StringWriter, IDisposable
 		base.WriteLine(value); Flush();
 	}
 
+	[System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability", "SYSLIB1054")]
 	[DllImport("kernel32.dll", SetLastError = false)]
 	static extern uint GetConsoleProcessList(uint[] procs, uint n);
 	static readonly uint[] procs = new uint[1];

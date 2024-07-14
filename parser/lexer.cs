@@ -34,7 +34,7 @@ public class Lexer<K> : LexerBase<K, Token<K>> where K : struct
 
 	protected int from = -1;
 	public bool mergeErr = false; // add error token into corrent tokens
-	public readonly List<Token<K>> errs = new List<Token<K>>();
+	public readonly List<Token<K>> errs = [];
 
 	public override IDisposable Load(Scan<byte, byte> scan)
 	{
@@ -79,7 +79,7 @@ public class Lexer<K> : LexerBase<K, Token<K>> where K : struct
 
 	public override bool Is(K testee, K key) => Eq.Equals(testee, key);
 
-	public static IEnumerable<K> Keyz(string text) => new[] { Enum.Parse<K>(text) };
+	public static IEnumerable<K> Keyz(string text) => [Enum.Parse<K>(text)];
 	public override IEnumerable<K> Keys(string text) => Keyz(text);
 
 	public (int fromL, int fromC, int toL, int toC) LineCol(int from, int to)
@@ -127,7 +127,7 @@ public abstract partial class LexerBase<K, T> : ScanSeg<K, T> where T : struct
 	readonly byte[] bytes = new byte[17]; // latest bytes, [byte index & 15]
 	internal int tokenn, loc = -1;
 	internal T[] tokens = new T[65536];
-	readonly List<int> lines = new();
+	readonly List<int> lines = [];
 
 	public virtual IDisposable Load(Scan<byte, byte> scan)
 	{
@@ -252,7 +252,7 @@ public abstract partial class LexerBase<K, T> : ScanSeg<K, T> where T : struct
 	static void Dump(Unit u, string pre, Dictionary<Unit, bool> us = null)
 	{
 		using var env = EnvWriter.Use();
-		var uz = us ?? new Dictionary<Unit, bool> { };
+		var uz = us ?? [];
 		uz[u] = false; // dumped
 		env.WriteLine($"{u.id}: {u.key}.{u.part} " +
 			$"{(u.mode >= 0 ? "back" : u.mode == -1 ? "ok" : "err")}.{u.go.id} < {pre}");
@@ -285,7 +285,7 @@ public abstract partial class LexerBase<K, T> : ScanSeg<K, T> where T : struct
 
 public class LexerGram<K>
 {
-	public readonly List<Prod> prods = new();
+	public readonly List<Prod> prods = [];
 	public class Prod : List<Part> { public K key; }
 	public class Part : List<Alt>
 	{
@@ -309,12 +309,12 @@ public class LexerGram<K>
 	public const int AltByteN = 15;
 
 	public LexerGram<K> prod(K key) { prods.Add(new Prod { key = key }); return this; }
-	public LexerGram<K> part { get { prods[^1].Add(new Part()); return this; } }
-	public LexerGram<K> skip { get { prods[^1].Add(new Part { skip = true }); return this; } }
+	public LexerGram<K> part { get { prods[^1].Add([]); return this; } }
+	public LexerGram<K> skip { get { prods[^1].Add(new() { skip = true }); return this; } }
 	// content: string : byte sequence, ReadOnlyMemory<char> : inclusive range, .. : repeat
 	public LexerGram<K> this[params object[] cons] {
 		get {
-			Alt a = new();
+			Alt a = [];
 			prods[^1][^1].Add(a);
 			if (prods[^1][^1].Count == 1 && cons.Length == 1 && "".Equals(cons[0]))
 				return this;

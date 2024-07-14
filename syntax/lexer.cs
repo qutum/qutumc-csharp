@@ -153,7 +153,7 @@ public class Lexer : Lexer<Lex>
 	int indentNew = -1; // indent count at line start, -1 not line start
 	int indentFrom, indentTo;
 	bool crlf; // \r\n found
-	readonly List<string> path = new();
+	readonly List<string> path = [];
 	public bool eof = true; // insert eol at scan end
 	public bool allValue = false; // set all tokens value
 	public bool allBlank = false; // keep all spaces, comments and empty lines
@@ -368,8 +368,8 @@ public class Lexer : Lexer<Lex>
 			case (byte)'r': bs[bn++] = (byte)'\r'; break;
 			case (byte)'x': bs[bn++] = (byte)(Hex(bn + 1) << 4 | Hex(bn + 2)); break;
 			case (byte)'u':
-				Span<char> u = stackalloc char[1];
-				u[0] = (char)(Hex(bn + 2) << 12 | Hex(bn + 3) << 8 | Hex(bn + 4) << 4 | Hex(bn + 5));
+				Span<char> u = stackalloc char[] {
+					(char)(Hex(bn + 2) << 12 | Hex(bn + 3) << 8 | Hex(bn + 4) << 4 | Hex(bn + 5)) };
 				bn += Encoding.UTF8.GetBytes(u, bs.AsSpan(bn)); break;
 			default: bs[bn++] = bs[bn]; break;
 			}
@@ -442,10 +442,10 @@ public class Lexer : Lexer<Lex>
 		return w;
 	}
 
-	static readonly float[] Exps = new[] {
+	static readonly float[] Exps = [
 		1e00f, 1e01f, 1e02f, 1e03f, 1e04f, 1e05f, 1e06f, 1e07f, 1e08f, 1e09f,
 		1e10f, 1e11f, 1e12f, 1e13f, 1e14f, 1e15f, 1e16f, 1e17f, 1e18f, 1e19f,
 		1e20f, 1e21f, 1e22f, 1e23f, 1e24f, 1e25f, 1e26f, 1e27f, 1e28f, 1e29f,
 		1e30f, 1e31f, 1e32f, 1e33f, 1e34f, 1e35f, 1e36f, 1e37f, 1e38f, float.PositiveInfinity,
-	};
+	];
 }

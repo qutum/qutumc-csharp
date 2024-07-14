@@ -15,12 +15,13 @@ using static Microsoft.VisualStudio.TestTools.UnitTesting.Assert;
 
 namespace qutum.test.parser;
 
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1806:Do not ignore method results")]
 [TestClass]
 public class TestLexer : IDisposable
 {
 	readonly EnvWriter env = EnvWriter.Begin();
 
-	public void Dispose() => env.Dispose();
+	public void Dispose() { GC.SuppressFinalize(this); env.Dispose(); }
 
 	enum Tag { _, A, B, BB, C, CC, D };
 
@@ -117,14 +118,14 @@ public class TestLexer : IDisposable
 	[TestMethod]
 	public void Lex16()
 	{
-		Throw(() => _ = new Lexer("A=0123456789abcdefg"), "15");
-		Throw(() => _ = new Lexer("A=[abc^0-9A-Za-z]"), "No byte in A.1");
+		Throw(() => new Lexer("A=0123456789abcdefg"), "15");
+		Throw(() => new Lexer("A=[abc^0-9A-Za-z]"), "No byte in A.1");
 	}
 
 	[TestMethod]
 	public void LexRange1()
 	{
-		Throw(() => _ = new Lexer("A=a[^ab] \n B=ac"), "Prefix.* of B.1 and A.1");
+		Throw(() => new Lexer("A=a[^ab] \n B=ac"), "Prefix.* of B.1 and A.1");
 	}
 
 	[TestMethod]
@@ -239,25 +240,25 @@ public class TestLexer : IDisposable
 	[TestMethod]
 	public void LexRepeat4()
 	{
-		Throw(() => _ = new Lexer("A=a+a"), "A.1 and A.1 .*repeat");
+		Throw(() => new Lexer("A=a+a"), "A.1 and A.1 .*repeat");
 	}
 
 	[TestMethod]
 	public void LexRepeat5()
 	{
-		Throw(() => _ = new Lexer("A=a \n B=a+"), "B.1 and A.1 conflict");
-		Throw(() => _ = new Lexer("A=aa \n B=a+"), "B.1 and A.1 .*repeat");
-		Throw(() => _ = new Lexer("A=a \n B=a+b"), "B.1 and A.1 .*repeat");
-		Throw(() => _ = new Lexer("A=aa \n B=a+b"), "B.1 and A.1 .*repeat");
+		Throw(() => new Lexer("A=a \n B=a+"), "B.1 and A.1 conflict");
+		Throw(() => new Lexer("A=aa \n B=a+"), "B.1 and A.1 .*repeat");
+		Throw(() => new Lexer("A=a \n B=a+b"), "B.1 and A.1 .*repeat");
+		Throw(() => new Lexer("A=aa \n B=a+b"), "B.1 and A.1 .*repeat");
 	}
 
 	[TestMethod]
 	public void LexRepeat6()
 	{
-		Throw(() => _ = new Lexer("A=a+c \n B=aa"), "B.1 and A.1 .*repeat");
-		Throw(() => _ = new Lexer("A=a+b \n B=abc"), "B.1 and A.1 .*repeat");
-		Throw(() => _ = new Lexer("A=ab+c \n B=abcd"), "B.1 and A.1 .*repeat");
-		Throw(() => _ = new Lexer("A=abc \n B=a+b"), "B.1 and A.1 .*repeat");
+		Throw(() => new Lexer("A=a+c \n B=aa"), "B.1 and A.1 .*repeat");
+		Throw(() => new Lexer("A=a+b \n B=abc"), "B.1 and A.1 .*repeat");
+		Throw(() => new Lexer("A=ab+c \n B=abcd"), "B.1 and A.1 .*repeat");
+		Throw(() => new Lexer("A=abc \n B=a+b"), "B.1 and A.1 .*repeat");
 	}
 
 	[TestMethod]
