@@ -16,17 +16,17 @@ namespace qutum.test.parser;
 static class TestExtension
 {
 	public static bool Check(this ParserStr p, string input)
-		=> p.Begin(new ScanStr(input)).Check();
+		=> p.Begin(new LerStr(input)).Check();
 
-	public static (SyntStr t, ScanStr) Parse(this ParserStr p, string input)
+	public static (SyntStr t, LerStr) Parse(this ParserStr p, string input)
 	{
-		var t = p.Begin(new ScanStr(input)).Parse().Dump();
+		var t = p.Begin(new LerStr(input)).Parse().Dump();
 		using var env = EnvWriter.Begin();
 		env.WriteLine($"---- match {p.matchn} / lexi {p.lexn} = {p.matchn / Math.Max(p.lexn, 1)} ----");
 		return (t, p.ler);
 	}
 
-	public static (SyntStr, ScanStr) Eq(this (SyntStr t, ScanStr s) t,
+	public static (SyntStr, LerStr) Eq(this (SyntStr t, LerStr s) t,
 		string name = null, int? from = null, int? to = null, object v = null, int err = 0)
 	{
 		AreNotEqual(null, t.t);
@@ -38,23 +38,23 @@ static class TestExtension
 		return t;
 	}
 
-	public static (SyntStr, ScanStr) H(this (SyntStr t, ScanStr s) t,
+	public static (SyntStr, LerStr) H(this (SyntStr t, LerStr s) t,
 		string name = null, int? from = null, int? to = null, object v = null, int err = 0)
 		=> (t.t.head, t.s).Eq(name, from, to, v, err);
-	public static (SyntStr, ScanStr) T(this (SyntStr t, ScanStr s) t,
+	public static (SyntStr, LerStr) T(this (SyntStr t, LerStr s) t,
 		string name = null, int? from = null, int? to = null, object v = null, int err = 0)
 		=> (t.t.tail, t.s).Eq(name, from, to, v, err);
-	public static (SyntStr, ScanStr) N(this (SyntStr t, ScanStr s) t,
+	public static (SyntStr, LerStr) N(this (SyntStr t, LerStr s) t,
 		string name = null, int? from = null, int? to = null, object v = null, int err = 0)
 		=> (t.t.next, t.s).Eq(name, from, to, v, err);
-	public static (SyntStr, ScanStr) P(this (SyntStr t, ScanStr s) t,
+	public static (SyntStr, LerStr) P(this (SyntStr t, LerStr s) t,
 		string name = null, int? from = null, int? to = null, object v = null, int err = 0)
 		=> (t.t.prev, t.s).Eq(name, from, to, v, err);
 
-	public static (SyntStr, ScanStr) U(this (SyntStr t, ScanStr s) t) => (t.t.up, t.s);
-	public static (SyntStr, ScanStr) H0(this (SyntStr t, ScanStr) t) { AreEqual(null, t.t.head); return t; }
-	public static (SyntStr, ScanStr) N0(this (SyntStr t, ScanStr) t) { AreEqual(null, t.t.next); return t.U(); }
-	public static (SyntStr, ScanStr) P0(this (SyntStr t, ScanStr) t) { AreEqual(null, t.t.prev); return t.U(); }
+	public static (SyntStr, LerStr) U(this (SyntStr t, LerStr s) t) => (t.t.up, t.s);
+	public static (SyntStr, LerStr) H0(this (SyntStr t, LerStr) t) { AreEqual(null, t.t.head); return t; }
+	public static (SyntStr, LerStr) N0(this (SyntStr t, LerStr) t) { AreEqual(null, t.t.next); return t.U(); }
+	public static (SyntStr, LerStr) P0(this (SyntStr t, LerStr) t) { AreEqual(null, t.t.prev); return t.U(); }
 }
 
 [TestClass]

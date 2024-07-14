@@ -16,22 +16,21 @@ using static Microsoft.VisualStudio.TestTools.UnitTesting.Assert;
 namespace qutum.test.syntax;
 
 [TestClass]
-public class TestLexer : IDisposable
+public class TestLexier : IDisposable
 {
 	readonly EnvWriter env = EnvWriter.Begin();
 
 	public void Dispose() { GC.SuppressFinalize(this); env.Dispose(); }
 
-	readonly Lexier l = new() { eof = false };
+	readonly Lexier ler = new() { eof = false, errs = null };
 
 	void Check(string input, string s)
 	{
 		env.WriteLine(input);
-		l.mergeErr = true;
-		using var __ = l.Begin(new ScanByte(Encoding.UTF8.GetBytes(input)));
-		while (l.Next())
+		using var __ = ler.Begin(new LerByte(Encoding.UTF8.GetBytes(input)));
+		while (ler.Next())
 			;
-		var z = string.Join(" ", l.Lexs(0, l.Loc()).Select(t => t.ToString(Dump)).ToArray());
+		var z = string.Join(" ", ler.Lexs(0, ler.Loc()).Select(t => t.ToString(Dump)).ToArray());
 		env.WriteLine(z);
 		AreEqual(s, z);
 	}
@@ -40,12 +39,12 @@ public class TestLexer : IDisposable
 
 	void CheckSp(string input, string s)
 	{
-		l.allBlank = true;
+		ler.allBlank = true;
 		try {
 			Check(input, s);
 		}
 		finally {
-			l.allBlank = false;
+			ler.allBlank = false;
 		}
 	}
 
@@ -116,7 +115,7 @@ public class TestLexer : IDisposable
 	[TestMethod]
 	public void LexEof2()
 	{
-		l.eof = true;
+		ler.eof = true;
 		CheckSp("a\n", "NAME=a EOL= EOL=");
 		CheckSp("a\t", "NAME=a SP= EOL=");
 		CheckSp("\ta\t", "IND=1 NAME=a SP= EOL= DED=0");

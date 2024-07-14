@@ -10,7 +10,7 @@ using System.Linq;
 
 namespace qutum.parser;
 
-public interface Scan<K, L> : IDisposable
+public interface Lexer<K, L> : IDisposable
 {
 	bool Next();
 	// current lex location, <0 before first Next()
@@ -31,13 +31,13 @@ public interface Scan<K, L> : IDisposable
 	IEnumerable<K> Keys(string text);
 }
 
-public interface ScanSeg<K, L> : Scan<K, L>
+public interface LexerSeg<K, L> : Lexer<K, L>
 {
 	// lexs from loc to loc excluded
 	new ArraySegment<L> Lexs(int from, int to);
 }
 
-public class ScanStr(string input) : Scan<char, char>
+public class LerStr(string input) : Lexer<char, char>
 {
 	protected string input = input;
 	protected int loc = -1;
@@ -53,17 +53,17 @@ public class ScanStr(string input) : Scan<char, char>
 	public virtual bool Is(int loc, char key) => input[loc] == key;
 	public virtual bool Is(char testee, char key) => testee == key;
 
-	public string Lexs(int from, int to) => input[from..to];
 	public Span<char> Lexs(int from, int to, Span<char> s)
 	{
 		input.AsSpan(from, to - from).CopyTo(s); return s;
 	}
-	IEnumerable<char> Scan<char, char>.Lexs(int from, int to) => Lexs(from, to);
+	public string Lexs(int from, int to) => input[from..to];
+	IEnumerable<char> Lexer<char, char>.Lexs(int from, int to) => Lexs(from, to);
 
 	public IEnumerable<char> Keys(string text) => text;
 }
 
-public class ScanByte(byte[] input) : ScanSeg<byte, byte>
+public class LerByte(byte[] input) : LexerSeg<byte, byte>
 {
 	protected byte[] input = input;
 	protected int loc = -1;
@@ -79,17 +79,17 @@ public class ScanByte(byte[] input) : ScanSeg<byte, byte>
 	public virtual bool Is(int loc, byte key) => input[loc] == key;
 	public virtual bool Is(byte testee, byte key) => testee == key;
 
-	public ArraySegment<byte> Lexs(int from, int to) => input.Seg(from, to);
 	public Span<byte> Lexs(int from, int to, Span<byte> s)
 	{
 		input.AsSpan(from, to - from).CopyTo(s); return s;
 	}
-	IEnumerable<byte> Scan<byte, byte>.Lexs(int from, int to) => Lexs(from, to);
+	public ArraySegment<byte> Lexs(int from, int to) => input.Seg(from, to);
+	IEnumerable<byte> Lexer<byte, byte>.Lexs(int from, int to) => Lexs(from, to);
 
 	public IEnumerable<byte> Keys(string text) => text.Select(k => (byte)k);
 }
 
-public class ScanByteSeg(ArraySegment<byte> input) : ScanSeg<byte, byte>
+public class LerByteSeg(ArraySegment<byte> input) : LexerSeg<byte, byte>
 {
 	protected ArraySegment<byte> input = input;
 	protected int loc = -1;
@@ -105,17 +105,17 @@ public class ScanByteSeg(ArraySegment<byte> input) : ScanSeg<byte, byte>
 	public virtual bool Is(int loc, byte key) => input[loc] == key;
 	public virtual bool Is(byte testee, byte key) => testee == key;
 
-	public ArraySegment<byte> Lexs(int from, int to) => input.Slice(from, to - from);
 	public Span<byte> Lexs(int from, int to, Span<byte> s)
 	{
 		input.AsSpan(from, to - from).CopyTo(s); return s;
 	}
-	IEnumerable<byte> Scan<byte, byte>.Lexs(int from, int to) => Lexs(from, to);
+	public ArraySegment<byte> Lexs(int from, int to) => input.Slice(from, to - from);
+	IEnumerable<byte> Lexer<byte, byte>.Lexs(int from, int to) => Lexs(from, to);
 
 	public IEnumerable<byte> Keys(string text) => text.Select(k => (byte)k);
 }
 
-public class ScanByteList(List<byte> input) : Scan<byte, byte>
+public class LerByteList(List<byte> input) : Lexer<byte, byte>
 {
 	protected List<byte> input = input;
 	protected int loc = -1;

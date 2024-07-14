@@ -27,7 +27,7 @@ static class Qutumc
 			}
 			var bs = File.ReadAllBytes(file);
 			var p = new Parser(new Lexier { allValue = true });
-			using var __ = p.ler.Begin(new ScanByte(bs));
+			using var __ = p.ler.Begin(new LerByte(bs));
 			var top = p.Parse();
 			top.Dump((Func<int, int, (int, int, int, int)>)p.ler.LineCol);
 		}

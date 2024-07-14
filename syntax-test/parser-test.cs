@@ -78,7 +78,7 @@ public class TestParser : IDisposable
 		env.WriteLine(input);
 		if (p.ler.input != null)
 			p.ler.Dispose();
-		p.ler.Begin(new ScanByte(Encoding.UTF8.GetBytes(input)));
+		p.ler.Begin(new LerByte(Encoding.UTF8.GetBytes(input)));
 		var t = p.Parse().Dump((Func<int, int, (int, int, int, int)>)p.ler.LineCol);
 		env.WriteLine($"---- match {p.matchn} / loc {p.lexn} = {p.matchn / Math.Max(p.lexn, 1)} ----");
 		return (t, p);

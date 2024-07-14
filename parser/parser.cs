@@ -13,7 +13,7 @@ using static qutum.parser.Qua;
 
 namespace qutum.parser;
 
-using ParserChar = ParserBase<char, char, string, SyntStr, ScanStr>;
+using ParserChar = ParserBase<char, char, string, SyntStr, LerStr>;
 
 // Syntax tree
 public class Synt<N, T> : LinkTree<T> where T : Synt<N, T>
@@ -44,14 +44,14 @@ public class SyntStr : Synt<string, SyntStr>
 }
 
 public class Parser<K, N, T, Ler> : ParserBase<K, Lexi<K>, N, T, Ler>
-	where K : struct where T : Synt<N, T>, new() where Ler : ScanSeg<K, Lexi<K>>
+	where K : struct where T : Synt<N, T>, new() where Ler : LexerSeg<K, Lexi<K>>
 {
 	public Parser(string gram, Ler ler) : base(gram, ler) { }
 }
 
 public class ParserStr : ParserChar
 {
-	public ParserStr(string gram, ScanStr ler = null) : base(gram, ler ?? new ScanStr("")) { }
+	public ParserStr(string gram, LerStr ler = null) : base(gram, ler ?? new LerStr("")) { }
 }
 
 public enum Qua : byte { Opt = 0, One = 1, Any = 2, More = 3 };
@@ -69,7 +69,7 @@ public class AltHint
 	internal string hint;
 }
 
-public partial class ParserBase<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler : Scan<K, L>
+public partial class ParserBase<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler : Lexer<K, L>
 {
 	sealed class Prod
 	{
@@ -420,6 +420,7 @@ public partial class ParserBase<K, L, N, T, Ler> where T : Synt<N, T>, new() whe
 		return t;
 	}
 
+	[System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2211")]
 	protected static EqualityComparer<N> Eq = EqualityComparer<N>.Default;
 
 	protected virtual N Name(string name) => (N)(object)name;
@@ -478,7 +479,7 @@ public partial class ParserBase<K, L, N, T, Ler>
 
 	static ParserBase()
 	{
-		var keys = new ScanStr("");
+		var keys = new LerStr("");
 		// prod name, prod-or-key-with-qua-alt1 con1|alt2 con2  \x1 is |
 		var grammar = new Dictionary<string, string> {
 			{ "gram",  "eol* prod prods* eol*" },
@@ -543,10 +544,10 @@ public partial class ParserBase<K, L, N, T, Ler>
 	public ParserBase(string gram, Ler ler)
 	{
 		Begin(ler);
-		using var input = new MetaScan(gram);
+		using var input = new MetaStr(gram);
 		var top = boot.Begin(input).Parse();
 		if (top.err != 0) {
-			using var input2 = new MetaScan(gram);
+			using var input2 = new MetaStr(gram);
 			var dump = boot.dump; boot.dump = 3;
 			boot.Begin(input2).Parse().Dump(); boot.dump = dump;
 			var e = new Exception(); e.Data["err"] = top;
@@ -577,7 +578,7 @@ public partial class ParserBase<K, L, N, T, Ler>
 				var z = ta.Where(t => t.name is "sym" or "con").SelectMany(t =>
 					t.name == "sym" ? gram[t.from] == '?' ? [Opt]
 						: gram[t.from] == '*' ? [Any] : gram[t.from] == '+' ? [More]
-						: ler.Keys(MetaScan.Unesc(gram, t.from, t.to)).Cast<object>()
+						: ler.Keys(MetaStr.Unesc(gram, t.from, t.to)).Cast<object>()
 					// for word, search product names first, then lexer keys
 					: names.TryGetValue(t.dump = boot.ler.Lexs(t.from, t.to), out Prod p)
 						? [p] : ler.Keys(t.dump).Cast<object>())
@@ -618,9 +619,9 @@ public partial class ParserBase<K, L, N, T, Ler>
 									}
 								if (a.recover > 0 && a.s[a.recover].p is K pr) {
 									a.recPair = r.to - r.from == 1 ? pr :
-										ler.Keys(MetaScan.Unesc(gram, r.from + 1, r.to)).First();
+										ler.Keys(MetaStr.Unesc(gram, r.from + 1, r.to)).First();
 									a.recDeny = d == null ? pr :
-										ler.Keys(MetaScan.Unesc(gram, d.from + 1, d.to)).First();
+										ler.Keys(MetaStr.Unesc(gram, d.from + 1, d.to)).First();
 								}
 							}
 						}

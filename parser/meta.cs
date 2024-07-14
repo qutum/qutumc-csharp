@@ -4,7 +4,6 @@
 // Under the terms of the GNU General Public License version 3
 // http://qutum.com
 //
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -13,7 +12,7 @@ namespace qutum.parser;
 
 using Set = CharSet;
 
-sealed class MetaScan(string input) : ScanStr(input)
+sealed class MetaStr(string input) : LerStr(input)
 {
 	public override bool Is(char key) => Is(input[loc], key);
 
@@ -62,7 +61,7 @@ sealed class MetaScan(string input) : ScanStr(input)
 	}
 }
 
-public static class MetaLexer
+public static class MetaLex
 {
 	// gram
 	// \ prod
@@ -103,10 +102,10 @@ public static class MetaLexer
 
 	public static LexGram<K> Gram<K>(string gram, Func<string, IEnumerable<K>> Keys, bool dump = false)
 	{
-		using var input = new MetaScan(gram);
+		using var input = new MetaStr(gram);
 		var top = meta.Begin(input).Parse();
 		if (top.err != 0) {
-			using var input2 = new MetaScan(gram);
+			using var input2 = new MetaStr(gram);
 			var dum = meta.dump; meta.dump = 3;
 			meta.Begin(input2).Parse().Dump(); meta.dump = dum;
 			var e = new Exception(); e.Data["err"] = top;
@@ -152,7 +151,7 @@ public static class MetaLexer
 	{
 		var x = b.from;
 		if (gram[x] == '\\') { // escape bytes
-			es[en++] = MetaScan.Unesc(gram, x, b.to, true).Mem();
+			es[en++] = MetaStr.Unesc(gram, x, b.to, true).Mem();
 			x += 2;
 		}
 		// build range
@@ -164,7 +163,7 @@ public static class MetaLexer
 			foreach (var r in b) {
 				inc &= x == (x = r.from); // before ^
 				if (gram[x] == '\\')
-					foreach (var c in MetaScan.Unesc(gram, x, r.to, true))
+					foreach (var c in MetaStr.Unesc(gram, x, r.to, true))
 						rs[c] = inc;
 				else
 					for (char c = gram[x], cc = gram[r.to - 1]; c <= cc; c++)

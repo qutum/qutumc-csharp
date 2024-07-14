@@ -27,79 +27,6 @@ public struct Lexi<K> where K : struct
 	}
 }
 
-public class Lexier<K> : Lexier<K, Lexi<K>> where K : struct
-{
-	public Lexier(LexGram<K> grammar, bool dump = false) : base(grammar, dump) { }
-
-	protected int from = -1;
-	public bool mergeErr = false; // add error lexi into corrent lexis
-	public readonly List<Lexi<K>> errs = [];
-
-	public override IDisposable Begin(Scan<byte, byte> input)
-	{
-		base.Begin(input);
-		from = -1; errs.Clear();
-		return this;
-	}
-
-	protected override void Lexi(K key, int part, ref bool end, int f, int to)
-	{
-		if (from < 0) from = f;
-		if (end) {
-			Span<byte> s = to - from <= 1024 ? stackalloc byte[to - from] : new byte[to - from];
-			input.Lexs(from, to, s);
-			Add(key, from, to, Encoding.UTF8.GetString(s));
-			from = -1;
-		}
-	}
-
-	protected override void Error(K key, int part, bool end, int b, int f, int to)
-	{
-		if (from < 0) from = f;
-		if (part >= 0) AddErr(key, f, to, b >= 0 ? (object)(char)b : null);
-		if (end) from = -1;
-	}
-
-	protected virtual void Add(K key, int f, int to, object value)
-	{
-		Add(new Lexi<K> { key = key, from = f, to = to, value = value });
-	}
-
-	protected void AddErr(K key, int f, int to, object value)
-	{
-		var e = new Lexi<K> { key = key, from = f, to = to, value = value, err = ~lexn };
-		if (mergeErr) Add(e);
-		else errs.Add(e);
-	}
-
-	protected static EqualityComparer<K> Eq = EqualityComparer<K>.Default;
-
-	public sealed override bool Is(int loc, K key) => Is(Lex(loc).key, key);
-
-	public override bool Is(K testee, K key) => Eq.Equals(testee, key);
-
-	public static IEnumerable<K> Keyz(string text) => [Enum.Parse<K>(text)];
-	public override IEnumerable<K> Keys(string text) => Keyz(text);
-
-	public (int fromL, int fromC, int toL, int toC) LineCol(int from, int to)
-	{
-		if (lexn == 0)
-			return (1, 1, 1, 1);
-		int f, t;
-		if (from >= 0) {
-			f = from < lexn ? Lex(from).from : Lex(from - 1).to;
-			t = from < to ? Math.Max(Lex(to - 1).to - 1, f) : f;
-		}
-		else {
-			from = ~from; to = ~to;
-			f = from < errs.Count ? errs[from].from : errs[from - 1].to;
-			t = from < to ? Math.Max(errs[to - 1].to - 1, f) : f;
-		}
-		var (fl, fc) = LineCol(f); var (tl, tc) = LineCol(t);
-		return (fl, fc, tl, tc);
-	}
-}
-
 public class LexGram<K>
 {
 	public readonly List<Prod> prods = [];
@@ -146,7 +73,38 @@ public class LexGram<K>
 	public LexGram<K> loop { get { prods[^1][^1][^1].loop = true; return this; } }
 }
 
-public abstract class Lexier<K, L> : ScanSeg<K, L> where L : struct
+public class Lexier<K> : Lexier<K, Lexi<K>> where K : struct
+{
+	[System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE0290")]
+	public Lexier(LexGram<K> grammar, bool dump = false) : base(grammar, dump) { }
+
+	protected override Lexi<K> Lexi(K key, int f, int to, object value)
+		=> Lexi(new() { key = key, from = f, to = to, value = value });
+	protected override Lexi<K> Error(K key, int f, int to, object value)
+		=> Lexi(new() { key = key, from = f, to = to, value = value, err = ~lexn });
+
+	public override bool Is(int loc, K key) => Is(Lex(loc).key, key);
+
+	public (int fromL, int fromC, int toL, int toC) LineCol(int from, int to)
+	{
+		if (lexn == 0)
+			return (1, 1, 1, 1);
+		int f, t;
+		if (from >= 0) {
+			f = from < lexn ? Lex(from).from : Lex(from - 1).to;
+			t = from < to ? Math.Max(Lex(to - 1).to - 1, f) : f;
+		}
+		else {
+			from = ~from; to = ~to;
+			f = from < errs.Count ? errs[from].from : errs[from - 1].to;
+			t = from < to ? Math.Max(errs[to - 1].to - 1, f) : f;
+		}
+		var (fl, fc) = LineCol(f); var (tl, tc) = LineCol(t);
+		return (fl, fc, tl, tc);
+	}
+}
+
+public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : struct // L : Lexi<K> fail
 {
 	// each unit is just before next byte or after last byte of part
 	internal sealed class Unit
@@ -166,27 +124,31 @@ public abstract class Lexier<K, L> : ScanSeg<K, L> where L : struct
 
 	readonly Unit begin;
 	int id;
-	internal Scan<byte, byte> input;
+	internal Lexer<byte, byte> input;
 	int bn; // total bytes got
-	int bf, bt; // from loc to loc excluded for each part
-	readonly byte[] bytes = new byte[17]; // latest bytes, [byte index & 15]
-	internal int lexn, loc = -1;
-	internal L[] lexs = new L[65536];
+	int bf, bt; // from input loc to loc excluded for each part
 	readonly List<int> lines = [];
+	readonly byte[] bytes = new byte[17]; // latest bytes, [byte index & 15]
+	protected int lexn, loc; // lexi count and loc
+	internal L[] lexs;
+	protected int from; // input loc for current lexi
+	public List<L> errs = []; // error lexis: not null, merge lexis: null
 
-	public virtual IDisposable Begin(Scan<byte, byte> input)
+	public virtual IDisposable Begin(Lexer<byte, byte> input)
 	{
+		Dispose();
 		this.input = input;
-		bf = bt = bn = lexn = 0; loc = -1;
-		lines.Clear(); lines.Add(0);
 		return this;
 	}
 
 	// lexer results keep available
 	public virtual void Dispose()
 	{
-		input.Dispose(); input = null;
-		Array.Fill(lexs, default, 0, lexn);
+		input?.Dispose(); input = null;
+		bn = bf = bt = 0;
+		lines.Clear(); lines.Add(0);
+		lexn = 0; loc = -1; lexs = [];
+		from = -1; errs?.Clear();
 		GC.SuppressFinalize(this);
 	}
 
@@ -202,7 +164,7 @@ public abstract class Lexier<K, L> : ScanSeg<K, L> where L : struct
 			}
 			else if (u == begin || bt > bn) {
 				if (bn >= 0) {
-					Error(begin.key, -1, true, -1, bn, bn);
+					PartErr(begin.key, -1, true, -1, bn, bn);
 					bn = -1; // only one error at the end
 				}
 				return loc < lexn;
@@ -223,11 +185,11 @@ public abstract class Lexier<K, L> : ScanSeg<K, L> where L : struct
 		}
 		if (u.mode == -1) { // match a part 
 			var e = go == begin;
-			Lexi(u.key, u.part, ref e, bf, bt);
+			Part(u.key, u.part, ref e, bf, bt);
 			if (e) go = begin;
 		}
 		else { // error part
-			Error(u.key, u.part, go == begin || bt >= bn,
+			PartErr(u.key, u.part, go == begin || bt >= bn,
 				bt < bn ? bytes[bt & 15] : -1, bf, bt);
 			++bt; // shift a byte
 		}
@@ -247,36 +209,49 @@ public abstract class Lexier<K, L> : ScanSeg<K, L> where L : struct
 	}
 
 	// make each part of a lexi
-	protected abstract void Lexi(K key, int part, ref bool end, int from, int to);
-
-	// report an error: part >= 0, beyond input end: part < 0 and Byte < 0
-	protected abstract void Error(K key, int part, bool end, int Byte, int from, int to);
-
-	protected void Add(L lexi)
+	protected virtual void Part(K key, int part, ref bool end, int f, int to)
 	{
-		if (lexn == lexs.Length) Array.Resize(ref lexs, lexs.Length << 1);
-		lexs[lexn++] = lexi;
+		if (from < 0) from = f;
+		if (end) {
+			Span<byte> s = to - from <= 1024 ? stackalloc byte[to - from] : new byte[to - from];
+			input.Lexs(from, to, s);
+			Lexi(key, from, to, Encoding.UTF8.GetString(s));
+			from = -1;
+		}
 	}
+
+	// report error: part >= 0, beyond input end: part < 0 and Byte < 0
+	protected virtual void PartErr(K key, int part, bool end, int Byte, int f, int to)
+	{
+		if (from < 0) from = f;
+		if (part >= 0) Error(key, f, to, Byte >= 0 ? (object)(char)Byte : null);
+		if (end) from = -1;
+	}
+
+	protected L Lexi(L lexi, bool err = false)
+	{
+		if (err && errs != null)
+			errs.Add(lexi);
+		else {
+			if (lexn == lexs.Length) Array.Resize(ref lexs, Math.Max(lexs.Length << 1, 65536));
+			lexs[lexn++] = lexi;
+		}
+		return lexi;
+	}
+
+	protected abstract L Lexi(K key, int f, int to, object value);
+	protected abstract L Error(K key, int f, int to, object value);
 
 	public int Loc() => Math.Min(loc, lexn);
-
 	public L Lex() => lexs[loc];
-
-	public bool Is(K key) => Is(loc, key);
-
-	public abstract bool Is(int loc, K key);
-
-	public abstract bool Is(K key, K testee);
-
 	public L Lex(int loc) => loc < lexn ? lexs[loc] : throw new IndexOutOfRangeException();
 
-	public ArraySegment<L> Lexs(int from, int to)
-	{
-		if (to > lexn) throw new IndexOutOfRangeException();
-		return lexs.Seg(from, to);
-	}
+	public bool Is(K key) => Is(loc, key);
+	public abstract bool Is(int loc, K key);
+	public virtual bool Is(K testee, K key) => Eq.Equals(testee, key);
 
-	IEnumerable<L> Scan<K, L>.Lexs(int from, int to) => Lexs(from, to);
+	[System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2211")]
+	protected static EqualityComparer<K> Eq = EqualityComparer<K>.Default;
 
 	public Span<L> Lexs(int from, int to, Span<L> s)
 	{
@@ -284,8 +259,15 @@ public abstract class Lexier<K, L> : ScanSeg<K, L> where L : struct
 		lexs.AsSpan(from, to - from).CopyTo(s);
 		return s;
 	}
+	public ArraySegment<L> Lexs(int from, int to)
+	{
+		if (to > lexn) throw new IndexOutOfRangeException();
+		return lexs.Seg(from, to);
+	}
+	IEnumerable<L> Lexer<K, L>.Lexs(int from, int to) => Lexs(from, to);
 
-	public abstract IEnumerable<K> Keys(string text);
+	public static IEnumerable<K> Keyz(string text) => [Enum.Parse<K>(text)];
+	public virtual IEnumerable<K> Keys(string text) => Keyz(text);
 
 	// first line and col are 1
 	public (int line, int column) LineCol(int byteLoc)
@@ -328,129 +310,135 @@ public abstract class Lexier<K, L> : ScanSeg<K, L> where L : struct
 				}
 	}
 
-	public Lexier(LexGram<K> grammar, bool dump = false)
+	public Lexier(LexGram<K> grammar, bool dump = false) => begin = new Build(this).Do(grammar, dump);
+
+	class Build(Lexier<K, L> ler)
 	{
-		if (grammar.prods.Count < 1)
-			throw new("No product");
-		begin = new Unit(this);
-		// build prod
-		foreach (var prod in grammar.prods) {
-			var k = prod.key;
-			if (prod.Count == 0) throw new($"No part in {k}");
-			// first unit of each part
-			var pus = prod.Skip(1).Select((_, px) => new Unit(this) { key = k, part = px + 2 })
-				.Prepend(begin).Prepend(null)
-				.Append(begin).ToArray(); // this lexi end
-			prod.Each((p, part) => {
-				var u = pus[++part]; // first part is 1
-				if (p.Count == 0)
-					throw new($"No altern in {k}.{part}");
-				if (p[0].Count == 0) // empty alt for option part
-					if (part == 1) throw new($"Empty altern in first part {k}.1");
-					else if (p.Count == 1) throw new($"No byte in {k}.{part}");
-					else if (p.skip) throw new($"Skip at empty {k}.{part}.1");
-					else { u.go = pus[part + 1]; u.mode = -1; }
-				else if (p.skip) // shift input and retry part like the begin
-					if (part == 1) throw new($"Skip at first part {k}.1");
-					else { u.go = u; u.mode = -3; }
-				else // no backward cross parts
-					{ u.go = begin; u.mode = -3; }
-			});
-			Unit[] aus = null;
-			// build part
-			prod.Each((p, part) => {
-				var u = pus[++part];
-				// build alt
-				var Aus = p.Select((a, alt) => {
-					++alt;
-					var bn = a.Sum(b => b.str.Length + (b.inc.Length > 0 ? 1 : 0));
-					if (a.Count == 0 ? alt > 1 : bn == 0)
-						throw new($"No byte in {k}.{part}.{alt}");
-					if (bn > LexGram<K>.AltByteN)
-						throw new($"{k}.{part}.{alt} exceeds {LexGram<K>.AltByteN} bytes");
-					u = pus[part];
-					var ok = !a.loop ? pus[part + 1] // go for match
-						: part > 1 ? u : throw new($"Can not loop first part {k}.1.{alt}");
-					var rep = p.skip ? u : begin; // error for repeat
-					var bx = 0; // build units from contents
-					foreach (var e in a) {
-						for (int x = 0; x < e.str.Length; x++)
-							BuildByte(e.str.Mem(x, x + 1), ref u, k, part, ++bx >= bn, ok,
-								e.rep && x == e.str.Length - 1 ? rep : null);
-						if (e.inc.Length > 0)
-							BuildByte(e.inc, ref u, k, part, ++bx >= bn, ok, e.rep ? rep : null);
+		internal Unit Do(LexGram<K> grammar, bool dump)
+		{
+			if (grammar.prods.Count < 1)
+				throw new("No product");
+			var begin = new Unit(ler);
+			// build prod
+			foreach (var prod in grammar.prods) {
+				var k = prod.key;
+				if (prod.Count == 0) throw new($"No part in {k}");
+				// first unit of each part
+				var pus = prod.Skip(1).Select((_, px) => new Unit(ler) { key = k, part = px + 2 })
+					.Prepend(begin).Prepend(null)
+					.Append(begin).ToArray(); // current lexi end
+				prod.Each((p, part) => {
+					var u = pus[++part]; // first part is 1
+					if (p.Count == 0)
+						throw new($"No altern in {k}.{part}");
+					if (p[0].Count == 0) // empty alt for option part
+						if (part == 1) throw new($"Empty altern in first part {k}.1");
+						else if (p.Count == 1) throw new($"No byte in {k}.{part}");
+						else if (p.skip) throw new($"Skip at empty {k}.{part}.1");
+						else { u.go = pus[part + 1]; u.mode = -1; }
+					else if (p.skip) // shift input and retry part like the begin
+						if (part == 1) throw new($"Skip at first part {k}.1");
+						else { u.go = u; u.mode = -3; }
+					else // no backward cross parts
+						{ u.go = begin; u.mode = -3; }
+				});
+				Unit[] aus = null;
+				// build part
+				prod.Each((p, part) => {
+					var u = pus[++part];
+					// build alt
+					var Aus = p.Select((a, alt) => {
+						++alt;
+						var bn = a.Sum(b => b.str.Length + (b.inc.Length > 0 ? 1 : 0));
+						if (a.Count == 0 ? alt > 1 : bn == 0)
+							throw new($"No byte in {k}.{part}.{alt}");
+						if (bn > LexGram<K>.AltByteN)
+							throw new($"{k}.{part}.{alt} exceeds {LexGram<K>.AltByteN} bytes");
+						u = pus[part];
+						var ok = !a.loop ? pus[part + 1] // go for match
+							: part > 1 ? u : throw new($"Can not loop first part {k}.1.{alt}");
+						var rep = p.skip ? u : begin; // error for repeat
+						var bx = 0; // build units from contents
+						foreach (var e in a) {
+							for (int x = 0; x < e.str.Length; x++)
+								Byte(e.str.Mem(x, x + 1), ref u, k, part, ++bx >= bn, ok,
+									e.rep && x == e.str.Length - 1 ? rep : null);
+							if (e.inc.Length > 0)
+								Byte(e.inc, ref u, k, part, ++bx >= bn, ok, e.rep ? rep : null);
+						}
+						return u; // the last unit of this alt
+					}).Where(u => u.next != null).ToArray();
+					if (aus != null) {
+						u = pus[part];
+						for (int x = 0; x <= 128; x++)
+							if (u.next[x] != null && aus.Any(au => au.next[x] != null))
+								throw new($"{k}.{part} and {k}.{part - 1} conflict over repeat");
 					}
-					return u; // the last unit of this alt
-				}).Where(u => u.next != null).ToArray();
-				if (aus != null) {
-					u = pus[part];
-					for (int x = 0; x <= 128; x++)
-						if (u.next[x] != null && aus.Any(au => au.next[x] != null))
-							throw new($"{k}.{part} and {k}.{part - 1} conflict over repeat");
-				}
-				aus = Aus;
-			});
+					aus = Aus;
+				});
+			}
+			if (dump) Dump(begin, "");
+			return begin;
 		}
-		if (dump) Dump(begin, "");
-	}
 
-	void BuildByte(ReadOnlyMemory<char> bs,
-		ref Unit u, K k, int part, bool end, Unit ok, Unit rep)
-	{
-		// buid next
-		var go = u; var mode = 0; // mismatch to backward
-		if (end) // the last byte of alt
-			{ go = ok; mode = -1; } // match part
-		else if (rep != null) // inside byte repeat
-			{ go = rep; mode = -3; } // mismatch to error
-		var next = BuildNext(k, part, u, bs.Span, go, mode, false);
-		if (rep != null)
-			BuildNext(k, part, next, bs.Span, go, mode, true);
-		u = next;
-	}
-
-	Unit BuildNext(K key, int part, Unit u, ReadOnlySpan<char> bs, Unit go, int mode, bool rep)
-	{
-		Unit n = u.next?[bs[0]];
-		if (u.next == null)
-			u.next = new Unit[129];
-		else
-			// all exist nexts must be the same
-			for (int x = 1; x < bs.Length; x++)
-				if (u.next[bs[x]] != n)
-					throw new($"Prefix '{bs[x]}' of {key}.{part} and {(n ?? u.next[bs[x]]).key}"
-						+ $".{(n ?? u.next[bs[x]]).part} must be the same or distinct");
-		if (n == null) {
-			n = rep ? u // repeat byte
-				: new Unit(this) { key = key, part = part, pren = bs.Length, go = go, mode = mode };
-			for (int x = 0; x < bs.Length; x++)
-				u.next[bs[x]] = n;
-			if (rep && u.mode == -1 && mode == -3)
-				throw new($"{key}.{part} and {u.key}.{u.part} conflict over repeat match");
+		void Byte(ReadOnlyMemory<char> bs,
+			ref Unit u, K k, int part, bool end, Unit ok, Unit rep)
+		{
+			// buid next
+			var go = u; var mode = 0; // mismatch to backward
+			if (end) // the last byte of alt
+				{ go = ok; mode = -1; } // match part
+			else if (rep != null) // inside byte repeat
+				{ go = rep; mode = -3; } // mismatch to error
+			var next = Next(k, part, u, bs.Span, go, mode, false);
+			if (rep != null)
+				Next(k, part, next, bs.Span, go, mode, true);
+			u = next;
 		}
-		else if (n.pren != bs.Length) // all already nexts must be the same
-			throw new($"Prefixs of {key}.{part} and {n.key}.{n.part}"
-				+ " must be the same or distinct");
-		else if (rep != (n == u)) // already exist next must not conflict
-			throw new($"{key}.{part} and {n.key}.{n.part} conflict over byte repeat");
-		else if (!rep)
-			BuildMode(key, part, n, go, mode); // check mode for already exist next
-		return n;
-	}
 
-	static void BuildMode(K key, int part, Unit u, Unit go, int mode)
-	{
-		if (u.mode + mode == -2) // both match
-			throw new($"{key}.{part} and {u.key}.{u.part} conflict over match");
-		if (u.mode + mode == -6 && u.go != go) // both error
-			throw new($"{key}.{part} and {u.key}.{u.part} conflict over error");
-		if (u.mode + mode == -3) // error and backward
-			throw new($"{key}.{part} and {u.key}.{u.part} conflict over repeat");
-		if (u.mode == 0 && mode != 0) {
-			u.key = key; u.part = part; u.go = go; u.mode = mode;
+		Unit Next(K key, int part, Unit u, ReadOnlySpan<char> bs, Unit go, int mode, bool rep)
+		{
+			Unit n = u.next?[bs[0]];
+			if (u.next == null)
+				u.next = new Unit[129];
+			else
+				// all exist nexts must be the same
+				for (int x = 1; x < bs.Length; x++)
+					if (u.next[bs[x]] != n)
+						throw new($"Prefix '{bs[x]}' of {key}.{part} and {(n ?? u.next[bs[x]]).key}"
+							+ $".{(n ?? u.next[bs[x]]).part} must be the same or distinct");
+			if (n == null) {
+				n = rep ? u // repeat byte
+					: new Unit(ler) { key = key, part = part, pren = bs.Length, go = go, mode = mode };
+				for (int x = 0; x < bs.Length; x++)
+					u.next[bs[x]] = n;
+				if (rep && u.mode == -1 && mode == -3)
+					throw new($"{key}.{part} and {u.key}.{u.part} conflict over repeat match");
+			}
+			else if (n.pren != bs.Length) // all already nexts must be the same
+				throw new($"Prefixs of {key}.{part} and {n.key}.{n.part}"
+					+ " must be the same or distinct");
+			else if (rep != (n == u)) // already exist next must not conflict
+				throw new($"{key}.{part} and {n.key}.{n.part} conflict over byte repeat");
+			else if (!rep)
+				Mode(key, part, n, go, mode); // check mode for already exist next
+			return n;
 		}
-		else if (u.mode == -3 && mode == -1) {
-			u.go = go; u.mode = mode;
+
+		static void Mode(K key, int part, Unit u, Unit go, int mode)
+		{
+			if (u.mode + mode == -2) // both match
+				throw new($"{key}.{part} and {u.key}.{u.part} conflict over match");
+			if (u.mode + mode == -6 && u.go != go) // both error
+				throw new($"{key}.{part} and {u.key}.{u.part} conflict over error");
+			if (u.mode + mode == -3) // error and backward
+				throw new($"{key}.{part} and {u.key}.{u.part} conflict over repeat");
+			if (u.mode == 0 && mode != 0) {
+				u.key = key; u.part = part; u.go = go; u.mode = mode;
+			}
+			else if (u.mode == -3 && mode == -1) {
+				u.go = go; u.mode = mode;
+			}
 		}
 	}
 }

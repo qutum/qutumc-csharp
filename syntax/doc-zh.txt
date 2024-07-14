@@ -1,4 +1,4 @@
-qutum.syntax.Lexer
+qutum.syntax.Lexier
 
 qutum语言的词法解析器，输入byte流，输出lexi流
 

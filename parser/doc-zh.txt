@@ -1,12 +1,12 @@
-qutum.parser.ScanStr
+qutum.parser.LerStr
 
 输入string，输出char流
 
-qutum.parser.ScanByte
+qutum.parser.LerByte
 
 输入byte流，输出byte流
 
-qutum.parser.BootScan
+qutum.parser.MetaStr
 
 输入string，输出自举char流，支持空白、词、数字、量词、转义等
 
@@ -37,9 +37,9 @@ qutum.parser.ParserBase
 
 qutum.parser.ParserStr
 
-以ScanStr为输入的语法解析器
+以LerStr为输入的语法解析器
 
 qutum.parser.Parser
 
-指定Scan为输入的语法解析器
+指定Lexer为输入的语法解析器
 
