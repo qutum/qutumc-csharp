@@ -25,7 +25,7 @@ public class Synt : Synt<Syn, Synt>
 {
 }
 
-public class Parser : Parser<Lex, Syn, Synt, Lexer>
+public class Parser : Parser<Lex, Syn, Synt, Lexier>
 {
 	static readonly string grammar = """
 	all   = Block* | IND all DED Block*
@@ -80,12 +80,12 @@ public class Parser : Parser<Lex, Syn, Synt, Lexer>
 	      | NAME BIND E2 B43* B46* B53* B56* B6* B7*	=+_!|	name feed
 	""";
 
-	public Parser(Lexer l) : base(grammar, l)
+	public Parser(Lexier l) : base(grammar, l)
 	{
 		tree = false;
 		errExpect = 0;
 		dump = 1;
-		dumper = o => o is not ArraySegment<Token<Lex>> s ? null
+		dumper = o => o is not ArraySegment<Lexi<Lex>> s ? null
 			: s.Count == 0 ? "" : string.Join(" ", s.Select(t => t.ToString()).ToArray());
 	}
 
@@ -95,7 +95,7 @@ public class Parser : Parser<Lex, Syn, Synt, Lexer>
 	{
 		var t = base.Parse();
 		Synt tail = t;
-		scan.errs.Each((err, x) =>
+		ler.errs.Each((err, x) =>
 			tail.AddNext(tail = new Synt {
 				name = (Syn)(-(int)err.key), from = ~x, to = ~x, err = -1, info = err.value
 			}));

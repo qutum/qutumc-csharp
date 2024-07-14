@@ -23,25 +23,25 @@ static class TestExtension
 		AreNotEqual(null, t.t);
 		AreEqual(err, t.t.err);
 		if (name != null) AreEqual(name, t.t.name);
-		var (fl, fc, tl, tc) = t.p.scan.LineCol(t.t.from, t.t.to);
+		var (fl, fc, tl, tc) = t.p.ler.LineCol(t.t.from, t.t.to);
 		if (from != null) AreEqual($"{from}", $"{fl}.{fc}");
 		if (to != null) AreEqual($"{to}", $"{tl}.{tc}");
 		if (v != null)
-			AreEqual(v, v is Lex && t.t.info is Token<Lex> tk ? tk.key : t.t.info);
+			AreEqual(v, v is Lex && t.t.info is Lexi<Lex> tk ? tk.key : t.t.info);
 		return t;
 	}
 	public static (Synt, Parser) V(this (Synt t, Parser p) t, params object[] vs)
 	{
-		Token<Lex>[] s = new Token<Lex>[vs.Length];
+		Lexi<Lex>[] s = new Lexi<Lex>[vs.Length];
 		int n = 0;
 		for (int x = 0; x < vs.Length; x++)
 			if (vs[x] is Lex l)
-				s[n++] = new Token<Lex> { key = l };
+				s[n++] = new Lexi<Lex> { key = l };
 			else
 				s[n - 1].value = vs[x];
 		AreEqual(t.p.dumper(s.Seg(0, n)),
-			t.p.dumper(t.t.from >= 0 ? t.p.scan.Tokens(t.t.from, t.t.to)
-			: t.p.scan.errs.GetRange(~t.t.from, ~t.t.to - ~t.t.from).ToArray().Seg()));
+			t.p.dumper(t.t.from >= 0 ? t.p.ler.Lexs(t.t.from, t.t.to)
+			: t.p.ler.errs.GetRange(~t.t.from, ~t.t.to - ~t.t.from).ToArray().Seg()));
 		return t;
 	}
 
@@ -71,16 +71,16 @@ public class TestParser : IDisposable
 
 	public void Dispose() { GC.SuppressFinalize(this); env.Dispose(); }
 
-	readonly Parser p = new(new Lexer()) { dump = 2 };
+	readonly Parser p = new(new Lexier()) { dump = 2 };
 
 	(Synt t, Parser) Parse(string input)
 	{
 		env.WriteLine(input);
-		if (p.scan.scan != null)
-			p.scan.Dispose();
-		p.scan.Load(new ScanByte(Encoding.UTF8.GetBytes(input)));
-		var t = p.Parse().Dump((Func<int, int, (int, int, int, int)>)p.scan.LineCol);
-		env.WriteLine($"---- match {p.matchn} / loc {p.locn} = {p.matchn / Math.Max(p.locn, 1)} ----");
+		if (p.ler.input != null)
+			p.ler.Dispose();
+		p.ler.Begin(new ScanByte(Encoding.UTF8.GetBytes(input)));
+		var t = p.Parse().Dump((Func<int, int, (int, int, int, int)>)p.ler.LineCol);
+		env.WriteLine($"---- match {p.matchn} / loc {p.lexn} = {p.matchn / Math.Max(p.lexn, 1)} ----");
 		return (t, p);
 	}
 

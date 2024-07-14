@@ -11,15 +11,15 @@ using System.Linq;
 
 namespace qutum.parser;
 
-using Set = ScanSet;
+using Set = CharSet;
 
-sealed class BootScan(string input) : ScanStr(input)
+sealed class MetaScan(string input) : ScanStr(input)
 {
 	public override bool Is(char key) => Is(input[loc], key);
 
 	public override bool Is(int loc, char key) => Is(input[loc], key);
 
-	// for boot grammar
+	// for meta grammar
 	public override bool Is(char t, char key) =>
 		key switch {
 			'S' => t is ' ' or '\t',   // space
@@ -62,7 +62,7 @@ sealed class BootScan(string input) : ScanStr(input)
 	}
 }
 
-public static class BootLexer
+public static class MetaLexer
 {
 	// gram
 	// \ prod
@@ -79,7 +79,7 @@ public static class BootLexer
 	//       \ loop
 	//       \ byte: single or range... or esc ... (rep)
 	// \ prod ...
-	static readonly ParserStr boot = new("""
+	static readonly ParserStr meta = new("""
 		gram  = eol* prod prods* eol*
 		prods = eol+ prod
 		prod  = key S*\=S* part1 part* =+
@@ -98,25 +98,25 @@ public static class BootLexer
 		greedy = false, tree = false, dump = 0
 	};
 
-	public static LexerGram<K> Gram<K>(string gram, bool dump = false) where K : struct
-		=> Gram(gram, Lexer<K>.Keyz, dump);
+	public static LexGram<K> Gram<K>(string gram, bool dump = false) where K : struct
+		=> Gram(gram, Lexier<K>.Keyz, dump);
 
-	public static LexerGram<K> Gram<K>(string gram, Func<string, IEnumerable<K>> Keys, bool dump = false)
+	public static LexGram<K> Gram<K>(string gram, Func<string, IEnumerable<K>> Keys, bool dump = false)
 	{
-		using var bscan = new BootScan(gram);
-		var top = boot.Load(bscan).Parse();
+		using var input = new MetaScan(gram);
+		var top = meta.Begin(input).Parse();
 		if (top.err != 0) {
-			using var bscan2 = new BootScan(gram);
-			var dum = boot.dump; boot.dump = 3;
-			boot.Load(bscan2).Parse().Dump(); boot.dump = dum;
+			using var input2 = new MetaScan(gram);
+			var dum = meta.dump; meta.dump = 3;
+			meta.Begin(input2).Parse().Dump(); meta.dump = dum;
 			var e = new Exception(); e.Data["err"] = top;
 			throw e;
 		}
-		LexerGram<K> g = new();
-		var es = new object[LexerGram<K>.AltByteN << 1];
+		LexGram<K> g = new();
+		var es = new object[LexGram<K>.AltByteN << 1];
 		// build prod
 		foreach (var prod in top) {
-			var k = Keys(boot.scan.Tokens(prod.head.from, prod.head.to)).Single();
+			var k = Keys(meta.ler.Lexs(prod.head.from, prod.head.to)).Single();
 			g.prod(k);
 			// build part
 			prod.Skip(1).Each((p, part) => {
@@ -125,7 +125,7 @@ public static class BootLexer
 					_ = g.part;
 				else if (gram[p.head.from] == '|') // empty alt
 					_ = g.part[""];
-				else // shift byte and retry part like the start
+				else // shift byte and retry part like the begin
 					_ = g.skip;
 				// build alt
 				p.Where(t => t.name.StartsWith("alt")).Prepend(p).Each((a, alt) => {
@@ -133,9 +133,9 @@ public static class BootLexer
 					// build elems
 					var bytes = a.Where(t => t.name == "byte");
 					var bn = bytes.Count();
-					if (bn > LexerGram<K>.AltByteN)
-						throw new($"{k}.{part}.{alt} exceeds {LexerGram<K>.AltByteN} bytes :"
-							+ boot.scan.Tokens(a.from, a.to));
+					if (bn > LexGram<K>.AltByteN)
+						throw new($"{k}.{part}.{alt} exceeds {LexGram<K>.AltByteN} bytes :"
+							+ meta.ler.Lexs(a.from, a.to));
 					var en = 0;
 					bytes.Each((b, bx) => Byte(gram, k, part, alt, b, es, ref en));
 					_ = g[es[0..en]];
@@ -148,11 +148,11 @@ public static class BootLexer
 		return g;
 	}
 
-	static void Byte<K>(string gram, K k, int part, int alt, TreeStr b, object[] es, ref int en)
+	static void Byte<K>(string gram, K k, int part, int alt, SyntStr b, object[] es, ref int en)
 	{
 		var x = b.from;
 		if (gram[x] == '\\') { // escape bytes
-			es[en++] = BootScan.Unesc(gram, x, b.to, true).Mem();
+			es[en++] = MetaScan.Unesc(gram, x, b.to, true).Mem();
 			x += 2;
 		}
 		// build range
@@ -164,7 +164,7 @@ public static class BootLexer
 			foreach (var r in b) {
 				inc &= x == (x = r.from); // before ^
 				if (gram[x] == '\\')
-					foreach (var c in BootScan.Unesc(gram, x, r.to, true))
+					foreach (var c in MetaScan.Unesc(gram, x, r.to, true))
 						rs[c] = inc;
 				else
 					for (char c = gram[x], cc = gram[r.to - 1]; c <= cc; c++)
@@ -176,7 +176,7 @@ public static class BootLexer
 			for (char y = '\0'; y <= 128; y++)
 				if (rs[y]) s[n++] = y;
 			if (n == 0)
-				throw new($"No byte in {k}.{part} :{boot.scan.Tokens(b.from, b.to)}");
+				throw new($"No byte in {k}.{part} :{meta.ler.Lexs(b.from, b.to)}");
 			es[en++] = (ReadOnlyMemory<char>)s.AsMemory(0, n);
 			++x; // range ]
 		}
@@ -187,7 +187,7 @@ public static class BootLexer
 			es[en++] = Range.All;
 	}
 
-	static void Dump<K>(TreeStr top, LexerGram<K> gram)
+	static void Dump<K>(SyntStr top, LexGram<K> gram)
 	{
 		top.Dump();
 		using var env = EnvWriter.Use();

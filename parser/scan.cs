@@ -4,37 +4,37 @@
 // Under the terms of the GNU General Public License version 3
 // http://qutum.com
 //
-#pragma warning disable CA1816 // Dispose methods should call SuppressFinalize
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
 
 namespace qutum.parser;
 
-public interface Scan<K, T> : IDisposable
+public interface Scan<K, L> : IDisposable
 {
 	bool Next();
-	// current token index, <0 before first Next()
+	// current lex location, <0 before first Next()
 	int Loc();
-	T Token();
+	L Lex();
+	L Lex(int loc);
+
 	bool Is(K key);
 	bool Is(int loc, K key);
 	bool Is(K testee, K key);
-	T Token(int loc);
-	// tokens from index to index excluded
-	IEnumerable<T> Tokens(int from, int to);
-	// tokens from index to index excluded
-	Span<T> Tokens(int from, int to, Span<T> s);
+
+	// lexs from loc to loc excluded
+	Span<L> Lexs(int from, int to, Span<L> s);
+	// lexs from loc to loc excluded
+	IEnumerable<L> Lexs(int from, int to);
 
 	// text to single or several keys
 	IEnumerable<K> Keys(string text);
 }
 
-public interface ScanSeg<K, T> : Scan<K, T>
+public interface ScanSeg<K, L> : Scan<K, L>
 {
-	// tokens from index to index excluded
-	new ArraySegment<T> Tokens(int from, int to);
+	// lexs from loc to loc excluded
+	new ArraySegment<L> Lexs(int from, int to);
 }
 
 public class ScanStr(string input) : Scan<char, char>
@@ -42,30 +42,23 @@ public class ScanStr(string input) : Scan<char, char>
 	protected string input = input;
 	protected int loc = -1;
 
-	void IDisposable.Dispose() { input = null; loc = -1; }
+	void IDisposable.Dispose() { input = null; loc = -1; GC.SuppressFinalize(this); }
 
 	public bool Next() => ++loc < input.Length;
-
 	public int Loc() => loc;
-
-	public char Token() => input[loc];
+	public char Lex() => input[loc];
+	public char Lex(int loc) => input[loc];
 
 	public virtual bool Is(char key) => input[loc] == key;
-
 	public virtual bool Is(int loc, char key) => input[loc] == key;
-
 	public virtual bool Is(char testee, char key) => testee == key;
 
-	public char Token(int loc) => input[loc];
-
-	public string Tokens(int from, int to) => input[from..to];
-
-	IEnumerable<char> Scan<char, char>.Tokens(int from, int to) => Tokens(from, to);
-
-	public Span<char> Tokens(int from, int to, Span<char> s)
+	public string Lexs(int from, int to) => input[from..to];
+	public Span<char> Lexs(int from, int to, Span<char> s)
 	{
 		input.AsSpan(from, to - from).CopyTo(s); return s;
 	}
+	IEnumerable<char> Scan<char, char>.Lexs(int from, int to) => Lexs(from, to);
 
 	public IEnumerable<char> Keys(string text) => text;
 }
@@ -75,30 +68,23 @@ public class ScanByte(byte[] input) : ScanSeg<byte, byte>
 	protected byte[] input = input;
 	protected int loc = -1;
 
-	void IDisposable.Dispose() { input = null; loc = -1; }
+	void IDisposable.Dispose() { input = null; loc = -1; GC.SuppressFinalize(this); }
 
 	public bool Next() => ++loc < input.Length;
-
 	public int Loc() => loc;
-
-	public byte Token() => input[loc];
+	public byte Lex() => input[loc];
+	public byte Lex(int loc) => input[loc];
 
 	public virtual bool Is(byte key) => input[loc] == key;
-
 	public virtual bool Is(int loc, byte key) => input[loc] == key;
-
 	public virtual bool Is(byte testee, byte key) => testee == key;
 
-	public byte Token(int loc) => input[loc];
-
-	public ArraySegment<byte> Tokens(int from, int to) => input.Seg(from, to);
-
-	IEnumerable<byte> Scan<byte, byte>.Tokens(int from, int to) => Tokens(from, to);
-
-	public Span<byte> Tokens(int from, int to, Span<byte> s)
+	public ArraySegment<byte> Lexs(int from, int to) => input.Seg(from, to);
+	public Span<byte> Lexs(int from, int to, Span<byte> s)
 	{
 		input.AsSpan(from, to - from).CopyTo(s); return s;
 	}
+	IEnumerable<byte> Scan<byte, byte>.Lexs(int from, int to) => Lexs(from, to);
 
 	public IEnumerable<byte> Keys(string text) => text.Select(k => (byte)k);
 }
@@ -108,30 +94,23 @@ public class ScanByteSeg(ArraySegment<byte> input) : ScanSeg<byte, byte>
 	protected ArraySegment<byte> input = input;
 	protected int loc = -1;
 
-	void IDisposable.Dispose() { input = null; loc = -1; }
+	void IDisposable.Dispose() { input = null; loc = -1; GC.SuppressFinalize(this); }
 
 	public bool Next() => ++loc < input.Count;
-
 	public int Loc() => loc;
-
-	public byte Token() => input[loc];
+	public byte Lex() => input[loc];
+	public byte Lex(int loc) => input[loc];
 
 	public virtual bool Is(byte key) => input[loc] == key;
-
 	public virtual bool Is(int loc, byte key) => input[loc] == key;
-
 	public virtual bool Is(byte testee, byte key) => testee == key;
 
-	public byte Token(int loc) => input[loc];
-
-	public ArraySegment<byte> Tokens(int from, int to) => input.Slice(from, to - from);
-
-	IEnumerable<byte> Scan<byte, byte>.Tokens(int from, int to) => Tokens(from, to);
-
-	public Span<byte> Tokens(int from, int to, Span<byte> s)
+	public ArraySegment<byte> Lexs(int from, int to) => input.Slice(from, to - from);
+	public Span<byte> Lexs(int from, int to, Span<byte> s)
 	{
 		input.AsSpan(from, to - from).CopyTo(s); return s;
 	}
+	IEnumerable<byte> Scan<byte, byte>.Lexs(int from, int to) => Lexs(from, to);
 
 	public IEnumerable<byte> Keys(string text) => text.Select(k => (byte)k);
 }
@@ -141,38 +120,31 @@ public class ScanByteList(List<byte> input) : Scan<byte, byte>
 	protected List<byte> input = input;
 	protected int loc = -1;
 
-	void IDisposable.Dispose() { input = null; loc = -1; }
+	void IDisposable.Dispose() { input = null; loc = -1; GC.SuppressFinalize(this); }
 
 	public bool Next() => ++loc < input.Count;
-
 	public int Loc() => loc;
-
-	public byte Token() => input[loc];
+	public byte Lex() => input[loc];
+	public byte Lex(int loc) => input[loc];
 
 	public virtual bool Is(byte key) => input[loc] == key;
-
 	public virtual bool Is(int loc, byte key) => input[loc] == key;
-
 	public virtual bool Is(byte testee, byte key) => testee == key;
 
-	public byte Token(int loc) => input[loc];
-
-	public IEnumerable<byte> Tokens(int from, int to) => input.GetRange(from, to - from);
-
-	public Span<byte> Tokens(int from, int to, Span<byte> bs)
+	public Span<byte> Lexs(int from, int to, Span<byte> s)
 	{
 		// lack of List.CopyTo(Span ...)
 		int x = 0; foreach (var v in input.GetRange(from, to - from))
-			bs[x++] = v;
-		return bs;
+			s[x++] = v;
+		return s;
 	}
+	public IEnumerable<byte> Lexs(int from, int to) => input.GetRange(from, to - from);
 
 	public IEnumerable<byte> Keys(string text) => text.Select(k => (byte)k);
 }
 
-public static class ScanSet
+public static class CharSet
 {
-
 	internal static bool[] L = new bool[129], D = new bool[129], X = new bool[129],
 							A = new bool[129], W = new bool[129], O = new bool[129],
 							G = new bool[129], I = new bool[129],
@@ -182,7 +154,7 @@ public static class ScanSet
 
 	public static readonly ReadOnlyMemory<char> All, Line, Dec, Hex, Alpha, Word, Op;
 
-	static ScanSet()
+	static CharSet()
 	{
 		foreach (var t in "!\"#$%&'()*+,-./:;<=>?@[\\]^`{|}~") {
 			O[t] = true;

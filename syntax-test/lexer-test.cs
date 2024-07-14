@@ -22,16 +22,16 @@ public class TestLexer : IDisposable
 
 	public void Dispose() { GC.SuppressFinalize(this); env.Dispose(); }
 
-	readonly Lexer l = new() { eof = false };
+	readonly Lexier l = new() { eof = false };
 
 	void Check(string input, string s)
 	{
 		env.WriteLine(input);
 		l.mergeErr = true;
-		using var __ = l.Load(new ScanByte(Encoding.UTF8.GetBytes(input)));
+		using var __ = l.Begin(new ScanByte(Encoding.UTF8.GetBytes(input)));
 		while (l.Next())
 			;
-		var z = string.Join(" ", l.Tokens(0, l.Loc()).Select(t => t.ToString(Dump)).ToArray());
+		var z = string.Join(" ", l.Lexs(0, l.Loc()).Select(t => t.ToString(Dump)).ToArray());
 		env.WriteLine(z);
 		AreEqual(s, z);
 	}

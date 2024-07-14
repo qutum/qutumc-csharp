@@ -4,8 +4,6 @@
 // Under the terms of the GNU General Public License version 3
 // http://qutum.com
 //
-#pragma warning disable CA1816 // Dispose methods should call SuppressFinalize
-
 using qutum.parser;
 using System;
 using System.Collections.Generic;
@@ -13,7 +11,8 @@ using System.Text;
 
 namespace qutum.syntax;
 
-using Set = ScanSet;
+using Set = CharSet;
+using L = Lex;
 
 public enum Lex
 {
@@ -50,7 +49,7 @@ public enum Lex
 	NOT = PREPURE | 2, AND = BIN7 | 1, OR,
 }
 
-public class Lexer : Lexer<Lex>
+public class Lexier : Lexier<L>
 {
 	/* 	==APO   = '
 		==BAPO  = ` == path
@@ -70,65 +69,65 @@ public class Lexer : Lexer<Lex>
 		==VER   = \| == or
 		==TIL   = ~
 	*/
-	static readonly LexerGram<Lex> Grammar = new LexerGram<Lex>()
-		.prod(Lex.BIND).part["="]
-		.prod(Lex.LP).part["("]
-		.prod(Lex.RP).part[")"]
-		.prod(Lex.LSB).part["["]
-		.prod(Lex.RSB).part["]"]
-		.prod(Lex.LCB).part["{"]
-		.prod(Lex.RCB).part["}"]
-		.prod(Lex.SHL).part["<<"]
-		.prod(Lex.SHR).part[">>"]
-		.prod(Lex.BNOT).part["--"]
-		.prod(Lex.BAND).part["&&"]
-		.prod(Lex.BXOR).part["++"]
-		.prod(Lex.BOR).part["||"]
-		.prod(Lex.ADD).part["+"]
-		.prod(Lex.SUB).part["-"]
-		.prod(Lex.MUL).part["*"]
-		.prod(Lex.DIV).part["/"]
-		.prod(Lex.MOD).part["%"]
-		.prod(Lex.DIVF).part["//"]
-		.prod(Lex.MODF).part["%%"]
-		.prod(Lex.EQ).part["=="]
-		.prod(Lex.UEQ).part["/="]
-		.prod(Lex.LEQ).part["<="]
-		.prod(Lex.GEQ).part[">="]
-		.prod(Lex.LT).part["<"]
-		.prod(Lex.GT).part[">"]
-		.prod(Lex.NOT).part["!"]
-		.prod(Lex.AND).part["&"]
-		.prod(Lex.OR).part["|"]
+	static readonly LexGram<L> Grammar = new LexGram<L>()
+		.prod(L.BIND).part["="]
+		.prod(L.LP).part["("]
+		.prod(L.RP).part[")"]
+		.prod(L.LSB).part["["]
+		.prod(L.RSB).part["]"]
+		.prod(L.LCB).part["{"]
+		.prod(L.RCB).part["}"]
+		.prod(L.SHL).part["<<"]
+		.prod(L.SHR).part[">>"]
+		.prod(L.BNOT).part["--"]
+		.prod(L.BAND).part["&&"]
+		.prod(L.BXOR).part["++"]
+		.prod(L.BOR).part["||"]
+		.prod(L.ADD).part["+"]
+		.prod(L.SUB).part["-"]
+		.prod(L.MUL).part["*"]
+		.prod(L.DIV).part["/"]
+		.prod(L.MOD).part["%"]
+		.prod(L.DIVF).part["//"]
+		.prod(L.MODF).part["%%"]
+		.prod(L.EQ).part["=="]
+		.prod(L.UEQ).part["/="]
+		.prod(L.LEQ).part["<="]
+		.prod(L.GEQ).part[">="]
+		.prod(L.LT).part["<"]
+		.prod(L.GT).part[">"]
+		.prod(L.NOT).part["!"]
+		.prod(L.AND).part["&"]
+		.prod(L.OR).part["|"]
 
-		.prod(Lex.EOL).part["\n"]["\r\n"]
-		.prod(Lex.SP).part[" \t".Mem()] // [\s\t]  |+\s+|+\t+
+		.prod(L.EOL).part["\n"]["\r\n"]
+		.prod(L.SP).part[" \t".Mem()] // [\s\t]  |+\s+|+\t+
 					.part[""][" ", ..].loop["\t", ..].loop
 
-		.prod(Lex.COMM).part["##"] // ##  |[\A^\n]+
+		.prod(L.COMM).part["##"] // ##  |[\A^\n]+
 						.part[""][Set.All.Exc("\n"), ..]
-		.prod(Lex.COMMB).part["\\", .., "##"] // \\+##  +##\\+|+#|+[\A^#]+
+		.prod(L.COMMB).part["\\", .., "##"] // \\+##  +##\\+|+#|+[\A^#]+
 						.part["##", "\\", ..].loop["#"].loop[Set.All.Exc("#"), ..].loop
-		.prod(Lex.STRB).part["\\", .., "\""] // \\+"  +"\\+|+"|+[\A^"]+
+		.prod(L.STRB).part["\\", .., "\""] // \\+"  +"\\+|+"|+[\A^"]+
 						.part["\"", "\\", ..].loop["\""].loop[Set.All.Exc("\""), ..].loop
-		.prod(Lex.STR).part["\""] // "  *"|\n|+[\l^""\\]+|+\\[0tnr"".`\\]|+\\x\x\x|+\\u\x\x\x\x
+		.prod(L.STR).part["\""] // "  *"|\n|+[\l^""\\]+|+\\[0tnr"".`\\]|+\\x\x\x|+\\u\x\x\x\x
 					.skip["\"\n".Mem()]
 						[Set.Line.Exc("\"\\"), ..].loop
 						["\\", "0tnr\".`\\".Mem()].loop
 						["\\x", Set.Hex, Set.Hex].loop["\\u", Set.Hex, Set.Hex, Set.Hex, Set.Hex].loop
-		.prod(Lex.PATH).part["`"][".`"] // .?`  *`|\n|+.|+[\l^.`\\]+|+\\[0tnr"".`\\]|+\\x\x\x|+\\u\x\x\x\x
+		.prod(L.PATH).part["`"][".`"] // .?`  *`|\n|+.|+[\l^.`\\]+|+\\[0tnr"".`\\]|+\\x\x\x|+\\u\x\x\x\x
 					.skip["`\n".Mem()]["."].loop
 						[Set.Line.Exc(".`\\"), ..].loop
 						["\\", "0tnr\".`\\".Mem()].loop
 						["\\x", Set.Hex, Set.Hex].loop["\\u", Set.Hex, Set.Hex, Set.Hex, Set.Hex].loop
 
-		.prod(Lex.NAME).part[Set.Alpha.Inc("_")][Set.Alpha.Inc("_"), Set.Word, ..] // [\a_]\w*
-		.prod(Lex.RNAME).part["."] // .|.[\a_]\w*
+		.prod(L.NAME).part[Set.Alpha.Inc("_")][Set.Alpha.Inc("_"), Set.Word, ..] // [\a_]\w*
+		.prod(L.RNAME).part["."] // .|.[\a_]\w*
 							[".", Set.Alpha.Inc("_")][".", Set.Alpha.Inc("_"), Set.Word, ..]
-		.prod(Lex.HEX).part["0x"]["0X"] // 0[xX]_*\x  |+_*\x+
+		.prod(L.HEX).part["0x"]["0X"] // 0[xX]_*\x  |+_*\x+
 						.part[Set.Hex]["_", .., Set.Hex]
 						.part[""][Set.Hex, ..].loop["_", .., Set.Hex, ..].loop
-		.prod(Lex.NUM) // 0|[1-9]  |+_*\d+  |.\d+  |+_+\d+  |[eE][\+\-]?\d+  |[fF]
+		.prod(L.NUM) // 0|[1-9]  |+_*\d+  |.\d+  |+_+\d+  |[eE][\+\-]?\d+  |[fF]
 						.part["0"][Set.Dec.Exc("0")]
 						.part[""][Set.Dec, ..].loop["_", .., Set.Dec, ..].loop
 						.part[""][".", Set.Dec, ..]
@@ -137,16 +136,16 @@ public class Lexer : Lexer<Lex>
 						.part[""]["fF".Mem()]
 	;
 
-	public override bool Is(Lex testee, Lex key)
+	public override bool Is(L testee, L key)
 	{
 		if (testee == key) return true;
 		// key as kind contains testee
 		return ((int)key & 15) == 0 && (key & testee) != 0;
 	}
 
-	public Lexer() : base(Grammar) { }
+	public Lexier() : base(Grammar) { }
 
-	byte[] bs = new byte[4096]; // buffer used for some tokens
+	byte[] bs = new byte[4096]; // buffer used by some lexi
 	int bn;
 	int nn, nf, ne; // end of each number part
 	int indent; // indent count of current line
@@ -154,8 +153,8 @@ public class Lexer : Lexer<Lex>
 	int indentFrom, indentTo;
 	bool crlf; // \r\n found
 	readonly List<string> path = [];
-	public bool eof = true; // insert eol at scan end
-	public bool allValue = false; // set all tokens value
+	public bool eof = true; // insert eol at input end
+	public bool allValue = false; // set all lexis value
 	public bool allBlank = false; // keep all spaces, comments and empty lines
 
 	public override void Dispose()
@@ -168,32 +167,32 @@ public class Lexer : Lexer<Lex>
 	{
 		if (indentNew >= 0) {
 			while (indentNew > indent)
-				base.Add(Lex.IND, indentFrom, indentTo, ++indent); // more indents
+				base.Add(L.IND, indentFrom, indentTo, ++indent); // more indents
 			while (indentNew < indent)
-				base.Add(Lex.DED, indentFrom, indentTo, --indent); // less indents
+				base.Add(L.DED, indentFrom, indentTo, --indent); // less indents
 		}
 		indentNew = -1;
 	}
 
-	protected override void Add(Lex key, int f, int to, object value)
+	protected override void Add(L key, int f, int to, object value)
 	{
 		Indent();
-		if (key == Lex.RNAME && tokenn > 0 && tokens[tokenn - 1].to == f
-			&& (tokens[tokenn - 1].key & (Lex.DENSE | Lex.LITERAL)) != 0)
-			key = Lex.RNAME1; // run name follows the previous token densely, high precedence
+		if (key == L.RNAME && lexn > 0 && lexs[lexn - 1].to == f
+			&& (lexs[lexn - 1].key & (L.DENSE | L.LITERAL)) != 0)
+			key = L.RNAME1; // run name follows the previous lexi densely, high precedence
 		base.Add(key, f, to, value);
 	}
 
-	protected override void Error(Lex key, int part, bool end, int b, int f, int to)
+	protected override void Error(L key, int part, bool end, int b, int f, int to)
 	{
-		if (key == Lex.PATH)
-			key = Lex.NAME;
+		if (key == L.PATH)
+			key = L.NAME;
 		base.Error(key, part, end, b, f, to);
-		if (part < 0) { // scan end
+		if (part < 0) { // input end
 			end = true;
 			from = -1;
 			if (eof)
-				Token(Lex.EOL, 1, ref end, f, f);
+				Lexi(L.EOL, 1, ref end, f, f);
 			if (eof || allBlank)
 				Indent();
 		}
@@ -204,11 +203,11 @@ public class Lexer : Lexer<Lex>
 		var n = x + to - f;
 		if (bs.Length < n)
 			Array.Resize(ref bs, n + 4095 & ~4095);
-		scan.Tokens(f, to, bs.AsSpan(x));
+		input.Lexs(f, to, bs.AsSpan(x));
 		return n;
 	}
 
-	protected override void Token(Lex key, int part, ref bool end, int f, int to)
+	protected override void Lexi(L key, int part, ref bool end, int f, int to)
 	{
 		object v = null;
 		if (from < 0) {
@@ -216,32 +215,32 @@ public class Lexer : Lexer<Lex>
 		}
 		switch (key) {
 
-		case Lex.EOL:
+		case L.EOL:
 			if (!crlf && to == f + 2) { // \r\n found
 				AddErr(key, f, to, @"use LF \n eol instead of CRLF \r\n");
 				crlf = true;
 			}
 			if (allBlank
-				|| tokenn > 0 && tokens[tokenn - 1].key != Lex.EOL) // not empty line
+				|| lexn > 0 && lexs[lexn - 1].key != L.EOL) // not empty line
 				Add(key, from, to, null);
 			indentNew = 0; indentFrom = indentTo = to; // EOL or clear indents of empty lines
 			goto End;
 
-		case Lex.SP:
+		case L.SP:
 			if (part == 1) {
 				bs[0] = 0;
-				if (f < 1 || scan.Token(f - 1) == '\n')
-					bs[0] = scan.Token(f); // line start, save the byte to check indents
+				if (f < 1 || input.Lex(f - 1) == '\n')
+					bs[0] = input.Lex(f); // line start, save the byte to check indents
 				return;
 			}
 			if (bs[0] != 0) // for line start
-				if (f < to && (bs[1] = scan.Token(f)) != bs[0]) { // mix \s and \t
+				if (f < to && (bs[1] = input.Lex(f)) != bs[0]) { // mix \s and \t
 					bs[0] = 0; // to be not line start
-					AddErr(Lex.SP, f, to, "do not mix tabs and spaces for indent");
+					AddErr(L.SP, f, to, "do not mix tabs and spaces for indent");
 				}
 				else if (bs[0] == ' ' && (to - from & 3) != 0) { // check \s width of 4
 					bs[0] = 0; // to be not line start
-					AddErr(Lex.SP, f, to, $"{to - from + 3 >> 2 << 2} spaces expected");
+					AddErr(L.SP, f, to, $"{to - from + 3 >> 2 << 2} spaces expected");
 				}
 			if (!end)
 				return;
@@ -253,55 +252,55 @@ public class Lexer : Lexer<Lex>
 			else if (allBlank)
 				Add(key, from, to, null); // SP
 			from = -1;
-			goto End; // tokens already made
+			goto End; // lexis already made
 
-		case Lex.COMM:
+		case L.COMM:
 			if (!allBlank)
 				goto End;
 			break;
 
-		case Lex.COMMB:
+		case L.COMMB:
 			if (part == 1) {
-				bn = to; // start part position
+				bn = to; // begin part position
 				return;
 			}
-			if (to - f != bn - from || scan.Token(f) != '#') // check end part length
+			if (to - f != bn - from || input.Lex(f) != '#') // check end part length
 				return;
 			end = true;
 			if (!allBlank)
 				goto End;
-			key = Lex.COMM; v = nameof(Lex.COMMB); // as COMM
+			key = L.COMM; v = nameof(L.COMMB); // as COMM
 			break;
 
-		case Lex.STRB:
+		case L.STRB:
 			if (part == 1) {
-				bn = to; // start part position
+				bn = to; // begin part position
 				return;
 			}
-			if (to - f != bn - from || scan.Token(f) != '"') // check end part length
+			if (to - f != bn - from || input.Lex(f) != '"') // check end part length
 				return;
 			end = true; bn = ScanBs(bn, f, 0);
 			break;
 
-		case Lex.STR:
+		case L.STR:
 			if (part == 1)
 				return;
 			if (end) {
-				if (scan.Token(f) != '"') // \n found
+				if (input.Lex(f) != '"') // \n found
 					AddErr(key, f, to, "\" expected");
 				break;
 			}
 			ScanBs(f, to, bn); Unesc(f, to);
 			return; // inside string
 
-		case Lex.HEX:
+		case L.HEX:
 			if (!end)
 				return;
 			bn = ScanBs(from, to, 0);
-			key = Lex.INT; v = Hex(); // as INT
+			key = L.INT; v = Hex(); // as INT
 			break;
 
-		case Lex.NUM:
+		case L.NUM:
 			if (part == 2) nn = to - from; // end of integer part
 			else if (part == 4) nf = to - from; // end of fraction part
 			else if (part == 5) ne = to - from; // end of exponent part
@@ -311,9 +310,9 @@ public class Lexer : Lexer<Lex>
 			v = Num(ref key);
 			break;
 
-		case Lex.NAME:
-		case Lex.RNAME:
-			f = key == Lex.NAME ? from : from + 1;
+		case L.NAME:
+		case L.RNAME:
+			f = key == L.NAME ? from : from + 1;
 			if (to - f > 40) {
 				AddErr(key, f, to, "too long");
 				to = f + 40;
@@ -321,22 +320,22 @@ public class Lexer : Lexer<Lex>
 			bn = ScanBs(f, to, 0);
 			break;
 
-		case Lex.PATH:
+		case L.PATH:
 			if (part == 1)
 				return;
-			var split = end || scan.Token(f) == '.';
+			var split = end || input.Lex(f) == '.';
 			if (split) {
 				if (bn > 40) {
-					AddErr(Lex.NAME, to - 1, to - 1, "too long");
+					AddErr(L.NAME, to - 1, to - 1, "too long");
 					bn = 40;
 				}
 				path.Add(Encoding.UTF8.GetString(bs, 0, bn));
 				bn = 0;
 			}
 			if (end) {
-				if (scan.Token(f) != '`') // \n found
-					AddErr(Lex.NAME, f, to, "` expected");
-				key = scan.Token(from) != '.' ? Lex.NAME : Lex.RNAME;
+				if (input.Lex(f) != '`') // \n found
+					AddErr(L.NAME, f, to, "` expected");
+				key = input.Lex(from) != '.' ? L.NAME : L.RNAME;
 				v = path.ToArray();
 				break;
 			}
@@ -385,17 +384,17 @@ public class Lexer : Lexer<Lex>
 				if (v < 0x1000_0000)
 					v = v << 4 | (uint)Hex(x);
 				else {
-					AddErr(Lex.INT, from, from + bn, "hexadecimal out of range");
+					AddErr(L.INT, from, from + bn, "hexadecimal out of range");
 					return 0;
 				}
 		return v;
 	}
 
-	object Num(ref Lex key)
+	object Num(ref L key)
 	{
 		uint v = 0; int x = 0, dot = 0, e = 0;
 		if (nn == bn) {
-			key = Lex.INT; // as INT
+			key = L.INT; // as INT
 			for (; x < nn; x++)
 				if (bs[x] != '_')
 					if (v < 214748364 || v == 214748364 && bs[x] <= '8')
@@ -406,7 +405,7 @@ public class Lexer : Lexer<Lex>
 					}
 			return v;
 		}
-		key = Lex.FLOAT; // as FLOAT
+		key = L.FLOAT; // as FLOAT
 		for (; x < nn; x++)
 			if (bs[x] != '_')
 				if (v <= 9999_9999) v = v * 10 + bs[x] - '0';

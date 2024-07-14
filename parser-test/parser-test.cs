@@ -16,17 +16,17 @@ namespace qutum.test.parser;
 static class TestExtension
 {
 	public static bool Check(this ParserStr p, string input)
-		=> p.Load(new ScanStr(input)).Check();
+		=> p.Begin(new ScanStr(input)).Check();
 
-	public static (TreeStr t, ScanStr) Parse(this ParserStr p, string input)
+	public static (SyntStr t, ScanStr) Parse(this ParserStr p, string input)
 	{
-		var t = p.Load(new ScanStr(input)).Parse().Dump();
+		var t = p.Begin(new ScanStr(input)).Parse().Dump();
 		using var env = EnvWriter.Begin();
-		env.WriteLine($"---- match {p.matchn} / loc {p.locn} = {p.matchn / Math.Max(p.locn, 1)} ----");
-		return (t, p.scan);
+		env.WriteLine($"---- match {p.matchn} / lexi {p.lexn} = {p.matchn / Math.Max(p.lexn, 1)} ----");
+		return (t, p.ler);
 	}
 
-	public static (TreeStr, ScanStr) Eq(this (TreeStr t, ScanStr s) t,
+	public static (SyntStr, ScanStr) Eq(this (SyntStr t, ScanStr s) t,
 		string name = null, int? from = null, int? to = null, object v = null, int err = 0)
 	{
 		AreNotEqual(null, t.t);
@@ -34,27 +34,27 @@ static class TestExtension
 		if (name != null) AreEqual(name, t.t.name);
 		if (from != null) AreEqual(from, t.t.from);
 		if (to != null) AreEqual(to, t.t.to);
-		if (v != null) AreEqual(v, t.t.err == 0 ? t.s.Tokens(t.t.from, t.t.to) : t.t.info);
+		if (v != null) AreEqual(v, t.t.err == 0 ? t.s.Lexs(t.t.from, t.t.to) : t.t.info);
 		return t;
 	}
 
-	public static (TreeStr, ScanStr) H(this (TreeStr t, ScanStr s) t,
+	public static (SyntStr, ScanStr) H(this (SyntStr t, ScanStr s) t,
 		string name = null, int? from = null, int? to = null, object v = null, int err = 0)
 		=> (t.t.head, t.s).Eq(name, from, to, v, err);
-	public static (TreeStr, ScanStr) T(this (TreeStr t, ScanStr s) t,
+	public static (SyntStr, ScanStr) T(this (SyntStr t, ScanStr s) t,
 		string name = null, int? from = null, int? to = null, object v = null, int err = 0)
 		=> (t.t.tail, t.s).Eq(name, from, to, v, err);
-	public static (TreeStr, ScanStr) N(this (TreeStr t, ScanStr s) t,
+	public static (SyntStr, ScanStr) N(this (SyntStr t, ScanStr s) t,
 		string name = null, int? from = null, int? to = null, object v = null, int err = 0)
 		=> (t.t.next, t.s).Eq(name, from, to, v, err);
-	public static (TreeStr, ScanStr) P(this (TreeStr t, ScanStr s) t,
+	public static (SyntStr, ScanStr) P(this (SyntStr t, ScanStr s) t,
 		string name = null, int? from = null, int? to = null, object v = null, int err = 0)
 		=> (t.t.prev, t.s).Eq(name, from, to, v, err);
 
-	public static (TreeStr, ScanStr) U(this (TreeStr t, ScanStr s) t) => (t.t.up, t.s);
-	public static (TreeStr, ScanStr) H0(this (TreeStr t, ScanStr) t) { AreEqual(null, t.t.head); return t; }
-	public static (TreeStr, ScanStr) N0(this (TreeStr t, ScanStr) t) { AreEqual(null, t.t.next); return t.U(); }
-	public static (TreeStr, ScanStr) P0(this (TreeStr t, ScanStr) t) { AreEqual(null, t.t.prev); return t.U(); }
+	public static (SyntStr, ScanStr) U(this (SyntStr t, ScanStr s) t) => (t.t.up, t.s);
+	public static (SyntStr, ScanStr) H0(this (SyntStr t, ScanStr) t) { AreEqual(null, t.t.head); return t; }
+	public static (SyntStr, ScanStr) N0(this (SyntStr t, ScanStr) t) { AreEqual(null, t.t.next); return t.U(); }
+	public static (SyntStr, ScanStr) P0(this (SyntStr t, ScanStr) t) { AreEqual(null, t.t.prev); return t.U(); }
 }
 
 [TestClass]
@@ -394,7 +394,7 @@ public class TestParser : IDisposable
 	}
 
 	[TestMethod]
-	public void TreeHint1()
+	public void HintSynt1()
 	{
 		var p = new ParserStr("S=A B C\n A=1 =+\n B=1 =-\n C=1") {
 			tree = true, dump = 3
@@ -405,7 +405,7 @@ public class TestParser : IDisposable
 	}
 
 	[TestMethod]
-	public void TreeHint2()
+	public void HintSynt2()
 	{
 		var p = new ParserStr("S=Z*U* \n U=A*V* =+-\n V=B*C* =+-\n Z=z \n A=a \n B=b \n C=c") {
 			tree = true, dump = 3
@@ -432,7 +432,7 @@ public class TestParser : IDisposable
 	}
 
 	[TestMethod]
-	public void TreeHint3()
+	public void HintSynt3()
 	{
 		var p = new ParserStr("S=Z*U* \n U=A*V* =+-\n V=B*C* =+-\n Z=z =-\n A=a \n B=b \n C=c") {
 			tree = true, dump = 3

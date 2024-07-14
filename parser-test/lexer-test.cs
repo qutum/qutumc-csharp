@@ -25,20 +25,20 @@ public class TestLexer : IDisposable
 
 	enum Tag { _, A, B, BB, C, CC, D };
 
-	class Lexer : Lexer<Tag>
+	class Lexer : Lexier<Tag>
 	{
-		public Lexer(LexerGram<Tag> grammar) : base(grammar, true) { }
-		public Lexer(string grammar) : base(BootLexer.Gram<Tag>(grammar, true), true) { }
+		public Lexer(LexGram<Tag> grammar) : base(grammar, true) { }
+		public Lexer(string grammar) : base(MetaLexer.Gram<Tag>(grammar, true), true) { }
 	}
 
-	void Check(Lexer<Tag> l, string input, string s) => Check(l, Encoding.UTF8.GetBytes(input), s);
+	void Check(Lexier<Tag> l, string input, string s) => Check(l, Encoding.UTF8.GetBytes(input), s);
 
-	void Check(Lexer<Tag> l, byte[] input, string s)
+	void Check(Lexier<Tag> l, byte[] input, string s)
 	{
 		l.mergeErr = true;
-		using var __ = l.Load(new ScanByte(input));
+		using var __ = l.Begin(new ScanByte(input));
 		while (l.Next()) ;
-		var z = string.Join(" ", l.Tokens(0, l.Loc()).Select(t => t.ToString()).ToArray());
+		var z = string.Join(" ", l.Lexs(0, l.Loc()).Select(t => t.ToString()).ToArray());
 		env.WriteLine(z);
 		AreEqual(s, z);
 	}
@@ -433,7 +433,7 @@ public class TestLexer : IDisposable
 	[TestMethod]
 	public void LexSkip6()
 	{
-		Throw(() => new Lexer(new LexerGram<Tag>().prod(Tag.A).skip["a"].part["b"]), "Skip");
+		Throw(() => new Lexer(new LexGram<Tag>().prod(Tag.A).skip["a"].part["b"]), "Skip");
 		Throw(() => new Lexer("A=*a b c"), "");
 		Throw(() => new Lexer("A=a *|b c"), "");
 	}
