@@ -17,7 +17,7 @@ namespace qutum.test.syntax
 {
 	static class TestExtension
 	{
-		public static (Tree, Parser) Eq(this (Tree t, Parser p) t,
+		public static (Synt, Parser) Eq(this (Synt t, Parser p) t,
 			Syn? name = null, int err = 0, double? from = null, double? to = null, object v = null)
 		{
 			AreNotEqual(null, t.t);
@@ -30,7 +30,7 @@ namespace qutum.test.syntax
 				AreEqual(v, v is Lex && t.t.info is Token<Lex> tk ? tk.key : t.t.info);
 			return t;
 		}
-		public static (Tree, Parser) V(this (Tree t, Parser p) t, params object[] vs)
+		public static (Synt, Parser) V(this (Synt t, Parser p) t, params object[] vs)
 		{
 			Token<Lex>[] s = new Token<Lex>[vs.Length];
 			int n = 0;
@@ -45,23 +45,23 @@ namespace qutum.test.syntax
 			return t;
 		}
 
-		public static (Tree, Parser) H(this (Tree t, Parser p) t,
+		public static (Synt, Parser) H(this (Synt t, Parser p) t,
 			Syn? name = null, int err = 0, double? from = null, double? to = null, object v = null)
 			=> (t.t.head, t.p).Eq(name, err, from, to, v);
-		public static (Tree, Parser) T(this (Tree t, Parser p) t,
+		public static (Synt, Parser) T(this (Synt t, Parser p) t,
 			Syn? name = null, int err = 0, double? from = null, double? to = null, object v = null)
 			=> (t.t.tail, t.p).Eq(name, err, from, to, v);
-		public static (Tree, Parser) N(this (Tree t, Parser p) t,
+		public static (Synt, Parser) N(this (Synt t, Parser p) t,
 			Syn? name = null, int err = 0, double? from = null, double? to = null, object v = null)
 			=> (t.t.next, t.p).Eq(name, err, from, to, v);
-		public static (Tree, Parser) P(this (Tree t, Parser p) t,
+		public static (Synt, Parser) P(this (Synt t, Parser p) t,
 			Syn? name = null, int err = 0, double? from = null, double? to = null, object v = null)
 			=> (t.t.prev, t.p).Eq(name, err, from, to, v);
 
-		public static (Tree, Parser) U(this (Tree t, Parser s) t) => (t.t.up, t.s);
-		public static (Tree, Parser) H0(this (Tree t, Parser) t) { AreEqual(null, t.t.head); return t; }
-		public static (Tree, Parser) N0(this (Tree t, Parser) t) { AreEqual(null, t.t.next); return t.U(); }
-		public static (Tree, Parser) P0(this (Tree t, Parser) t) { AreEqual(null, t.t.prev); return t.U(); }
+		public static (Synt, Parser) U(this (Synt t, Parser s) t) => (t.t.up, t.s);
+		public static (Synt, Parser) H0(this (Synt t, Parser) t) { AreEqual(null, t.t.head); return t; }
+		public static (Synt, Parser) N0(this (Synt t, Parser) t) { AreEqual(null, t.t.next); return t.U(); }
+		public static (Synt, Parser) P0(this (Synt t, Parser) t) { AreEqual(null, t.t.prev); return t.U(); }
 	}
 
 	[TestClass]
@@ -73,7 +73,7 @@ namespace qutum.test.syntax
 
 		readonly Parser p = new Parser(new Lexer()) { dump = 2 };
 
-		(Tree t, Parser) Parse(string input)
+		(Synt t, Parser) Parse(string input)
 		{
 			env.WriteLine(input);
 			if (p.scan.scan != null)

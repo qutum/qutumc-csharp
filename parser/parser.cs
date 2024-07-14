@@ -15,7 +15,8 @@ namespace qutum.parser;
 
 using ParserChar = ParserBase<char, char, string, TreeStr, ScanStr>;
 
-public class Tree<N, T> : LinkTree<T> where T : Tree<N, T>
+// Syntax Tree
+public class Synt<N, T> : LinkTree<T> where T : Synt<N, T>
 {
 	public N name;
 	public int from, to; // from token index to index excluded, for error tokens may < 0
@@ -38,12 +39,12 @@ public class Tree<N, T> : LinkTree<T> where T : Tree<N, T>
 	}
 }
 
-public class TreeStr : Tree<string, TreeStr>
+public class TreeStr : Synt<string, TreeStr>
 {
 }
 
-public class Parser<K, N, Tr, Sc> : ParserBase<K, Token<K>, N, Tr, Sc>
-	where K : struct where Tr : Tree<N, Tr>, new() where Sc : ScanSeg<K, Token<K>>
+public class Parser<K, N, T, Sc> : ParserBase<K, Token<K>, N, T, Sc>
+	where K : struct where T : Synt<N, T>, new() where Sc : ScanSeg<K, Token<K>>
 {
 	public Parser(string gram, Sc scan) : base(gram, scan) { }
 }
@@ -58,17 +59,17 @@ public enum Qua : byte { Opt = 0, One = 1, Any = 2, More = 3 };
 public class AltHint
 {
 	internal bool prior; // prior than other Alts of the same Prod or of all recovery
-	internal sbyte greedy; // as parser.greedy:0, greedy: 1, back greedy: -1
-	internal sbyte tree; // as parser.tree: 0, make: 2, omit: -1
+	internal sbyte greedy; // as parser.greedy: 0, greedy: 1, back greedy: -1
+	internal sbyte synt; // as parser.tree: 0, make Synt: 2, omit Synt: -1
 						 // omit if no prev nor next or has 0 or 1 sub: 1
-	internal bool token; // save first shift token to Tree.info
-	internal bool errExpect; // make expect Tree when error
+	internal bool token; // save first shifted token to Synt.info
+	internal bool errExpect; // make expect Synt when error
 	internal int recover; // no: -1, recover ahead to last One or More K index: > 0,
 						  // recover just at last One or More Prod index without shift: > 0
 	internal string hint;
 }
 
-public partial class ParserBase<K, Tk, N, Tr, Sc> where Tr : Tree<N, Tr>, new() where Sc : Scan<K, Tk>
+public partial class ParserBase<K, Tk, N, T, Ler> where T : Synt<N, T>, new() where Ler : Scan<K, Tk>
 {
 	sealed class Prod
 	{
@@ -96,17 +97,17 @@ public partial class ParserBase<K, Tk, N, Tr, Sc> where Tr : Tree<N, Tr>, new() 
 	}
 
 	readonly Prod start;
-	readonly List<Alt> reca = new();
+	readonly List<Alt> reca = [];
 	Match[] matchs = new Match[16384];
 	internal int matchn, completen;
 	internal int locn; // token count
-	readonly List<int> locs = new(); // matchn before each token
+	readonly List<int> locs = []; // matchn before each token
 	readonly int[] recm; // latest match index of each recovery Alt
-	internal Sc scan;
+	internal Ler scan;
 	public bool greedy = false; // greedy: true, may or may not: false
 								// eg. S=AB A=1|12 B=23|2  gready: (12)3  back greedy: 1(23)
 	public int recover = 10; // no recovery: 0, how many times to recover at eof: > 0
-	public bool tree = true; // make Trees from complete Alts
+	public bool tree = true; // make whole trees from complete Alts
 	public int dump = 0; // no: 0, tokens for tree leaf: 1, tokens: 2, tokens and Alt: 3
 	public int errExpect = 2; // no: 0, One or More: 2, all: 3
 	public Func<object, string> dumper = null;
@@ -125,16 +126,16 @@ public partial class ParserBase<K, Tk, N, Tr, Sc> where Tr : Tree<N, Tr>, new() 
 
 	ParserBase(Prod start) { this.start = start; recm = Array.Empty<int>(); }
 
-	public ParserBase<K, Tk, N, Tr, Sc> Load(Sc scan) { this.scan = scan; return this; }
+	public ParserBase<K, Tk, N, T, Ler> Load(Ler scan) { this.scan = scan; return this; }
 
-	// make a Tree from complete Alts, Tree.tokens unset
-	public virtual Tr Parse()
+	// make Synt from complete Alts
+	public virtual T Parse()
 	{
 		matchn = 0;
 		Array.Fill(recm, -1, 0, recm.Length);
-		int m = Earley(out Tr err, recover);
+		int m = Earley(out T err, recover);
 		bool _ = false;
-		Tr t = m >= 0
+		T t = m >= 0
 			? Accepted(m, null, ref _).AddNextSub(err)
 			: err.head.Remove().AddNextSub(err);
 		Array.Fill(matchs, default, 0, matchn);
@@ -153,7 +154,7 @@ public partial class ParserBase<K, Tk, N, Tr, Sc> where Tr : Tree<N, Tr>, new() 
 		return m >= 0;
 	}
 
-	int Earley(out Tr err, int rec)
+	int Earley(out T err, int rec)
 	{
 		locs.Add(locn = 0);
 		foreach (var x in start.alts)
@@ -184,7 +185,7 @@ public partial class ParserBase<K, Tk, N, Tr, Sc> where Tr : Tree<N, Tr>, new() 
 			if (Eq.Equals(m.a.name, start.name) && m.from == 0 && m.a.s[m.step].p == null)
 				return x;
 		}
-		err ??= new Tr();
+		err ??= new T();
 		if (rec != 0)
 			err.Add(Rejected());
 		if (reca.Count > 0 && rec > 0) {
@@ -342,13 +343,13 @@ public partial class ParserBase<K, Tk, N, Tr, Sc> where Tr : Tree<N, Tr>, new() 
 		return completen < matchn;
 	}
 
-	Tr Accepted(int match, Tr up, ref bool omitSelf)
+	T Accepted(int match, T up, ref bool omitSelf)
 	{
 		var m = matchs[match];
 		if (m.from == m.to && m.step == 0 && m.a.s.Length > 1)
 			return null;
-		Tr t = (m.a.tree == 0 ? tree : m.a.tree > 0) ? null : up;
-		t ??= new Tr {
+		T t = (m.a.synt == 0 ? tree : m.a.synt > 0) ? null : up;
+		t ??= new T {
 			name = m.a.name, from = m.from, to = m.to
 		};
 		bool omitSub = false;
@@ -362,9 +363,9 @@ public partial class ParserBase<K, Tk, N, Tr, Sc> where Tr : Tree<N, Tr>, new() 
 				t.info = scan.Token(mp.to - 1);
 			else if (mp.tail == -4) {
 				Debug.Assert(mp.a == m.a);
-				omitSelf = omitSub = m.a.tree == 1;
+				omitSelf = omitSub = m.a.synt == 1;
 				var p = m.a.s[mp.step - 1].p;
-				t.AddHead(new Tr {
+				t.AddHead(new T {
 					name = m.a.name, from = mp.from, to = mp.to, err = -4, info = m.a.hint,
 					dump = dump < 2 ? null : $"{m.a.name} :: recover " +
 						$"{(p is Prod pp ? pp.name : p)} at {Dump(scan.Token(mp.to - 1))}",
@@ -373,10 +374,10 @@ public partial class ParserBase<K, Tk, N, Tr, Sc> where Tr : Tree<N, Tr>, new() 
 		if (t != up) {
 			if (omitSub && t.head != null && t.head.next == null)
 				t.AddSub(t.head.Remove());
-			if (m.a.tree != 1 || up == null || t.head?.next != null) {
+			if (m.a.synt != 1 || up == null || t.head?.next != null) {
 				up?.AddHead(t);
 				t.dump = Dump(m, t.head == null);
-				omitSelf = m.a.tree == 1;
+				omitSelf = m.a.synt == 1;
 			}
 			else if (t.head != null) {
 				up.AddHead(t.head.Remove());
@@ -386,10 +387,10 @@ public partial class ParserBase<K, Tk, N, Tr, Sc> where Tr : Tree<N, Tr>, new() 
 		return t;
 	}
 
-	Tr Rejected()
+	T Rejected()
 	{
 		int from = locs[locn] < matchn ? locn : locn - 1, x = locs[from];
-		var t = new Tr {
+		var t = new T {
 			name = start.name, from = from, to = locn, err = -1,
 			info = from < locn ? (object)scan.Token(from) : null
 		};
@@ -410,7 +411,7 @@ public partial class ParserBase<K, Tk, N, Tr, Sc> where Tr : Tree<N, Tr>, new() 
 				d = dump <= 0 ? d
 					: dump <= 2 ? $"{Esc(exp)} expected for {d}"
 					: $"{Esc(exp)} expected for {d}!{m.step} {Dump(m, true)}";
-				t.AddHead(new Tr {
+				t.AddHead(new T {
 					name = m.a.name, from = m.from, to = m.to,
 					err = m.step, info = exp, dump = d
 				});
@@ -463,14 +464,14 @@ public class ParserGram<K, N>
 	public ParserGram<K, N> prior { get { prods[^1][^1].prior = true; return this; } }
 	public ParserGram<K, N> greedy { get { prods[^1][^1].greedy = 1; return this; } }
 	public ParserGram<K, N> greedyBack { get { prods[^1][^1].greedy = -1; return this; } }
-	public ParserGram<K, N> tree { get { prods[^1][^1].tree = 1; return this; } }
-	public ParserGram<K, N> treeMust { get { prods[^1][^1].tree = 2; return this; } }
-	public ParserGram<K, N> treeOmit { get { prods[^1][^1].tree = -1; return this; } }
+	public ParserGram<K, N> synt { get { prods[^1][^1].synt = 1; return this; } }
+	public ParserGram<K, N> syntMust { get { prods[^1][^1].synt = 2; return this; } }
+	public ParserGram<K, N> syntOmit { get { prods[^1][^1].synt = -1; return this; } }
 	public ParserGram<K, N> token { get { prods[^1][^1].token = true; return this; } }
 	public ParserGram<K, N> errExpect { get { prods[^1][^1].errExpect = true; return this; } }
 }
 
-public partial class ParserBase<K, Tk, N, Tr, Sc>
+public partial class ParserBase<K, Tk, N, T, Ler>
 {
 	// bootstrap
 	static readonly ParserChar boot;
@@ -490,7 +491,7 @@ public partial class ParserBase<K, Tk, N, Tr, Sc>
 			{ "hint",  "= hintp? hintg? hintt? hintk? hinte? hintr? hintd? S* hintw" },
 			{ "hintp", "^" }, // hint prior
 			{ "hintg", "*|/" }, // hint greedy
-			{ "hintt", "+|-|+ -" }, // hint tree
+			{ "hintt", "+|-|+ -" }, // hint synt
 			{ "hintk", "_" }, // hint token
 			{ "hinte", "!" }, // hint expect
 			{ "hintr", "\x1|\x1 W+|\x1 G|\x1 \\ E" }, // hint recover
@@ -524,7 +525,7 @@ public partial class ParserBase<K, Tk, N, Tr, Sc>
 				.ToArray();
 				return new ParserChar.Alt { name = kv.Key, s = s, recover = -1 };
 			}).ToArray();
-		// hint tree is greedy
+		// hint synt is greedy
 		prods["hintt"].alts[2].greedy = 1;
 		// spaces before hintw are greedy
 		prods["hint"].alts[0].greedy = 1;
@@ -533,13 +534,13 @@ public partial class ParserBase<K, Tk, N, Tr, Sc>
 			.Concat(new[] { "prod", "alt", "name", "sym",
 					"hintp", "hintg", "hintt", "hintk", "hinte", "hintr", "hintd", "hintw", "hint_" }
 				.SelectMany(x => prods[x].alts)))
-			c.tree = 2;
+			c.synt = 2;
 		boot = new ParserChar(prods["gram"]) {
 			greedy = false, tree = false, dump = 0
 		};
 	}
 
-	public ParserBase(string gram, Sc scan)
+	public ParserBase(string gram, Ler scan)
 	{
 		Load(scan);
 		using var bscan = new BootScan(gram);
@@ -573,11 +574,9 @@ public partial class ParserBase<K, Tk, N, Tr, Sc>
 			// build alts
 			var az = p.Where(t => t.name == "alt").Prepend(p).Select(ta => {
 				// prod name or keys or quantifier ...
-				var z = ta.Where(t => t.name == "sym" || t.name == "con").SelectMany(t =>
-					t.name == "sym"
-						? gram[t.from] == '?' ? new object[] { Opt }
-						: gram[t.from] == '*' ? new object[] { Any }
-						: gram[t.from] == '+' ? new object[] { More }
+				var z = ta.Where(t => t.name is "sym" or "con").SelectMany(t =>
+					t.name == "sym" ? gram[t.from] == '?' ? [Opt]
+						: gram[t.from] == '*' ? [Any] : gram[t.from] == '+' ? [More]
 						: scan.Keys(BootScan.Unesc(gram, t.from, t.to)).Cast<object>()
 					// for word, search product names first, then scan keys
 					: names.TryGetValue(t.dump = boot.scan.Tokens(t.from, t.to), out Prod p)
@@ -595,12 +594,12 @@ public partial class ParserBase<K, Tk, N, Tr, Sc>
 			// build hint
 			int ax = 0;
 			p.Where(t => t.name == "alt").Append(p).Each((t, x) => {
-				bool p = false, k = false, e = false; sbyte g = 0, tr = 0; TreeStr r = null, d = null;
+				bool p = false, k = false, e = false; sbyte g = 0, st = 0; TreeStr r = null, d = null;
 				foreach (var h in t) {
 					if (h.name == "hintp") p = true;
 					if (h.name == "hintg") g = (sbyte)(gram[h.from] == '*' ? 1 : -1);
 					if (h.name == "hintt")
-						tr = (sbyte)(gram[h.from] == '+' ? h.from == h.to - 1 ? 2 : 1 : -1);
+						st = (sbyte)(gram[h.from] == '+' ? h.from == h.to - 1 ? 2 : 1 : -1);
 					if (h.name == "hintk") k = true;
 					if (h.name == "hinte") e = true;
 					if (h.name == "hintr") r = h;
@@ -609,7 +608,7 @@ public partial class ParserBase<K, Tk, N, Tr, Sc>
 						var w = boot.scan.Tokens(h.from, h.to);
 						for (; ax <= x; ax++) {
 							var a = az[ax];
-							a.prior = p; a.greedy = g; a.tree = tr; a.token = k; a.errExpect = e;
+							a.prior = p; a.greedy = g; a.synt = st; a.token = k; a.errExpect = e;
 							a.hint = w != "" ? w : null;
 							if (r != null) {
 								for (int y = a.s.Length - 2; y > 0; y--)

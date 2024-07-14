@@ -21,11 +21,11 @@ namespace qutum.syntax
 		e0,
 	}
 
-	public class Tree : Tree<Syn, Tree>
+	public class Synt : Synt<Syn, Synt>
 	{
 	}
 
-	public class Parser : Parser<Lex, Syn, Tree, Lexer>
+	public class Parser : Parser<Lex, Syn, Synt, Lexer>
 	{
 		static readonly string grammar = """
 		all   = Block* | IND all DED Block*
@@ -85,18 +85,18 @@ namespace qutum.syntax
 			tree = false;
 			errExpect = 0;
 			dump = 1;
-			dumper = o => !(o is ArraySegment<Token<Lex>> s) ? null
+			dumper = o => o is not ArraySegment<Token<Lex>> s ? null
 				: s.Count == 0 ? "" : string.Join(" ", s.Select(t => t.ToString()).ToArray());
 		}
 
 		protected override Syn Name(string name) => Enum.Parse<Syn>(name);
 
-		public override Tree Parse()
+		public override Synt Parse()
 		{
 			var t = base.Parse();
-			Tree tail = t;
+			Synt tail = t;
 			scan.errs.Each((err, x) =>
-				tail.AddNext(tail = new Tree {
+				tail.AddNext(tail = new Synt {
 					name = (Syn)(-(int)err.key), from = ~x, to = ~x, err = -1, info = err.value
 				}));
 			return t;
