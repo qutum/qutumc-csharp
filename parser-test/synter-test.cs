@@ -13,20 +13,22 @@ using static Microsoft.VisualStudio.TestTools.UnitTesting.Assert;
 
 namespace qutum.test.parser;
 
+using Ser = (SyntStr t, SynterStr s);
+
 static class TestExtension
 {
-	public static bool Check(this SynterStr p, string input)
-		=> p.Begin(new LerStr(input)).Check();
+	public static bool Check(this SynterStr s, string input)
+		=> s.Begin(new LerStr(input)).Check();
 
-	public static (SyntStr t, LerStr) Parse(this SynterStr p, string input)
+	public static Ser Parse(this SynterStr s, string input)
 	{
-		var t = p.Begin(new LerStr(input)).Parse().Dump();
+		var t = s.Begin(new LerStr(input)).Parse().Dump();
 		using var env = EnvWriter.Begin();
-		env.WriteLine($"---- match {p.matchn} / lexi {p.lexn} = {p.matchn / Math.Max(p.lexn, 1)} ----");
-		return (t, p.ler);
+		env.WriteLine($"---- match {s.matchn} / lexi {s.lexn} = {s.matchn / Math.Max(s.lexn, 1)} ----");
+		return (t, s);
 	}
 
-	public static (SyntStr, LerStr) Eq(this (SyntStr t, LerStr s) t,
+	public static Ser Eq(this Ser t,
 		string name = null, int? from = null, int? to = null, object v = null, int err = 0)
 	{
 		AreNotEqual(null, t.t);
@@ -34,27 +36,27 @@ static class TestExtension
 		if (name != null) AreEqual(name, t.t.name);
 		if (from != null) AreEqual(from, t.t.from);
 		if (to != null) AreEqual(to, t.t.to);
-		if (v != null) AreEqual(v, t.t.err == 0 ? t.s.Lexs(t.t.from, t.t.to) : t.t.info);
+		if (v != null) AreEqual(v, t.t.err == 0 ? t.s.ler.Lexs(t.t.from, t.t.to) : t.t.info);
 		return t;
 	}
 
-	public static (SyntStr, LerStr) H(this (SyntStr t, LerStr s) t,
+	public static Ser H(this Ser t,
 		string name = null, int? from = null, int? to = null, object v = null, int err = 0)
 		=> (t.t.head, t.s).Eq(name, from, to, v, err);
-	public static (SyntStr, LerStr) T(this (SyntStr t, LerStr s) t,
+	public static Ser T(this Ser t,
 		string name = null, int? from = null, int? to = null, object v = null, int err = 0)
 		=> (t.t.tail, t.s).Eq(name, from, to, v, err);
-	public static (SyntStr, LerStr) N(this (SyntStr t, LerStr s) t,
+	public static Ser N(this Ser t,
 		string name = null, int? from = null, int? to = null, object v = null, int err = 0)
 		=> (t.t.next, t.s).Eq(name, from, to, v, err);
-	public static (SyntStr, LerStr) P(this (SyntStr t, LerStr s) t,
+	public static Ser P(this Ser t,
 		string name = null, int? from = null, int? to = null, object v = null, int err = 0)
 		=> (t.t.prev, t.s).Eq(name, from, to, v, err);
 
-	public static (SyntStr, LerStr) U(this (SyntStr t, LerStr s) t) => (t.t.up, t.s);
-	public static (SyntStr, LerStr) H0(this (SyntStr t, LerStr) t) { AreEqual(null, t.t.head); return t; }
-	public static (SyntStr, LerStr) N0(this (SyntStr t, LerStr) t) { AreEqual(null, t.t.next); return t.U(); }
-	public static (SyntStr, LerStr) P0(this (SyntStr t, LerStr) t) { AreEqual(null, t.t.prev); return t.U(); }
+	public static Ser U(this Ser t) => (t.t.up, t.s);
+	public static Ser H0(this Ser t) { AreEqual(null, t.t.head); return t; }
+	public static Ser N0(this Ser t) { AreEqual(null, t.t.next); return t.U(); }
+	public static Ser P0(this Ser t) { AreEqual(null, t.t.prev); return t.U(); }
 }
 
 [TestClass]

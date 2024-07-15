@@ -13,7 +13,7 @@ using static qutum.parser.Qua;
 
 namespace qutum.parser;
 
-using SynterChar = SynterBase<char, char, string, SyntStr, LerStr>;
+using SynterChar = SynterEarley<char, char, string, SyntStr, LerStr>;
 
 // syntax tree
 public class Synt<N, T> : LinkTree<T> where T : Synt<N, T>
@@ -44,7 +44,7 @@ public class SyntStr : Synt<string, SyntStr>
 }
 
 // syntax parser
-public class Synter<K, N, T, Ler> : SynterBase<K, Lexi<K>, N, T, Ler>
+public class Synter<K, N, T, Ler> : SynterEarley<K, Lexi<K>, N, T, Ler>
 	where K : struct where T : Synt<N, T>, new() where Ler : LexerSeg<K, Lexi<K>>
 {
 	public Synter(string gram, Ler ler) : base(gram, ler) { }
@@ -55,56 +55,10 @@ public class SynterStr : SynterChar
 	public SynterStr(string gram, LerStr ler = null) : base(gram, ler ?? new LerStr("")) { }
 }
 
-public class SynGram<K, N>
-{
-	public readonly List<Prod> prods = [];
-	public class Prod : List<Alt> { public N name; }
-	public class Alt : AltHint
-	{
-		public readonly List<object> cons = [];
-	}
-
-	public SynGram<K, N> prod(N name) { prods.Add(new Prod { name = name }); return this; }
-	public SynGram<K, N> this[params object[] cons] {
-		get {
-			Alt a = new();
-			prods[^1].Add(a);
-			if (prods[^1][^1].cons.Count == 1 && cons.Length == 1 && cons[0] == null)
-				return this;
-			foreach (var v in cons)
-				if (v is N or K or Qua) a.cons.Add(v);
-				else if (v is IEnumerable<K> ks)
-					a.cons.AddRange(ks.Cast<object>());
-				else throw new($"wrong altern content {v?.GetType()}");
-			return this;
-		}
-	}
-	public SynGram<K, N> prior { get { prods[^1][^1].prior = true; return this; } }
-	public SynGram<K, N> greedy { get { prods[^1][^1].greedy = 1; return this; } }
-	public SynGram<K, N> greedyBack { get { prods[^1][^1].greedy = -1; return this; } }
-	public SynGram<K, N> synt { get { prods[^1][^1].synt = 1; return this; } }
-	public SynGram<K, N> syntMust { get { prods[^1][^1].synt = 2; return this; } }
-	public SynGram<K, N> syntOmit { get { prods[^1][^1].synt = -1; return this; } }
-	public SynGram<K, N> lexi { get { prods[^1][^1].lex = true; return this; } }
-	public SynGram<K, N> errExpect { get { prods[^1][^1].errExpect = true; return this; } }
-}
-
 public enum Qua : byte { Opt = 0, One = 1, Any = 2, More = 3 };
 
-public class AltHint
-{
-	internal bool prior; // prior than other Alts of the same Prod or of all recovery
-	internal sbyte greedy; // as Synter.greedy: 0, greedy: 1, back greedy: -1
-	internal sbyte synt; // as Synter.tree: 0, make Synt: 2, omit Synt: -1
-						 // omit if no prev nor next or has 0 or 1 sub: 1
-	internal bool lex; // save first shifted lexi to Synt.info
-	internal bool errExpect; // make expect synt when error
-	internal int recover; // no: -1, recover ahead to last One or More K index: > 0,
-						  // recover just at last One or More Prod index without shift: > 0
-	internal string hint;
-}
-
-public partial class SynterBase<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler : Lexer<K, L>
+// syntax parser using extended Earley algorithm
+public class SynterEarley<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler : Lexer<K, L>
 {
 	sealed class Prod
 	{
@@ -116,12 +70,21 @@ public partial class SynterBase<K, L, N, T, Ler> where T : Synt<N, T>, new() whe
 		internal object p; // Prod or K or null for complete;
 		internal Qua q;
 	}
-	sealed class Alt : AltHint
+	sealed class Alt
 	{
 		internal N name;
 		internal Con[] s;
+		internal bool prior; // prior than other Alts of the same Prod or of all recovery
+		internal sbyte greedy; // as Synter.greedy: 0, greedy: 1, back greedy: -1
+		internal sbyte synt; // as Synter.tree: 0, make Synt: 2, omit Synt: -1
+							 // omit if no prev nor next or has 0 or 1 sub: 1
+		internal bool lex; // save first shifted lexi to Synt.info
+		internal bool errExpect; // make expect synt when error
+		internal int recover; // no: -1, recover ahead to last One or More K index: > 0,
+							  // recover just at last One or More Prod index without shift: > 0
 		internal K recPair; // skip each pair of this and recovery K, no skip: recovery K
 		internal K recDeny; // deny this K when recover ahead, nothing denied: recovery K
+		internal string hint;
 		internal string dump;
 
 		public override string ToString()
@@ -159,9 +122,9 @@ public partial class SynterBase<K, L, N, T, Ler> where T : Synt<N, T>, new() whe
 			$"{(tail >= 0 ? "^" : tail == -1 ? "p" : tail == -2 ? "s" : tail == -3 ? "?" : "r")} {a}";
 	}
 
-	SynterBase(Prod begin) { this.begin = begin; recm = []; }
+	SynterEarley(Prod begin) { this.begin = begin; recm = []; }
 
-	public SynterBase<K, L, N, T, Ler> Begin(Ler ler) { this.ler = ler; return this; }
+	public SynterEarley<K, L, N, T, Ler> Begin(Ler ler) { this.ler = ler; return this; }
 
 	// make synt from complete Alts
 	public virtual T Parse()
@@ -475,7 +438,7 @@ public partial class SynterBase<K, L, N, T, Ler> where T : Synt<N, T>, new() whe
 	// bootstrap
 	static readonly SynterChar meta;
 
-	static SynterBase()
+	static SynterEarley()
 	{
 		var keys = new LerStr("");
 		// prod name, prod-or-key-with-qua-alt1 con1|alt2 con2  \x1 is |
@@ -539,9 +502,8 @@ public partial class SynterBase<K, L, N, T, Ler> where T : Synt<N, T>, new() whe
 		};
 	}
 
-	public SynterBase(string gram, Ler ler)
+	public SynterEarley(string gram, Ler ler)
 	{
-		Begin(ler);
 		using var input = new MetaStr(gram);
 		var top = meta.Begin(input).Parse();
 		if (top.err != 0) {
@@ -632,5 +594,6 @@ public partial class SynterBase<K, L, N, T, Ler> where T : Synt<N, T>, new() whe
 		}
 		begin = names[prods.First().head.dump];
 		recm = new int[reca.Count];
+		Begin(ler);
 	}
 }

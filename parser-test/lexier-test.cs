@@ -23,12 +23,12 @@ public class TestLexier : IDisposable
 
 	public void Dispose() => env.Dispose();
 
-	enum Tag { _, A, B, BB, C, CC, D };
+	enum Lex { _, A, B, BB, C, CC, D };
 
-	class Ler : Lexier<Tag>
+	class Ler : Lexier<Lex>
 	{
-		public Ler(LexGram<Tag> grammar) : base(grammar, true) { errs = null; }
-		public Ler(string grammar) : base(MetaLex.Gram<Tag>(grammar, true), true) { }
+		public Ler(LexGram<Lex> grammar) : base(grammar, true) { errs = null; }
+		public Ler(string grammar) : base(MetaLex.Gram<Lex>(grammar, true), true) { }
 	}
 
 	void Check(Ler l, string input, string s) => Check(l, Encoding.UTF8.GetBytes(input), s);
@@ -432,7 +432,7 @@ public class TestLexier : IDisposable
 	[TestMethod]
 	public void LexRedo6()
 	{
-		Throw(() => new Ler(new LexGram<Tag>().k(Tag.A).redo["a"].p["b"]), "Redo");
+		Throw(() => new Ler(new LexGram<Lex>().k(Lex.A).redo["a"].p["b"]), "Redo");
 		Throw(() => new Ler("A=*a b c"), "");
 		Throw(() => new Ler("A=a *|b c"), "");
 	}

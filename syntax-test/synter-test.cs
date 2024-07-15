@@ -15,7 +15,7 @@ using static Microsoft.VisualStudio.TestTools.UnitTesting.Assert;
 
 namespace qutum.test.syntax;
 
-using Ser = (Synt t, Synter er);
+using Ser = (Synt t, Synter s);
 
 static class TestExtension
 {
@@ -25,7 +25,7 @@ static class TestExtension
 		AreNotEqual(null, t.t);
 		AreEqual(err, t.t.err);
 		if (name != null) AreEqual(name, t.t.name);
-		var (fl, fc, tl, tc) = t.er.ler.LineCol(t.t.from, t.t.to);
+		var (fl, fc, tl, tc) = t.s.ler.LineCol(t.t.from, t.t.to);
 		if (from != null) AreEqual($"{from}", $"{fl}.{fc}");
 		if (to != null) AreEqual($"{to}", $"{tl}.{tc}");
 		if (v != null)
@@ -41,26 +41,26 @@ static class TestExtension
 				s[n++] = new Lexi<Lex> { key = l };
 			else
 				s[n - 1].value = vs[x];
-		AreEqual(t.er.dumper(s.Seg(0, n)),
-			t.er.dumper(t.t.from >= 0 ? t.er.ler.Lexs(t.t.from, t.t.to)
-			: t.er.ler.errs.GetRange(~t.t.from, ~t.t.to - ~t.t.from).ToArray().Seg()));
+		AreEqual(t.s.dumper(s.Seg(0, n)),
+			t.s.dumper(t.t.from >= 0 ? t.s.ler.Lexs(t.t.from, t.t.to)
+			: t.s.ler.errs.GetRange(~t.t.from, ~t.t.to - ~t.t.from).ToArray().Seg()));
 		return t;
 	}
 
 	public static Ser H(this Ser t,
 		Syn? name = null, int err = 0, double? from = null, double? to = null, object v = null)
-		=> (t.t.head, t.er).Eq(name, err, from, to, v);
+		=> (t.t.head, t.s).Eq(name, err, from, to, v);
 	public static Ser T(this Ser t,
 		Syn? name = null, int err = 0, double? from = null, double? to = null, object v = null)
-		=> (t.t.tail, t.er).Eq(name, err, from, to, v);
+		=> (t.t.tail, t.s).Eq(name, err, from, to, v);
 	public static Ser N(this Ser t,
 		Syn? name = null, int err = 0, double? from = null, double? to = null, object v = null)
-		=> (t.t.next, t.er).Eq(name, err, from, to, v);
+		=> (t.t.next, t.s).Eq(name, err, from, to, v);
 	public static Ser P(this Ser t,
 		Syn? name = null, int err = 0, double? from = null, double? to = null, object v = null)
-		=> (t.t.prev, t.er).Eq(name, err, from, to, v);
+		=> (t.t.prev, t.s).Eq(name, err, from, to, v);
 
-	public static Ser U(this Ser t) => (t.t.up, t.er);
+	public static Ser U(this Ser t) => (t.t.up, t.s);
 	public static Ser H0(this Ser t) { AreEqual(null, t.t.head); return t; }
 	public static Ser N0(this Ser t) { AreEqual(null, t.t.next); return t.U(); }
 	public static Ser P0(this Ser t) { AreEqual(null, t.t.prev); return t.U(); }
