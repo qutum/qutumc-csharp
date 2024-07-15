@@ -70,70 +70,73 @@ public class Lexier : Lexier<L>
 		==TIL   = ~
 	*/
 	static readonly LexGram<L> Grammar = new LexGram<L>()
-		.prod(L.BIND).part["="]
-		.prod(L.LP).part["("]
-		.prod(L.RP).part[")"]
-		.prod(L.LSB).part["["]
-		.prod(L.RSB).part["]"]
-		.prod(L.LCB).part["{"]
-		.prod(L.RCB).part["}"]
-		.prod(L.SHL).part["<<"]
-		.prod(L.SHR).part[">>"]
-		.prod(L.BNOT).part["--"]
-		.prod(L.BAND).part["&&"]
-		.prod(L.BXOR).part["++"]
-		.prod(L.BOR).part["||"]
-		.prod(L.ADD).part["+"]
-		.prod(L.SUB).part["-"]
-		.prod(L.MUL).part["*"]
-		.prod(L.DIV).part["/"]
-		.prod(L.MOD).part["%"]
-		.prod(L.DIVF).part["//"]
-		.prod(L.MODF).part["%%"]
-		.prod(L.EQ).part["=="]
-		.prod(L.UEQ).part["/="]
-		.prod(L.LEQ).part["<="]
-		.prod(L.GEQ).part[">="]
-		.prod(L.LT).part["<"]
-		.prod(L.GT).part[">"]
-		.prod(L.NOT).part["!"]
-		.prod(L.AND).part["&"]
-		.prod(L.OR).part["|"]
+		.k(L.BIND).p["="]
+		.k(L.LP).p["("]
+		.k(L.RP).p[")"]
+		.k(L.LSB).p["["]
+		.k(L.RSB).p["]"]
+		.k(L.LCB).p["{"]
+		.k(L.RCB).p["}"]
+		.k(L.SHL).p["<<"]
+		.k(L.SHR).p[">>"]
+		.k(L.BNOT).p["--"]
+		.k(L.BAND).p["&&"]
+		.k(L.BXOR).p["++"]
+		.k(L.BOR).p["||"]
+		.k(L.ADD).p["+"]
+		.k(L.SUB).p["-"]
+		.k(L.MUL).p["*"]
+		.k(L.DIV).p["/"]
+		.k(L.MOD).p["%"]
+		.k(L.DIVF).p["//"]
+		.k(L.MODF).p["%%"]
+		.k(L.EQ).p["=="]
+		.k(L.UEQ).p["/="]
+		.k(L.LEQ).p["<="]
+		.k(L.GEQ).p[">="]
+		.k(L.LT).p["<"]
+		.k(L.GT).p[">"]
+		.k(L.NOT).p["!"]
+		.k(L.AND).p["&"]
+		.k(L.OR).p["|"]
 
-		.prod(L.EOL).part["\n"]["\r\n"]
-		.prod(L.SP).part[" \t".Mem()] // [\s\t]  |+\s+|+\t+
-					.part[""][" ", ..].loop["\t", ..].loop
+		.k(L.EOL).p["\n"]["\r\n"]
+		.k(L.SP).p[" \t".Mem()] // [\s\t]  |+\s+|+\t+
+				.p[""][" ", ..].loop["\t", ..].loop
 
-		.prod(L.COMM).part["##"] // ##  |[\A^\n]+
-						.part[""][Set.All.Exc("\n"), ..]
-		.prod(L.COMMB).part["\\", .., "##"] // \\+##  +##\\+|+#|+[\A^#]+
-						.part["##", "\\", ..].loop["#"].loop[Set.All.Exc("#"), ..].loop
-		.prod(L.STRB).part["\\", .., "\""] // \\+"  +"\\+|+"|+[\A^"]+
-						.part["\"", "\\", ..].loop["\""].loop[Set.All.Exc("\""), ..].loop
-		.prod(L.STR).part["\""] // "  *"|\n|+[\l^""\\]+|+\\[0tnr"".`\\]|+\\x\x\x|+\\u\x\x\x\x
-					.skip["\"\n".Mem()]
-						[Set.Line.Exc("\"\\"), ..].loop
-						["\\", "0tnr\".`\\".Mem()].loop
-						["\\x", Set.Hex, Set.Hex].loop["\\u", Set.Hex, Set.Hex, Set.Hex, Set.Hex].loop
-		.prod(L.PATH).part["`"][".`"] // .?`  *`|\n|+.|+[\l^.`\\]+|+\\[0tnr"".`\\]|+\\x\x\x|+\\u\x\x\x\x
-					.skip["`\n".Mem()]["."].loop
-						[Set.Line.Exc(".`\\"), ..].loop
-						["\\", "0tnr\".`\\".Mem()].loop
-						["\\x", Set.Hex, Set.Hex].loop["\\u", Set.Hex, Set.Hex, Set.Hex, Set.Hex].loop
+		.k(L.COMM).p["##"] // ##  |[\A^\n]+
+					.p[""][Set.All.Exc("\n"), ..]
+		.k(L.COMMB).p["\\", .., "##"] // \\+##  +##\\+|+#|+[\A^#]+
+					.p["##", "\\", ..].loop["#"].loop[Set.All.Exc("#"), ..].loop
 
-		.prod(L.NAME).part[Set.Alpha.Inc("_")][Set.Alpha.Inc("_"), Set.Word, ..] // [\a_]\w*
-		.prod(L.RNAME).part["."] // .|.[\a_]\w*
-							[".", Set.Alpha.Inc("_")][".", Set.Alpha.Inc("_"), Set.Word, ..]
-		.prod(L.HEX).part["0x"]["0X"] // 0[xX]_*\x  |+_*\x+
-						.part[Set.Hex]["_", .., Set.Hex]
-						.part[""][Set.Hex, ..].loop["_", .., Set.Hex, ..].loop
-		.prod(L.NUM) // 0|[1-9]  |+_*\d+  |.\d+  |+_+\d+  |[eE][\+\-]?\d+  |[fF]
-						.part["0"][Set.Dec.Exc("0")]
-						.part[""][Set.Dec, ..].loop["_", .., Set.Dec, ..].loop
-						.part[""][".", Set.Dec, ..]
-						.part[""]["_", .., Set.Dec, ..].loop
-						.part[""]["eE".Mem(), Set.Dec, ..]["eE".Mem(), "+-".Mem(), Set.Dec, ..]
-						.part[""]["fF".Mem()]
+		.k(L.STRB).p["\\", .., "\""] // \\+"  +"\\+|+"|+[\A^"]+
+					.p["\"", "\\", ..].loop["\""].loop[Set.All.Exc("\""), ..].loop
+		.k(L.STR).p["\""] // "  *"|\n|+[\l^""\\]+|+\\[0tnr"".`\\]|+\\x\x\x|+\\u\x\x\x\x
+				.redo["\"\n".Mem()]
+					[Set.Line.Exc("\"\\"), ..].loop
+					["\\", "0tnr\".`\\".Mem()].loop
+					["\\x", Set.Hex, Set.Hex].loop["\\u", Set.Hex, Set.Hex, Set.Hex, Set.Hex].loop
+
+		.k(L.PATH).p["`"][".`"] // .?`  *`|\n|+.|+[\l^.`\\]+|+\\[0tnr"".`\\]|+\\x\x\x|+\\u\x\x\x\x
+				.redo["`\n".Mem()]["."].loop
+					[Set.Line.Exc(".`\\"), ..].loop
+					["\\", "0tnr\".`\\".Mem()].loop
+					["\\x", Set.Hex, Set.Hex].loop["\\u", Set.Hex, Set.Hex, Set.Hex, Set.Hex].loop
+
+		.k(L.NAME).p[Set.Alpha.Inc("_")][Set.Alpha.Inc("_"), Set.Word, ..] // [\a_]\w*
+		.k(L.RNAME).p["."] // .|.[\a_]\w*
+						[".", Set.Alpha.Inc("_")][".", Set.Alpha.Inc("_"), Set.Word, ..]
+
+		.k(L.HEX).p["0x"]["0X"] // 0[xX]_*\x  |+_*\x+
+				.p[Set.Hex]["_", .., Set.Hex]
+				.p[""][Set.Hex, ..].loop["_", .., Set.Hex, ..].loop
+		.k(L.NUM) // 0|[1-9]  |+_*\d+  |.\d+  |+_+\d+  |[eE][\+\-]?\d+  |[fF]
+				.p["0"][Set.Dec.Exc("0")]
+				.p[""][Set.Dec, ..].loop["_", .., Set.Dec, ..].loop
+				.p[""][".", Set.Dec, ..]
+				.p[""]["_", .., Set.Dec, ..].loop
+				.p[""]["eE".Mem(), Set.Dec, ..]["eE".Mem(), "+-".Mem(), Set.Dec, ..]
+				.p[""]["fF".Mem()]
 	;
 
 	public override bool Is(L testee, L key)

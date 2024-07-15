@@ -11,7 +11,7 @@ using System.Text;
 
 namespace qutum.parser;
 
-// Lexic token
+// lexic token
 public struct Lexi<K> where K : struct
 {
 	public K key;
@@ -33,8 +33,8 @@ public class LexGram<K>
 	public class Prod : List<Part> { public K key; }
 	public class Part : List<Alt>
 	{
-		// skip mismatched input and retry this part
-		public bool skip;
+		// skip mismatched input and redo this part
+		public bool redo;
 	}
 	public class Alt : List<Con>
 	{
@@ -47,15 +47,15 @@ public class LexGram<K>
 		public string str = "";
 		// inclusive range of one byte
 		public ReadOnlyMemory<char> inc;
-		// repeat last byte of sequence, or repeat inclusive range
-		public bool rep;
+		// duplicate last byte of sequence, or duplicate inclusive range
+		public bool dup;
 	}
 	public const int AltByteN = 15;
 
-	public LexGram<K> prod(K key) { prods.Add(new Prod { key = key }); return this; }
-	public LexGram<K> part { get { prods[^1].Add([]); return this; } }
-	public LexGram<K> skip { get { prods[^1].Add(new() { skip = true }); return this; } }
-	// content: string : byte sequence, ReadOnlyMemory<char> : inclusive range, .. : repeat
+	public LexGram<K> k(K key) { prods.Add(new() { key = key }); return this; }
+	public LexGram<K> p { get { prods[^1].Add([]); return this; } }
+	public LexGram<K> redo { get { prods[^1].Add(new() { redo = true }); return this; } }
+	// content: string : byte sequence, ReadOnlyMemory<char> : inclusive range, .. : duplicate
 	public LexGram<K> this[params object[] cons] {
 		get {
 			Alt a = [];
@@ -63,7 +63,7 @@ public class LexGram<K>
 			if (prods[^1][^1].Count == 1 && cons.Length == 1 && "".Equals(cons[0]))
 				return this;
 			foreach (var v in cons)
-				if (v is Range) a[^1].rep = true;
+				if (v is Range) a[^1].dup = true;
 				else if (v is string str) a.Add(new Con { str = str });
 				else if (v is ReadOnlyMemory<char> inc) a.Add(new Con { inc = inc });
 				else throw new($"wrong altern content {v?.GetType()}");
@@ -73,6 +73,7 @@ public class LexGram<K>
 	public LexGram<K> loop { get { prods[^1][^1][^1].loop = true; return this; } }
 }
 
+// lexic parser
 public class Lexier<K> : Lexier<K, Lexi<K>> where K : struct
 {
 	[System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE0290")]
@@ -117,7 +118,7 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 		internal Unit go; // when next==null or next[byte]==null or backward
 						  // go.next != null, go to begin: input end or error
 		internal int mode; // match: -1, mismatch to error: -3, mismatch to backward bytes: >=0
-						   // no backward cross parts nor inside byte repeat
+						   // no backward cross parts nor inside duplicate bytes
 
 		internal Unit(Lexier<K, L> l) => id = ++l.id;
 	}
@@ -334,10 +335,10 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 					if (p[0].Count == 0) // empty alt for option part
 						if (part == 1) throw new($"Empty altern in first part {k}.1");
 						else if (p.Count == 1) throw new($"No byte in {k}.{part}");
-						else if (p.skip) throw new($"Skip at empty {k}.{part}.1");
+						else if (p.redo) throw new($"Redo empty {k}.{part}.1");
 						else { u.go = pus[part + 1]; u.mode = -1; }
-					else if (p.skip) // shift input and retry part like the begin
-						if (part == 1) throw new($"Skip at first part {k}.1");
+					else if (p.redo) // shift input and retry part like the begin
+						if (part == 1) throw new($"Redo first part {k}.1");
 						else { u.go = u; u.mode = -3; }
 					else // no backward cross parts
 						{ u.go = begin; u.mode = -3; }
@@ -357,14 +358,14 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 						u = pus[part];
 						var ok = !a.loop ? pus[part + 1] // go for match
 							: part > 1 ? u : throw new($"Can not loop first part {k}.1.{alt}");
-						var rep = p.skip ? u : begin; // error for repeat
+						var dup = p.redo ? u : begin; // error for repeat
 						var bx = 0; // build units from contents
 						foreach (var e in a) {
 							for (int x = 0; x < e.str.Length; x++)
 								Byte(e.str.Mem(x, x + 1), ref u, k, part, ++bx >= bn, ok,
-									e.rep && x == e.str.Length - 1 ? rep : null);
+									e.dup && x == e.str.Length - 1 ? dup : null);
 							if (e.inc.Length > 0)
-								Byte(e.inc, ref u, k, part, ++bx >= bn, ok, e.rep ? rep : null);
+								Byte(e.inc, ref u, k, part, ++bx >= bn, ok, e.dup ? dup : null);
 						}
 						return u; // the last unit of this alt
 					}).Where(u => u.next != null).ToArray();
@@ -372,7 +373,7 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 						u = pus[part];
 						for (int x = 0; x <= 128; x++)
 							if (u.next[x] != null && aus.Any(au => au.next[x] != null))
-								throw new($"{k}.{part} and {k}.{part - 1} conflict over repeat");
+								throw new($"{k}.{part} and {k}.{part - 1} conflict over dup");
 					}
 					aus = Aus;
 				});
@@ -382,21 +383,21 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 		}
 
 		void Byte(ReadOnlyMemory<char> bs,
-			ref Unit u, K k, int part, bool end, Unit ok, Unit rep)
+			ref Unit u, K k, int part, bool end, Unit ok, Unit dup)
 		{
 			// buid next
 			var go = u; var mode = 0; // mismatch to backward
 			if (end) // the last byte of alt
 				{ go = ok; mode = -1; } // match part
-			else if (rep != null) // inside byte repeat
-				{ go = rep; mode = -3; } // mismatch to error
+			else if (dup != null) // inside duplicate bytes
+				{ go = dup; mode = -3; } // mismatch to error
 			var next = Next(k, part, u, bs.Span, go, mode, false);
-			if (rep != null)
+			if (dup != null)
 				Next(k, part, next, bs.Span, go, mode, true);
 			u = next;
 		}
 
-		Unit Next(K key, int part, Unit u, ReadOnlySpan<char> bs, Unit go, int mode, bool rep)
+		Unit Next(K key, int part, Unit u, ReadOnlySpan<char> bs, Unit go, int mode, bool dup)
 		{
 			Unit n = u.next?[bs[0]];
 			if (u.next == null)
@@ -408,19 +409,19 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 						throw new($"Prefix '{bs[x]}' of {key}.{part} and {(n ?? u.next[bs[x]]).key}"
 							+ $".{(n ?? u.next[bs[x]]).part} must be the same or distinct");
 			if (n == null) {
-				n = rep ? u // repeat byte
+				n = dup ? u // duplicate bytes
 					: new Unit(ler) { key = key, part = part, pren = bs.Length, go = go, mode = mode };
 				for (int x = 0; x < bs.Length; x++)
 					u.next[bs[x]] = n;
-				if (rep && u.mode == -1 && mode == -3)
-					throw new($"{key}.{part} and {u.key}.{u.part} conflict over repeat match");
+				if (dup && u.mode == -1 && mode == -3)
+					throw new($"{key}.{part} and {u.key}.{u.part} conflict over byte dup");
 			}
 			else if (n.pren != bs.Length) // all already nexts must be the same
 				throw new($"Prefixs of {key}.{part} and {n.key}.{n.part}"
 					+ " must be the same or distinct");
-			else if (rep != (n == u)) // already exist next must not conflict
-				throw new($"{key}.{part} and {n.key}.{n.part} conflict over byte repeat");
-			else if (!rep)
+			else if (dup != (n == u)) // already exist next must not conflict
+				throw new($"{key}.{part} and {n.key}.{n.part} conflict over dup byte");
+			else if (!dup)
 				Mode(key, part, n, go, mode); // check mode for already exist next
 			return n;
 		}
@@ -432,7 +433,7 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 			if (u.mode + mode == -6 && u.go != go) // both error
 				throw new($"{key}.{part} and {u.key}.{u.part} conflict over error");
 			if (u.mode + mode == -3) // error and backward
-				throw new($"{key}.{part} and {u.key}.{u.part} conflict over repeat");
+				throw new($"{key}.{part} and {u.key}.{u.part} conflict over duplicate");
 			if (u.mode == 0 && mode != 0) {
 				u.key = key; u.part = part; u.go = go; u.mode = mode;
 			}

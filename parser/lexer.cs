@@ -10,6 +10,7 @@ using System.Linq;
 
 namespace qutum.parser;
 
+// lexical parser
 public interface Lexer<K, L> : IDisposable
 {
 	bool Next();

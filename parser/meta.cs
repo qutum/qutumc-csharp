@@ -67,16 +67,16 @@ public static class MetaLex
 	// \ prod
 	//   \ key
 	//   \ part1
-	//     \ byte: single or range... or esc ... (rep)
+	//     \ byte: single/range.../esc (dup) ...
 	//     \ alt1 ...
-	//       \ byte: single or range... or esc ... (rep)
+	//       \ byte: single/range.../esc (dup) ...
 	//   \ part ...
-	//     \ skip
+	//     \ redo
 	//     \ loop
-	//     \ byte: single or range... or esc ... (rep)
+	//     \ byte: single/range.../esc (dup) ...
 	//     \ alt ...
 	//       \ loop
-	//       \ byte: single or range... or esc ... (rep)
+	//       \ byte: single/range.../esc (dup) ...
 	// \ prod ...
 	static readonly ParserStr meta = new("""
 		gram  = eol* prod prods* eol*
@@ -85,9 +85,9 @@ public static class MetaLex
 		key   = W+ =+
 		part1 = byte+ alt1* =+
 		alt1  = \| S* byte+ =+
-		part  = S+ skip? loop? byte+ alt* =+
+		part  = S+ redo? loop? byte+ alt* =+
 		alt   = \| S* loop? byte+ =+
-		skip  = \* | \| S* =+
+		redo  = \* | \| S* =+
 		loop  = \+ =+
 		byte  = I \+? | [range* ^? range*] \+? | \\E \+? =+
 		range = R | R-R | \\E =+
@@ -116,16 +116,16 @@ public static class MetaLex
 		// build prod
 		foreach (var prod in top) {
 			var k = Keys(meta.ler.Lexs(prod.head.from, prod.head.to)).Single();
-			g.prod(k);
+			g.k(k);
 			// build part
 			prod.Skip(1).Each((p, part) => {
 				++part;
-				if (p.head.name != "skip") // no backward cross parts
-					_ = g.part;
+				if (p.head.name != "redo") // no backward cross parts
+					_ = g.p;
 				else if (gram[p.head.from] == '|') // empty alt
-					_ = g.part[""];
+					_ = g.p[""];
 				else // shift byte and retry part like the begin
-					_ = g.skip;
+					_ = g.redo;
 				// build alt
 				p.Where(t => t.name.StartsWith("alt")).Prepend(p).Each((a, alt) => {
 					++alt;
@@ -181,7 +181,7 @@ public static class MetaLex
 		}
 		else // single byte
 			es[en++] = Set.ONE[gram[x++]];
-		// byte loop +
+		// byte dup +
 		if (x < b.to)
 			es[en++] = Range.All;
 	}
@@ -194,13 +194,13 @@ public static class MetaLex
 		foreach (var prod in gram.prods) {
 			env.Write($".prod({prod.key})");
 			foreach (var part in prod) {
-				env.Write(part.skip ? "\n  .skip" : "\n  .part");
+				env.Write(part.redo ? "\n  .redo" : "\n  .part");
 				foreach (var alt in part) {
 					env.Write("[");
 					foreach (var elem in alt) {
 						if (elem.inc.Length > 0) env.Write($"[{elem.inc}]");
 						else env.Write($"\"{elem.str}\"");
-						if (elem.rep) env.Write(",..");
+						if (elem.dup) env.Write(",..");
 						if (elem != alt[^1]) env.Write(",");
 					}
 					env.Write(alt.loop ? "].loop" : "]");
