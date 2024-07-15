@@ -43,7 +43,7 @@ public class LerStr(string input) : Lexer<char, char>
 	protected string input = input;
 	protected int loc = -1;
 
-	void IDisposable.Dispose() { input = null; loc = -1; GC.SuppressFinalize(this); }
+	void IDisposable.Dispose() { input = null; loc = -1; }
 
 	public bool Next() => ++loc < input.Length;
 	public int Loc() => loc;
@@ -69,7 +69,7 @@ public class LerByte(byte[] input) : LexerSeg<byte, byte>
 	protected byte[] input = input;
 	protected int loc = -1;
 
-	void IDisposable.Dispose() { input = null; loc = -1; GC.SuppressFinalize(this); }
+	void IDisposable.Dispose() { input = null; loc = -1; }
 
 	public bool Next() => ++loc < input.Length;
 	public int Loc() => loc;
@@ -95,7 +95,7 @@ public class LerByteSeg(ArraySegment<byte> input) : LexerSeg<byte, byte>
 	protected ArraySegment<byte> input = input;
 	protected int loc = -1;
 
-	void IDisposable.Dispose() { input = null; loc = -1; GC.SuppressFinalize(this); }
+	void IDisposable.Dispose() { input = null; loc = -1; }
 
 	public bool Next() => ++loc < input.Count;
 	public int Loc() => loc;
@@ -121,7 +121,7 @@ public class LerByteList(List<byte> input) : Lexer<byte, byte>
 	protected List<byte> input = input;
 	protected int loc = -1;
 
-	void IDisposable.Dispose() { input = null; loc = -1; GC.SuppressFinalize(this); }
+	void IDisposable.Dispose() { input = null; loc = -1; }
 
 	public bool Next() => ++loc < input.Count;
 	public int Loc() => loc;

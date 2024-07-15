@@ -15,10 +15,10 @@ namespace qutum.test.parser;
 
 static class TestExtension
 {
-	public static bool Check(this ParserStr p, string input)
+	public static bool Check(this SynterStr p, string input)
 		=> p.Begin(new LerStr(input)).Check();
 
-	public static (SyntStr t, LerStr) Parse(this ParserStr p, string input)
+	public static (SyntStr t, LerStr) Parse(this SynterStr p, string input)
 	{
 		var t = p.Begin(new LerStr(input)).Parse().Dump();
 		using var env = EnvWriter.Begin();
@@ -58,16 +58,16 @@ static class TestExtension
 }
 
 [TestClass]
-public class TestParser : IDisposable
+public class TestSynter : IDisposable
 {
 	readonly EnvWriter env = EnvWriter.Begin();
 
-	public void Dispose() { GC.SuppressFinalize(this); env.Dispose(); }
+	public void Dispose() => env.Dispose();
 
 	[TestMethod]
 	public void Term1()
 	{
-		var p = new ParserStr("S=k");
+		var p = new SynterStr("S=k");
 		IsTrue(p.Check("k"));
 		IsFalse(p.Check("")); IsFalse(p.Check("kk")); IsFalse(p.Check("K"));
 	}
@@ -75,21 +75,21 @@ public class TestParser : IDisposable
 	[TestMethod]
 	public void Term2()
 	{
-		var p = new ParserStr("S=");
+		var p = new SynterStr("S=");
 		IsTrue(p.Check("")); IsFalse(p.Check("a"));
 	}
 
 	[TestMethod]
 	public void Alt1()
 	{
-		var p = new ParserStr("S=|a");
+		var p = new SynterStr("S=|a");
 		IsTrue(p.Check("")); IsTrue(p.Check("a")); IsFalse(p.Check("b"));
 	}
 
 	[TestMethod]
 	public void Alt2()
 	{
-		var p = new ParserStr("S=A\nA=a|1|#");
+		var p = new SynterStr("S=A\nA=a|1|#");
 		IsTrue(p.Check("a")); IsTrue(p.Check("1")); IsTrue(p.Check("#"));
 		IsFalse(p.Check("")); IsFalse(p.Check("a1")); IsFalse(p.Check("A"));
 	}
@@ -97,7 +97,7 @@ public class TestParser : IDisposable
 	[TestMethod]
 	public void Con()
 	{
-		var p = new ParserStr("S = A B|B A \nA = a|1 \nB = b|2");
+		var p = new SynterStr("S = A B|B A \nA = a|1 \nB = b|2");
 		IsFalse(p.Check("a")); IsFalse(p.Check("1")); IsFalse(p.Check("b")); IsFalse(p.Check("2"));
 		IsTrue(p.Check("ab")); IsTrue(p.Check("ba"));
 		IsTrue(p.Check("1b")); IsTrue(p.Check("b1"));
@@ -109,21 +109,21 @@ public class TestParser : IDisposable
 	[TestMethod]
 	public void AltPrior1()
 	{
-		var p = new ParserStr("S=.E =^ \n | E \n E=W|P \n W=a \n P=.W") { dump = 3 };
+		var p = new SynterStr("S=.E =^ \n | E \n E=W|P \n W=a \n P=.W") { dump = 3 };
 		p.Parse(".a").H("E").H("W").N0();
 	}
 
 	[TestMethod]
 	public void AltPrior2()
 	{
-		var p = new ParserStr("S=.E \n | E =^ \n E=W|P \n W=a \n P=.W") { dump = 3 };
+		var p = new SynterStr("S=.E \n | E =^ \n E=W|P \n W=a \n P=.W") { dump = 3 };
 		p.Parse(".a").H("E").H("P").N0();
 	}
 
 	[TestMethod]
 	public void Esc()
 	{
-		var p = new ParserStr(@"S = \ss\tt\r\n\\/ | \|or\=eq\*s\+p\?q");
+		var p = new SynterStr(@"S = \ss\tt\r\n\\/ | \|or\=eq\*s\+p\?q");
 		IsTrue(p.Check(" s\tt\r\n\\/")); IsFalse(p.Check(" s\tt\r \n\\/"));
 		IsTrue(p.Check("|or=eq*s+p?q"));
 	}
@@ -131,7 +131,7 @@ public class TestParser : IDisposable
 	[TestMethod]
 	public void ErrHint()
 	{
-		var p = new ParserStr("S=A B =start \n A=1|2 =A12 ==oh||no\n |3 =A3 \n B= =\tempty \n |4 =B4") {
+		var p = new SynterStr("S=A B =start \n A=1|2 =A12 ==oh||no\n |3 =A3 \n B= =\tempty \n |4 =B4") {
 			dump = 3
 		};
 		IsNull(p.Parse("").t.head);
@@ -142,7 +142,7 @@ public class TestParser : IDisposable
 	[TestMethod]
 	public void LeftRecu()
 	{
-		var p = new ParserStr("S = S b|A \nA = a");
+		var p = new SynterStr("S = S b|A \nA = a");
 		IsTrue(p.Check("a")); IsTrue(p.Check("ab")); IsTrue(p.Check("abb")); IsTrue(p.Check("abbb"));
 		IsFalse(p.Check("")); IsFalse(p.Check("b")); IsFalse(p.Check("aab")); IsFalse(p.Check("abbba"));
 	}
@@ -150,7 +150,7 @@ public class TestParser : IDisposable
 	[TestMethod]
 	public void RightRecu()
 	{
-		var p = new ParserStr("S = a S|B \nB = b");
+		var p = new SynterStr("S = a S|B \nB = b");
 		IsTrue(p.Check("b")); IsTrue(p.Check("ab")); IsTrue(p.Check("aab")); IsTrue(p.Check("aaaab"));
 		IsFalse(p.Check("")); IsFalse(p.Check("a")); IsFalse(p.Check("abb")); IsFalse(p.Check("abbba"));
 	}
@@ -158,20 +158,20 @@ public class TestParser : IDisposable
 	[TestMethod]
 	public void RightRecuUnopt()
 	{
-		var p = new ParserStr("S= aa B \nB= A a \nA= a A|a") { dump = 3 };
+		var p = new SynterStr("S= aa B \nB= A a \nA= a A|a") { dump = 3 };
 		IsFalse(p.Check("aa")); IsFalse(p.Check("aaa"));
 		IsTrue(p.Check("aaaa")); IsTrue(p.Check("aaaaa")); IsTrue(p.Check("aaaaaa"));
 		IsTrue(p.Check("aaaaaaa")); AreEqual(49, p.matchn);
-		p = new ParserStr("S= aa B \nB= A a \nA= A a|a") { dump = 3 };
+		p = new SynterStr("S= aa B \nB= A a \nA= A a|a") { dump = 3 };
 		IsTrue(p.Check("aaaaaaa")); AreEqual(29, p.matchn);
-		p = new ParserStr("S= aa B \nB= A a \nA= a+") { dump = 3 };
+		p = new SynterStr("S= aa B \nB= A a \nA= a+") { dump = 3 };
 		IsTrue(p.Check("aaaaaaa")); AreEqual(28, p.matchn);
 	}
 
 	[TestMethod]
 	public void MidRecu1()
 	{
-		var p = new ParserStr("""
+		var p = new SynterStr("""
 			S	= If|X =-
 			If	= if \s S \s then \s S
 				| if \s S \s then \s S \s else \s S
@@ -206,7 +206,7 @@ public class TestParser : IDisposable
 	[TestMethod]
 	public void MidRecu2()
 	{
-		var p = new ParserStr("""
+		var p = new SynterStr("""
 			S	= If|X =-
 			If	= if \s S \s then \s S
 				| if \s S \s then \s S \s else \s S
@@ -241,7 +241,7 @@ public class TestParser : IDisposable
 	[TestMethod]
 	public void DoubleRecu()
 	{
-		var p = new ParserStr("S=S S|a");
+		var p = new SynterStr("S=S S|a");
 		IsFalse(p.Check(""));
 		IsTrue(p.Check("a")); IsTrue(p.Check("aa")); IsTrue(p.Check("aaa")); IsTrue(p.Check("aaaa"));
 	}
@@ -249,7 +249,7 @@ public class TestParser : IDisposable
 	[TestMethod]
 	public void AddMul()
 	{
-		var p = new ParserStr("""
+		var p = new SynterStr("""
 			Expr  = Expr\+Mul | Mul
 			Mul   = Mul\*Value | Value
 			Value = (Expr) | Num
@@ -274,7 +274,7 @@ public class TestParser : IDisposable
 	[TestMethod]
 	public void AddMulErr()
 	{
-		var p = new ParserStr("""
+		var p = new SynterStr("""
 			Expr  = Expr\+Mul | Mul     = expression
 			Mul   = Mul\*Value | Value  = expression
 			Value = (Expr) | Num        = value
@@ -293,7 +293,7 @@ public class TestParser : IDisposable
 	[TestMethod]
 	public void Greedy1()
 	{
-		var p = new ParserStr("S = A B \n A = A 1|1 \n B = 1|B 1") { dump = 3 };
+		var p = new SynterStr("S = A B \n A = A 1|1 \n B = 1|B 1") { dump = 3 };
 		p.Parse("111").H("A", v: "1").N("B", v: "11");
 		p.greedy = true;
 		p.Parse("111").H("A", v: "11").N("B", v: "1");
@@ -302,7 +302,7 @@ public class TestParser : IDisposable
 	[TestMethod]
 	public void Greedy2()
 	{
-		var p = new ParserStr("S =A B C D \nA =1|12 \nB =234|3 \nC =5|456 \nD =67|7") {
+		var p = new SynterStr("S =A B C D \nA =1|12 \nB =234|3 \nC =5|456 \nD =67|7") {
 			dump = 3
 		};
 		p.Parse("1234567").H("A", v: "1").N("B", v: "234").N("C", v: "5").N("D", v: "67");
@@ -313,7 +313,7 @@ public class TestParser : IDisposable
 	[TestMethod]
 	public void GreedyHint()
 	{
-		var p = new ParserStr("S = A B =*\n A = A 1|1 \n B = 1|B 1") { dump = 3 };
+		var p = new SynterStr("S = A B =*\n A = A 1|1 \n B = 1|B 1") { dump = 3 };
 		p.Parse("111").H("A", v: "11").N("B", v: "1");
 		p.greedy = true;
 		p.Parse("111").H("A", v: "11").N("B", v: "1");
@@ -322,7 +322,7 @@ public class TestParser : IDisposable
 	[TestMethod]
 	public void Empty1()
 	{
-		var p = new ParserStr("S=a A B \n A=|a+ \n B=A") { greedy = true, dump = 3 };
+		var p = new SynterStr("S=a A B \n A=|a+ \n B=A") { greedy = true, dump = 3 };
 		IsTrue(p.Check("a")); IsTrue(p.Check("aa"));
 		p.Parse("aaa").H("A", v: "aa").N("B", v: "");
 	}
@@ -330,7 +330,7 @@ public class TestParser : IDisposable
 	[TestMethod]
 	public void Empty2()
 	{
-		var p = new ParserStr("S=A B \n A=a P \n B=P b \n P=|pq") { dump = 3 };
+		var p = new SynterStr("S=A B \n A=a P \n B=P b \n P=|pq") { dump = 3 };
 		IsTrue(p.Check("ab")); IsTrue(p.Check("apqb"));
 		IsTrue(p.Check("apqpqb")); IsFalse(p.Check("apqpqpqb"));
 	}
@@ -338,7 +338,7 @@ public class TestParser : IDisposable
 	[TestMethod]
 	public void Option1()
 	{
-		var p = new ParserStr("S=A B?a? \n A=a|aa \n B=a") { dump = 3 };
+		var p = new SynterStr("S=A B?a? \n A=a|aa \n B=a") { dump = 3 };
 		IsFalse(p.Check("")); IsTrue(p.Check("a")); IsTrue(p.Check("aaaa"));
 		p.Parse("aa").H("A", v: "a").N0();
 		p.Parse("aaa").H("A", v: "a").N("B", v: "a").N0();
@@ -349,7 +349,7 @@ public class TestParser : IDisposable
 	[TestMethod]
 	public void Option2()
 	{
-		var p = new ParserStr("S=A?B? \n A=B a \n B=b");
+		var p = new SynterStr("S=A?B? \n A=B a \n B=b");
 		IsTrue(p.Check("")); IsTrue(p.Check("ba")); IsTrue(p.Check("b"));
 		IsTrue(p.Check("bab")); IsFalse(p.Check("ab"));
 	}
@@ -357,7 +357,7 @@ public class TestParser : IDisposable
 	[TestMethod]
 	public void More1()
 	{
-		var p = new ParserStr("S=a+") { dump = 3 };
+		var p = new SynterStr("S=a+") { dump = 3 };
 		IsFalse(p.Check("")); IsTrue(p.Check("a")); IsTrue(p.Check("aaaaaa"));
 		IsTrue(p.Check("aaaaaaa")); AreEqual(15, p.matchn);
 	}
@@ -365,7 +365,7 @@ public class TestParser : IDisposable
 	[TestMethod]
 	public void More2()
 	{
-		var p = new ParserStr("S=A B \n A=a P+ \n B=P+b \n P=pq") { dump = 3 };
+		var p = new SynterStr("S=A B \n A=a P+ \n B=P+b \n P=pq") { dump = 3 };
 		IsFalse(p.Check("apqb")); IsTrue(p.Check("apqpqb"));
 		p.Parse("apqpqpqb").H("A", v: "apq").N("B", v: "pqpqb").N0();
 		p.greedy = true;
@@ -376,7 +376,7 @@ public class TestParser : IDisposable
 	[TestMethod]
 	public void Any1()
 	{
-		var p = new ParserStr("S=a*") { dump = 3 };
+		var p = new SynterStr("S=a*") { dump = 3 };
 		IsTrue(p.Check("")); IsTrue(p.Check("a")); IsTrue(p.Check("aaaaaa"));
 		IsTrue(p.Check("aaaaaaa")); AreEqual(16, p.matchn);
 	}
@@ -384,7 +384,7 @@ public class TestParser : IDisposable
 	[TestMethod]
 	public void Any2()
 	{
-		var p = new ParserStr("S=A B \n A=a P* \n B=P* b \n P=p|q") { dump = 3 };
+		var p = new SynterStr("S=A B \n A=a P* \n B=P* b \n P=p|q") { dump = 3 };
 		IsTrue(p.Check("ab")); IsTrue(p.Check("apqb")); IsTrue(p.Check("apqpqb"));
 		p.Parse("apqpqpqb").H("A", 0, 1).N("B").H("P", 1).U().T("P", 6).U().N0();
 		AreEqual(107, p.matchn);
@@ -396,7 +396,7 @@ public class TestParser : IDisposable
 	[TestMethod]
 	public void HintSynt1()
 	{
-		var p = new ParserStr("S=A B C\n A=1 =+\n B=1 =-\n C=1") {
+		var p = new SynterStr("S=A B C\n A=1 =+\n B=1 =-\n C=1") {
 			tree = true, dump = 3
 		};
 		p.Parse("111").H("A").N("C").N0();
@@ -407,7 +407,7 @@ public class TestParser : IDisposable
 	[TestMethod]
 	public void HintSynt2()
 	{
-		var p = new ParserStr("S=Z*U* \n U=A*V* =+-\n V=B*C* =+-\n Z=z \n A=a \n B=b \n C=c") {
+		var p = new SynterStr("S=Z*U* \n U=A*V* =+-\n V=B*C* =+-\n Z=z \n A=a \n B=b \n C=c") {
 			tree = true, dump = 3
 		};
 		var t = p.Parse("zabc");
@@ -434,7 +434,7 @@ public class TestParser : IDisposable
 	[TestMethod]
 	public void HintSynt3()
 	{
-		var p = new ParserStr("S=Z*U* \n U=A*V* =+-\n V=B*C* =+-\n Z=z =-\n A=a \n B=b \n C=c") {
+		var p = new SynterStr("S=Z*U* \n U=A*V* =+-\n V=B*C* =+-\n Z=z =-\n A=a \n B=b \n C=c") {
 			tree = true, dump = 3
 		};
 		var t = p.Parse("zabc");
@@ -454,7 +454,7 @@ public class TestParser : IDisposable
 	[TestMethod]
 	public void Recovery1()
 	{
-		var p = new ParserStr("S=A|S,A? =|\n A=M|A\\+M \n M=V|M\\*V \n V=0|1|2|3|4|5") {
+		var p = new SynterStr("S=A|S,A? =|\n A=M|A\\+M \n M=V|M\\*V \n V=0|1|2|3|4|5") {
 			dump = 3
 		};
 		p.Parse("0,").H("S").H("A").H("M").H("V").N0().N0().N0().N0();
@@ -472,7 +472,7 @@ public class TestParser : IDisposable
 	[TestMethod]
 	public void Recovery2()
 	{
-		var p = new ParserStr("S=A|S,A? =|\n A=M|A\\+M \n M=V|M\\*V \n V=0|1|2|3|4|5") {
+		var p = new SynterStr("S=A|S,A? =|\n A=M|A\\+M \n M=V|M\\*V \n V=0|1|2|3|4|5") {
 			dump = 3
 		};
 		var t = p.Parse("0+,1*,2#");
@@ -500,7 +500,7 @@ public class TestParser : IDisposable
 	[TestMethod]
 	public void Recovery3()
 	{
-		var p = new ParserStr("S=A|S,A? =*|\n A=M|A\\+M \n M=V|M\\*V \n V=(A)|N =|\n N=0|1|2|3|4|5") {
+		var p = new SynterStr("S=A|S,A? =*|\n A=M|A\\+M \n M=V|M\\*V \n V=(A)|N =|\n N=0|1|2|3|4|5") {
 			dump = 3
 		};
 		var t = p.Parse("()");
@@ -542,7 +542,7 @@ public class TestParser : IDisposable
 	[TestMethod]
 	public void Recovery4()
 	{
-		var p = new ParserStr("P=S+ \n S=V|{S+} =*|\n V=(N)|N =|\n N=0|1|2|3|4|5") {
+		var p = new SynterStr("P=S+ \n S=V|{S+} =*|\n V=(N)|N =|\n N=0|1|2|3|4|5") {
 			dump = 3
 		};
 		var t = p.Parse("{()");
@@ -569,7 +569,7 @@ public class TestParser : IDisposable
 	[TestMethod]
 	public void Recovery5()
 	{
-		var p = new ParserStr("P=S+ \n S=V|{S+} =*|\n|\\0?\\0} =-| \n V=0|1|2|3|4|5") {
+		var p = new SynterStr("P=S+ \n S=V|{S+} =*|\n|\\0?\\0} =-| \n V=0|1|2|3|4|5") {
 			dump = 3
 		};
 		var t = p.Parse("{{0}}}}{1}");

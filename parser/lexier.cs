@@ -76,7 +76,6 @@ public class LexGram<K>
 // lexic parser
 public class Lexier<K> : Lexier<K, Lexi<K>> where K : struct
 {
-	[System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE0290")]
 	public Lexier(LexGram<K> grammar, bool dump = false) : base(grammar, dump) { }
 
 	protected override Lexi<K> Lexi(K key, int f, int to, object value)
@@ -145,12 +144,12 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 	// lexer results keep available
 	public virtual void Dispose()
 	{
+		GC.SuppressFinalize(this);
 		input?.Dispose(); input = null;
 		bn = bf = bt = 0;
 		lines.Clear(); lines.Add(0);
 		lexn = 0; loc = -1; lexs = [];
 		from = -1; errs?.Clear();
-		GC.SuppressFinalize(this);
 	}
 
 	public bool Next()

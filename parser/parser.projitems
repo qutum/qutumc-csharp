@@ -7,10 +7,10 @@
 	</PropertyGroup>
 	<PropertyGroup Label="Configuration" />
 	<ItemGroup>
-		<Compile Include="$(MSBuildThisFileDirectory)meta.cs" />
-		<Compile Include="$(MSBuildThisFileDirectory)lexier.cs" />
-		<Compile Include="$(MSBuildThisFileDirectory)parser.cs" />
 		<Compile Include="$(MSBuildThisFileDirectory)lexer.cs" />
+		<Compile Include="$(MSBuildThisFileDirectory)lexier.cs" />
+		<Compile Include="$(MSBuildThisFileDirectory)synter.cs" />
+		<Compile Include="$(MSBuildThisFileDirectory)meta.cs" />
 		<Compile Include="$(MSBuildThisFileDirectory)util.cs" />
 	</ItemGroup>
 	<ItemGroup>

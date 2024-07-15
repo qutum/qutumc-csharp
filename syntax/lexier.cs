@@ -164,7 +164,6 @@ public class Lexier : Lexier<L>
 	{
 		base.Dispose();
 		indent = indentNew = 0; crlf = false; path.Clear();
-		GC.SuppressFinalize(this);
 	}
 
 	int Input(int f, int to, int x)

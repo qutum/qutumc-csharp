@@ -10,9 +10,9 @@ qutum语言的词法解析器，输入byte流，输出lexi流
 错误词提示
 
 
-qutum.syntax.Parser
+qutum.syntax.Synter
 
-qutum语言的语法解析器，输入词法流，输出语法树
+qutum语言的语法解析器，输入Lexier，输出语法树
 
 语句块为主要语法结构，词法空白全部忽略，错误从换行恢复
 

@@ -30,16 +30,11 @@ qutum.parser.Lexier
 每个组开头*表示重试，每个分支开头+表示循环，每个字节后接+表示重复
 
 
-qutum.parser.ParserBase
+qutum.parser.Synter
 
-语法解析器，基于Earley算法，输出语法树
+语法解析器，输入指定Lexer，基于Earley算法，输出语法树
 支持量词、greedy串联贪婪匹配、优先分支、语法树节点保留或穿透、寻找前方key或从当前位置错误恢复
 
-qutum.parser.ParserStr
+qutum.parser.SynterStr
 
 以LerStr为输入的语法解析器
-
-qutum.parser.Parser
-
-指定Lexer为输入的语法解析器
-

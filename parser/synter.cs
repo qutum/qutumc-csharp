@@ -13,9 +13,9 @@ using static qutum.parser.Qua;
 
 namespace qutum.parser;
 
-using ParserChar = ParserBase<char, char, string, SyntStr, LerStr>;
+using SynterChar = SynterBase<char, char, string, SyntStr, LerStr>;
 
-// Syntax tree
+// syntax tree
 public class Synt<N, T> : LinkTree<T> where T : Synt<N, T>
 {
 	public N name;
@@ -43,15 +43,50 @@ public class SyntStr : Synt<string, SyntStr>
 {
 }
 
-public class Parser<K, N, T, Ler> : ParserBase<K, Lexi<K>, N, T, Ler>
+// syntax parser
+public class Synter<K, N, T, Ler> : SynterBase<K, Lexi<K>, N, T, Ler>
 	where K : struct where T : Synt<N, T>, new() where Ler : LexerSeg<K, Lexi<K>>
 {
-	public Parser(string gram, Ler ler) : base(gram, ler) { }
+	public Synter(string gram, Ler ler) : base(gram, ler) { }
 }
 
-public class ParserStr : ParserChar
+public class SynterStr : SynterChar
 {
-	public ParserStr(string gram, LerStr ler = null) : base(gram, ler ?? new LerStr("")) { }
+	public SynterStr(string gram, LerStr ler = null) : base(gram, ler ?? new LerStr("")) { }
+}
+
+public class SynGram<K, N>
+{
+	public readonly List<Prod> prods = [];
+	public class Prod : List<Alt> { public N name; }
+	public class Alt : AltHint
+	{
+		public readonly List<object> cons = [];
+	}
+
+	public SynGram<K, N> prod(N name) { prods.Add(new Prod { name = name }); return this; }
+	public SynGram<K, N> this[params object[] cons] {
+		get {
+			Alt a = new();
+			prods[^1].Add(a);
+			if (prods[^1][^1].cons.Count == 1 && cons.Length == 1 && cons[0] == null)
+				return this;
+			foreach (var v in cons)
+				if (v is N or K or Qua) a.cons.Add(v);
+				else if (v is IEnumerable<K> ks)
+					a.cons.AddRange(ks.Cast<object>());
+				else throw new($"wrong altern content {v?.GetType()}");
+			return this;
+		}
+	}
+	public SynGram<K, N> prior { get { prods[^1][^1].prior = true; return this; } }
+	public SynGram<K, N> greedy { get { prods[^1][^1].greedy = 1; return this; } }
+	public SynGram<K, N> greedyBack { get { prods[^1][^1].greedy = -1; return this; } }
+	public SynGram<K, N> synt { get { prods[^1][^1].synt = 1; return this; } }
+	public SynGram<K, N> syntMust { get { prods[^1][^1].synt = 2; return this; } }
+	public SynGram<K, N> syntOmit { get { prods[^1][^1].synt = -1; return this; } }
+	public SynGram<K, N> lexi { get { prods[^1][^1].lex = true; return this; } }
+	public SynGram<K, N> errExpect { get { prods[^1][^1].errExpect = true; return this; } }
 }
 
 public enum Qua : byte { Opt = 0, One = 1, Any = 2, More = 3 };
@@ -59,17 +94,17 @@ public enum Qua : byte { Opt = 0, One = 1, Any = 2, More = 3 };
 public class AltHint
 {
 	internal bool prior; // prior than other Alts of the same Prod or of all recovery
-	internal sbyte greedy; // as parser.greedy: 0, greedy: 1, back greedy: -1
-	internal sbyte synt; // as parser.tree: 0, make Synt: 2, omit Synt: -1
+	internal sbyte greedy; // as Synter.greedy: 0, greedy: 1, back greedy: -1
+	internal sbyte synt; // as Synter.tree: 0, make Synt: 2, omit Synt: -1
 						 // omit if no prev nor next or has 0 or 1 sub: 1
 	internal bool lex; // save first shifted lexi to Synt.info
-	internal bool errExpect; // make expect Synt when error
+	internal bool errExpect; // make expect synt when error
 	internal int recover; // no: -1, recover ahead to last One or More K index: > 0,
 						  // recover just at last One or More Prod index without shift: > 0
 	internal string hint;
 }
 
-public partial class ParserBase<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler : Lexer<K, L>
+public partial class SynterBase<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler : Lexer<K, L>
 {
 	sealed class Prod
 	{
@@ -124,11 +159,11 @@ public partial class ParserBase<K, L, N, T, Ler> where T : Synt<N, T>, new() whe
 			$"{(tail >= 0 ? "^" : tail == -1 ? "p" : tail == -2 ? "s" : tail == -3 ? "?" : "r")} {a}";
 	}
 
-	ParserBase(Prod begin) { this.begin = begin; recm = []; }
+	SynterBase(Prod begin) { this.begin = begin; recm = []; }
 
-	public ParserBase<K, L, N, T, Ler> Begin(Ler ler) { this.ler = ler; return this; }
+	public SynterBase<K, L, N, T, Ler> Begin(Ler ler) { this.ler = ler; return this; }
 
-	// make Synt from complete Alts
+	// make synt from complete Alts
 	public virtual T Parse()
 	{
 		matchn = 0;
@@ -436,48 +471,11 @@ public partial class ParserBase<K, L, N, T, Ler> where T : Synt<N, T>, new() whe
 	{
 		return v.ToString().Replace("\n", "\\n").Replace("\r", "\\r").Replace("\t", "\\t");
 	}
-}
 
-public class ParserGram<K, N>
-{
-	public readonly List<Prod> prods = [];
-	public class Prod : List<Alt> { public N name; }
-	public class Alt : AltHint
-	{
-		public readonly List<object> cons = [];
-	}
-
-	public ParserGram<K, N> prod(N name) { prods.Add(new Prod { name = name }); return this; }
-	public ParserGram<K, N> this[params object[] cons] {
-		get {
-			Alt a = new();
-			prods[^1].Add(a);
-			if (prods[^1][^1].cons.Count == 1 && cons.Length == 1 && cons[0] == null)
-				return this;
-			foreach (var v in cons)
-				if (v is N or K or Qua) a.cons.Add(v);
-				else if (v is IEnumerable<K> ks)
-					a.cons.AddRange(ks.Cast<object>());
-				else throw new($"wrong altern content {v?.GetType()}");
-			return this;
-		}
-	}
-	public ParserGram<K, N> prior { get { prods[^1][^1].prior = true; return this; } }
-	public ParserGram<K, N> greedy { get { prods[^1][^1].greedy = 1; return this; } }
-	public ParserGram<K, N> greedyBack { get { prods[^1][^1].greedy = -1; return this; } }
-	public ParserGram<K, N> synt { get { prods[^1][^1].synt = 1; return this; } }
-	public ParserGram<K, N> syntMust { get { prods[^1][^1].synt = 2; return this; } }
-	public ParserGram<K, N> syntOmit { get { prods[^1][^1].synt = -1; return this; } }
-	public ParserGram<K, N> lexi { get { prods[^1][^1].lex = true; return this; } }
-	public ParserGram<K, N> errExpect { get { prods[^1][^1].errExpect = true; return this; } }
-}
-
-public partial class ParserBase<K, L, N, T, Ler>
-{
 	// bootstrap
-	static readonly ParserChar boot;
+	static readonly SynterChar meta;
 
-	static ParserBase()
+	static SynterBase()
 	{
 		var keys = new LerStr("");
 		// prod name, prod-or-key-with-qua-alt1 con1|alt2 con2  \x1 is |
@@ -506,7 +504,7 @@ public partial class ParserBase<K, L, N, T, Ler>
 		// build prod
 		var prods = grammar.ToDictionary(
 			kv => kv.Key,
-			kv => new ParserChar.Prod { name = kv.Key });
+			kv => new SynterChar.Prod { name = kv.Key });
 		foreach (var kv in grammar)
 			// split into alts
 			prods[kv.Key].alts = kv.Value.Split("|").Select(alt => {
@@ -518,13 +516,13 @@ public partial class ParserBase<K, L, N, T, Ler>
 					var q = c.Length == 1 || !(c[^1] is char x) ? One
 							: x == '?' ? Opt : x == '*' ? Any : x == '+' ? More : One;
 					var p = q == One ? c : c[0..^1];
-					return new ParserChar.Con {
+					return new SynterChar.Con {
 						p = prods.TryGetValue(p, out var a) ? a : (object)keys.Keys(p).First(),
 						q = q,
 					};
-				}).Append(new ParserChar.Con { q = One })
+				}).Append(new SynterChar.Con { q = One })
 				.ToArray();
-				return new ParserChar.Alt { name = kv.Key, s = s, recover = -1 };
+				return new SynterChar.Alt { name = kv.Key, s = s, recover = -1 };
 			}).ToArray();
 		// hint synt is greedy
 		prods["hintt"].alts[2].greedy = 1;
@@ -536,20 +534,20 @@ public partial class ParserBase<K, L, N, T, Ler>
 					"hintp", "hintg", "hintt", "hintl", "hinte", "hintr", "hintd", "hintw", "hint_" }
 				.SelectMany(x => prods[x].alts)))
 			c.synt = 2;
-		boot = new ParserChar(prods["gram"]) {
+		meta = new SynterChar(prods["gram"]) {
 			greedy = false, tree = false, dump = 0
 		};
 	}
 
-	public ParserBase(string gram, Ler ler)
+	public SynterBase(string gram, Ler ler)
 	{
 		Begin(ler);
 		using var input = new MetaStr(gram);
-		var top = boot.Begin(input).Parse();
+		var top = meta.Begin(input).Parse();
 		if (top.err != 0) {
 			using var input2 = new MetaStr(gram);
-			var dump = boot.dump; boot.dump = 3;
-			boot.Begin(input2).Parse().Dump(); boot.dump = dump;
+			var dump = meta.dump; meta.dump = 3;
+			meta.Begin(input2).Parse().Dump(); meta.dump = dump;
 			var e = new Exception(); e.Data["err"] = top;
 			throw e;
 		}
@@ -566,7 +564,7 @@ public partial class ParserBase<K, L, N, T, Ler>
 		// \ prod ...
 		var prods = top.Where(t => t.name == "prod");
 		var names = prods.ToDictionary(
-			p => p.head.dump = boot.ler.Lexs(p.head.from, p.head.to),
+			p => p.head.dump = meta.ler.Lexs(p.head.from, p.head.to),
 			p => new Prod { name = Name(p.head.dump) }
 		);
 
@@ -580,7 +578,7 @@ public partial class ParserBase<K, L, N, T, Ler>
 						: gram[t.from] == '*' ? [Any] : gram[t.from] == '+' ? [More]
 						: ler.Keys(MetaStr.Unesc(gram, t.from, t.to)).Cast<object>()
 					// for word, search product names first, then lexer keys
-					: names.TryGetValue(t.dump = boot.ler.Lexs(t.from, t.to), out Prod p)
+					: names.TryGetValue(t.dump = meta.ler.Lexs(t.from, t.to), out Prod p)
 						? [p] : ler.Keys(t.dump).Cast<object>())
 					.Append(null)
 					.ToArray();
@@ -605,7 +603,7 @@ public partial class ParserBase<K, L, N, T, Ler>
 					if (h.name == "hintr") r = h;
 					if (h.name == "hintd") d = h;
 					if (h.name == "hintw") { // apply hints
-						var w = boot.ler.Lexs(h.from, h.to);
+						var w = meta.ler.Lexs(h.from, h.to);
 						for (; ax <= x; ax++) {
 							var a = az[ax];
 							a.prior = p; a.greedy = g; a.synt = st; a.lex = k; a.errExpect = e;

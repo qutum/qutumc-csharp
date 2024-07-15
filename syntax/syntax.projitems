@@ -7,8 +7,8 @@
 	</PropertyGroup>
 	<PropertyGroup Label="Configuration" />
 	<ItemGroup>
-		<Compile Include="$(MSBuildThisFileDirectory)parser.cs" />
 		<Compile Include="$(MSBuildThisFileDirectory)lexier.cs" />
+		<Compile Include="$(MSBuildThisFileDirectory)synter.cs" />
 	</ItemGroup>
 	<ItemGroup>
 		<Content Include="$(MSBuildThisFileDirectory)doc-zh.txt" />

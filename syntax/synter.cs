@@ -25,7 +25,7 @@ public class Synt : Synt<Syn, Synt>
 {
 }
 
-public class Parser : Parser<Lex, Syn, Synt, Lexier>
+public class Synter : Synter<Lex, Syn, Synt, Lexier>
 {
 	static readonly string grammar = """
 	all   = Block* | IND all DED Block*
@@ -80,7 +80,7 @@ public class Parser : Parser<Lex, Syn, Synt, Lexier>
 	      | NAME BIND E2 B43* B46* B53* B56* B6* B7*	=+_!|	name feed
 	""";
 
-	public Parser(Lexier l) : base(grammar, l)
+	public Synter(Lexier l) : base(grammar, l)
 	{
 		tree = false;
 		errExpect = 0;

@@ -78,7 +78,7 @@ public static class MetaLex
 	//       \ loop
 	//       \ byte: single/range.../esc (dup) ...
 	// \ prod ...
-	static readonly ParserStr meta = new("""
+	static readonly SynterStr meta = new("""
 		gram  = eol* prod prods* eol*
 		prods = eol+ prod
 		prod  = key S*\=S* part1 part* =+

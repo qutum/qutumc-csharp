@@ -21,7 +21,7 @@ public class TestLexier : IDisposable
 {
 	readonly EnvWriter env = EnvWriter.Begin();
 
-	public void Dispose() { GC.SuppressFinalize(this); env.Dispose(); }
+	public void Dispose() => env.Dispose();
 
 	enum Tag { _, A, B, BB, C, CC, D };
 
