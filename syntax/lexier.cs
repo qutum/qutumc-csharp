@@ -205,7 +205,7 @@ public class Lexier : Lexier<L>
 		var end = true;
 		if (eof)
 			Part(L.EOL, 1, ref end, bn, bn);
-		ind = 0; Indent();
+		ind = 0; indf = bn; Indent();
 	}
 
 	protected override Lexi<L> Lexi(L key, int f, int to, object value)
@@ -240,7 +240,7 @@ public class Lexier : Lexier<L>
 			if (allBlank
 				|| lexn > 0 && lexs[lexn - 1].key != L.EOL) // no EOL for empty line
 				base.Lexi(key, from, to, null);
-			ind = 0;
+			ind = 0; indf = to;
 			goto End;
 
 		case L.SP:
