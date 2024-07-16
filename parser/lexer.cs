@@ -143,9 +143,14 @@ public class LerByteList(List<byte> input) : Lexer<byte, byte>
 
 public static class CharSet
 {
-	internal static bool[] L = new bool[129], D = new bool[129], X = new bool[129],
-							A = new bool[129], W = new bool[129], O = new bool[129],
-							G = new bool[129], I = new bool[129],
+	internal static bool[] L = new bool[129], // single line, no \r \n, \x80
+							D = new bool[129], // decimal
+							X = new bool[129], // hexadecimal
+							A = new bool[129], // alphabet
+							W = new bool[129], // word, decimal or alphabet or _
+							O = new bool[129], // operator
+							G = new bool[129], // grammar operator, op except * + = ? \\ |
+							I = new bool[129], // grammer single, word or = or grammar op except [ ]
 							RI = new bool[129]; // default inclusive range
 	internal static string ALL, LINE, DEC, HEX, ALPHA, WORD, OP;
 	internal static string[] ONE; // [each byte]
@@ -161,10 +166,10 @@ public static class CharSet
 		for (char t = '\0'; t < 127; t++) {
 			L[t] = t is >= ' ' or '\t';
 			D[t] = t is >= '0' and <= '9';
-			X[t] = (D[t]) || t is >= 'a' and <= 'f' or >= 'A' and <= 'F';
+			X[t] = D[t] || t is >= 'a' and <= 'f' or >= 'A' and <= 'F';
 			A[t] = t is >= 'A' and <= 'Z' or >= 'a' and <= 'z';
-			W[t] = (D[t] || A[t]) || t == '_';
-			I[t] = (W[t] || G[t]) && t != '[' && t != ']' || t == '=';
+			W[t] = D[t] || A[t] || t == '_';
+			I[t] = W[t] || G[t] && t != '[' && t != ']' || t == '=';
 			RI[t] = t is >= ' ' or '\t' or '\n' or '\r';
 		}
 		L[128] = true;

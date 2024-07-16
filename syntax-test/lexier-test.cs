@@ -79,7 +79,9 @@ public class TestLexier : IDisposable
 	public void LexIndent2()
 	{
 		CheckSp("\ta\n\tb\n\t\t\tc\n\t\t\t\td\n\t\t\te\n\t\tf\ng\nh",
-			"IND=4 NAME=a EOL= NAME=b EOL= INDUO=12 NAME=c EOL= IND=16 NAME=d EOL= DED=16 NAME=e EOL= DEDUO=12 IND=8 NAME=f EOL= DED=8 DED=4 NAME=g EOL= NAME=h");
+			"IND=4 NAME=a EOL= NAME=b EOL= INDR=12 NAME=c EOL= IND=16 NAME=d EOL= DED=16 NAME=e EOL= DEDR=12 IND=8 NAME=f EOL= DED=8 DED=4 NAME=g EOL= NAME=h");
+		Check("a\n          b\n      c\n  d",
+			"NAME=a EOL= INDR=10 NAME=b EOL= INDR!indent same as upper lines expected NAME=c EOL= DEDR=10 IND=2 NAME=d DED=2");
 	}
 
 	[TestMethod]
@@ -87,7 +89,7 @@ public class TestLexier : IDisposable
 	{
 		CheckSp(" a", "NAME=a"); CheckSp("  a", "IND=2 NAME=a DED=2");
 		CheckSp("  a\n  b\n        c\n          d\n        e\n    f\ng\nh",
-			"IND=2 NAME=a EOL= NAME=b EOL= INDUO=8 NAME=c EOL= IND=10 NAME=d EOL= DED=10 NAME=e EOL= DEDUO=8 IND=4 NAME=f EOL= DED=4 DED=2 NAME=g EOL= NAME=h");
+			"IND=2 NAME=a EOL= NAME=b EOL= INDR=8 NAME=c EOL= IND=10 NAME=d EOL= DED=10 NAME=e EOL= DEDR=8 IND=4 NAME=f EOL= DED=4 DED=2 NAME=g EOL= NAME=h");
 		CheckSp("   a\n  b\n    c\n     d\n  e",
 			"IND=3 NAME=a EOL= NAME=b EOL= NAME=c EOL= IND=5 NAME=d EOL= DED=5 NAME=e DED=3");
 	}
@@ -95,11 +97,11 @@ public class TestLexier : IDisposable
 	[TestMethod]
 	public void LexIndent4()
 	{
-		CheckSp("\t\t##\n", "INDUO=8 COMM= EOL= DEDUO=8");
+		CheckSp("\t\t##\n", "INDR=8 COMM= EOL= DEDR=8");
 		Check("\n\ta\n\t\t\n\n\tb\n\t\t\t\n\t\t\tc\n\n\t\nd",
-			"IND=4 NAME=a EOL= NAME=b EOL= INDUO=12 NAME=c EOL= DEDUO=12 DED=4 NAME=d");
+			"IND=4 NAME=a EOL= NAME=b EOL= INDR=12 NAME=c EOL= DEDR=12 DED=4 NAME=d");
 		Check("\t\t### \n\ta \n\\##\\  b\n\t\t\\###\\\tc",
-			"IND=4 NAME=a EOL= DED=4 NAME=b EOL= INDUO=8 NAME=c DEDUO=8");
+			"IND=4 NAME=a EOL= DED=4 NAME=b EOL= INDR=8 NAME=c DEDR=8");
 	}
 
 	[TestMethod]

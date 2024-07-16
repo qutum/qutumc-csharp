@@ -85,6 +85,7 @@ public class Lexier<K> : Lexier<K, Lexi<K>> where K : struct
 
 	public override bool Is(int loc, K key) => Is(Lex(loc).key, key);
 
+	// first line and col are 1, col is byte number inside line
 	public (int fromL, int fromC, int toL, int toC) LineCol(int from, int to)
 	{
 		if (lexn == 0)
@@ -106,7 +107,7 @@ public class Lexier<K> : Lexier<K, Lexi<K>> where K : struct
 
 public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : struct // L : Lexi<K> fail
 {
-	// each unit is just before next byte or after last byte of part
+	// each unit is just before next byte or after the last byte of part
 	internal sealed class Unit
 	{
 		internal int id;
@@ -273,11 +274,11 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 	public virtual IEnumerable<K> Keys(string text) => Keyz(text);
 
 	// first line and col are 1, col is byte number inside line
-	public (int line, int column) LineCol(int byteLoc)
+	public (int line, int column) LineCol(int inputLoc)
 	{
-		var line = lines.BinarySearch(byteLoc);
+		var line = lines.BinarySearch(inputLoc);
 		line = (line ^ line >> 31) + (~line >>> 31);
-		return (line, byteLoc - lines[line - 1] + 1);
+		return (line, inputLoc - lines[line - 1] + 1);
 	}
 
 	static void Dump(Unit u, string pre, Dictionary<Unit, bool> us = null)

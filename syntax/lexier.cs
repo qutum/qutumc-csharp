@@ -32,7 +32,8 @@ public enum Lex
 	BIN7 = 0x40000,
 	BIN8 = 0x80000,
 
-	EOL = BLANK | 1, SP, IND, DED, INDUO, DEDUO, COMM, COMMB, PATH, NUM,
+	EOL = BLANK | 1, IND = BLANK | 2, DED, SP, INDR = BLANK | 6, DEDR,
+	COMM, COMMB, PATH, NUM,
 
 	LP = 1, LSB, LCB, BIND,
 
@@ -181,23 +182,29 @@ public class Lexier : Lexier<L>
 	{
 		if (ind < 0)
 			return;
-		var i = 1;
+		int i = 1, c = ind;
 		if (indn > 0) {
-			i = Array.BinarySearch<int>(inds, 0, indn + 1, ind + 2); // with column offset
+			i = Array.BinarySearch<int>(inds, 0, indn + 1, ind + L.IND - L.BLANK); // min indent as offset
 			i ^= i >> 31;
-			if (i <= indn) // drop these indents
+			c = ind - inds[i - 1];
+			if (i <= indn) { // drop these indents
 				for (var x = indn; x >= i; indn = --x)
-					base.Lexi(inds[x] - inds[x - 1] < 6 ? L.DED : L.DEDUO,
-						indf, indf, inds[x]);
+					if (x > i || c < L.INDR - L.BLANK)
+						base.Lexi(inds[x] - inds[x - 1] < L.INDR - L.BLANK ? L.DED : L.DEDR,
+							indf, indf, inds[x]);
+					else { // still INDR
+						Error(L.INDR, indf, from, "indent same as upper lines expected");
+						goto Done;
+					}
+			}
 		}
-		var c = ind - inds[i - 1];
-		if (c >= 2) {
-			base.Lexi(c < 6 ? L.IND : L.INDUO, indf, from, ind);
+		if (c >= L.IND - L.BLANK) {
+			base.Lexi(c < L.INDR - L.BLANK ? L.IND : L.INDR, indf, from, ind);
 			indn = i;
 			if (indn >= inds.Length) Array.Resize(ref inds, inds.Length << 1);
 			inds[i] = ind;
 		}
-		ind = -1;
+	Done: ind = -1;
 	}
 
 	protected override void InputEnd(int bn)

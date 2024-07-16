@@ -66,17 +66,17 @@ sealed class MetaStr(string input) : LerStr(input)
 	// for meta grammar
 	public override bool Is(char t, char key) =>
 		key switch {
-			'S' => t is ' ' or '\t',   // space
-			'W' => t < 127 && Set.W[t],    // word
-			'X' => t < 127 && Set.X[t],    // hexadecimal
-			'O' => t < 127 && Set.O[t],    // operator
-			'G' => t < 127 && Set.G[t],    // operator for grammar
-			'E' => t > ' ' && t < 127, // escape
-			'I' => t < 127 && Set.I[t],    // single 
-			'R' => t < 127 && Set.I[t] && t != '-' && t != '^', // range
-			'Q' => t is '?' or '*' or '+',                  // quantifier
-			'H' => t >= ' ' && t < 127 && t != '=' && t != '|', // hint
-			'V' => t is >= ' ' or '\t',                         // comment
+			'S' => t is ' ' or '\t',	// space
+			'X' => t < 127 && Set.X[t], // hexadecimal
+			'W' => t < 127 && Set.W[t], // word
+			'O' => t < 127 && Set.O[t],	// operator
+			'G' => t < 127 && Set.G[t], // grammar operator
+			'E' => t > ' ' && t < 127,	// escape
+			'I' => t < 127 && Set.I[t],	// single range
+			'R' => t < 127 && Set.I[t] && t != '-' && t != '^',	// range
+			'Q' => t is '?' or '*' or '+',						// quantifier
+			'H' => t >= ' ' && t < 127 && t != '=' && t != '|',	// hint
+			'V' => t is >= ' ' or '\t',							// comment
 			_ => t == key,
 		};
 
