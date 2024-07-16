@@ -29,7 +29,7 @@ static class TestExtension
 		if (from != null) AreEqual($"{from}", $"{fl}.{fc}");
 		if (to != null) AreEqual($"{to}", $"{tl}.{tc}");
 		if (v != null)
-			AreEqual(v, v is Lex && t.t.info is Lexi<Lex> tk ? tk.key : t.t.info);
+			AreEqual(v, v is Lex && t.t.info is Lexi<Lex> l ? l.key : t.t.info);
 		return t;
 	}
 	public static Ser V(this Ser t, params object[] vs)
@@ -43,7 +43,7 @@ static class TestExtension
 				s[n - 1].value = vs[x];
 		AreEqual(t.s.dumper(s.Seg(0, n)),
 			t.s.dumper(t.t.from >= 0 ? t.s.ler.Lexs(t.t.from, t.t.to)
-			: t.s.ler.errs.GetRange(~t.t.from, ~t.t.to - ~t.t.from).ToArray().Seg()));
+				: t.s.ler.errs.GetRange(~t.t.from, ~t.t.to - ~t.t.from).ToArray().Seg()));
 		return t;
 	}
 
@@ -60,10 +60,9 @@ static class TestExtension
 		Syn? name = null, int err = 0, double? from = null, double? to = null, object v = null)
 		=> (t.t.prev, t.s).Eq(name, err, from, to, v);
 
-	public static Ser U(this Ser t) => (t.t.up, t.s);
 	public static Ser H0(this Ser t) { AreEqual(null, t.t.head); return t; }
-	public static Ser N0(this Ser t) { AreEqual(null, t.t.next); return t.U(); }
-	public static Ser P0(this Ser t) { AreEqual(null, t.t.prev); return t.U(); }
+	public static Ser N0(this Ser t) { AreEqual(null, t.t.next); return (t.t.up, t.s); }
+	public static Ser P0(this Ser t) { AreEqual(null, t.t.prev); return (t.t.up, t.s); }
 }
 
 [TestClass]
@@ -95,10 +94,10 @@ public class TestSynter : IDisposable
 		t = t/**/	.H(Syn.Block).H(Syn.e0).V(Lex.INT, 1).N0();
 		t = t/**/	.N(Syn.Block).H(Syn.e0).V(Lex.INT, 2).N0().N0().N0();
 		t = Parse(@"
-					1
+				1
 				2
-				3
-			4");
+	3
+4");
 		t = t/**/	.H(Syn.Block).H(Syn.e0).V(Lex.INT, 1).N0();
 		t = t/**/	.N(Syn.Block).H(Syn.e0).V(Lex.INT, 2).N0();
 		t = t/**/	.N(Syn.Block).H(Syn.e0).V(Lex.INT, 3).N0();
@@ -178,12 +177,14 @@ public class TestSynter : IDisposable
 		t = Parse(@"
 			1
 						+2
-				*3");
+					-3
+				*4");
 		t = t/**/	.H(Syn.Block).H(Syn.e0).V(Lex.INT, 1);
-		t = t/**/				.N(Syn.headr).H(Syn.stat, v: Lex.ADD);
-		t = t/**/							.H(Syn.e0).V(Lex.INT, 2).N0().N0();
+		t = t/**/				.N(Syn.headr).H(Syn.stat, v: Lex.ADD).H(Syn.e0).V(Lex.INT, 2).N0();
+		t = t/**/							.N(Syn.stat, v: Lex.SUB).H(Syn.e0).V(Lex.INT, 3).N0().N0();
 		t = t/**/				.N(Syn.stat, v: Lex.MUL);
-		t = t/**/					.H(Syn.e0).V(Lex.INT, 3).N0().N0().N0().N0();
+		t = t/**/					.H(Syn.e0).V(Lex.INT, 4).N0().N0().N0();
+		t = t/**/	.N(null, -1, 4.1, 4.6, Lex.INDR).N0();
 	}
 
 	[TestMethod]
@@ -291,7 +292,7 @@ public class TestSynter : IDisposable
 		t = t/**/					.H(Syn.right, -4).N0().N0();
 		t = t/**/	.N(Syn.Block).H(Syn.e0).V(Lex.INT, 2).N0();
 		t = t/**/	.N(Syn.Block).H(Syn.e0).V(Lex.INT, 3).N0().N0();
-		t = t/**/.N(Syn.all, -1, 4.1, 4.3, v: Lex.DED);
+		t = t/**/.N(Syn.all, -1, 4.1, 4.1, v: Lex.DED);
 		t = t/**/	.H(Syn.right, 1).N0().N0();
 	}
 
@@ -309,7 +310,7 @@ public class TestSynter : IDisposable
 		t = t/**/				.N(Syn.stat, v: Lex.MUL);
 		t = t/**/					.H(Syn.e0).V(Lex.INT, 2).N0().N0();
 		t = t/**/	.N(Syn.Block).H(Syn.e0).V(Lex.INT, 3).N0().N0();
-		t = t/**/.N(Syn.all, -1, 4.5, 4.5, v: Lex.MUL);
+		t = t/**/.N(Syn.all, -1, 4.5, 4.6, v: Lex.MUL);
 		t = t/**/	.H(Syn.right, 1).N0().N0();
 	}
 
@@ -333,7 +334,7 @@ public class TestSynter : IDisposable
 		t = t/**/				.N(Syn.stat, v: Lex.SUB);
 		t = t/**/					.H(Syn.e0).V(Lex.INT, 4).N0().N0();
 		t = t/**/	.N(Syn.Block).H(Syn.e0).V(Lex.INT, 5).N0().N0();
-		t = t/**/.N(Syn.all, -1, 6.6, 6.6, Lex.DIV);
+		t = t/**/.N(Syn.all, -1, 6.6, 6.7, Lex.DIV);
 		t = t/**/	.H(Syn.nest, 2).N0().N0();
 		t = Parse(@"
 			1
@@ -354,41 +355,8 @@ public class TestSynter : IDisposable
 		t = t/**/				.N(Syn.stat, v: Lex.SUB);
 		t = t/**/					.H(Syn.e0).V(Lex.INT, 4).N0().N0();
 		t = t/**/	.N(Syn.Block).H(Syn.e0).V(Lex.INT, 5).N0().N0();
-		t = t/**/.N(Syn.all, -1, 6.6, 6.6, Lex.DIV);
+		t = t/**/.N(Syn.all, -1, 6.6, 6.7, Lex.DIV);
 		t = t/**/	.H(Syn.nest, 2).N0().N0();
-	}
-
-	[TestMethod]
-	public void RecoverHeadRight()
-	{
-		var t = Parse(@"
-			1
-						+2
-					*4
-				-3");
-		t = t/**/	.H(Syn.Block).H(Syn.e0).V(Lex.INT, 1);
-		t = t/**/				.N(Syn.headr).H(Syn.stat, v: Lex.ADD);
-		t = t/**/							.H(Syn.e0).V(Lex.INT, 2).N0().N0();
-		t = t/**/				.N(Syn.headr, -4);
-		t = t/**/				.N(Syn.stat, v: Lex.SUB);
-		t = t/**/					.H(Syn.e0).V(Lex.INT, 3).N0().N0().N0();
-		t = t/**/.N(Syn.all, -1, 4.6, 4.6, Lex.MUL);
-		t = t/**/	.H(Syn.headr, 2, v: Lex.DED).N0().N0();
-		t = Parse(@"
-			1
-						+2
-					*4
-							/5
-						+6
-				-3");
-		t = t/**/	.H(Syn.Block).H(Syn.e0).V(Lex.INT, 1);
-		t = t/**/				.N(Syn.headr).H(Syn.stat, v: Lex.ADD);
-		t = t/**/							.H(Syn.e0).V(Lex.INT, 2).N0().N0();
-		t = t/**/				.N(Syn.headr, -4);
-		t = t/**/				.N(Syn.stat, v: Lex.SUB);
-		t = t/**/					.H(Syn.e0).V(Lex.INT, 3).N0().N0().N0();
-		t = t/**/.N(Syn.all, -1, 4.6, 4.6, Lex.MUL);
-		t = t/**/	.H(Syn.headr, 2, v: Lex.DED).N0().N0();
 	}
 
 	[TestMethod]
@@ -403,7 +371,7 @@ public class TestSynter : IDisposable
 		t = t/**/							.H(Syn.e0).V(Lex.INT, 2).N0().N0();
 		t = t/**/				.N(Syn.stat, v: Lex.MUL);
 		t = t/**/					.H(Syn.e0).V(Lex.INT, 3).N0().N0().N0();
-		t = t/**/.N(Syn.all, -1, 2.7, 2.7, Lex.DIV);
+		t = t/**/.N(Syn.all, -1, 2.7, 2.8, Lex.DIV);
 		t = t/**/	.H(Syn.b53, 1).N0().N0();
 	}
 
@@ -418,7 +386,7 @@ public class TestSynter : IDisposable
 		t = t/**/				.N(Syn.linep, -4);
 		t = t/**/				.N(Syn.stat, v: Lex.ADD);
 		t = t/**/					.H(Syn.e0).V(Lex.INT, 2).N0().N0().N0();
-		t = t/**/.N(Syn.all, -1, 3.5, 3.5, Lex.RP);
+		t = t/**/.N(Syn.all, -1, 3.5, 3.6, Lex.RP);
 		t = t/**/	.H(Syn.linep, 1).N0().N0();
 	}
 
@@ -439,9 +407,9 @@ public class TestSynter : IDisposable
 		t = t/**/				.N(Syn.stat, v: Lex.SUB);
 		t = t/**/					.H(Syn.e0).V(Lex.INT, 3).N(Syn.line, -4).N0().N0();
 		t = t/**/	.N(Syn.Block).H(Syn.e0).V(Lex.INT, 4).N0().N0();
-		t = t/**/.N(Syn.all, -1, 3.6, 3.6, Lex.RP);
+		t = t/**/.N(Syn.all, -1, 3.6, 3.7, Lex.RP);
 		t = t/**/	.H(Syn.stat, 1).N(Syn.line, 1).N0();
-		t = t/**/.N(Syn.all, -1, 5.8, 5.8, Lex.EOL);
+		t = t/**/.N(Syn.all, -1, 5.8, 6.1, Lex.EOL);
 		t = t/**/	.H(Syn.b53, 1).N0().N0();
 	}
 }

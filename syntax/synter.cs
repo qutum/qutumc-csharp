@@ -13,7 +13,7 @@ namespace qutum.syntax;
 
 public enum Syn
 {
-	all = 1, Block,
+	all = 1, allii, alli, Block,
 	block, stats, headr, nest,
 	pre, right, stat, line, linep,
 	E1, E2, E2p, B3, B43, B46, B53, B56, B6, B7, B8, E9,
@@ -28,21 +28,24 @@ public class Synt : Synt<Syn, Synt>
 public class Synter : Synter<Lex, Syn, Synt, Lexier>
 {
 	static readonly string grammar = """
-	all   = Block* | IND all DED Block*
+	all   = allii? alli? Block*
+	allii = INDR Block* DEDR
+	alli  = IND Block* DED
+
 	Block = block					=+
 
-	block = line stats?				=		block
+	block = line headr? stats?		=		block
 	      | pre stat* DED			=		prefix block
-	stats = IND headr? stat* DED	=		statements
-	headr = IND stat+ DED			=+		statements of head right datum
-	      | IND headr DED			=!|IND	statements of head right datum
-	right = block					=		right side
-	      | EOL nest				=!|		right side
-	nest  = IND block DED			=!|IND	nested block
+	headr = INDR stat+ DEDR			=+|INDR	statements of head-right datum
+	stats = IND stat* DED			=		statements
 
 	pre  = PRE EOL IND block		=+_!	prefix
 	stat  =	BIN right				=+_!	statement
 	      | linep stats?			=+-		statement
+	right = block					=		right side
+	      | EOL nest				=!|		right side
+	nest  = IND block DED			=!|IND	nested block
+
 	line  = SP? e2 e9 EOL			=*!||BLANK
 	linep = SP? e2p e9 EOL			=*!||BLANK == no leading binary prefix operator
 
@@ -94,10 +97,11 @@ public class Synter : Synter<Lex, Syn, Synt, Lexier>
 	public override Synt Parse()
 	{
 		var t = base.Parse();
+		// add error lexis
 		Synt tail = t;
 		ler.errs.Each((err, x) =>
 			tail.AddNext(tail = new Synt {
-				name = (Syn)(-(int)err.key), from = ~x, to = ~x, err = -1, info = err.value
+				from = ~x, to = ~x - 1, err = -1, info = err.key, dump = "" + err
 			}));
 		return t;
 	}
