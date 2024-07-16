@@ -99,10 +99,10 @@ public class Synter : Synter<Lex, Syn, Synt, Lexier>
 		var t = base.Parse();
 		// add error lexis
 		Synt tail = t;
-		ler.errs.Each((err, x) =>
+		foreach (var (err, x) in ler.errs.Each())
 			tail.AddNext(tail = new Synt {
 				from = ~x, to = ~x - 1, err = -1, info = err.key, dump = "" + err
-			}));
+			});
 		return t;
 	}
 

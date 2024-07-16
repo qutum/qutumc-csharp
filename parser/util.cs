@@ -10,6 +10,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -17,10 +18,8 @@ namespace qutum;
 
 public static class Extension
 {
-	public static void Each<T>(this IEnumerable<T> s, Action<T, int> a)
-	{
-		int x = 0; foreach (var t in s) a(t, x++);
-	}
+	public static IEnumerable<(T v, int x)> Each<T>(this IEnumerable<T> s, int offset = 0)
+		=> s.Select((v, x) => (v, x + offset));
 
 	public static ArraySegment<T> Seg<T>(this T[] s) => new(s);
 

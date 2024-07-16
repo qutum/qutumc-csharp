@@ -66,17 +66,17 @@ sealed class MetaStr(string input) : LerStr(input)
 	// for meta grammar
 	public override bool Is(char t, char key) =>
 		key switch {
-			'S' => t is ' ' or '\t',	// space
+			'S' => t is ' ' or '\t',    // space
 			'X' => t < 127 && Set.X[t], // hexadecimal
 			'W' => t < 127 && Set.W[t], // word
-			'O' => t < 127 && Set.O[t],	// operator
+			'O' => t < 127 && Set.O[t], // operator
 			'G' => t < 127 && Set.G[t], // grammar operator
-			'E' => t > ' ' && t < 127,	// escape
-			'I' => t < 127 && Set.I[t],	// single range
-			'R' => t < 127 && Set.I[t] && t != '-' && t != '^',	// range
-			'Q' => t is '?' or '*' or '+',						// quantifier
-			'H' => t >= ' ' && t < 127 && t != '=' && t != '|',	// hint
-			'V' => t is >= ' ' or '\t',							// comment
+			'E' => t > ' ' && t < 127,  // escape
+			'I' => t < 127 && Set.I[t], // single range
+			'R' => t < 127 && Set.I[t] && t != '-' && t != '^', // range
+			'Q' => t is '?' or '*' or '+',                      // quantifier
+			'H' => t >= ' ' && t < 127 && t != '=' && t != '|', // hint
+			'V' => t is >= ' ' or '\t',                         // comment
 			_ => t == key,
 		};
 
@@ -163,8 +163,7 @@ public static class MetaLex
 			var k = Keys(meta.ler.Lexs(prod.head.from, prod.head.to)).Single();
 			g.k(k);
 			// build part
-			prod.Skip(1).Each((p, part) => {
-				++part;
+			foreach (var (p, part) in prod.Skip(1).Each(1)) {
 				if (p.head.name != "redo") // no backward cross parts
 					_ = g.p;
 				else if (gram[p.head.from] == '|') // empty alt
@@ -172,8 +171,7 @@ public static class MetaLex
 				else // shift byte and retry part like the begin
 					_ = g.redo;
 				// build alt
-				p.Where(t => t.name.StartsWith("alt")).Prepend(p).Each((a, alt) => {
-					++alt;
+				foreach (var (a, alt) in p.Where(t => t.name.StartsWith("alt")).Prepend(p).Each(1)) {
 					// build elems
 					var bytes = a.Where(t => t.name == "byte");
 					var bn = bytes.Count();
@@ -181,12 +179,13 @@ public static class MetaLex
 						throw new($"{k}.{part}.{alt} exceeds {LexGram<K>.AltByteN} bytes :"
 							+ meta.ler.Lexs(a.from, a.to));
 					var en = 0;
-					bytes.Each((b, bx) => Byte(gram, k, part, alt, b, es, ref en));
+					foreach (var (b, bx) in bytes.Each())
+						Byte(gram, k, part, alt, b, es, ref en);
 					_ = g[es[0..en]];
 					if (a.head.name == "loop" || a.head.next?.name == "loop")
 						_ = g.loop;
-				});
-			});
+				};
+			}
 		}
 		if (dump) Dump(top, g);
 		return g;

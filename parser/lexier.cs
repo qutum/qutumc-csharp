@@ -129,7 +129,7 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 	int bn; // total bytes got
 	int bf, bt; // from input loc to loc excluded for each part
 	readonly List<int> lines = []; // [0, input loc after eol...]
-	readonly byte[] bytes = new byte[17]; // [latest byte], @ input loc & 15
+	readonly byte[] bytes = new byte[17]; // [latest byte], @ input loc & AltByteN
 	protected int lexn, loc; // lexi count and loc
 	internal L[] lexs;
 	protected int from; // input loc for current lexi
@@ -160,7 +160,7 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 	Step: bf = bt;
 	Next: if (bt >= bn)
 			if (input.Next()) {
-				if ((bytes[bn++ & 15] = input.Lex()) == '\n')
+				if ((bytes[bn++ & LexGram<K>.AltByteN] = input.Lex()) == '\n')
 					lines.Add(bn);
 			}
 			else if (u == begin || bt > bn) {
@@ -172,7 +172,7 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 			}
 			else // input end but lexi not
 				goto Go;
-		var b = bytes[bt & 15];
+		var b = bytes[bt & LexGram<K>.AltByteN];
 		if (u.next[b < 128 ? b : 128] is Unit v) { // one byte by one, even for utf
 			u = v; ++bt;
 			if (u.next != null)
@@ -191,7 +191,7 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 		}
 		else { // error part
 			PartErr(u.key, u.part, go == begin || bt >= bn,
-				bt < bn ? bytes[bt & 15] : -1, bf, bt);
+				bt < bn ? bytes[bt & LexGram<K>.AltByteN] : -1, bf, bt);
 			++bt; // shift a byte
 		}
 		if (go == begin && loc < lexn)
@@ -331,8 +331,8 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 				var pus = prod.Skip(1).Select((_, px) => new Unit(ler) { key = k, part = px + 2 })
 					.Prepend(begin).Prepend(null)
 					.Append(begin).ToArray(); // current lexi end
-				prod.Each((p, part) => {
-					var u = pus[++part]; // first part is 1
+				foreach (var (p, part) in prod.Each(1)) {
+					var u = pus[part];
 					if (p.Count == 0)
 						throw new($"No altern in {k}.{part}");
 					if (p[0].Count == 0) // empty alt for option part
@@ -345,11 +345,11 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 						else { u.go = u; u.mode = -3; }
 					else // no backward cross parts
 						{ u.go = begin; u.mode = -3; }
-				});
+				}
 				Unit[] aus = null;
 				// build part
-				prod.Each((p, part) => {
-					var u = pus[++part];
+				foreach (var (p, part) in prod.Each(1)) {
+					var u = pus[part];
 					// build alt
 					var Aus = p.Select((a, alt) => {
 						++alt;
@@ -379,7 +379,7 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 								throw new($"{k}.{part} and {k}.{part - 1} conflict over dup");
 					}
 					aus = Aus;
-				});
+				};
 			}
 			if (dump) Dump(begin, "");
 			return begin;

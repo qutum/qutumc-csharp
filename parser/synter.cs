@@ -553,10 +553,10 @@ public class SynterEarley<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler
 			}).ToArray();
 			// build hint
 			int ax = 0;
-			p.Where(t => t.name == "alt").Append(p).Each((t, x) => {
-				bool p = false, l = false, e = false; sbyte g = 0, st = 0; SyntStr r = null, d = null;
+			foreach (var (t, x) in p.Where(t => t.name == "alt").Append(p).Each()) {
+				bool pr = false, l = false, e = false; sbyte g = 0, st = 0; SyntStr r = null, d = null;
 				foreach (var h in t) {
-					if (h.name == "hintp") p = true;
+					if (h.name == "hintp") pr = true;
 					if (h.name == "hintg") g = (sbyte)(gram[h.from] == '*' ? 1 : -1);
 					if (h.name == "hintt")
 						st = (sbyte)(gram[h.from] == '-' ? -1 : h.from == h.to - 1 ? 2 : 1);
@@ -568,7 +568,7 @@ public class SynterEarley<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler
 						var w = meta.ler.Lexs(h.from, h.to);
 						for (; ax <= x; ax++) {
 							var a = az[ax];
-							a.prior = p; a.greedy = g; a.synt = st; a.lex = l; a.errExpect = e;
+							a.prior = pr; a.greedy = g; a.synt = st; a.lex = l; a.errExpect = e;
 							a.hint = w != "" ? w : null;
 							if (r != null) {
 								for (int y = a.s.Length - 2; y > 0; y--)
@@ -577,10 +577,10 @@ public class SynterEarley<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler
 										reca.Add(a);
 										break;
 									}
-								if (a.recover > 0 && a.s[a.recover].p is K pr) {
-									a.recPair = r.to - r.from == 1 ? pr :
+								if (a.recover > 0 && a.s[a.recover].p is K k) {
+									a.recPair = r.to - r.from == 1 ? k :
 										ler.Keys(MetaStr.Unesc(gram, r.from + 1, r.to)).First();
-									a.recDeny = d == null ? pr :
+									a.recDeny = d == null ? k :
 										ler.Keys(MetaStr.Unesc(gram, d.from + 1, d.to)).First();
 								}
 							}
@@ -589,7 +589,7 @@ public class SynterEarley<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler
 					// each hint is for only one line
 					if (h.name == "hint_") ax = x + 1;
 				}
-			});
+			}
 			prod.alts = az;
 		}
 		begin = names[prods.First().head.dump];
