@@ -17,7 +17,7 @@ public struct Lexi<K> where K : struct
 	public K key;
 	public object value;
 	public int from, to; // input from loc to loc excluded
-	public int err; // lexis ~loc where this error found before
+	public int err; // lexis ~loc before this error found
 
 	public override readonly string ToString() => $"{key}{(err < 0 ? "!" : "=")}{value}";
 
@@ -81,26 +81,26 @@ public class Lexier<K> : Lexier<K, Lexi<K>> where K : struct
 	protected override Lexi<K> Lexi(K key, int f, int to, object value)
 		=> Lexi(new() { key = key, from = f, to = to, value = value });
 	protected override Lexi<K> Error(K key, int f, int to, object value)
-		=> Lexi(new() { key = key, from = f, to = to, value = value, err = ~lexn });
+		=> Lexi(new() { key = key, from = f, to = to, value = value, err = ~lexn }, true);
 
 	public override bool Is(int loc, K key) => Is(Lex(loc).key, key);
 
-	// first line and col are 1, col is byte number inside line
+	// to is excluded, ~from ~to for errs, first line and col are 1, col is byte number inside line
 	public (int fromL, int fromC, int toL, int toC) LineCol(int from, int to)
 	{
 		if (lexn == 0)
 			return (1, 1, 1, 1);
-		int f, t;
+		int bf, bt;
 		if (from >= 0) {
-			f = from < lexn ? Lex(from).from : Lex(from - 1).to;
-			t = from < to ? Math.Max(Lex(to - 1).to - 1, f) : f;
+			bf = from < lexn ? Lex(from).from : Lex(from - 1).to;
+			bt = from < to ? Math.Max(Lex(to - 1).to, bf) : bf;
 		}
 		else {
 			from = ~from; to = ~to;
-			f = from < errs.Count ? errs[from].from : errs[from - 1].to;
-			t = from < to ? Math.Max(errs[to - 1].to - 1, f) : f;
+			bf = from < errs.Count ? errs[from].from : errs[from - 1].to;
+			bt = from < to ? Math.Max(errs[to - 1].to, bf) : bf;
 		}
-		var (fl, fc) = LineCol(f); var (tl, tc) = LineCol(t);
+		var (fl, fc) = LineCol(bf); var (tl, tc) = LineCol(bt);
 		return (fl, fc, tl, tc);
 	}
 }

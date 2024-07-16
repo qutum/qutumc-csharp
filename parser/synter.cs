@@ -75,8 +75,8 @@ public class SynterEarley<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler
 		internal N name;
 		internal Con[] s;
 		internal bool prior; // prior than other Alts of the same Prod or of all recovery
-		internal sbyte greedy; // as Synter.greedy: 0, greedy: 1, back greedy: -1
-		internal sbyte synt; // as Synter.tree: 0, make Synt: 2, omit Synt: -1
+		internal sbyte greedy; // as synter.greedy: 0, greedy: 1, back greedy: -1
+		internal sbyte synt; // as synter.tree: 0, make Synt: 2, omit Synt: -1
 							 // omit if no prev nor next or has 0 or 1 sub: 1
 		internal bool lex; // save first shifted lexi to Synt.info
 		internal bool errExpect; // make expect synt when error
@@ -554,13 +554,13 @@ public class SynterEarley<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler
 			// build hint
 			int ax = 0;
 			p.Where(t => t.name == "alt").Append(p).Each((t, x) => {
-				bool p = false, k = false, e = false; sbyte g = 0, st = 0; SyntStr r = null, d = null;
+				bool p = false, l = false, e = false; sbyte g = 0, st = 0; SyntStr r = null, d = null;
 				foreach (var h in t) {
 					if (h.name == "hintp") p = true;
 					if (h.name == "hintg") g = (sbyte)(gram[h.from] == '*' ? 1 : -1);
 					if (h.name == "hintt")
-						st = (sbyte)(gram[h.from] == '+' ? h.from == h.to - 1 ? 2 : 1 : -1);
-					if (h.name == "hintl") k = true;
+						st = (sbyte)(gram[h.from] == '-' ? -1 : h.from == h.to - 1 ? 2 : 1);
+					if (h.name == "hintl") l = true;
 					if (h.name == "hinte") e = true;
 					if (h.name == "hintr") r = h;
 					if (h.name == "hintd") d = h;
@@ -568,7 +568,7 @@ public class SynterEarley<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler
 						var w = meta.ler.Lexs(h.from, h.to);
 						for (; ax <= x; ax++) {
 							var a = az[ax];
-							a.prior = p; a.greedy = g; a.synt = st; a.lex = k; a.errExpect = e;
+							a.prior = p; a.greedy = g; a.synt = st; a.lex = l; a.errExpect = e;
 							a.hint = w != "" ? w : null;
 							if (r != null) {
 								for (int y = a.s.Length - 2; y > 0; y--)

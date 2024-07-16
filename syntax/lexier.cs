@@ -128,7 +128,7 @@ public class Lexier : Lexier<L>
 		.k(L.RNAME).p["."] // .|.[\a_]\w*
 						[".", Set.Alpha.Inc("_")][".", Set.Alpha.Inc("_"), Set.Word, ..]
 
-		.k(L.HEX).p["0x"]["0X"] // 0[xX]_*\x  |+_*\x+
+		.k(L.HEX).p["0x"]["0X"] // 0[xX]  _*\x  |+_*\x+
 				.p[Set.Hex]["_", .., Set.Hex]
 				.p[""][Set.Hex, ..].loop["_", .., Set.Hex, ..].loop
 		.k(L.NUM) // 0|[1-9]  |+_*\d+  |.\d+  |+_+\d+  |[eE][\+\-]?\d+  |[fF]

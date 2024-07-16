@@ -28,7 +28,7 @@ public class TestLexier : IDisposable
 	class Ler : Lexier<Lex>
 	{
 		public Ler(LexGram<Lex> grammar) : base(grammar, true) { errs = null; }
-		public Ler(string grammar) : base(MetaLex.Gram<Lex>(grammar, true), true) { }
+		public Ler(string grammar) : base(MetaLex.Gram<Lex>(grammar, true), true) { errs = null; }
 	}
 
 	void Check(Ler l, string input, string s) => Check(l, Encoding.UTF8.GetBytes(input), s);
