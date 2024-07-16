@@ -106,8 +106,8 @@ public class Lexier : Lexier<L>
 
 		.k(L.COMM).p["##"] // ##  |[\A^\n]+
 					.p[""][Set.All.Exc("\n"), ..]
-		.k(L.COMMB).p["\\", .., "##"] // \\+##  +##\\+|+#|+[\A^#]+
-					.p["##", "\\", ..].loop["#"].loop[Set.All.Exc("#"), ..].loop
+		.k(L.COMMB).p["\\", .., "#"] // \\+#  +#\\+|+#|+[\A^#]+
+					.p["#", "\\", ..].loop["#"].loop[Set.All.Exc("#"), ..].loop
 
 		.k(L.STRB).p["\\", .., "\""] // \\+"  +"\\+|+"|+[\A^"]+
 					.p["\"", "\\", ..].loop["\""].loop[Set.All.Exc("\""), ..].loop

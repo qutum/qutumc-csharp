@@ -51,19 +51,19 @@ public class TestLexier : IDisposable
 	[TestMethod]
 	public void LexComm()
 	{
-		CheckSp("\\####\\\\####\\ ", "COMM=COMMB SP=");
-		CheckSp("\\### \\## ###\\ ###\\ ab", "COMM=COMMB SP= COMM=");
-		CheckSp("\\### \\## ###\\ ###\\ \nab", "COMM=COMMB SP= COMM= EOL= NAME=ab");
-		Check("\\### \\## ###\\ ###\\ \nab", "NAME=ab");
+		CheckSp("\\##\\\\###\\ ", "COMM=COMMB SP=");
+		CheckSp("\\### \\# ###\\ ###\\ ab", "COMM=COMMB SP= COMM=");
+		CheckSp("\\## \\## ##\\ ##\\ \nab", "COMM=COMMB SP= COMM= EOL= NAME=ab");
+		Check("\\## \\## ##\\ ##\\ \nab", "NAME=ab");
 		Check("\\\\", "COMMB!");
 	}
 
 	[TestMethod]
 	public void LexEol()
 	{
-		CheckSp("\\####\\\t \r\n\r\n\\####\\ \t \n",
+		CheckSp("\\##\\\t \r\n\r\n\\##\\ \t \n",
 			@"COMM=COMMB SP= EOL!use LF \n eol instead of CRLF \r\n EOL= EOL= COMM=COMMB SP= EOL=");
-		Check("\\####\\\t \r\n\r\n\\####\\ \t \n", @"EOL!use LF \n eol instead of CRLF \r\n");
+		Check("\\##\\\t \r\n\r\n\\##\\ \t \n", @"EOL!use LF \n eol instead of CRLF \r\n");
 	}
 
 	[TestMethod]
@@ -98,7 +98,7 @@ public class TestLexier : IDisposable
 		CheckSp("\t\t##\n", "INDUO=8 COMM= EOL= DEDUO=8");
 		Check("\n\ta\n\t\t\n\n\tb\n\t\t\t\n\t\t\tc\n\n\t\nd",
 			"IND=4 NAME=a EOL= NAME=b EOL= INDUO=12 NAME=c EOL= DEDUO=12 DED=4 NAME=d");
-		Check("\t\t#### \n\ta \n\\####\\  b\n\t\t\\####\\\tc",
+		Check("\t\t### \n\ta \n\\##\\  b\n\t\t\\###\\\tc",
 			"IND=4 NAME=a EOL= DED=4 NAME=b EOL= INDUO=8 NAME=c DEDUO=8");
 	}
 
