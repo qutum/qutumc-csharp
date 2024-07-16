@@ -134,10 +134,7 @@ public class LerByteList(List<byte> input) : Lexer<byte, byte>
 
 	public Span<byte> Lexs(int from, int to, Span<byte> s)
 	{
-		// lack of List.CopyTo(Span ...)
-		int x = 0; foreach (var v in input.GetRange(from, to - from))
-			s[x++] = v;
-		return s;
+		input.GetRange(from, to - from).CopyTo(s); return s;
 	}
 	public IEnumerable<byte> Lexs(int from, int to) => input.GetRange(from, to - from);
 
@@ -151,7 +148,7 @@ public static class CharSet
 							G = new bool[129], I = new bool[129],
 							RI = new bool[129]; // default inclusive range
 	internal static string ALL, LINE, DEC, HEX, ALPHA, WORD, OP;
-	internal static string[] ONE; // one bytes
+	internal static string[] ONE; // [each byte]
 
 	public static readonly ReadOnlyMemory<char> All, Line, Dec, Hex, Alpha, Word, Op;
 

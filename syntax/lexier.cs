@@ -32,7 +32,7 @@ public enum Lex
 	BIN7 = 0x40000,
 	BIN8 = 0x80000,
 
-	EOL = BLANK | 1, IND, DED, SP, COMM, COMMB, PATH, NUM,
+	EOL = BLANK | 1, SP, IND, DED, INDUO, DEDUO, COMM, COMMB, PATH, NUM,
 
 	LP = 1, LSB, LCB, BIND,
 
@@ -151,19 +151,21 @@ public class Lexier : Lexier<L>
 	byte[] bs = new byte[4096]; // buffer used by some lexi
 	int bn;
 	int nn, nf, ne; // end of each number part
-	int indent; // indent count of current line
-	int indentNew = -1; // indent count at line start, -1 not line start
-	int indentFrom, indentTo;
+	int indb; // indent byte, unknown: -1
+	int indn; // indent count
+	int[] inds = new int[100]; // [0, indent column...]
+	int ind, indf; // indent column 0 based, from input loc
 	bool crlf; // \r\n found
 	readonly List<string> path = [];
 	public bool eof = true; // insert eol at input end
 	public bool allValue = false; // set all lexis value
-	public bool allBlank = false; // keep all spaces, comments and empty lines
+	public bool allBlank = false; // keep spaces without indent and offset, comments and empty lines
 
-	public override void Dispose()
+	public override void Clear()
 	{
-		base.Dispose();
-		indent = indentNew = 0; crlf = false; path.Clear();
+		base.Clear();
+		indb = ind = -1; indn = indf = 0; inds[0] = 0;
+		crlf = false; path.Clear();
 	}
 
 	int Input(int f, int to, int x)
@@ -177,28 +179,33 @@ public class Lexier : Lexier<L>
 
 	void Indent()
 	{
-		if (indentNew >= 0) {
-			while (indentNew > indent)
-				base.Lexi(L.IND, indentFrom, indentTo, ++indent); // more indents
-			while (indentNew < indent)
-				base.Lexi(L.DED, indentFrom, indentTo, --indent); // less indents
+		if (ind < 0)
+			return;
+		var i = 1;
+		if (indn > 0) {
+			i = Array.BinarySearch<int>(inds, 0, indn + 1, ind + 2); // with column offset
+			i ^= i >> 31;
+			if (i <= indn) // drop these indents
+				for (var x = indn; x >= i; indn = --x)
+					base.Lexi(inds[x] - inds[x - 1] < 6 ? L.DED : L.DEDUO,
+						indf, indf, inds[x]);
 		}
-		indentNew = -1;
+		var c = ind - inds[i - 1];
+		if (c >= 2) {
+			base.Lexi(c < 6 ? L.IND : L.INDUO, indf, from, ind);
+			indn = i;
+			if (indn >= inds.Length) Array.Resize(ref inds, inds.Length << 1);
+			inds[i] = ind;
+		}
+		ind = -1;
 	}
 
-	protected override void PartErr(L key, int part, bool end, int b, int f, int to)
+	protected override void InputEnd(int bn)
 	{
-		if (key == L.PATH)
-			key = L.NAME;
-		base.PartErr(key, part, end, b, f, to);
-		if (part < 0) { // input end
-			end = true;
-			from = -1;
-			if (eof)
-				Part(L.EOL, 1, ref end, f, f);
-			if (eof || allBlank)
-				Indent();
-		}
+		var end = true;
+		if (eof)
+			Part(L.EOL, 1, ref end, bn, bn);
+		ind = 0; Indent();
 	}
 
 	protected override Lexi<L> Lexi(L key, int f, int to, object value)
@@ -208,6 +215,13 @@ public class Lexier : Lexier<L>
 			&& (lexs[lexn - 1].key & (L.DENSE | L.LITERAL)) != 0)
 			key = L.RNAME1; // run name follows the previous lexi densely, high precedence
 		return base.Lexi(key, f, to, value);
+	}
+
+	protected override void PartErr(L key, int part, bool end, int b, int f, int to)
+	{
+		if (key == L.PATH)
+			key = L.NAME;
+		base.PartErr(key, part, end, b, f, to);
 	}
 
 	protected override void Part(L key, int part, ref bool end, int f, int to)
@@ -224,37 +238,29 @@ public class Lexier : Lexier<L>
 				crlf = true;
 			}
 			if (allBlank
-				|| lexn > 0 && lexs[lexn - 1].key != L.EOL) // not empty line
-				Lexi(key, from, to, null);
-			indentNew = 0; indentFrom = indentTo = to; // EOL or clear indents of empty lines
+				|| lexn > 0 && lexs[lexn - 1].key != L.EOL) // no EOL for empty line
+				base.Lexi(key, from, to, null);
+			ind = 0;
 			goto End;
 
 		case L.SP:
-			if (part == 1) {
-				bs[0] = 0;
-				if (f < 1 || input.Lex(f - 1) == '\n')
-					bs[0] = input.Lex(f); // line start, save the byte to check indents
-				return;
-			}
-			if (bs[0] != 0) // for line start
-				if (f < to && (bs[1] = input.Lex(f)) != bs[0]) { // mix \s and \t
-					bs[0] = 0; // to be not line start
-					Error(L.SP, f, to, "do not mix tabs and spaces for indent");
-				}
-				else if (bs[0] == ' ' && (to - from & 3) != 0) { // check \s width of 4
-					bs[0] = 0; // to be not line start
-					Error(L.SP, f, to, $"{to - from + 3 >> 2 << 2} spaces expected");
+			if (part == 1)
+				bs[0] = (byte)(f < 1 || input.Lex(f - 1) == '\n' ? 1 : 0); // maybe line start
+			if (bs[0] != 0)
+				if (indb < 0)
+					indb = input.Lex(f); // first line start, save the indent byte
+				else if (f < to && input.Lex(f) != indb) { // mix \s and \t
+					bs[0] = 0; // as not line start
+					Error(key, f, to, "do not mix tabs and spaces for indent");
 				}
 			if (!end)
 				return;
-			if (bs[0] != 0) { // for line start
-				indentNew = to - from; // indent count
-				if (bs[0] == ' ') indentNew = indentNew + 2 >> 2;
-				indentFrom = from; indentTo = to;
+			if (bs[0] != 0) {
+				ind = to - from << (indb == '\t' ? 2 : 0); // 4 column each \t
+				indf = from;
 			}
 			else if (allBlank)
-				Lexi(key, from, to, null); // SP
-			from = -1;
+				Lexi(key, from, to, null);
 			goto End; // lexis already made
 
 		case L.COMM:
@@ -264,7 +270,7 @@ public class Lexier : Lexier<L>
 
 		case L.COMMB:
 			if (part == 1) {
-				bn = to; // begin part position
+				bn = to; // begin part loc
 				return;
 			}
 			if (to - f != bn - from || input.Lex(f) != '#') // check end part length
@@ -277,7 +283,7 @@ public class Lexier : Lexier<L>
 
 		case L.STRB:
 			if (part == 1) {
-				bn = to; // begin part position
+				bn = to; // begin part loc
 				return;
 			}
 			if (to - f != bn - from || input.Lex(f) != '"') // check end part length
@@ -355,7 +361,8 @@ public class Lexier : Lexier<L>
 		if (!end)
 			return;
 		Lexi(key, from, to, v ?? (bn > 0 ? Encoding.UTF8.GetString(bs, 0, bn) : null));
-	End: from = -1;
+	End: // lexi already made
+		from = -1;
 	}
 
 	void Unesc(int f, int to)

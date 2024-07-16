@@ -69,47 +69,50 @@ public class TestLexier : IDisposable
 	[TestMethod]
 	public void LexIndent1()
 	{
-		CheckSp("    \n\t\t\t\n\t\n    \n", "IND=1 EOL= IND=2 IND=3 EOL= DED=2 DED=1 EOL= EOL= DED=0");
-		CheckSp("\ta\n\t\t\tb\n\t\tc\nd\ne",
-			"IND=1 NAME=a EOL= IND=2 IND=3 NAME=b EOL= DED=2 NAME=c EOL= DED=1 DED=0 NAME=d EOL= NAME=e");
+		CheckSp("a \t", "NAME=a SP=");
+		CheckSp("\t    ", "SP!do not mix tabs and spaces for indent SP=");
+		CheckSp(" \n\t", "EOL= SP!do not mix tabs and spaces for indent SP=");
+		CheckSp("\t\n\t\t\t\n\t\n\t\n", "EOL= EOL= EOL= EOL=");
 	}
 
 	[TestMethod]
 	public void LexIndent2()
 	{
-		CheckSp("\t\t####\n", "IND=1 IND=2 COMM= EOL= DED=1 DED=0");
-		CheckSp("\\####\\\t\t\n", "COMM=COMMB SP= EOL=");
+		CheckSp("\ta\n\tb\n\t\t\tc\n\t\t\t\td\n\t\t\te\n\t\tf\ng\nh",
+			"IND=4 NAME=a EOL= NAME=b EOL= INDUO=12 NAME=c EOL= IND=16 NAME=d EOL= DED=16 NAME=e EOL= DEDUO=12 IND=8 NAME=f EOL= DED=8 DED=4 NAME=g EOL= NAME=h");
 	}
 
 	[TestMethod]
 	public void LexIndent3()
 	{
-		Check("\n\ta\n\t\t\n\n\tb\n\t\t\t\n\t\tc\n\n\t\nd\ne",
-			"IND=1 NAME=a EOL= NAME=b EOL= IND=2 NAME=c EOL= DED=1 DED=0 NAME=d EOL= NAME=e");
-		Check("\t\t#### \n\ta \n\\####\\  b\n\t\t\\####\\\tc",
-			"IND=1 NAME=a EOL= DED=0 NAME=b EOL= IND=1 IND=2 NAME=c");
+		CheckSp(" a", "NAME=a"); CheckSp("  a", "IND=2 NAME=a DED=2");
+		CheckSp("  a\n  b\n        c\n          d\n        e\n    f\ng\nh",
+			"IND=2 NAME=a EOL= NAME=b EOL= INDUO=8 NAME=c EOL= IND=10 NAME=d EOL= DED=10 NAME=e EOL= DEDUO=8 IND=4 NAME=f EOL= DED=4 DED=2 NAME=g EOL= NAME=h");
+		CheckSp("   a\n  b\n    c\n     d\n  e",
+			"IND=3 NAME=a EOL= NAME=b EOL= NAME=c EOL= IND=5 NAME=d EOL= DED=5 NAME=e DED=3");
 	}
 
 	[TestMethod]
 	public void LexIndent4()
 	{
-		CheckSp("a \t", "NAME=a SP=");
-		CheckSp(" \t", "SP!do not mix tabs and spaces for indent SP=");
-		CheckSp("\t    ", "SP!do not mix tabs and spaces for indent SP=");
-		CheckSp(" ", "SP!4 spaces expected SP="); CheckSp("       ", "SP!8 spaces expected SP=");
+		CheckSp("\t\t##\n", "INDUO=8 COMM= EOL= DEDUO=8");
+		Check("\n\ta\n\t\t\n\n\tb\n\t\t\t\n\t\t\tc\n\n\t\nd",
+			"IND=4 NAME=a EOL= NAME=b EOL= INDUO=12 NAME=c EOL= DEDUO=12 DED=4 NAME=d");
+		Check("\t\t#### \n\ta \n\\####\\  b\n\t\t\\####\\\tc",
+			"IND=4 NAME=a EOL= DED=4 NAME=b EOL= INDUO=8 NAME=c DEDUO=8");
 	}
 
 	[TestMethod]
 	public void LexEof1()
 	{
 		CheckSp("a\t", "NAME=a SP=");
-		CheckSp("\ta\t", "IND=1 NAME=a SP=");
-		CheckSp("a\n\t", "NAME=a EOL= IND=1");
-		CheckSp("\ta\n", "IND=1 NAME=a EOL= DED=0");
+		CheckSp("\ta\t", "IND=4 NAME=a SP= DED=4");
+		CheckSp("a\n\t", "NAME=a EOL=");
+		CheckSp("\ta\n", "IND=4 NAME=a EOL= DED=4");
 		Check("a\t", "NAME=a");
-		Check("\ta\t", "IND=1 NAME=a");
+		Check("\ta\t", "IND=4 NAME=a DED=4");
 		Check("a\n\t\t\n\t", "NAME=a EOL=");
-		Check("\ta\n\t\t\n", "IND=1 NAME=a EOL=");
+		Check("\ta\n\t\t\n", "IND=4 NAME=a EOL= DED=4");
 	}
 
 	[TestMethod]
@@ -118,14 +121,14 @@ public class TestLexier : IDisposable
 		ler.eof = true;
 		CheckSp("a\n", "NAME=a EOL= EOL=");
 		CheckSp("a\t", "NAME=a SP= EOL=");
-		CheckSp("\ta\t", "IND=1 NAME=a SP= EOL= DED=0");
-		CheckSp("a\n\t", "NAME=a EOL= IND=1 EOL= DED=0");
-		CheckSp("\ta\n", "IND=1 NAME=a EOL= DED=0 EOL=");
+		CheckSp("\ta\t", "IND=4 NAME=a SP= EOL= DED=4");
+		CheckSp("a\n\t", "NAME=a EOL= EOL=");
+		CheckSp("\ta\n", "IND=4 NAME=a EOL= EOL= DED=4");
 		Check("a\n", "NAME=a EOL=");
 		Check("a\t", "NAME=a EOL=");
-		Check("\ta\t", "IND=1 NAME=a EOL= DED=0");
+		Check("\ta\t", "IND=4 NAME=a EOL= DED=4");
 		Check("a\n\t\t\n\t", "NAME=a EOL=");
-		Check("\ta\n\t\t\n", "IND=1 NAME=a EOL= DED=0");
+		Check("\ta\n\t\t\n", "IND=4 NAME=a EOL= DED=4");
 	}
 
 	[TestMethod]

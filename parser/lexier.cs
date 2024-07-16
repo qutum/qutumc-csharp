@@ -112,12 +112,12 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 		internal int id;
 		internal K key;
 		internal int part; // first is 1
-		internal int pren; // number of bytes to this unit
-		internal Unit[] next; // >=128: [128]
+		internal int pren; // for next[byte] are this unit, count bytes
+		internal Unit[] next; // [next unit of byte], byte >= 128: [128]
 		internal Unit go; // when next==null or next[byte]==null or backward
 						  // go.next != null, go to begin: input end or error
 		internal int mode; // match: -1, mismatch to error: -3, mismatch to backward bytes: >=0
-						   // no backward cross parts nor inside duplicate bytes
+						   // no backward cross parts nor duplicate bytes
 
 		internal Unit(Lexier<K, L> l) => id = ++l.id;
 	}
@@ -127,25 +127,25 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 	internal Lexer<byte, byte> input;
 	int bn; // total bytes got
 	int bf, bt; // from input loc to loc excluded for each part
-	readonly List<int> lines = [];
-	readonly byte[] bytes = new byte[17]; // latest bytes, [byte index & 15]
+	readonly List<int> lines = []; // [0, input loc after eol...]
+	readonly byte[] bytes = new byte[17]; // [latest byte], @ input loc & 15
 	protected int lexn, loc; // lexi count and loc
 	internal L[] lexs;
 	protected int from; // input loc for current lexi
-	public List<L> errs = []; // error lexis: not null, merge lexis: null
+	public List<L> errs = []; // [error lexi]: not null, merge to lexs: null
 
 	public virtual IDisposable Begin(Lexer<byte, byte> input)
 	{
-		Dispose();
+		Dispose(); Clear();
 		this.input = input;
 		return this;
 	}
 
-	// lexer results keep available
-	public virtual void Dispose()
+	// results keep available
+	public virtual void Dispose() { input?.Dispose(); input = null; }
+
+	public virtual void Clear()
 	{
-		GC.SuppressFinalize(this);
-		input?.Dispose(); input = null;
 		bn = bf = bt = 0;
 		lines.Clear(); lines.Add(0);
 		lexn = 0; loc = -1; lexs = [];
@@ -164,7 +164,7 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 			}
 			else if (u == begin || bt > bn) {
 				if (bn >= 0) {
-					PartErr(begin.key, -1, true, -1, bn, bn);
+					InputEnd(bn);
 					bn = -1; // only one error at the end
 				}
 				return loc < lexn;
@@ -220,13 +220,16 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 		}
 	}
 
-	// report error: part >= 0, beyond input end: part < 0 and Byte < 0
+	// error part, input end: Byte < 0
 	protected virtual void PartErr(K key, int part, bool end, int Byte, int f, int to)
 	{
 		if (from < 0) from = f;
-		if (part >= 0) Error(key, f, to, Byte >= 0 ? (object)(char)Byte : null);
+		Error(key, f, to, Byte >= 0 ? (char)Byte : null);
 		if (end) from = -1;
 	}
+
+	// input end
+	protected virtual void InputEnd(int bn) { }
 
 	protected L Lexi(L lexi, bool err = false)
 	{
@@ -269,11 +272,11 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 	public static IEnumerable<K> Keyz(string text) => [Enum.Parse<K>(text)];
 	public virtual IEnumerable<K> Keys(string text) => Keyz(text);
 
-	// first line and col are 1
+	// first line and col are 1, col is byte number inside line
 	public (int line, int column) LineCol(int byteLoc)
 	{
 		var line = lines.BinarySearch(byteLoc);
-		line = (line ^ line >> 31) + (line >> 31) + 1;
+		line = (line ^ line >> 31) + (~line >>> 31);
 		return (line, byteLoc - lines[line - 1] + 1);
 	}
 
