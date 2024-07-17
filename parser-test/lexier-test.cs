@@ -122,13 +122,13 @@ public class TestLexier : IDisposable
 	}
 
 	[TestMethod]
-	public void LexRange1()
+	public void Range1()
 	{
 		Throw(() => new Ler("A=a[^ab] \n B=ac"), "Prefix.* of B.1 and A.1");
 	}
 
 	[TestMethod]
-	public void LexRange2()
+	public void Range2()
 	{
 		var l = new Ler("A=[ab][0-2] \n B=[a-b][0-9^3-9]d");
 		Check(l, "a0", "A=a0"); Check(l, "a0d", "B=a0d");
@@ -136,7 +136,7 @@ public class TestLexier : IDisposable
 	}
 
 	[TestMethod]
-	public void LexRange3()
+	public void Range3()
 	{
 		var l = new Ler("A=[^abAB]c \n B=[AB][]");
 		Check(l, "ac", "_!a _!c"); Check(l, "bc", "_!b _!c");
@@ -145,7 +145,7 @@ public class TestLexier : IDisposable
 	}
 
 	[TestMethod]
-	public void LexRange4()
+	public void Range4()
 	{
 		var l = new Ler("A=\\x_");
 		Check(l, "3_", "A=3_"); Check(l, "b_", "A=b_");
@@ -153,7 +153,7 @@ public class TestLexier : IDisposable
 	}
 
 	[TestMethod]
-	public void LexRange5()
+	public void Range5()
 	{
 		var l = new Ler("A=[^a-z0-9]_");
 		Check(l, "A_", "A=A_"); Check(l, ".._", "_!. A=._");
@@ -161,14 +161,14 @@ public class TestLexier : IDisposable
 	}
 
 	[TestMethod]
-	public void LexRange6()
+	public void Range6()
 	{
 		var l = new Ler("A=[abc^b]_");
 		Check(l, "a_", "A=a_"); Check(l, "c_", "A=c_"); Check(l, "b_", "_!b _!_");
 	}
 
 	[TestMethod]
-	public void LexRange7()
+	public void Range7()
 	{
 		var l = new Ler("A=[!-~^\\d\\a]");
 		Check(l, "!_^/+", "A=! A=_ A=^ A=/ A=+");
@@ -176,20 +176,20 @@ public class TestLexier : IDisposable
 	}
 
 	[TestMethod]
-	public void LexRange8()
+	public void Range8()
 	{
 		Throw(() => new Ler("A=a[ac] \n B=a[bc]"), "Prefix.* of B.1 and A.1");
 		Throw(() => new Ler("A=a[abc] \n B=a[bc]"), "Prefix.* of B.1 and A.1");
 	}
 
 	[TestMethod]
-	public void LexAlt1()
+	public void Alt1()
 	{
 		Throw(() => new Ler("A=ab| ac \n B=ab"), "B.1 and A.1 conflict");
 	}
 
 	[TestMethod]
-	public void LexAlt2()
+	public void Alt2()
 	{
 		var l = new Ler("A=ab|ac");
 		Check(l, "ab", "A=ab"); Check(l, "ac", "A=ac");
@@ -197,7 +197,7 @@ public class TestLexier : IDisposable
 	}
 
 	[TestMethod]
-	public void LexAlt3()
+	public void Alt3()
 	{
 		var l = new Ler("A=abc|abd \n B=abcd \n C=acd");
 		Check(l, "abc", "A=abc"); Check(l, "abd", "A=abd");
@@ -205,14 +205,14 @@ public class TestLexier : IDisposable
 	}
 
 	[TestMethod]
-	public void LexAlt4()
+	public void Alt4()
 	{
 		Throw(() => new Ler("A=a[a-c^ac]|a[b-b]"), "A.1 and A.1 conflict");
 		Throw(() => new Ler("A=a[a-c^a]|ab"), "Prefix.* of A.1 and A.1");
 	}
 
 	[TestMethod]
-	public void LexDup1()
+	public void Dup1()
 	{
 		var l = new Ler("A=a+");
 		Check(l, "a", "A=a"); Check(l, "aa", "A=aa"); Check(l, "aaa", "A=aaa");
@@ -220,7 +220,7 @@ public class TestLexier : IDisposable
 	}
 
 	[TestMethod]
-	public void LexDup2()
+	public void Dup2()
 	{
 		var l = new Ler("A=aa+");
 		Check(l, "a", "_!a"); Check(l, "aa", "A=aa"); Check(l, "aaa", "A=aaa");
@@ -228,7 +228,7 @@ public class TestLexier : IDisposable
 	}
 
 	[TestMethod]
-	public void LexDup3()
+	public void Dup3()
 	{
 		var l = new Ler("A=ab+c");
 		Check(l, "abc", "A=abc"); Check(l, "abbc", "A=abbc"); Check(l, "abbbc", "A=abbbc");
@@ -237,13 +237,13 @@ public class TestLexier : IDisposable
 	}
 
 	[TestMethod]
-	public void LexDup4()
+	public void Dup4()
 	{
 		Throw(() => new Ler("A=a+a"), "A.1 and A.1 .*dup");
 	}
 
 	[TestMethod]
-	public void LexDup5()
+	public void Dup5()
 	{
 		Throw(() => new Ler("A=a \n B=a+"), "B.1 and A.1 conflict");
 		Throw(() => new Ler("A=aa \n B=a+"), "B.1 and A.1 .*dup");
@@ -252,7 +252,7 @@ public class TestLexier : IDisposable
 	}
 
 	[TestMethod]
-	public void LexDup6()
+	public void Dup6()
 	{
 		Throw(() => new Ler("A=a+c \n B=aa"), "B.1 and A.1 .*dup");
 		Throw(() => new Ler("A=a+b \n B=abc"), "B.1 and A.1 .*dup");
@@ -261,7 +261,7 @@ public class TestLexier : IDisposable
 	}
 
 	[TestMethod]
-	public void LexDup7()
+	public void Dup7()
 	{
 		var l = new Ler("A=a+ \n B=a+b");
 		Check(l, "a", "A=a"); Check(l, "ab", "B=ab");
@@ -270,21 +270,21 @@ public class TestLexier : IDisposable
 	}
 
 	[TestMethod]
-	public void LexDup8()
+	public void Dup8()
 	{
 		var l = new Ler("A=a+b \n B=a+c");
 		Check(l, "abaac", "A=ab B=aac"); Check(l, "b", "_!b"); Check(l, "c", "_!c");
 	}
 
 	[TestMethod]
-	public void LexDup9()
+	public void Dup9()
 	{
 		Throw(() => new Ler("A=[ab]+ [bc]"), "A.2 and A.1 .*dup");
 		Throw(() => new Ler("A=a[ab]+|b[bc]+ b"), "A.2 and A.1 .*dup");
 	}
 
 	[TestMethod]
-	public void LexPart1()
+	public void Part1()
 	{
 		var l = new Ler("A=aa b cde \n B=ab \n C=bc");
 		Check(l, "aabcdee", "A=aabcde _!e"); Check(l, "abbc", "B=ab C=bc");
@@ -293,7 +293,7 @@ public class TestLexier : IDisposable
 	}
 
 	[TestMethod]
-	public void LexPart2()
+	public void Part2()
 	{
 		var l = new Ler("A=a bcd|bce f \n B=abcf \n BB=bca \n C=c");
 		Check(l, "abcdf", "A=abcdf"); Check(l, "abcef", "A=abcef");
@@ -302,7 +302,7 @@ public class TestLexier : IDisposable
 	}
 
 	[TestMethod]
-	public void LexPart3()
+	public void Part3()
 	{
 		var l = new Ler("A=a b+|c d");
 		Check(l, "abd", "A=abd"); Check(l, "abbd", "A=abbd");
@@ -311,7 +311,7 @@ public class TestLexier : IDisposable
 	}
 
 	[TestMethod]
-	public void LexPart4()
+	public void Part4()
 	{
 		var l = new Ler("A=a b+e|c d");
 		Check(l, "abed", "A=abed"); Check(l, "abbed", "A=abbed");
@@ -320,7 +320,7 @@ public class TestLexier : IDisposable
 	}
 
 	[TestMethod]
-	public void LexEmpty1()
+	public void Empty1()
 	{
 		var l = new Ler("A=a |bc \n B=b \n D=d");
 		Check(l, "a", "A=a"); Check(l, "abc", "A=abc");
@@ -329,7 +329,7 @@ public class TestLexier : IDisposable
 	}
 
 	[TestMethod]
-	public void LexEmpty2()
+	public void Empty2()
 	{
 		var l = new Ler("A=a |bc d \n B=b \n D=d");
 		Check(l, "ad", "A=ad"); Check(l, "abcd", "A=abcd");
@@ -338,7 +338,7 @@ public class TestLexier : IDisposable
 	}
 
 	[TestMethod]
-	public void LexEmpty3()
+	public void Empty3()
 	{
 		var l = new Ler("A=a |bc b \n B=b \n D=d");
 		Check(l, "ab", "A=ab"); Check(l, "abcb", "A=abcb");
@@ -346,7 +346,7 @@ public class TestLexier : IDisposable
 	}
 
 	[TestMethod]
-	public void LexEmpty4()
+	public void Empty4()
 	{
 		var l = new Ler("A=a |b+e d");
 		Check(l, "abed", "A=abed"); Check(l, "abbed", "A=abbed");
@@ -355,7 +355,7 @@ public class TestLexier : IDisposable
 	}
 
 	[TestMethod]
-	public void LexLoop1()
+	public void Loop1()
 	{
 		var l = new Ler("A=a +c|b d");
 		Check(l, "abd", "A=abd"); Check(l, "acbd", "A=acbd");
@@ -364,7 +364,7 @@ public class TestLexier : IDisposable
 	}
 
 	[TestMethod]
-	public void LexLoop2()
+	public void Loop2()
 	{
 		var l = new Ler("A=a |+c|b+e d");
 		Check(l, "abed", "A=abed"); Check(l, "abbed", "A=abbed");
@@ -374,7 +374,7 @@ public class TestLexier : IDisposable
 	}
 
 	[TestMethod]
-	public void LexLoop3()
+	public void Loop3()
 	{
 		var l = new Ler("A=a | +c|b+e");
 		Check(l, "abed", "A=abe _!d"); Check(l, "abbe", "A=abbe");
@@ -384,7 +384,7 @@ public class TestLexier : IDisposable
 	}
 
 	[TestMethod]
-	public void LexRedo1()
+	public void Redo1()
 	{
 		var l = new Ler("A=a *b c \n B=d \n C=cd");
 		Check(l, "abcd", "A=abc B=d"); Check(l, "acbc", "A!c A=acbc");
@@ -392,7 +392,7 @@ public class TestLexier : IDisposable
 	}
 
 	[TestMethod]
-	public void LexRedo2()
+	public void Redo2()
 	{
 		var l = new Ler("A=a *bc d \n B=d \n C=cd");
 		Check(l, "abcdd", "A=abcd B=d"); Check(l, "abdbcd", "A!b A!d A=abdbcd");
@@ -400,7 +400,7 @@ public class TestLexier : IDisposable
 	}
 
 	[TestMethod]
-	public void LexRedo3()
+	public void Redo3()
 	{
 		var l = new Ler("A=a *c|be d");
 		Check(l, "abed", "A=abed"); Check(l, "abbed", "A!b A=abbed");
@@ -410,7 +410,7 @@ public class TestLexier : IDisposable
 	}
 
 	[TestMethod]
-	public void LexRedo4()
+	public void Redo4()
 	{
 		var l = new Ler("A=a *c|b+e d");
 		Check(l, "abed", "A=abed"); Check(l, "abbed", "A=abbed");
@@ -420,7 +420,7 @@ public class TestLexier : IDisposable
 	}
 
 	[TestMethod]
-	public void LexRedo5()
+	public void Redo5()
 	{
 		var l = new Ler("A=a *+c|b+e d");
 		Check(l, "abed", "A=abed"); Check(l, "abbed", "A=abbed");
@@ -430,7 +430,7 @@ public class TestLexier : IDisposable
 	}
 
 	[TestMethod]
-	public void LexRedo6()
+	public void Redo6()
 	{
 		Throw(() => new Ler(new LexGram<Lex>().k(Lex.A).redo["a"].p["b"]), "Redo");
 		Throw(() => new Ler("A=*a b c"), "");
@@ -438,7 +438,7 @@ public class TestLexier : IDisposable
 	}
 
 	[TestMethod]
-	public void LexEsc1()
+	public void Esc1()
 	{
 		var l = new Ler(@"A=[\^\-\[\]\\\Z]");
 		Check(l, "^", "A=^"); Check(l, "-", "A=-"); Check(l, "[", "A=["); Check(l, "]", "A=]");
@@ -446,14 +446,14 @@ public class TestLexier : IDisposable
 	}
 
 	[TestMethod]
-	public void LexEsc2()
+	public void Esc2()
 	{
 		var l = new Ler(@"A=\[\]");
 		Check(l, "[]", "A=[]");
 	}
 
 	[TestMethod]
-	public void LexUtf1()
+	public void Utf1()
 	{
 		Throw(() => new Ler("A=\\u+ \n B=\\u\\A"), "Prefix.* of B.1 and A.1");
 		Throw(() => new Ler("A=\\u+ \n B=\\u\\u"), "B.1 and A.1 conflict");
@@ -461,7 +461,7 @@ public class TestLexier : IDisposable
 	}
 
 	[TestMethod]
-	public void LexUtf2()
+	public void Utf2()
 	{
 		var l = new Ler("A=a\\u\\u\\uz|a\\u\\uz \n B=a");
 		Check(l, "a你za好z", "A=a你z A=a好z");
@@ -469,7 +469,7 @@ public class TestLexier : IDisposable
 	}
 
 	[TestMethod]
-	public void LexUtf3()
+	public void Utf3()
 	{
 		var l = new Ler("A=a[\\u\\A^z]+z \n B=[a\\u^\\u]");
 		Check(l, "a好za大家\t都好z", "A=a好z A=a大家\t都好z");

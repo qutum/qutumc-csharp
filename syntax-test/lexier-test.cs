@@ -49,7 +49,7 @@ public class TestLexier : IDisposable
 	}
 
 	[TestMethod]
-	public void LexComm()
+	public void Comm()
 	{
 		CheckSp("\\##\\\\###\\ ", "COMM=COMMB SP=");
 		CheckSp("\\### \\# ###\\ ###\\ ab", "COMM=COMMB SP= COMM=");
@@ -59,7 +59,7 @@ public class TestLexier : IDisposable
 	}
 
 	[TestMethod]
-	public void LexEol()
+	public void Eol()
 	{
 		CheckSp("\\##\\\t \r\n\r\n\\##\\ \t \n",
 			@"COMM=COMMB SP= EOL!use LF \n eol instead of CRLF \r\n EOL= EOL= COMM=COMMB SP= EOL=");
@@ -67,7 +67,7 @@ public class TestLexier : IDisposable
 	}
 
 	[TestMethod]
-	public void LexIndent1()
+	public void Indent1()
 	{
 		CheckSp("a \t", "NAME=a SP=");
 		CheckSp("\t    ", "SP!do not mix tabs and spaces for indent SP=");
@@ -76,7 +76,7 @@ public class TestLexier : IDisposable
 	}
 
 	[TestMethod]
-	public void LexIndent2()
+	public void Indent2()
 	{
 		CheckSp("\ta\n\tb\n\t\t\tc\n\t\t\t\td\n\t\t\te\n\t\tf\ng\nh",
 			"IND=4 NAME=a EOL= NAME=b EOL= INDR=12 NAME=c EOL= IND=16 NAME=d EOL= DED=16 NAME=e EOL= DEDR=12 IND=8 NAME=f EOL= DED=8 DED=4 NAME=g EOL= NAME=h");
@@ -85,7 +85,7 @@ public class TestLexier : IDisposable
 	}
 
 	[TestMethod]
-	public void LexIndent3()
+	public void Indent3()
 	{
 		CheckSp(" a", "NAME=a"); CheckSp("  a", "IND=2 NAME=a DED=2");
 		CheckSp("  a\n  b\n        c\n          d\n        e\n    f\ng\nh",
@@ -95,7 +95,7 @@ public class TestLexier : IDisposable
 	}
 
 	[TestMethod]
-	public void LexIndent4()
+	public void Indent4()
 	{
 		CheckSp("\t\t##\n", "INDR=8 COMM= EOL= DEDR=8");
 		Check("\n\ta\n\t\t\n\n\tb\n\t\t\t\n\t\t\tc\n\n\t\nd",
@@ -105,7 +105,7 @@ public class TestLexier : IDisposable
 	}
 
 	[TestMethod]
-	public void LexEof1()
+	public void Eof1()
 	{
 		CheckSp("a\t", "NAME=a SP=");
 		CheckSp("\ta\t", "IND=4 NAME=a SP= DED=4");
@@ -118,7 +118,7 @@ public class TestLexier : IDisposable
 	}
 
 	[TestMethod]
-	public void LexEof2()
+	public void Eof2()
 	{
 		ler.eof = true;
 		CheckSp("a\n", "NAME=a EOL= EOL=");
@@ -134,14 +134,14 @@ public class TestLexier : IDisposable
 	}
 
 	[TestMethod]
-	public void LexUtf()
+	public void Utf()
 	{
 		Check(@"好", "0!\xe5 0!\xa5 0!\xbd");
 		Check(@"""abc你好def""", "STR=abc你好def");
 	}
 
 	[TestMethod]
-	public void LexString1()
+	public void String1()
 	{
 		Check("\"abc  def\"", "STR=abc  def");
 		Check("\"a", "STR!"); Check("\"a\nb\"", "STR!\" expected STR=a NAME=b STR!");
@@ -150,7 +150,7 @@ public class TestLexier : IDisposable
 	}
 
 	[TestMethod]
-	public void LexString2()
+	public void String2()
 	{
 		Check(@"""\tabc\r\ndef""", "STR=\tabc\r\ndef");
 		Check(@"""\x09abc\x0d\x0adef""", "STR=\tabc\r\ndef");
@@ -159,14 +159,14 @@ public class TestLexier : IDisposable
 	}
 
 	[TestMethod]
-	public void LexStringBlock1()
+	public void StringBlock1()
 	{
 		Check("""\"abcdef"\""", "STRB=abcdef"); Check("""\\"abcdef"\\""", "STRB=abcdef");
 		Check("\\\"a\\tc\ndef\"\\", "STRB=a\\tc\ndef");
 	}
 
 	[TestMethod]
-	public void LexStringBlock2()
+	public void StringBlock2()
 	{
 		Check("""\"ab"cdef"\""", "STRB=ab\"cdef");
 		Check("""\""abcdef"\""", "STRB=\"abcdef");
@@ -174,14 +174,14 @@ public class TestLexier : IDisposable
 	}
 
 	[TestMethod]
-	public void LexStringBlock3()
+	public void StringBlock3()
 	{
 		Check("""\""\\abc"\\def"\\"\""", "STRB=\"\\\\abc\"\\\\def\"\\\\");
 		Check("""\\""\abc"\def"\"\\""", "STRB=\"\\abc\"\\def\"\\");
 	}
 
 	[TestMethod]
-	public void LexName1()
+	public void Name1()
 	{
 		Check("abc", "NAME=abc"); Check("Abc123", "NAME=Abc123");
 		Check("_123", "NAME=_123"); Check("__a4", "NAME=__a4"); Check("_A__b_", "NAME=_A__b_");
@@ -189,7 +189,7 @@ public class TestLexier : IDisposable
 	}
 
 	[TestMethod]
-	public void LexName2()
+	public void Name2()
 	{
 		Check("a..", "NAME=a RNAME1= RNAME1=");
 		Check("1.).", "INT=1 RNAME1= RP= RNAME1=");
@@ -197,21 +197,21 @@ public class TestLexier : IDisposable
 	}
 
 	[TestMethod]
-	public void LexName3()
+	public void Name3()
 	{
 		Check("a ..).b", "NAME=a RNAME= RNAME1= RP= RNAME1=b");
 		Check("A1 .b_..c .d", "NAME=A1 RNAME=b_ RNAME1= RNAME1=c RNAME=d");
 	}
 
 	[TestMethod]
-	public void LexName4()
+	public void Name4()
 	{
 		Check("a234567890123456789012345678901234567890", "NAME=a234567890123456789012345678901234567890");
 		Check("a2345678901234567890123456789012345678901", "NAME!too long NAME=a234567890123456789012345678901234567890");
 	}
 
 	[TestMethod]
-	public void LexPath1()
+	public void Path1()
 	{
 		Check("``", "NAME=,"); Check("`a", "NAME!");
 		Check("`a\nb`", "NAME!` expected NAME=a, NAME=b NAME!");
@@ -223,7 +223,7 @@ public class TestLexier : IDisposable
 	}
 
 	[TestMethod]
-	public void LexPath2()
+	public void Path2()
 	{
 		Check(".``", "RNAME=,");
 		Check(".`a\n", "NAME!` expected RNAME=a,");
@@ -232,7 +232,7 @@ public class TestLexier : IDisposable
 	}
 
 	[TestMethod]
-	public void LexHex1()
+	public void Hex1()
 	{
 		Check("0x0", "INT=0"); Check("0xF", "INT=15"); Check("0xx", "HEX!x");
 		Check("+0x0A", "ADD= INT=10"); Check("-0x0A", "SUB= INT=10");
@@ -240,14 +240,14 @@ public class TestLexier : IDisposable
 	}
 
 	[TestMethod]
-	public void LexHex2()
+	public void Hex2()
 	{
 		Check("0x7fffffff", "INT=2147483647"); Check("0x80_00_00_00", "INT=2147483648");
 		Check("0xffff_fffe", "INT=4294967294"); Check("0xffff_fffe_", "HEX!");
 	}
 
 	[TestMethod]
-	public void LexInt1()
+	public void Int1()
 	{
 		Check("0", "INT=0"); Check("0a", "INT=0 NAME=a");
 		Check("+09", "ADD= INT=9"); Check("-9876", "SUB= INT=9876");
@@ -255,14 +255,14 @@ public class TestLexier : IDisposable
 	}
 
 	[TestMethod]
-	public void LexInt2()
+	public void Int2()
 	{
 		Check("2_14_7483_648", "INT=2147483648");
 		Check("+214_7483_649", "ADD= INT!integer out of range INT=0");
 	}
 
 	[TestMethod]
-	public void LexFloat1()
+	public void Float1()
 	{
 		Check("-0f", "SUB= FLOAT=0"); Check("00.0x", "FLOAT=0 NAME=x"); Check("0.000f", "FLOAT=0");
 		Check("340282347999999999999999999999999999999.99999", "FLOAT=3.4028235E+38");
@@ -270,7 +270,7 @@ public class TestLexier : IDisposable
 	}
 
 	[TestMethod]
-	public void LexFloat2()
+	public void Float2()
 	{
 		Check("1234.0", "FLOAT=1234"); Check("553.2", "FLOAT=553.2"); Check("34_8.5", "FLOAT=348.5");
 		Check("1.00_0_01000000000000000000000000000000000000000000000001", "FLOAT=1.00001");
@@ -278,7 +278,7 @@ public class TestLexier : IDisposable
 	}
 
 	[TestMethod]
-	public void LexFloat3()
+	public void Float3()
 	{
 		Check("1e38", "FLOAT=1E+38"); Check("1e+38", "FLOAT=1E+38");
 		Check("5e38", "FLOAT!float out of range FLOAT=0");
@@ -290,7 +290,7 @@ public class TestLexier : IDisposable
 	}
 
 	[TestMethod]
-	public void LexFloat4()
+	public void Float4()
 	{
 		Check("1.234567891e-39", "FLOAT=1.234568E-39");
 		Check("1.999999999e-45", "FLOAT=1E-45");
@@ -300,13 +300,13 @@ public class TestLexier : IDisposable
 	}
 
 	[TestMethod]
-	public void LexSymbol1()
+	public void Symbol1()
 	{
 		Check("',@#$^:;?~", "0!' 0!, 0!@ 0!# 0!$ 0!^ 0!: 0!; 0!? 0!~");
 	}
 
 	[TestMethod]
-	public void LexSymbol2()
+	public void Symbol2()
 	{
 		Check("([{)]}", "LP= LSB= LCB= RP= RSB= RCB=");
 		Check("*/%//%%", "MUL= DIV= MOD= DIVF= MODF=");
@@ -314,7 +314,7 @@ public class TestLexier : IDisposable
 	}
 
 	[TestMethod]
-	public void LexSymbol3()
+	public void Symbol3()
 	{
 		Check("===/=<<=<=<>=>", "EQ= BIND= UEQ= SHL= BIND= LEQ= LT= GEQ= GT=");
 		Check("!!&|", "NOT= NOT= AND= OR=");

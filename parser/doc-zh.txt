@@ -13,9 +13,9 @@ qutum.parser.MetaStr
 
 qutum.parser.Lexier
 
-词法解析器，输入byte流，输出lexi流，行列定位，DFA算法
+词法解析器，输入byte流，输出Lexi流，行列定位，DFA算法
 
-每lexi为一或多组，每组为一或多分支，每分支为一或多字节（或字节范围、转义）
+每Lexi为一或多组，每组为一或多分支，每分支为一或多字节（或字节范围、转义）
 依次匹配每组，组内匹配某分支，贪婪匹配
 组第一分支可空，即其他分支不匹配时匹配空分支
 组可选重试，即各分支不匹配时，丢弃一字节重试组
@@ -32,7 +32,7 @@ qutum.parser.Lexier
 
 qutum.parser.Synter
 
-语法解析器，输入指定Lexer，基于Earley算法，输出语法树
+语法解析器，输入指定Lexer，基于earley算法，输出语法树
 支持量词、greedy串联贪婪匹配、优先分支、语法树节点保留或穿透、寻找前方key或从当前位置错误恢复
 
 qutum.parser.SynterStr

@@ -455,12 +455,12 @@ public class SynterEarley<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler
 			{ "hintg", "*|/" }, // hint greedy
 			{ "hintt", "+|-|+ -" }, // hint synt
 			{ "hintl", "_" }, // hint lexi
-			{ "hinte", "!" }, // hint expect
+			{ "hinte", "!" }, // hint err expect
 			{ "hintr", "\x1|\x1 W+|\x1 G|\x1 \\ E" }, // hint recover
 			{ "hintd", "\x1 W+|\x1 G|\x1 \\ E" }, // hint recovery deny
 			{ "hintw", "H*" }, // hint words
-			{ "hint_", "eol" }, // to split prod into lines
-			{ "ahint", "hint? hint_" },
+			{ "heol", "eol" }, // to split prod into lines
+			{ "ahint", "hint? heol" },
 			{ "eol",   "S* comm? \r? \n S*" },
 			{ "comm",  "= = V*" } }; // unescape to lexer.Keys
 
@@ -494,7 +494,7 @@ public class SynterEarley<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler
 		// make these trees
 		foreach (var c in prods["con"].alts.Take(1) // word
 			.Concat(new[] { "prod", "alt", "name", "sym",
-					"hintp", "hintg", "hintt", "hintl", "hinte", "hintr", "hintd", "hintw", "hint_" }
+					"hintp", "hintg", "hintt", "hintl", "hinte", "hintr", "hintd", "hintw", "heol" }
 				.SelectMany(x => prods[x].alts)))
 			c.synt = 2;
 		meta = new SynterChar(prods["gram"]) {
@@ -587,7 +587,7 @@ public class SynterEarley<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler
 						}
 					}
 					// each hint is for only one line
-					if (h.name == "hint_") ax = x + 1;
+					if (h.name == "heol") ax = x + 1;
 				}
 			}
 			prod.alts = az;
