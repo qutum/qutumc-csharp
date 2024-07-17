@@ -14,8 +14,7 @@ namespace qutum.syntax;
 public enum Syn
 {
 	all = 1, allii, alli, Block,
-	block, stats, headr, nest,
-	pre, right, stat, line, linep,
+	block, nestr, nests, nest, line,
 	E1, E2, E2p, B3, B43, B46, B53, B56, B6, B7, B8, E9,
 	e1, e2, e2p, b3, b43, b46, b53, b56, b6, b7, b8, e9,
 	e0,
@@ -31,23 +30,16 @@ public class Synter : Synter<Lex, Syn, Synt, Lexier>
 	all   = allii? alli? Block*
 	allii = INDR Block* DEDR
 	alli  = IND Block* DED
-
 	Block = block					=+
 
-	block = line headr? stats?		=		block
-	      | pre stat* DED			=		prefix block
-	headr = INDR stat+ DEDR			=+|INDR	statements of head-right datum
-	stats = IND stat* DED			=		statements
+	block = line nestr? nests?		=		block
+	nestr = INDR nest+ DEDR			=+		right nested blocks
+	nests = IND nest+ DED			=!|IND	nested blocks
 
-	pre  = PRE EOL IND block		=+_!	prefix
-	stat  =	BIN right				=+_!	statement
-	      | linep stats?			=+-		statement
-	right = block					=		right side
-	      | EOL nest				=!|		right side
-	nest  = IND block DED			=!|IND	nested block
+	nest  =	BIN block				=^+_!	nested binary block
+	      | block					=+		nested block
 
 	line  = SP? e2 e9 EOL			=*!||BLANK
-	linep = SP? e2p e9 EOL			=*!||BLANK == no leading binary prefix operator
 
 	e0    = LITERAL					=+_		literal
 	      | LP e2 e9 RP				=+-!|LP	parenthesis
