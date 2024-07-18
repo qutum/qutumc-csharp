@@ -51,8 +51,9 @@ public class Synter : Synter<Lex, Syn, Synt, Lexier>
 
 	e2    = e0 e1*								=*		expression
 	      | PRE e2								=+_!	prefix operator
+	      | BINPRE e2							=+_!	binary prefix operator
 	e2p   = e0 e1*								=*		expression
-	      | PREPURE e2							=+_!	prefix operator
+	      | PRE e2								=+_!	prefix operator
 	b43   = BIN43 e2							=*+_!	binary operator
 	b46   = BIN46 e2 b43*						=*+_!	binary operator
 	b53   = BIN53 e2 b43* b46*					=*+_!	binary operator
@@ -63,8 +64,9 @@ public class Synter : Synter<Lex, Syn, Synt, Lexier>
 
 	E2    = e0 E1*										=		expression
 	      | PRE E2										=+_!	prefix operator
+	      | BINPRE E2									=+_!	binary as prefix operator
 	E2p   = e0 E1*										=		expression
-	      | PREPURE E2									=+_!	prefix operator
+	      | PRE E2										=+_!	prefix operator
 	B43   = BIN43 E2									=+_!	binary operator
 	B46   = BIN46 E2 B43*								=+_!	binary operator
 	B53   = BIN53 E2 B43* B46*							=+_!	binary operator

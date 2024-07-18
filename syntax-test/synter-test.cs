@@ -100,13 +100,18 @@ public class TestSynter : IDisposable
 		t = t/**/	.N(B).H(S.e0).V(L.INT, 2).N0().N0().N0();
 		t = Parse(@"
 				1
-				2
-	3
-4");
+		\##\ 2
+				3
+	\##\ 4
+	5
+6");
 		t = t/**/	.H(B).H(S.e0).V(L.INT, 1).N0();
 		t = t/**/	.N(B).H(S.e0).V(L.INT, 2).N0();
 		t = t/**/	.N(B).H(S.e0).V(L.INT, 3).N0();
-		t = t/**/	.N(B).H(S.e0).V(L.INT, 4).N0().N0().N0();
+		t = t/**/	.N(B).H(S.e0).V(L.INT, 4).N0();
+		t = t/**/	.N(B).H(S.e0).V(L.INT, 5).N0();
+		t = t/**/	.N(B).H(S.e0).V(L.INT, 6).N0().N0();
+		t = t/**/.N(null, -1, 3.1, 3.3, L.INDR).N0();
 	}
 
 	[TestMethod]
@@ -188,12 +193,12 @@ public class TestSynter : IDisposable
 		t = t/**/							.N(S.nest).H(S.e0).V(L.INT, 2).N0().N0().N0();
 		t = t/**/	.N(B).H(S.line, -4);
 		t = t/**/		.N(S.nest).H(S.e0).V(L.INT, 3).N0().N0().N0();
-		t = t/**/.N(S.all, -1, 3.6, 4.1, L.EOL).H(S.nest, 1).U();
-		t = t/**/.N(S.all, -1, 5.5, 6.1, L.EOL).H(S.e2, 1).U().N0();
+		t = t/**/.N(null, -1, 3.6, 4.1, L.EOL).H(S.nest, 1).U();
+		t = t/**/.N(null, -1, 5.5, 6.1, L.EOL).H(S.e2, 1).U().N0();
 	}
 
 	[TestMethod]
-	public void NestedRight1()
+	public void NestedRight()
 	{
 		var t = Parse(@"
 			1
@@ -206,7 +211,7 @@ public class TestSynter : IDisposable
 		t = t/**/						.N(S.nestr).H(S.nest).H(S.e0).V(L.INT, 3).N0().N0().N0();
 		t = t/**/				.N(S.nest).H(S.e0).V(L.INT, 4).N0().N0();
 		t = t/**/		.N(S.nest).H(S.e0).V(L.INT, 5).N0().N0().N0();
-		t = t/**/	.N(null, -1, 5.1, 5.6, L.INDR).N0();
+		t = t/**/.N(null, -1, 5.1, 5.6, L.INDR).N0();
 		t = Parse(@"
 			1
 					+2
@@ -278,7 +283,7 @@ public class TestSynter : IDisposable
 		t = t/**/	.H(B).H(S.e0).V(L.INT, 1);
 		t = t/**/		.N(S.nest, v: L.ADD);
 		t = t/**/			.H(S.e0, -4).N0().N0().N0();
-		t = t/**/.N(S.all, -1, 3.6, 3.6, L.DED);
+		t = t/**/.N(null, -1, 3.6, 3.6, L.DED);
 		t = t/**/	.H(S.nest, 1).N0().N0();
 	}
 
@@ -295,7 +300,7 @@ public class TestSynter : IDisposable
 		t = t/**/			.H(S.e0, -4).N0().N0();
 		t = t/**/	.N(B).H(S.e0).V(L.INT, 2).N0();
 		t = t/**/	.N(B).H(S.e0).V(L.INT, 3).N0().N0();
-		t = t/**/.N(S.all, -1, 4.1, 4.1, L.DED);
+		t = t/**/.N(null, -1, 4.1, 4.1, L.DED);
 		t = t/**/	.H(S.nest, 1).N0().N0();
 	}
 
@@ -313,7 +318,7 @@ public class TestSynter : IDisposable
 		t = t/**/		.N(S.nest, v: L.MUL);
 		t = t/**/			.H(S.e0).V(L.INT, 2).N0().N0();
 		t = t/**/	.N(B).H(S.e0).V(L.INT, 3).N0().N0();
-		t = t/**/.N(S.all, -1, 4.5, 4.6, v: L.MUL);
+		t = t/**/.N(null, -1, 4.5, 4.6, v: L.MUL);
 		t = t/**/	.H(S.nest, 1).N0().N0();
 	}
 
@@ -337,7 +342,7 @@ public class TestSynter : IDisposable
 		t = t/**/		.N(S.nest, v: L.SUB);
 		t = t/**/			.H(S.e0).V(L.INT, 4).N0().N0();
 		t = t/**/	.N(B).H(S.e0).V(L.INT, 5).N0().N0();
-		t = t/**/.N(S.all, -1, 6.6, 6.7, L.DIV);
+		t = t/**/.N(null, -1, 6.6, 6.7, L.DIV);
 		t = t/**/	.H(S.nest, 2).N0().N0();
 		t = Parse(@"
 			1
@@ -358,7 +363,7 @@ public class TestSynter : IDisposable
 		t = t/**/		.N(S.nest, v: L.SUB);
 		t = t/**/			.H(S.e0).V(L.INT, 4).N0().N0();
 		t = t/**/	.N(B).H(S.e0).V(L.INT, 5).N0().N0();
-		t = t/**/.N(S.all, -1, 6.6, 6.7, L.DIV);
+		t = t/**/.N(null, -1, 6.6, 6.7, L.DIV);
 		t = t/**/	.H(S.nest, 2).N0().N0();
 	}
 
@@ -374,7 +379,7 @@ public class TestSynter : IDisposable
 		t = t/**/					.H(S.e0).V(L.INT, 2).N0().N0();
 		t = t/**/		.N(S.nest, v: L.MUL);
 		t = t/**/			.H(S.e0).V(L.INT, 3).N0().N0().N0();
-		t = t/**/.N(S.all, -1, 2.7, 2.8, L.DIV);
+		t = t/**/.N(null, -1, 2.7, 2.8, L.DIV);
 		t = t/**/	.H(S.b53, 1).N0().N0();
 	}
 
@@ -389,7 +394,7 @@ public class TestSynter : IDisposable
 		t = t/**/		.N(S.line, -4);
 		t = t/**/		.N(S.nest, v: L.ADD);
 		t = t/**/			.H(S.e0).V(L.INT, 2).N0().N0().N0();
-		t = t/**/.N(S.all, -1, 3.5, 3.6, L.RP);
+		t = t/**/.N(null, -1, 3.5, 3.6, L.RP);
 		t = t/**/	.H(S.line, 1).N0().N0();
 	}
 
@@ -410,9 +415,9 @@ public class TestSynter : IDisposable
 		t = t/**/		.N(S.nest, v: L.SUB);
 		t = t/**/			.H(S.e0).V(L.INT, 3).N(S.line, -4).N0().N0();
 		t = t/**/	.N(B).H(S.e0).V(L.INT, 4).N0().N0();
-		t = t/**/.N(S.all, -1, 3.6, 3.7, L.RP);
+		t = t/**/.N(null, -1, 3.6, 3.7, L.RP);
 		t = t/**/	.H(S.nest, 1).N(S.line, 1).N0();
-		t = t/**/.N(S.all, -1, 5.8, 6.1, L.EOL);
+		t = t/**/.N(null, -1, 5.8, 6.1, L.EOL);
 		t = t/**/	.H(S.b53, 1).N0().N0();
 	}
 }

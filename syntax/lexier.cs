@@ -16,21 +16,20 @@ using L = Lex;
 
 public enum Lex
 {
-	BLANK = 0x0010, // blanks
-	DENSE = 0x0020, // dense before postfix
-	LITERAL = 0x0040, // literals
-	PRE = 0x0c00, // prefix operators
-	PREPURE = 0x0400, // pure prefix
-	PREBIN = 0x0800, // binary prefix
-	BIN = 0xff000, // binary operators
-	BIN3 = 0x01000,
-	BIN43 = 0x02000,
-	BIN46 = 0x04000,
-	BIN53 = 0x08000,
-	BIN56 = 0x10000,
-	BIN6 = 0x20000,
-	BIN7 = 0x40000,
-	BIN8 = 0x80000,
+	BLANK	= 0x____10, // blanks
+	DENSE	= 0x____20, // dense before postfix
+	LITERAL	= 0x____40, // literals
+	PRE		= 0x___400, // prefix
+	BINPRE	= 0x___800, // binary as prefix
+	BIN		= 0x0ff000, // binary operators
+	BIN3	= 0x__1000,
+	BIN43	= 0x__2000,
+	BIN46	= 0x__4000,
+	BIN53	= 0x__8000,
+	BIN56	= 0x_10000,
+	BIN6	= 0x_20000,
+	BIN7	= 0x_40000,
+	BIN8	= 0x_80000,
 
 	EOL = BLANK | 1, IND = BLANK | 2, DED, SP, INDR = BLANK | 6, DEDR,
 	COMM, COMMB, PATH, NUM,
@@ -41,13 +40,13 @@ public enum Lex
 	STR = LITERAL | 1, STRB, NAME, HEX, INT, FLOAT,
 
 	// bitwise operators
-	SHL = BIN43 | 1, SHR, BNOT = PREPURE | 1, BAND = BIN46 | 1, BXOR, BOR,
+	SHL = BIN43 | 1, SHR, BNOT = PRE | 1, BAND = BIN46 | 1, BXOR, BOR,
 	// arithmetic operators
-	ADD = BIN56 | PREBIN | 1, SUB, MUL = BIN53 | 1, DIV, MOD, DIVF, MODF,
+	ADD = BIN56 | BINPRE | 1, SUB, MUL = BIN53 | 1, DIV, MOD, DIVF, MODF,
 	// comparison operators
 	EQ = BIN6 | 1, UEQ, LEQ, GEQ, LT, GT,
 	// logical operators
-	NOT = PREPURE | 2, AND = BIN7 | 1, OR,
+	NOT = PRE | 2, AND = BIN7 | 1, OR,
 }
 
 public class Lexier : Lexier<L>
@@ -155,7 +154,7 @@ public class Lexier : Lexier<L>
 	int indb; // indent byte, unknown: -1
 	int indn; // indent count
 	int[] inds = new int[100]; // [0, indent column...]
-	int ind, indf; // indent column 0 based, from input loc
+	int ind, indf, indt; // indent column 0 based, from input loc to loc excluded
 	bool crlf; // \r\n found
 	readonly List<string> path = [];
 	public bool eof = true; // insert eol at input end
@@ -165,7 +164,7 @@ public class Lexier : Lexier<L>
 	public override void Clear()
 	{
 		base.Clear();
-		indb = ind = -1; indn = indf = 0; inds[0] = 0;
+		indb = ind = -1; indn = indf = indt = 0; inds[0] = 0;
 		crlf = false; path.Clear();
 	}
 
@@ -193,13 +192,13 @@ public class Lexier : Lexier<L>
 						base.Lexi(inds[x] - inds[x - 1] < L.INDR - L.BLANK ? L.DED : L.DEDR,
 							indf, indf, inds[x]);
 					else { // still INDR
-						Error(L.INDR, indf, from, "indent same as upper lines expected");
+						Error(L.INDR, indf, indt, "indent same as upper lines expected");
 						goto Done;
 					}
 			}
 		}
 		if (c >= L.IND - L.BLANK) {
-			base.Lexi(c < L.INDR - L.BLANK ? L.IND : L.INDR, indf, from, ind);
+			base.Lexi(c < L.INDR - L.BLANK ? L.IND : L.INDR, indf, indt, ind);
 			indn = i;
 			if (indn >= inds.Length) Array.Resize(ref inds, inds.Length << 1);
 			inds[i] = ind;
@@ -212,7 +211,7 @@ public class Lexier : Lexier<L>
 		var end = true;
 		if (eof)
 			Part(L.EOL, 1, ref end, bn, bn);
-		ind = 0; indf = bn; Indent();
+		ind = 0; indf = indt = bn; Indent();
 	}
 
 	protected override Lexi<L> Lexi(L key, int f, int to, object value)
@@ -247,7 +246,7 @@ public class Lexier : Lexier<L>
 			if (allBlank
 				|| lexn > 0 && lexs[lexn - 1].key != L.EOL) // no EOL for empty line
 				base.Lexi(key, from, to, null);
-			ind = 0; indf = to;
+			ind = 0; indf = indt = to;
 			goto End;
 
 		case L.SP:
@@ -264,7 +263,7 @@ public class Lexier : Lexier<L>
 				return;
 			if (bs[0] != 0) {
 				ind = to - from << (indb == '\t' ? 2 : 0); // 4 column each \t
-				indf = from;
+				indf = from; indt = to;
 			}
 			else if (allBlank)
 				Lexi(key, from, to, null);
