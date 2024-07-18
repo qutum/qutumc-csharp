@@ -78,8 +78,10 @@ public class Lexier<K> : Lexier<K, Lexi<K>> where K : struct
 {
 	public Lexier(LexGram<K> grammar, bool dump = false) : base(grammar, dump) { }
 
+	// from input f loc to loc excluded
 	protected override Lexi<K> Lexi(K key, int f, int to, object value)
 		=> Lexi(new() { key = key, from = f, to = to, value = value });
+	// from input f loc to loc excluded
 	protected override Lexi<K> Error(K key, int f, int to, object value)
 		=> Lexi(new() { key = key, from = f, to = to, value = value, err = ~lexn }, true);
 
@@ -129,7 +131,7 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 	int bn; // total bytes got
 	int bf, bt; // from input loc to loc excluded for each part
 	readonly List<int> lines = []; // [0, input loc after eol...]
-	readonly byte[] bytes = new byte[17]; // [latest byte], @ input loc & AltByteN
+	readonly byte[] bytes = new byte[LexGram<K>.AltByteN + 1]; // [latest byte], @ input loc & AltByteN
 	protected int lexn, loc; // lexi count and loc
 	internal L[] lexs;
 	protected int from; // input loc for current lexi
@@ -165,8 +167,8 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 			}
 			else if (u == begin || bt > bn) {
 				if (bn >= 0) {
-					InputEnd(bn);
-					bn = -1; // only one error at the end
+					InputEnd(bn); // call only once
+					bn = -1;
 				}
 				return loc < lexn;
 			}
@@ -207,6 +209,13 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 		else {
 			Backward(go); u.mode = go.mode + 1; u.go = go.go;
 		}
+	}
+
+	protected void BackByte(int to)
+	{
+		if (to < bn - LexGram<K>.AltByteN)
+			throw new("back too much bytes");
+		bt = to;
 	}
 
 	// make each part of a lexi
@@ -340,7 +349,7 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 						else if (p.Count == 1) throw new($"No byte in {k}.{part}");
 						else if (p.redo) throw new($"Redo empty {k}.{part}.1");
 						else { u.go = pus[part + 1]; u.mode = -1; }
-					else if (p.redo) // shift input and retry part like the begin
+					else if (p.redo) // shift input and redo part like the begin
 						if (part == 1) throw new($"Redo first part {k}.1");
 						else { u.go = u; u.mode = -3; }
 					else // no backward cross parts

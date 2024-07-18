@@ -168,7 +168,7 @@ public static class MetaLex
 					_ = g.p;
 				else if (gram[p.head.from] == '|') // empty alt
 					_ = g.p[""];
-				else // shift byte and retry part like the begin
+				else // shift byte and redo part like the begin
 					_ = g.redo;
 				// build alt
 				foreach (var (a, alt) in p.Where(t => t.name.StartsWith("alt")).Prepend(p).Each(1)) {

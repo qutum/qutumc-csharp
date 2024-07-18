@@ -16,37 +16,35 @@ using L = Lex;
 
 public enum Lex
 {
-	BLANK	= 0x____10, // blanks
-	DENSE	= 0x____20, // dense before postfix
-	LITERAL	= 0x____40, // literals
-	PRE		= 0x___400, // prefix
-	BINPRE	= 0x___800, // binary as prefix
-	BIN		= 0x0ff000, // binary operators
-	BIN3	= 0x__1000,
-	BIN43	= 0x__2000,
-	BIN46	= 0x__4000,
-	BIN53	= 0x__8000,
-	BIN56	= 0x_10000,
-	BIN6	= 0x_20000,
-	BIN7	= 0x_40000,
-	BIN8	= 0x_80000,
+	BLANK /* */= 0x____10, // blanks
+	DENSE /* */= 0x____20, // dense before postfix
+	LITERAL/**/= 0x____40, // literals
+	PRE /*   */= 0x___400, // prefix
+	BINPRE /**/= 0x___800, // binary as prefix
+	BIN /*   */= 0x0ff000, // binary operators
+	BIN3 /*  */= 0x__1000,
+	BIN43 /* */= 0x__2000, // bitwise binary operators
+	BIN46 /* */= 0x__4000, // bitwise binary operators
+	BIN53 /* */= 0x__8000, // arithmetic binary operators
+	BIN56 /* */= 0x_10000, // arithmetic binary operators
+	BIN6 /*  */= 0x_20000, // comparison binary operators
+	BIN7 /*  */= 0x_40000, // logical binary operators
+	BIN8 /*  */= 0x_80000,
 
-	EOL = BLANK | 1, IND = BLANK | 2, DED, SP, INDR = BLANK | 6, DEDR,
-	COMM, COMMB, PATH, NUM,
+	EOL = BLANK | 1, IND = BLANK | 2, DED, SP, INDR = BLANK | 6, DEDR, COMM, COMMB,
 
-	LP = 1, LSB, LCB, BIND,
-
+	LP = 1, LSB, LCB, BIND, PATH, NUM,
 	RP = DENSE | 1, RSB, RCB, RNAME1, RNAME,
 	STR = LITERAL | 1, STRB, NAME, HEX, INT, FLOAT,
 
-	// bitwise operators
-	SHL = BIN43 | 1, SHR, BNOT = PRE | 1, BAND = BIN46 | 1, BXOR, BOR,
-	// arithmetic operators
+	// bitwise
+	SHL = BIN43 | 1, SHR, NOTB = PRE | 1, ANDB = BIN46 | 1, ORB, XORB,
+	// arithmetic
 	ADD = BIN56 | BINPRE | 1, SUB, MUL = BIN53 | 1, DIV, MOD, DIVF, MODF,
-	// comparison operators
+	// comparison
 	EQ = BIN6 | 1, UEQ, LEQ, GEQ, LT, GT,
-	// logical operators
-	NOT = PRE | 2, AND = BIN7 | 1, OR,
+	// logical
+	NOT = PRE | 2, AND = BIN7 | 1, OR, XOR
 }
 
 public class Lexier : Lexier<L>
@@ -79,10 +77,10 @@ public class Lexier : Lexier<L>
 		.k(L.RCB).p["}"]
 		.k(L.SHL).p["<<"]
 		.k(L.SHR).p[">>"]
-		.k(L.BNOT).p["--"]
-		.k(L.BAND).p["&&"]
-		.k(L.BXOR).p["++"]
-		.k(L.BOR).p["||"]
+		.k(L.NOTB).p["--"]
+		.k(L.ANDB).p["&&"]
+		.k(L.ORB).p["||"]
+		.k(L.XORB).p["++"]
 		.k(L.ADD).p["+"]
 		.k(L.SUB).p["-"]
 		.k(L.MUL).p["*"]
@@ -99,6 +97,7 @@ public class Lexier : Lexier<L>
 		.k(L.NOT).p["!"]
 		.k(L.AND).p["&"]
 		.k(L.OR).p["|"]
+		.k(L.XOR).p["+|"]
 
 		.k(L.EOL).p["\n"]["\r\n"]
 		.k(L.SP).p[" \t".Mem()] // [\s\t]  |+\s+|+\t+
@@ -111,14 +110,14 @@ public class Lexier : Lexier<L>
 
 		.k(L.STRB).p["\\", .., "\""] // \\+"  +"\\+|+"|+[\A^"]+
 					.p["\"", "\\", ..].loop["\""].loop[Set.All.Exc("\""), ..].loop
-		.k(L.STR).p["\""] // "  *"|\n|+[\l^""\\]+|+\\[0tnr"".`\\]|+\\x\x\x|+\\u\x\x\x\x
-				.redo["\"\n".Mem()]
+		.k(L.STR).p["\""] // "  *"|\n|\r\n|+[\l^""\\]+|+\\[0tnr"".`\\]|+\\x\x\x|+\\u\x\x\x\x
+				.redo["\"\n".Mem()]["\r\n"]
 					[Set.Line.Exc("\"\\"), ..].loop
 					["\\", "0tnr\".`\\".Mem()].loop
 					["\\x", Set.Hex, Set.Hex].loop["\\u", Set.Hex, Set.Hex, Set.Hex, Set.Hex].loop
 
-		.k(L.PATH).p["`"][".`"] // .?`  *`|\n|+.|+[\l^.`\\]+|+\\[0tnr"".`\\]|+\\x\x\x|+\\u\x\x\x\x
-				.redo["`\n".Mem()]["."].loop
+		.k(L.PATH).p["`"][".`"] // .?`  *`|\n|\r\n|+.|+[\l^.`\\]+|+\\[0tnr"".`\\]|+\\x\x\x|+\\u\x\x\x\x
+				.redo["`\n".Mem()]["\r\n"]["."].loop
 					[Set.Line.Exc(".`\\"), ..].loop
 					["\\", "0tnr\".`\\".Mem()].loop
 					["\\x", Set.Hex, Set.Hex].loop["\\u", Set.Hex, Set.Hex, Set.Hex, Set.Hex].loop
@@ -217,9 +216,14 @@ public class Lexier : Lexier<L>
 	protected override Lexi<L> Lexi(L key, int f, int to, object value)
 	{
 		Indent();
-		if (key == L.RNAME && lexn > 0 && lexs[lexn - 1].to == f
-			&& (lexs[lexn - 1].key & (L.DENSE | L.LITERAL)) != 0)
-			key = L.RNAME1; // run name follows the previous lexi densely, high precedence
+		Lexi<L> l;
+		if (lexn > 0 && (l = lexs[lexn - 1]).to == f)
+			if (key == L.RNAME && (l.key & (L.DENSE | L.LITERAL)) != 0)
+				key = L.RNAME1; // run name follows the previous lexi densely, high precedence
+			else if ((key & L.LITERAL) != 0 && (l.key & L.LITERAL) != 0)
+				Error(key, f, to, "literal can not densely follow literal");
+			else if ((key & L.PRE) != 0 && (l.key & (L.BLANK | L.PRE | L.BIN)) == 0)
+				Error(key, f, to, "prefix operator can densely follow blank and prefix and binary only");
 		return base.Lexi(key, f, to, value);
 	}
 
@@ -301,8 +305,10 @@ public class Lexier : Lexier<L>
 			if (part == 1)
 				return;
 			if (end) {
-				if (input.Lex(f) != '"') // \n found
-					Error(key, f, to, "\" expected");
+				if (input.Lex(to - 1) == '\n') {
+					Error(key, f, to, "eol unexpected");
+					BackByte(to = f);
+				}
 				break;
 			}
 			Input(f, to, bn); Unesc(f, to);
@@ -348,8 +354,10 @@ public class Lexier : Lexier<L>
 				bn = 0;
 			}
 			if (end) {
-				if (input.Lex(f) != '`') // \n found
-					Error(L.NAME, f, to, "` expected");
+				if (input.Lex(to - 1) == '\n') {
+					Error(L.NAME, f, to, "eol unexpected");
+					BackByte(to = f);
+				}
 				key = input.Lex(from) != '.' ? L.NAME : L.RNAME;
 				v = path.ToArray();
 				break;

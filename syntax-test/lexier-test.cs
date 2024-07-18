@@ -144,7 +144,7 @@ public class TestLexier : IDisposable
 	public void String1()
 	{
 		Check("\"abc  def\"", "STR=abc  def");
-		Check("\"a", "STR!"); Check("\"a\nb\"", "STR!\" expected STR=a NAME=b STR!");
+		Check("\"a", "STR!"); Check("\"a\nb\"", "STR!eol unexpected STR=a EOL= NAME=b STR!");
 		var s = string.Join("", Enumerable.Range(1000, 5000).ToArray());
 		CheckSp($"\"{s}\"", $"STR={s}");
 	}
@@ -193,7 +193,7 @@ public class TestLexier : IDisposable
 	{
 		Check("a..", "NAME=a RNAME1= RNAME1=");
 		Check("1.).", "INT=1 RNAME1= RP= RNAME1=");
-		Check("A1.b_..c!__.__", "NAME=A1 RNAME1=b_ RNAME1= RNAME1=c NOT= NAME=__ RNAME1=__");
+		Check("A1.b_..c-__.__", "NAME=A1 RNAME1=b_ RNAME1= RNAME1=c SUB= NAME=__ RNAME1=__");
 	}
 
 	[TestMethod]
@@ -213,9 +213,8 @@ public class TestLexier : IDisposable
 	[TestMethod]
 	public void Path1()
 	{
-		Check("``", "NAME=,"); Check("`a", "NAME!");
-		Check("`a\nb`", "NAME!` expected NAME=a, NAME=b NAME!");
-		Check("`abc  def`", "NAME=abc  def,");
+		Check("``", "NAME=,"); Check("`abc  def`", "NAME=abc  def,");
+		Check("`a", "NAME!"); Check("`a\nb`", "NAME!eol unexpected NAME=a, EOL= NAME=b NAME!");
 		Check(@"`\tabc\`..\.\ndef.`", "NAME=\tabc`,,.\ndef,,");
 		Check(@"`..\x09abc\x0adef`", "NAME=,,\tabc\ndef,");
 		Check(@"`abc\\\0\x7edef\u597d吗\x2e`", "NAME=abc\\\0~def好吗.,");
@@ -226,7 +225,7 @@ public class TestLexier : IDisposable
 	public void Path2()
 	{
 		Check(".``", "RNAME=,");
-		Check(".`a\n", "NAME!` expected RNAME=a,");
+		Check(".`a\n", "NAME!eol unexpected RNAME=a, EOL=");
 		Check(".`a`.b.`c`", "RNAME=a, RNAME1=b RNAME1=c,");
 		Check("a .`b.b`.`c` .`d`.``", "NAME=a RNAME=b,b, RNAME1=c, RNAME=d, RNAME1=,");
 	}
@@ -236,7 +235,8 @@ public class TestLexier : IDisposable
 	{
 		Check("0x0", "INT=0"); Check("0xF", "INT=15"); Check("0xx", "HEX!x");
 		Check("+0x0A", "ADD= INT=10"); Check("-0x0A", "SUB= INT=10");
-		Check("0x_0", "INT=0"); Check("0x__0", "INT=0"); Check("1x1", "INT=1 NAME=x1");
+		Check("0x_0", "INT=0"); Check("0x__0", "INT=0"); Check("0x_0_", "HEX!");
+		Check("1x1", "INT=1 NAME!literal can not densely follow literal NAME=x1");
 	}
 
 	[TestMethod]
@@ -249,7 +249,7 @@ public class TestLexier : IDisposable
 	[TestMethod]
 	public void Int1()
 	{
-		Check("0", "INT=0"); Check("0a", "INT=0 NAME=a");
+		Check("0", "INT=0"); Check("0 a", "INT=0 NAME=a");
 		Check("+09", "ADD= INT=9"); Check("-9876", "SUB= INT=9876");
 		Check("2_", "NUM!"); Check("23__3", "INT=233");
 	}
@@ -264,7 +264,8 @@ public class TestLexier : IDisposable
 	[TestMethod]
 	public void Float1()
 	{
-		Check("-0f", "SUB= FLOAT=0"); Check("00.0x", "FLOAT=0 NAME=x"); Check("0.000f", "FLOAT=0");
+		Check("0.000f", "FLOAT=0"); Check("-0f", "SUB= FLOAT=0");
+		Check("00.0x", "FLOAT=0 NAME!literal can not densely follow literal NAME=x"); 
 		Check("340282347999999999999999999999999999999.99999", "FLOAT=3.4028235E+38");
 		Check("340282430000000000000000000000000000000.5", "FLOAT!float out of range FLOAT=0");
 	}
@@ -310,13 +311,13 @@ public class TestLexier : IDisposable
 	{
 		Check("([{)]}", "LP= LSB= LCB= RP= RSB= RCB=");
 		Check("*/%//%%", "MUL= DIV= MOD= DIVF= MODF=");
-		Check("<<>>---&&+++||", "SHL= SHR= BNOT= SUB= BAND= BXOR= ADD= BOR=");
+		Check("<<>>---&&++||", "SHL= SHR= NOTB= SUB= ANDB= XORB= ORB=");
 	}
 
 	[TestMethod]
 	public void Symbol3()
 	{
 		Check("===/=<<=<=<>=>", "EQ= BIND= UEQ= SHL= BIND= LEQ= LT= GEQ= GT=");
-		Check("!!&|", "NOT= NOT= AND= OR=");
+		Check("!!&+||", "NOT= NOT= AND= XOR= OR=");
 	}
 }
