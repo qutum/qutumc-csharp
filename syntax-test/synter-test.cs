@@ -133,7 +133,6 @@ public class TestSynter : IDisposable
 	[TestMethod]
 	public void Nested2()
 	{
-		ser.dump = 3;
 		var t = Parse(@"
 			1
 				2
@@ -194,28 +193,30 @@ public class TestSynter : IDisposable
 	}
 
 	[TestMethod]
-	public void NestedRight2()
+	public void NestedRight1()
 	{
 		var t = Parse(@"
 			1
-					+2
-				*3");
+						2
+								3
+					4
+				5");
 		t = t/**/	.H(B).H(S.e0).V(L.INT, 1);
-		t = t/**/		.N(S.nestr).H(S.nest, v: L.ADD);
-		t = t/**/					.H(S.e0).V(L.INT, 2).N0().N0();
-		t = t/**/		.N(S.nest, v: L.MUL);
-		t = t/**/			.H(S.e0).V(L.INT, 3).N0().N0().N0().N0();
+		t = t/**/		.N(S.nestr).H(S.nest).H(S.e0).V(L.INT, 2);
+		t = t/**/						.N(S.nestr).H(S.nest).H(S.e0).V(L.INT, 3).N0().N0().N0();
+		t = t/**/				.N(S.nest).H(S.e0).V(L.INT, 4).N0().N0();
+		t = t/**/		.N(S.nest).H(S.e0).V(L.INT, 5).N0().N0().N0();
+		t = t/**/	.N(null, -1, 5.1, 5.6, L.INDR).N0();
 		t = Parse(@"
 			1
-						+2
-					-3
-				*4");
+					+2
+						-3
+					*4");
 		t = t/**/	.H(B).H(S.e0).V(L.INT, 1);
-		t = t/**/		.N(S.nestr).H(S.nest, v: L.ADD).H(S.e0).V(L.INT, 2).N0();
-		t = t/**/					.N(S.nest, v: L.SUB).H(S.e0).V(L.INT, 3).N0().N0();
-		t = t/**/		.N(S.nest, v: L.MUL);
-		t = t/**/			.H(S.e0).V(L.INT, 4).N0().N0().N0();
-		t = t/**/	.N(null, -1, 4.1, 4.6, L.INDR).N0();
+		t = t/**/		.N(S.nestr).H(S.nest, v: L.ADD);
+		t = t/**/						.H(S.e0).V(L.INT, 2);
+		t = t/**/						.N(S.nest, v: L.SUB).H(S.e0).V(L.INT, 3).N0().N0();
+		t = t/**/				.N(S.nest, v: L.MUL).H(S.e0).V(L.INT, 4).N0().N0().N0();
 	}
 
 	[TestMethod]
@@ -223,6 +224,18 @@ public class TestSynter : IDisposable
 	{
 		var t = Parse(@"
 			-1
+				-2
+				*3/4");
+		t = t/**/	.H(B).H(S.e2, v: L.SUB).H(S.e0).V(L.INT, 1).N0();
+		t = t/**/		.N(S.nest, v: L.SUB);
+		t = t/**/			.H(S.e0).V(L.INT, 2).N0();
+		t = t/**/		.N(S.nest, v: L.MUL);
+		t = t/**/			.H(S.e0).V(L.INT, 3);
+		t = t/**/			.N(S.b53, v: L.DIV);
+		t = t/**/				.H(S.e0).V(L.INT, 4).N0().N0().N0().N0().N0();
+		t = Parse(@"
+		1
+			- -1
 				-2
 				*3/4");
 		t = t/**/	.H(B).H(S.e2, v: L.SUB).H(S.e0).V(L.INT, 1).N0();
@@ -264,9 +277,9 @@ public class TestSynter : IDisposable
 				+");
 		t = t/**/	.H(B).H(S.e0).V(L.INT, 1);
 		t = t/**/		.N(S.nest, v: L.ADD);
-		t = t/**/			.H(S.right, -4).N0().N0().N0();
+		t = t/**/			.H(S.e0, -4).N0().N0().N0();
 		t = t/**/.N(S.all, -1, 3.6, 3.6, L.DED);
-		t = t/**/	.H(S.right, 1).N0().N0();
+		t = t/**/	.H(S.nest, 1).N0().N0();
 	}
 
 	[TestMethod]
@@ -279,11 +292,11 @@ public class TestSynter : IDisposable
 			3");
 		t = t/**/	.H(B).H(S.e0).V(L.INT, 1);
 		t = t/**/		.N(S.nest, v: L.ADD);
-		t = t/**/			.H(S.right, -4).N0().N0();
+		t = t/**/			.H(S.e0, -4).N0().N0();
 		t = t/**/	.N(B).H(S.e0).V(L.INT, 2).N0();
 		t = t/**/	.N(B).H(S.e0).V(L.INT, 3).N0().N0();
 		t = t/**/.N(S.all, -1, 4.1, 4.1, L.DED);
-		t = t/**/	.H(S.right, 1).N0().N0();
+		t = t/**/	.H(S.nest, 1).N0().N0();
 	}
 
 	[TestMethod]
@@ -296,12 +309,12 @@ public class TestSynter : IDisposable
 			3");
 		t = t/**/	.H(B).H(S.e0).V(L.INT, 1);
 		t = t/**/		.N(S.nest, v: L.ADD);
-		t = t/**/			.H(S.right, -4).N0();
+		t = t/**/			.H(S.e0, -4).N0();
 		t = t/**/		.N(S.nest, v: L.MUL);
 		t = t/**/			.H(S.e0).V(L.INT, 2).N0().N0();
 		t = t/**/	.N(B).H(S.e0).V(L.INT, 3).N0().N0();
 		t = t/**/.N(S.all, -1, 4.5, 4.6, v: L.MUL);
-		t = t/**/	.H(S.right, 1).N0().N0();
+		t = t/**/	.H(S.nest, 1).N0().N0();
 	}
 
 	[TestMethod]
@@ -373,11 +386,11 @@ public class TestSynter : IDisposable
 				)
 				+ 2");
 		t = t/**/	.H(B).H(S.e0).V(L.INT, 1);
-		t = t/**/		.N(S.linep, -4);
+		t = t/**/		.N(S.line, -4);
 		t = t/**/		.N(S.nest, v: L.ADD);
 		t = t/**/			.H(S.e0).V(L.INT, 2).N0().N0().N0();
 		t = t/**/.N(S.all, -1, 3.5, 3.6, L.RP);
-		t = t/**/	.H(S.linep, 1).N0().N0();
+		t = t/**/	.H(S.line, 1).N0().N0();
 	}
 
 	[TestMethod]
