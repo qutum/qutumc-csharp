@@ -1,8 +1,8 @@
 //
 // Qutum 10 Compiler
-// Copyright 2008-2020 Qianyan Cai
+// Copyright 2008-2024 Qianyan Cai
 // Under the terms of the GNU General Public License version 3
-// http://qutum.com
+// http://qutum.com  http://qutum.cn
 //
 using qutum.parser;
 using System;
@@ -307,7 +307,7 @@ public class Lexier : Lexier<L>
 			if (end) {
 				if (input.Lex(to - 1) == '\n') {
 					Error(key, f, to, "eol unexpected");
-					BackByte(to = f);
+					BackByte(to = f); // next lexi will be eol
 				}
 				break;
 			}
@@ -356,7 +356,7 @@ public class Lexier : Lexier<L>
 			if (end) {
 				if (input.Lex(to - 1) == '\n') {
 					Error(L.NAME, f, to, "eol unexpected");
-					BackByte(to = f);
+					BackByte(to = f); // next lexi will be eol
 				}
 				key = input.Lex(from) != '.' ? L.NAME : L.RNAME;
 				v = path.ToArray();

@@ -1,3 +1,9 @@
+## Qutum 10 Compiler
+## Copyright 2008-2024 Qianyan Cai
+## Under the terms of the GNU General Public License version 3
+## http://qutum.com  http://qutum.cn
+
+
 qutum.syntax.Lexier
 
 qutum语言的词法解析器，输入byte流，输出Lexi流
