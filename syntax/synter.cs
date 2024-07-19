@@ -1,8 +1,8 @@
 //
 // Qutum 10 Compiler
-// Copyright 2008-2020 Qianyan Cai
+// Copyright 2008-2024 Qianyan Cai
 // Under the terms of the GNU General Public License version 3
-// http://qutum.com
+// http://qutum.com  http://qutum.cn
 //
 
 using qutum.parser;
@@ -15,9 +15,9 @@ public enum Syn
 {
 	all = 1, allii, alli, Block,
 	block, nestr, nests, nest, line,
-	E1, E2, E2p, B3, B43, B46, B53, B56, B6, B7, B8, E9,
-	e1, e2, e2p, b3, b43, b46, b53, b56, b6, b7, b8, e9,
-	e0,
+	e0, f2p,
+	e1, e2, e3, e43, e46, e53, e56, e6, e7, e8, exp,
+	f1, f2, f3, f43, f46, f53, f56, f6, f7, f8, feed,
 }
 
 public class Synt : Synt<Syn, Synt>
@@ -32,49 +32,47 @@ public class Synter : Synter<Lex, Syn, Synt, Lexier>
 	alli  = IND Block* DED
 	Block = block					=+
 
-	block = line nestr? nests?		=		block
+	block = line nestr? nests?		=		line
 	nestr = INDR nest+ DEDR			=+		right nested blocks
 	nests = IND nest+ DED			=!|IND	nested blocks
 
 	nest  =	BIN block				=^+_!	nested binary block
 	      | block					=+		nested block
 
-	line  = SP? e2 e9 EOL			=*!||BLANK
+	line  = SP? exp EOL				=*!||BLANK
 
 	e0    = LITERAL					=+_		literal
-	      | LP e2 e9 RP				=+-!|LP	parenthesis
+	      | LP exp RP				=+-!|LP	parenthesis
 
 	e1    = RNAME1					=+_		postfix
 	      | RNAME					=+_		run
-	      | E9+						=+		feed
-	E1    = RNAME1					=+_		postfix
+	      | feed+					=		feed
 
 	e2    = e0 e1*								=*		expression
 	      | PRE e2								=+_!	prefix operator
 	      | BINPRE e2							=+_!	binary prefix operator
-	e2p   = e0 e1*								=*		expression
-	      | PRE e2								=+_!	prefix operator
-	b43   = BIN43 e2							=*+_!	binary operator
-	b46   = BIN46 e2 b43*						=*+_!	binary operator
-	b53   = BIN53 e2 b43* b46*					=*+_!	binary operator
-	b56   = BIN56 e2 b43* b46* b53*				=*+_!	binary operator
-	b6    = BIN6  e2 b43* b46* b53* b56*		=*+_!	binary operator
-	b7    = BIN7  e2 b43* b46* b53* b56* b6*	=*+_!	binary operator
-	e9    =     b43* b46* b53* b56* b6* b7*
+	e43   = BIN43 e2							=*+_!	bitwise operator
+	e46   = BIN46 e2 e43*						=*+_!	bitwise operator
+	e53   = BIN53 e2 e43* e46*					=*+_!	arithmetic operator
+	e56   = BIN56 e2 e43* e46* e53*				=*+_!	arithmetic operator
+	e6    = BIN6  e2 e43* e46* e53* e56*		=*+_!	comparison operator
+	e7    = BIN7  e2 e43* e46* e53* e56* e6*	=*+_!	logical operator
+	exp   =      e2 e43* e46* e53* e56* e6* e7*	=		whole expression
 
-	E2    = e0 E1*										=		expression
-	      | PRE E2										=+_!	prefix operator
-	      | BINPRE E2									=+_!	binary as prefix operator
-	E2p   = e0 E1*										=		expression
-	      | PRE E2										=+_!	prefix operator
-	B43   = BIN43 E2									=+_!	binary operator
-	B46   = BIN46 E2 B43*								=+_!	binary operator
-	B53   = BIN53 E2 B43* B46*							=+_!	binary operator
-	B56   = BIN56 E2 B43* B46* B53*						=+_!	binary operator
-	B6    = BIN6  E2 B43* B46* B53* B56*				=+_!	binary operator
-	B7    = BIN7  E2 B43* B46* B53* B56* B6*			=+_!	binary operator
-	E9    =          E2p B43* B46* B53* B56* B6* B7*	=+-		serial feed
-	      | NAME BIND E2 B43* B46* B53* B56* B6* B7*	=+_!|	name feed
+	f1    = RNAME1										=+_		Postfix
+	f2    = e0 f1*										=		Expression
+	      | PRE f2										=+_!	Prefix operator
+	      | BINPRE f2									=+_!	Binary as prefix operator
+	f2p   = e0 f1*										=		Expression
+	      | PRE f2										=+_!	Prefix operator
+	f43   = BIN43 f2									=+_!	Bitwise operator
+	f46   = BIN46 f2 f43*								=+_!	Bitwise operator
+	f53   = BIN53 f2 f43* f46*							=+_!	Arithmetic operator
+	f56   = BIN56 f2 f43* f46* f53*						=+_!	Arithmetic operator
+	f6    = BIN6  f2 f43* f46* f53* f56*				=+_!	Comparison operator
+	f7    = BIN7  f2 f43* f46* f53* f56* f6*			=+_!	Logical operator
+	feed  =          f2p f43* f46* f53* f56* f6* f7*	=+		serial feed
+	      | NAME BIND f2 f43* f46* f53* f56* f6* f7*	=+_!|	name feed
 	""";
 
 	public Synter(Lexier l) : base(grammar, l)
