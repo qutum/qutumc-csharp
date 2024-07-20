@@ -34,17 +34,18 @@ public enum Lex
 	EOL = BLANK | 1, IND = BLANK | 2, DED, SP, INDR = BLANK | 6, DEDR, COMM, COMMB,
 
 	LP = 1, LSB, LCB, BIND, PATH, NUM,
-	RP = DENSE | 1, RSB, RCB, RNAME1, RNAME,
+	RP = DENSE | 1, RSB, RCB, RNAME,
+	RNAME1, // name in high precedence
 	STR = LITERAL | 1, STRB, NAME, HEX, INT, FLOAT,
 
 	// bitwise
-	SHL = BIN43 | 1, SHR, NOTB = PRE | 1, ANDB = BIN46 | 1, ORB, XORB,
+	SHL = BIN43 | 1, SHR, ANDB = BIN46 | 1, ORB, XORB, NOTB = PRE | 1,
 	// arithmetic
 	ADD = BIN56 | BINPRE | 1, SUB, MUL = BIN53 | 1, DIV, MOD, DIVF, MODF,
 	// comparison
 	EQ = BIN6 | 1, UEQ, LEQ, GEQ, LT, GT,
 	// logical
-	NOT = PRE | 2, AND = BIN7 | 1, OR, XOR
+	AND = BIN7 | 1, OR, XOR, NOT = PRE | 2
 }
 
 public class Lexier : Lexier<L>
@@ -69,35 +70,22 @@ public class Lexier : Lexier<L>
 	*/
 	static readonly LexGram<L> Grammar = new LexGram<L>()
 		.k(L.BIND).p["="]
-		.k(L.LP).p["("]
-		.k(L.RP).p[")"]
-		.k(L.LSB).p["["]
-		.k(L.RSB).p["]"]
-		.k(L.LCB).p["{"]
-		.k(L.RCB).p["}"]
-		.k(L.SHL).p["<<"]
-		.k(L.SHR).p[">>"]
-		.k(L.NOTB).p["--"]
-		.k(L.ANDB).p["&&"]
-		.k(L.ORB).p["||"]
-		.k(L.XORB).p["++"]
-		.k(L.ADD).p["+"]
-		.k(L.SUB).p["-"]
-		.k(L.MUL).p["*"]
-		.k(L.DIV).p["/"]
-		.k(L.MOD).p["%"]
-		.k(L.DIVF).p["//"]
-		.k(L.MODF).p["%%"]
-		.k(L.EQ).p["=="]
-		.k(L.UEQ).p["/="]
-		.k(L.LEQ).p["<="]
-		.k(L.GEQ).p[">="]
-		.k(L.LT).p["<"]
-		.k(L.GT).p[">"]
-		.k(L.NOT).p["!"]
-		.k(L.AND).p["&"]
-		.k(L.OR).p["|"]
-		.k(L.XOR).p["+|"]
+
+		.k(L.LP).p["("].k(L.RP).p[")"]
+		.k(L.LSB).p["["].k(L.RSB).p["]"]
+		.k(L.LCB).p["{"].k(L.RCB).p["}"]
+
+		.k(L.SHL).p["<<"].k(L.SHR).p[">>"]
+		.k(L.ANDB).p["&&"].k(L.ORB).p["||"].k(L.XORB).p["++"].k(L.NOTB).p["--"]
+
+		.k(L.ADD).p["+"].k(L.SUB).p["-"]
+		.k(L.MUL).p["*"].k(L.DIV).p["/"].k(L.MOD).p["%"]
+		.k(L.DIVF).p["//"].k(L.MODF).p["%%"]
+
+		.k(L.EQ).p["=="].k(L.UEQ).p["/="]
+		.k(L.LEQ).p["<="].k(L.GEQ).p[">="].k(L.LT).p["<"].k(L.GT).p[">"]
+
+		.k(L.AND).p["&"].k(L.OR).p["|"].k(L.XOR).p["+|"].k(L.NOT).p["!"]
 
 		.k(L.EOL).p["\n"]["\r\n"]
 		.k(L.SP).p[" \t".Mem()] // [\s\t]  |+\s+|+\t+
@@ -219,7 +207,7 @@ public class Lexier : Lexier<L>
 		Lexi<L> l;
 		if (lexn > 0 && (l = lexs[lexn - 1]).to == f)
 			if (key == L.RNAME && (l.key & (L.DENSE | L.LITERAL)) != 0)
-				key = L.RNAME1; // run name follows the previous lexi densely, high precedence
+				key = L.RNAME1; // name follows previous lexi densely, high precedence
 			else if ((key & L.LITERAL) != 0 && (l.key & L.LITERAL) != 0)
 				Error(key, f, to, "literal can not densely follow literal");
 			else if ((key & L.PRE) != 0 && (l.key & (L.BLANK | L.PRE | L.BIN)) == 0)

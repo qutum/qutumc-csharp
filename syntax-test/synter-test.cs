@@ -22,16 +22,16 @@ using Ser = (Synt t, Synter s);
 static class TestExtension
 {
 	public static Ser Eq(this Ser t,
-		S? name = null, int err = 0, double? from = null, double? to = null, object v = null)
+		S? name = null, object v = null, double? from = null, double? to = null, int err = 0)
 	{
 		AreNotEqual(null, t.t);
 		AreEqual(err, t.t.err);
 		if (name != null) AreEqual(name, t.t.name);
+		if (v != null)
+			AreEqual(v, v is L && t.t.info is Lexi<L> l ? l.key : t.t.info);
 		var (fl, fc, tl, tc) = t.s.ler.LineCol(t.t.from, t.t.to);
 		if (from != null) AreEqual($"{from}", $"{fl}.{fc}");
 		if (to != null) AreEqual($"{to}", $"{tl}.{tc}");
-		if (v != null)
-			AreEqual(v, v is L && t.t.info is Lexi<L> l ? l.key : t.t.info);
 		return t;
 	}
 	public static Ser V(this Ser t, params object[] vs)
@@ -50,36 +50,37 @@ static class TestExtension
 	}
 
 	public static Ser h(this Ser t,
-		S? name = null, int err = 0, double? from = null, double? to = null, object v = null)
-		=> (t.t.head, t.s).Eq(name, err, from, to, v);
+		S? name = null, object v = null, double? from = null, double? to = null, int err = 0)
+		=> (t.t.head, t.s).Eq(name, v, from, to, err);
 	public static Ser t(this Ser t,
-		S? name = null, int err = 0, double? from = null, double? to = null, object v = null)
-		=> (t.t.tail, t.s).Eq(name, err, from, to, v);
+		S? name = null, object v = null, double? from = null, double? to = null, int err = 0)
+		=> (t.t.tail, t.s).Eq(name, v, from, to, err);
 	public static Ser n(this Ser t,
-		S? name = null, int err = 0, double? from = null, double? to = null, object v = null)
-		=> (t.t.next, t.s).Eq(name, err, from, to, v);
+		S? name = null, object v = null, double? from = null, double? to = null, int err = 0)
+		=> (t.t.next, t.s).Eq(name, v, from, to, err);
 	public static Ser p(this Ser t,
-		S? name = null, int err = 0, double? from = null, double? to = null, object v = null)
-		=> (t.t.prev, t.s).Eq(name, err, from, to, v);
+		S? name = null, object v = null, double? from = null, double? to = null, int err = 0)
+		=> (t.t.prev, t.s).Eq(name, v, from, to, err);
 
 	public static Ser H(this Ser t,
-		S? name = null, int err = 0, double? from = null, double? to = null, object v = null)
-		=> h(t, name, err, from, to, v).Leaf();
+		S? name = null, object v = null, double? from = null, double? to = null, int err = 0)
+		=> h(t, name, v, from, to, err).Leaf();
 	public static Ser T(this Ser t,
-		S? name = null, int err = 0, double? from = null, double? to = null, object v = null)
-		=> TestExtension.t(t, name, err, from, to, v).Leaf();
+		S? name = null, object v = null, double? from = null, double? to = null, int err = 0)
+		=> TestExtension.t(t, name, v, from, to, err).Leaf();
 	public static Ser N(this Ser t,
-		S? name = null, int err = 0, double? from = null, double? to = null, object v = null)
-		=> n(t, name, err, from, to, v).Leaf();
+		S? name = null, object v = null, double? from = null, double? to = null, int err = 0)
+		=> n(t, name, v, from, to, err).Leaf();
 	public static Ser P(this Ser t,
-		S? name = null, int err = 0, double? from = null, double? to = null, object v = null)
-		=> p(t, name, err, from, to, v).Leaf();
+		S? name = null, object v = null, double? from = null, double? to = null, int err = 0)
+		=> p(t, name, v, from, to, err).Leaf();
 
 	public static Ser Leaf(this Ser t) { AreEqual(null, t.t.head); return t; }
 	public static Ser U(this Ser t) { AreEqual(null, t.t.next); return (t.t.up, t.s); }
 	public static Ser UU(this Ser t) => U(U(t));
 	public static Ser UUU(this Ser t) => U(U(U(t)));
 	public static Ser UUUU(this Ser t) => U(U(U(U(t))));
+	public static Ser UUUUU(this Ser t) => U(U(U(U(U(t)))));
 }
 
 [TestClass]
@@ -106,7 +107,7 @@ public class TestSynter : IDisposable
 	[TestMethod]
 	public void Blocks()
 	{
-		var t = Parse("").Eq(S.all, 0).U();
+		var t = Parse("").Eq(S.all).U();
 		t = Parse(@"
 			1
 			2");
@@ -125,7 +126,7 @@ public class TestSynter : IDisposable
 		t = t/**/	.n(B).H(S.e0).V(L.INT, 4).U();
 		t = t/**/	.n(B).H(S.e0).V(L.INT, 5).U();
 		t = t/**/	.n(B).H(S.e0).V(L.INT, 6).UU();
-		t = t/**/.N(null, -1, 3.1, 3.3, L.INDR).U();
+		t = t/**/.N(null, L.INDR, 3.1, 3.3, -1).U();
 	}
 
 	[TestMethod]
@@ -182,7 +183,7 @@ public class TestSynter : IDisposable
 		t = t/**/						.n(S.nestr).h(S.nest).H(S.e0).V(L.INT, 3).UUU();
 		t = t/**/				.n(S.nest).H(S.e0).V(L.INT, 4).UU();
 		t = t/**/		.n(S.nest).H(S.e0).V(L.INT, 5).UUU();
-		t = t/**/.N(null, -1, 5.1, 5.6, L.INDR).U();
+		t = t/**/.N(null, L.INDR, 5.1, 5.6, -1).U();
 	}
 
 	[TestMethod]
@@ -191,12 +192,12 @@ public class TestSynter : IDisposable
 		var t = Parse(@"1- -2");
 		t = t/**/	.h(B).H(S.e0).V(L.INT, 1);
 		t = t/**/		.n(S.e56, v: L.SUB);
-		t = t/**/			.h(S.e2, v: L.SUB).H(S.e0).V(L.INT, 2).UUUU();
+		t = t/**/			.h(S.e2, L.SUB).H(S.e0).V(L.INT, 2).UUUU();
 		t = Parse(@"1--2");
 		t = t/**/	.h(B).H(S.e0).V(L.INT, 1);
 		t = t/**/		.n(S.feed);
-		t = t/**/			.h(S.F2, v: L.NOTB).H(S.e0).V(L.INT, 2).UUUU();
-		t = t/**/.N(null, -1, 1.2, 1.4, L.NOTB).U();
+		t = t/**/			.h(S.F2, L.NOTB).H(S.e0).V(L.INT, 2).UUUU();
+		t = t/**/.N(null, L.NOTB, 1.2, 1.4, -1).U();
 	}
 
 	[TestMethod]
@@ -206,7 +207,7 @@ public class TestSynter : IDisposable
 			1
 				--2");
 		t = t/**/	.h(B).H(S.e0).V(L.INT, 1);
-		t = t/**/		.n(S.nest).h(S.e2, v: L.NOTB);
+		t = t/**/		.n(S.nest).h(S.e2, L.NOTB);
 		t = t/**/				.h(S.e0).V(L.INT, 2).UUUU();
 		t = Parse(@"
 			1
@@ -214,31 +215,30 @@ public class TestSynter : IDisposable
 					*!3
 				/+4");
 		t = t/**/	.h(B).h(S.e0).V(L.INT, 1);
-		t = t/**/		.n(S.nest, v: L.SUB);
-		t = t/**/			.h(S.e2, v: L.SUB).H(S.e0).V(L.INT, 2).U();
-		t = t/**/			.n(S.nest, v: L.MUL).h(S.e2, v: L.NOT).H(S.e0).V(L.INT, 3).UUU();
-		t = t/**/		.n(S.nest, v: L.DIV);
-		t = t/**/			.h(S.e2, v: L.ADD).H(S.e0).V(L.INT, 4).UUUU();
+		t = t/**/		.n(S.nest, L.SUB);
+		t = t/**/			.h(S.e2, L.SUB).H(S.e0).V(L.INT, 2).U();
+		t = t/**/			.n(S.nest, L.MUL).h(S.e2, L.NOT).H(S.e0).V(L.INT, 3).UUU();
+		t = t/**/		.n(S.nest, L.DIV);
+		t = t/**/			.h(S.e2, L.ADD).H(S.e0).V(L.INT, 4).UUUU();
 	}
 
 	[TestMethod]
-	public void Binary1()
+	public void Binary()
 	{
 		var t = Parse(@"1+2*3-4");
 		t = t/**/	.h(B).H(S.e0).V(L.INT, 1);
-		t = t/**/		.n(S.e56, v: L.ADD).H(S.e0).V(L.INT, 2);
-		t = t/**/					.n(S.e53, v: L.MUL).H(S.e0).V(L.INT, 3).UU();
-		t = t/**/		.n(S.e56, v: L.SUB).H(S.e0).V(L.INT, 4).UUU();
-		t = Parse(@"1+2*3-4");
+		t = t/**/		.n(S.e56, L.ADD).H(S.e0).V(L.INT, 2);
+		t = t/**/					.n(S.e53, L.MUL).H(S.e0).V(L.INT, 3).UU();
+		t = t/**/		.n(S.e56, L.SUB).H(S.e0).V(L.INT, 4).UUU();
+		t = Parse(@"1 + 2 * 3 >> 4 % 5 < 6 +| 7 ++ 8");
 		t = t/**/	.h(B).H(S.e0).V(L.INT, 1);
-		t = t/**/		.n(S.e56, v: L.ADD).H(S.e0).V(L.INT, 2);
-		t = t/**/					.n(S.e53, v: L.MUL).H(S.e0).V(L.INT, 3).UU();
-		t = t/**/		.n(S.e56, v: L.SUB).H(S.e0).V(L.INT, 4).UUU();
-	}
-
-	[TestMethod]
-	public void Binary2()
-	{
+		t = t/**/		.n(S.e56, L.ADD).H(S.e0).V(L.INT, 2);
+		t = t/**/			.n(S.e53, L.MUL).H(S.e0).V(L.INT, 3);
+		t = t/**/				.n(S.e43, L.SHR).H(S.e0).V(L.INT, 4).UU();
+		t = t/**/			.n(S.e53, L.MOD).H(S.e0).V(L.INT, 5).UU();
+		t = t/**/		.n(S.e6, L.LT).H(S.e0).V(L.INT, 6).U();
+		t = t/**/		.n(S.e7, L.XOR).H(S.e0).V(L.INT, 7);
+		t = t/**/			.n(S.e46, L.XORB).H(S.e0).V(L.INT, 8).UUUUU();
 	}
 
 	[TestMethod]
@@ -249,9 +249,9 @@ public class TestSynter : IDisposable
 				-2
 				*3+4");
 		t = t/**/	.h(B).H(S.e0).V(L.INT, 1);
-		t = t/**/		.n(S.nest, v: L.SUB).H(S.e0).V(L.INT, 2).U();
-		t = t/**/		.n(S.nest, v: L.MUL).H(S.e0).V(L.INT, 3);
-		t = t/**/					.n(S.e56, v: L.ADD).H(S.e0).V(L.INT, 4).UUUU().U();
+		t = t/**/		.n(S.nest, L.SUB).H(S.e0).V(L.INT, 2).U();
+		t = t/**/		.n(S.nest, L.MUL).H(S.e0).V(L.INT, 3);
+		t = t/**/					.n(S.e56, L.ADD).H(S.e0).V(L.INT, 4).UUUUU();
 		t = Parse(@"
 			1
 				+ 2
@@ -261,13 +261,13 @@ public class TestSynter : IDisposable
 			6
 				- 7");
 		t = t/**/	.h(B).H(S.e0).V(L.INT, 1);
-		t = t/**/		.n(S.nest, v: L.ADD).H(S.e0).V(L.INT, 2);
-		t = t/**/						.n(S.nest, v: L.MUL).H(S.e0).V(L.INT, 3).U();
-		t = t/**/						.n(S.nest, v: L.DIV).H(S.e0).V(L.INT, 4);
-		t = t/**/									.n(S.nest, v: L.ADD);
+		t = t/**/		.n(S.nest, L.ADD).H(S.e0).V(L.INT, 2);
+		t = t/**/						.n(S.nest, L.MUL).H(S.e0).V(L.INT, 3).U();
+		t = t/**/						.n(S.nest, L.DIV).H(S.e0).V(L.INT, 4);
+		t = t/**/									.n(S.nest, L.ADD);
 		t = t/**/										.H(S.e0).V(L.INT, 5).UUUU();
 		t = t/**/	.n(B).H(S.e0).V(L.INT, 6);
-		t = t/**/		.n(S.nest, v: L.SUB).H(S.e0).V(L.INT, 7).UUUU();
+		t = t/**/		.n(S.nest, L.SUB).H(S.e0).V(L.INT, 7).UUUU();
 	}
 
 	[TestMethod]
@@ -278,10 +278,10 @@ public class TestSynter : IDisposable
 				)
 				2");
 		t = t/**/	.h(B).H(S.e0).V(L.INT, 1);
-		t = t/**/		.n(S.nest).H(S.line, -4).U();
+		t = t/**/		.n(S.nest).H(S.line, err: -4).U();
 		t = t/**/		.n(S.nest).H(S.e0).V(L.INT, 2).UUU();
-		t = t/**/.n(null, -1, 3.5, 3.6, L.RP);
-		t = t/**/	.H(S.nests, 1).N(S.line, 1).UU();
+		t = t/**/.n(null, L.RP, 3.5, 3.6, -1);
+		t = t/**/	.H(S.nests, err: 1).N(S.line, err: 1).UU();
 	}
 
 	[TestMethod]
@@ -291,8 +291,8 @@ public class TestSynter : IDisposable
 			1
 				*");
 		t = t/**/	.h(B).H(S.e0).V(L.INT, 1);
-		t = t/**/		.n(S.nest, v: L.MUL).H(S.line, -4).UUU();
-		t = t/**/.n(null, -1, 3.6, 3.6, L.EOL).H(S.nest, 1).N(S.line, 1).UU();
+		t = t/**/		.n(S.nest, L.MUL).H(S.line, err: -4).UUU();
+		t = t/**/.n(null, L.EOL, 3.6, 3.6, -1).H(S.nest, err: 1).N(S.line, err: 1).UU();
 		t = Parse(@"
 			1
 				+
@@ -302,14 +302,14 @@ public class TestSynter : IDisposable
 			-
 				5");
 		t = t/**/	.h(B).H(S.e0).V(L.INT, 1);
-		t = t/**/		.n(S.nest, v: L.ADD).H(S.line, -4);
+		t = t/**/		.n(S.nest, L.ADD).H(S.line, err: -4);
 		t = t/**/							.n(S.nest).H(S.e0).V(L.INT, 2).U();
-		t = t/**/							.n(S.nest, v: L.MUL).H(S.e0).V(L.INT, 3).UU();
-		t = t/**/		.n(S.nest, v: L.DIV).H(S.e0).V(L.INT, 4).UU();
-		t = t/**/	.n(B).H(S.line, -4);
+		t = t/**/							.n(S.nest, L.MUL).H(S.e0).V(L.INT, 3).UU();
+		t = t/**/		.n(S.nest, L.DIV).H(S.e0).V(L.INT, 4).UU();
+		t = t/**/	.n(B).H(S.line, err: -4);
 		t = t/**/		.n(S.nest).H(S.e0).V(L.INT, 5).UUU();
-		t = t/**/.n(null, -1, 3.6, 4.1, L.EOL).H(S.nest, 1).N(S.e2, 1).N(S.line, 1).U();
-		t = t/**/.n(null, -1, 7.5, 8.1, L.EOL).H(S.e2, 1).UU();
+		t = t/**/.n(null, L.EOL, 3.6, 4.1, -1).H(S.nest, err: 1).N(S.e2, err: 1).N(S.line, err: 1).U();
+		t = t/**/.n(null, L.EOL, 7.5, 8.1, -1).H(S.e2, err: 1).UU();
 	}
 
 	[TestMethod]
@@ -318,10 +318,10 @@ public class TestSynter : IDisposable
 		var t = Parse(@"
 			1 *>
 						2");
-		t = t/**/	.h(B).H(S.e0).V(L.INT, 1).N(S.line, -4);
+		t = t/**/	.h(B).H(S.e0).V(L.INT, 1).N(S.line, err: -4);
 		t = t/**/		.n(S.nestr).h(S.nest).H(S.e0).V(L.INT, 2).UUUU();
-		t = t/**/.n(null, -1, 2.7, 2.8, L.GT);
-		t = t/**/	.H(S.e53, 1).UU();
+		t = t/**/.n(null, L.GT, 2.7, 2.8, -1);
+		t = t/**/	.H(S.e53, err: 1).UU();
 	}
 
 	[TestMethod]
@@ -333,12 +333,12 @@ public class TestSynter : IDisposable
 					-4-
 				5");
 		t = t/**/	.h(B).H(S.e0).V(L.INT, 1);
-		t = t/**/		.n(S.nest).h(S.e2, v: L.NOT).H(S.e0).V(L.INT, 3).U();
-		t = t/**/				.n(S.line, -4).Leaf();
-		t = t/**/				.n(S.nest).h(S.e2, v: L.SUB).H(S.e0).V(L.INT, 4).U();
-		t = t/**/						.N(S.line, -4).UU();
+		t = t/**/		.n(S.nest).h(S.e2, L.NOT).H(S.e0).V(L.INT, 3).U();
+		t = t/**/				.n(S.line, err: -4).Leaf();
+		t = t/**/				.n(S.nest).h(S.e2, L.SUB).H(S.e0).V(L.INT, 4).U();
+		t = t/**/						.N(S.line, err: -4).UU();
 		t = t/**/		.n(S.nest).H(S.e0).V(L.INT, 5).UUU();
-		t = t/**/.n(null, -1, 3.8, 4.1, L.EOL).H(S.e53, 1).U();
-		t = t/**/.n(null, -1, 4.9, 5.1, L.EOL).H(S.e56, 1).UU();
+		t = t/**/.n(null, L.EOL, 3.8, 4.1, -1).H(S.e53, err: 1).U();
+		t = t/**/.n(null, L.EOL, 4.9, 5.1, -1).H(S.e56, err: 1).UU();
 	}
 }
