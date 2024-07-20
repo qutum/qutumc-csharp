@@ -40,23 +40,37 @@ static class TestExtension
 		return t;
 	}
 
-	public static Ser H(this Ser t,
+	public static Ser h(this Ser t,
 		string name = null, int? from = null, int? to = null, object v = null, int err = 0)
 		=> (t.t.head, t.s).Eq(name, from, to, v, err);
-	public static Ser T(this Ser t,
+	public static Ser t(this Ser t,
 		string name = null, int? from = null, int? to = null, object v = null, int err = 0)
 		=> (t.t.tail, t.s).Eq(name, from, to, v, err);
-	public static Ser N(this Ser t,
+	public static Ser n(this Ser t,
 		string name = null, int? from = null, int? to = null, object v = null, int err = 0)
 		=> (t.t.next, t.s).Eq(name, from, to, v, err);
-	public static Ser P(this Ser t,
+	public static Ser p(this Ser t,
 		string name = null, int? from = null, int? to = null, object v = null, int err = 0)
 		=> (t.t.prev, t.s).Eq(name, from, to, v, err);
 
-	public static Ser U(this Ser t) => (t.t.up, t.s);
-	public static Ser H0(this Ser t) { AreEqual(null, t.t.head); return t; }
-	public static Ser N0(this Ser t) { AreEqual(null, t.t.next); return t.U(); }
-	public static Ser P0(this Ser t) { AreEqual(null, t.t.prev); return t.U(); }
+	public static Ser H(this Ser t,
+		string name = null, int? from = null, int? to = null, object v = null, int err = 0)
+		=> h(t, name, from, to, v, err).Leaf();
+	public static Ser T(this Ser t,
+		string name = null, int? from = null, int? to = null, object v = null, int err = 0)
+		=> TestExtension.t(t, name, from, to, v, err).Leaf();
+	public static Ser N(this Ser t,
+		string name = null, int? from = null, int? to = null, object v = null, int err = 0)
+		=> n(t, name, from, to, v, err).Leaf();
+	public static Ser P(this Ser t,
+		string name = null, int? from = null, int? to = null, object v = null, int err = 0)
+		=> p(t, name, from, to, v, err).Leaf();
+
+	public static Ser Leaf(this Ser t) { AreEqual(null, t.t.head); return t; }
+	public static Ser U(this Ser t) { AreEqual(null, t.t.next); return (t.t.up, t.s); }
+	public static Ser UU(this Ser t) => U(U(t));
+	public static Ser UUU(this Ser t) => U(U(U(t)));
+	public static Ser UUUU(this Ser t) => U(U(U(U(t))));
 }
 
 [TestClass]
@@ -112,14 +126,14 @@ public class TestSynter : IDisposable
 	public void AltPrior1()
 	{
 		var p = new SynterStr("S=.E =^ \n | E \n E=W|P \n W=a \n P=.W") { dump = 3 };
-		p.Parse(".a").H("E").H("W").N0();
+		p.Parse(".a").h("E").H("W").U();
 	}
 
 	[TestMethod]
 	public void AltPrior2()
 	{
 		var p = new SynterStr("S=.E \n | E =^ \n E=W|P \n W=a \n P=.W") { dump = 3 };
-		p.Parse(".a").H("E").H("P").N0();
+		p.Parse(".a").h("E").h("P").H("W").UUU();
 	}
 
 	[TestMethod]
@@ -179,27 +193,27 @@ public class TestSynter : IDisposable
 				| if \s S \s then \s S \s else \s S
 			X	= a|b|c|d|e|f|g|h|i|j
 			""") { dump = 3 };
-		p.Parse("if a then b").H("If").H(v: "a").N(v: "b").N0();
-		p.Parse("if a then b else c").H().H(v: "a").N(v: "b").N(v: "c").N0();
-		var t = p.Parse("if a then if b then c").H().H(v: "a");
-		t = t/**/									.N().H(v: "b").N(v: "c").N0().N0();
-		t = p.Parse("if a then if b then c else d").H().H(v: "a");
-		t = t/**/									   .N().H(v: "b").N(v: "c").N0();
-		t = t/**/									   .N(v: "d").N0();
-		t = p.Parse("if a then if b then c else d else e").H().H(v: "a");
-		t = t/**/											  .N().H(v: "b").N(v: "c").N(v: "d").N0();
-		t = t/**/											  .N(v: "e").N0();
+		p.Parse("if a then b").h("If").H(v: "a").N(v: "b").U();
+		p.Parse("if a then b else c").h().H(v: "a").N(v: "b").N(v: "c").U();
+		var t = p.Parse("if a then if b then c").h().H(v: "a");
+		t = t/**/									.n().H(v: "b").N(v: "c").UU();
+		t = p.Parse("if a then if b then c else d").h().H(v: "a");
+		t = t/**/									   .n().H(v: "b").N(v: "c").U();
+		t = t/**/									   .N(v: "d").U();
+		t = p.Parse("if a then if b then c else d else e").h().H(v: "a");
+		t = t/**/											  .n().H(v: "b").N(v: "c").N(v: "d").U();
+		t = t/**/											  .N(v: "e").U();
 		t = p.Parse("if a then if b then c else if d then e else f else g");
-		t = t/**/.H().H(v: "a");
-		t = t/**/	.N().H(v: "b").N(v: "c");
-		t = t/**/		 .N().H(v: "d").N(v: "e").N(v: "f").N0().N0();
-		t = t/**/	.N(v: "g").N0();
+		t = t/**/.h().H(v: "a");
+		t = t/**/	.n().H(v: "b").N(v: "c");
+		t = t/**/		 .n().H(v: "d").N(v: "e").N(v: "f").UU();
+		t = t/**/	.N(v: "g").U();
 		t = p.Parse("if a then if b then if c then d else e else if g then h else i else j");
-		t = t/**/.H().H(v: "a");
-		t = t/**/	.N().H(v: "b");
-		t = t/**/		.N().H(v: "c").N(v: "d").N(v: "e").N0();
-		t = t/**/		.N().H(v: "g").N(v: "h").N(v: "i").N0().N0();
-		t = t/**/	.N(v: "j").N0();
+		t = t/**/.h().H(v: "a");
+		t = t/**/	.n().H(v: "b");
+		t = t/**/		.n().H(v: "c").N(v: "d").N(v: "e").U();
+		t = t/**/		.n().H(v: "g").N(v: "h").N(v: "i").UU();
+		t = t/**/	.N(v: "j").U();
 		IsFalse(p.Check("if a else b"));
 		IsFalse(p.Check("if a then b then c"));
 		IsFalse(p.Check("if a then if b else c"));
@@ -214,27 +228,27 @@ public class TestSynter : IDisposable
 				| if \s S \s then \s S \s else \s S
 			X	= a|b|c|d|e|f|g|h|i|j
 			""") { dump = 3 };
-		p.Parse("if a then b").H("If").H(v: "a").N(v: "b").N0();
-		p.Parse("if a then b else c").H().H(v: "a").N(v: "b").N(v: "c").N0();
-		var t = p.Parse("if a then if b then c").H().H(v: "a");
-		t = t/**/									.N().H(v: "b").N(v: "c").N0().N0();
-		t = p.Parse("if a then if b then c else d").H().H(v: "a");
-		t = t/**/									   .N().H(v: "b").N(v: "c").N0();
-		t = t/**/									   .N(v: "d").N0();
-		t = p.Parse("if a then if b then c else d else e").H().H(v: "a");
-		t = t/**/											  .N().H(v: "b").N(v: "c").N(v: "d").N0();
-		t = t/**/											  .N(v: "e").N0();
+		p.Parse("if a then b").h("If").H(v: "a").N(v: "b").U();
+		p.Parse("if a then b else c").h().H(v: "a").N(v: "b").N(v: "c").U();
+		var t = p.Parse("if a then if b then c").h().H(v: "a");
+		t = t/**/									.n().H(v: "b").N(v: "c").UU();
+		t = p.Parse("if a then if b then c else d").h().H(v: "a");
+		t = t/**/									   .n().H(v: "b").N(v: "c").U();
+		t = t/**/									   .N(v: "d").U();
+		t = p.Parse("if a then if b then c else d else e").h().H(v: "a");
+		t = t/**/											  .n().H(v: "b").N(v: "c").N(v: "d").U();
+		t = t/**/											  .N(v: "e").U();
 		t = p.Parse("if a then if b then c else if d then e else f else g");
-		t = t/**/.H().H(v: "a");
-		t = t/**/	.N().H(v: "b").N(v: "c");
-		t = t/**/		 .N().H(v: "d").N(v: "e").N(v: "f").N0().N0();
-		t = t/**/	.N(v: "g").N0();
+		t = t/**/.h().H(v: "a");
+		t = t/**/	.n().H(v: "b").N(v: "c");
+		t = t/**/		 .n().H(v: "d").N(v: "e").N(v: "f").UU();
+		t = t/**/	.N(v: "g").U();
 		t = p.Parse("if a then if b then if c then d else e else if g then h else i else j");
-		t = t/**/.H().H(v: "a");
-		t = t/**/	.N().H(v: "b");
-		t = t/**/		.N().H(v: "c").N(v: "d").N(v: "e").N0();
-		t = t/**/		.N().H(v: "g").N(v: "h").N(v: "i").N0().N0();
-		t = t/**/	.N(v: "j").N0();
+		t = t/**/.h().H(v: "a");
+		t = t/**/	.n().H(v: "b");
+		t = t/**/		.n().H(v: "c").N(v: "d").N(v: "e").U();
+		t = t/**/		.n().H(v: "g").N(v: "h").N(v: "i").UU();
+		t = t/**/	.N(v: "j").U();
 		IsFalse(p.Check("if a else b"));
 		IsFalse(p.Check("if a then b then c"));
 		IsFalse(p.Check("if a then if b else c"));
@@ -283,22 +297,22 @@ public class TestSynter : IDisposable
 			Num   = Num Digi | Digi     = number
 			Digi  = 0|1|2|3|4|5|6|7|8|9 = digit
 			""") { dump = 3 };
-		p.Parse("(1+2*").H("Mul", 3, 5, "value", 2).N0();
-		p.Parse("(*1*2+3)*4").H("Value", 0, 1, "expression", 1).N0();
-		p.Parse("(1+2*3))*4").H("Mul", 0, 7, '*', 1).N("Expr", 0, 7, '+', 1).N0();
+		p.Parse("(1+2*").H("Mul", 3, 5, "value", 2).U();
+		p.Parse("(*1*2+3)*4").H("Value", 0, 1, "expression", 1).U();
+		p.Parse("(1+2*3))*4").H("Mul", 0, 7, '*', 1).N("Expr", 0, 7, '+', 1).U();
 		p.Parse("(1*2+3").H("Mul", 5, 6, '*', 1).N("Value", 0, 6, ')', 2)
-						.N("Expr", 1, 6, '+', 1).N("Num", 5, 6, "digit", 1).N0();
-		p.Parse("(1*2+)").H("Expr", 1, 5, "expression", 2).N0();
-		p.Parse("()").H("Value", 0, 1, "expression", 1).N0();
+						.N("Expr", 1, 6, '+', 1).N("Num", 5, 6, "digit", 1).U();
+		p.Parse("(1*2+)").H("Expr", 1, 5, "expression", 2).U();
+		p.Parse("()").H("Value", 0, 1, "expression", 1).U();
 	}
 
 	[TestMethod]
 	public void Greedy1()
 	{
 		var p = new SynterStr("S = A B \n A = A 1|1 \n B = 1|B 1") { dump = 3 };
-		p.Parse("111").H("A", v: "1").N("B", v: "11");
+		p.Parse("111").H("A", v: "1").n("B", v: "11").H("B", v: "1").UU();
 		p.greedy = true;
-		p.Parse("111").H("A", v: "11").N("B", v: "1");
+		p.Parse("111").h("A", v: "11").H("A", v: "1").U().N("B", v: "1").U();
 	}
 
 	[TestMethod]
@@ -307,18 +321,18 @@ public class TestSynter : IDisposable
 		var p = new SynterStr("S =A B C D \nA =1|12 \nB =234|3 \nC =5|456 \nD =67|7") {
 			dump = 3
 		};
-		p.Parse("1234567").H("A", v: "1").N("B", v: "234").N("C", v: "5").N("D", v: "67");
+		p.Parse("1234567").H("A", v: "1").N("B", v: "234").N("C", v: "5").N("D", v: "67").U();
 		p.greedy = true;
-		p.Parse("1234567").H("A", v: "12").N("B", v: "3").N("C", v: "456").N("D", v: "7");
+		p.Parse("1234567").H("A", v: "12").N("B", v: "3").N("C", v: "456").N("D", v: "7").U();
 	}
 
 	[TestMethod]
 	public void GreedyHint()
 	{
 		var p = new SynterStr("S = A B =*\n A = A 1|1 \n B = 1|B 1") { dump = 3 };
-		p.Parse("111").H("A", v: "11").N("B", v: "1");
+		p.Parse("111").h("A", v: "11").H("A", v: "1").U().N("B", v: "1").UU();
 		p.greedy = true;
-		p.Parse("111").H("A", v: "11").N("B", v: "1");
+		p.Parse("111").h("A", v: "11").H("A", v: "1").U().N("B", v: "1").UU();
 	}
 
 	[TestMethod]
@@ -326,7 +340,7 @@ public class TestSynter : IDisposable
 	{
 		var p = new SynterStr("S=a A B \n A=|a+ \n B=A") { greedy = true, dump = 3 };
 		IsTrue(p.Check("a")); IsTrue(p.Check("aa"));
-		p.Parse("aaa").H("A", v: "aa").N("B", v: "");
+		p.Parse("aaa").H("A", v: "aa").n("B", v: "").H("A", v: "").UUU();
 	}
 
 	[TestMethod]
@@ -342,10 +356,10 @@ public class TestSynter : IDisposable
 	{
 		var p = new SynterStr("S=A B?a? \n A=a|aa \n B=a") { dump = 3 };
 		IsFalse(p.Check("")); IsTrue(p.Check("a")); IsTrue(p.Check("aaaa"));
-		p.Parse("aa").H("A", v: "a").N0();
-		p.Parse("aaa").H("A", v: "a").N("B", v: "a").N0();
+		p.Parse("aa").H("A", v: "a").U();
+		p.Parse("aaa").H("A", v: "a").N("B", v: "a").U();
 		p.greedy = true;
-		p.Parse("aaa").H("A", v: "aa").N("B", v: "a").N0();
+		p.Parse("aaa").H("A", v: "aa").N("B", v: "a").U();
 	}
 
 	[TestMethod]
@@ -369,9 +383,9 @@ public class TestSynter : IDisposable
 	{
 		var p = new SynterStr("S=A B \n A=a P+ \n B=P+b \n P=pq") { dump = 3 };
 		IsFalse(p.Check("apqb")); IsTrue(p.Check("apqpqb"));
-		p.Parse("apqpqpqb").H("A", v: "apq").N("B", v: "pqpqb").N0();
+		p.Parse("apqpqpqb").h("A", v: "apq").n("B", v: "pqpqb").U();
 		p.greedy = true;
-		p.Parse("apqpqpqb").H("A", v: "apqpq").N("B", v: "pqb").N0();
+		p.Parse("apqpqpqb").h("A", v: "apqpq").n("B", v: "pqb").U();
 		AreEqual(34, p.matchn);
 	}
 
@@ -388,10 +402,10 @@ public class TestSynter : IDisposable
 	{
 		var p = new SynterStr("S=A B \n A=a P* \n B=P* b \n P=p|q") { dump = 3 };
 		IsTrue(p.Check("ab")); IsTrue(p.Check("apqb")); IsTrue(p.Check("apqpqb"));
-		p.Parse("apqpqpqb").H("A", 0, 1).N("B").H("P", 1).U().T("P", 6).U().N0();
+		p.Parse("apqpqpqb").H("A", 0, 1).n("B").H("P", 1).N().N().N().N().N("P", 6).UU();
 		AreEqual(107, p.matchn);
 		p.greedy = true;
-		p.Parse("apqpqpqb").H("A").H("P", 1).U().T("P", 6).U().N("B", v: "b").N0();
+		p.Parse("apqpqpqb").h("A").H("P", 1).N().N().N().N().N("P", 6).U().N("B", v: "b").U();
 		AreEqual(107, p.matchn);
 	}
 
@@ -401,9 +415,9 @@ public class TestSynter : IDisposable
 		var p = new SynterStr("S=A B C\n A=1 =+\n B=1 =-\n C=1") {
 			tree = true, dump = 3
 		};
-		p.Parse("111").H("A").N("C").N0();
+		p.Parse("111").H("A").N("C").U();
 		p.tree = false;
-		p.Parse("111").H("A").N0();
+		p.Parse("111").H("A").U();
 	}
 
 	[TestMethod]
@@ -414,23 +428,23 @@ public class TestSynter : IDisposable
 		};
 		var t = p.Parse("zabc");
 		t = t/**/.H("Z");
-		t = t/**/.N("U").H("A");
-		t = t/**/		.N("V").H("B");
-		t = t/**/				.N("C").N0().N0().N0();
+		t = t/**/.n("U").H("A");
+		t = t/**/		.n("V").H("B");
+		t = t/**/				.N("C").UUU();
 		t = p.Parse("zab");
 		t = t/**/.H("Z");
-		t = t/**/.N("U").H("A");
-		t = t/**/		.N("B").N0().N0();
+		t = t/**/.n("U").H("A");
+		t = t/**/		.N("B").UU();
 		t = p.Parse("zbc");
 		t = t/**/.H("Z");
-		t = t/**/.N("U").H("B");
-		t = t/**/		.N("C").N0().N0();
+		t = t/**/.n("U").H("B");
+		t = t/**/		.N("C").UU();
 		t = p.Parse("abc");
 		t = t/**/.H("A");
-		t = t/**/.N("V").H("B");
-		t = t/**/		.N("C").N0().N0();
-		p.Parse("ab").H("A").N("B").N0();
-		p.Parse("bc").H("B").N("C").N0();
+		t = t/**/.n("V").H("B");
+		t = t/**/		.N("C").UU();
+		p.Parse("ab").H("A").N("B").U();
+		p.Parse("bc").H("B").N("C").U();
 	}
 
 	[TestMethod]
@@ -441,16 +455,16 @@ public class TestSynter : IDisposable
 		};
 		var t = p.Parse("zabc");
 		t = t/**/.H("A");
-		t = t/**/.N("V").H("B");
-		t = t/**/		.N("C").N0().N0();
-		p.Parse("zab").H("A").N("B").N0();
-		p.Parse("zbc").H("B").N("C").N0();
+		t = t/**/.n("V").H("B");
+		t = t/**/		.N("C").UU();
+		p.Parse("zab").H("A").N("B").U();
+		p.Parse("zbc").H("B").N("C").U();
 		t = p.Parse("abc");
 		t = t/**/.H("A");
-		t = t/**/.N("V").H("B");
-		t = t/**/		.N("C").N0().N0();
-		p.Parse("ab").H("A").N("B").N0();
-		p.Parse("bc").H("B").N("C").N0();
+		t = t/**/.n("V").H("B");
+		t = t/**/		.N("C").UU();
+		p.Parse("ab").H("A").N("B").U();
+		p.Parse("bc").H("B").N("C").U();
 	}
 
 	[TestMethod]
@@ -459,16 +473,16 @@ public class TestSynter : IDisposable
 		var p = new SynterStr("S=A|S,A? =|\n A=M|A\\+M \n M=V|M\\*V \n V=0|1|2|3|4|5") {
 			dump = 3
 		};
-		p.Parse("0,").H("S").H("A").H("M").H("V").N0().N0().N0().N0();
-		p.Parse("+").Eq(v: '+', err: -1).H0().N0();
-		p.Parse("+0").Eq(v: '+', err: -1).H0().N0();
-		p.Parse("+,+0").Eq(v: '+', err: -1).H0().N0();
-		p.Parse("0+").H("S", 0, 1).N("S", err: -4).N0().N(to: 2, err: -1).H("A", 0, 2, "M", 2).N0();
-		p.Parse("0*").H("S", 0, 1).N("S", err: -4).N0().N(to: 2, err: -1).H("M", 0, 2, "V", 2).N0();
+		p.Parse("0,").h("S").h("A").h("M").H("V").UUUU();
+		p.Parse("+").Eq(v: '+', err: -1).Leaf().U();
+		p.Parse("+0").Eq(v: '+', err: -1).Leaf().U();
+		p.Parse("+,+0").Eq(v: '+', err: -1).Leaf().U();
+		p.Parse("0+").h("S", 0, 1).N("S", err: -4).U().n(to: 2, err: -1).H("A", 0, 2, "M", 2).UU();
+		p.Parse("0*").h("S", 0, 1).N("S", err: -4).U().n(to: 2, err: -1).H("M", 0, 2, "V", 2).UU();
 		var t = p.Parse("0#&$");
-		t = t/**/	.H("S", 0, 1).N("S", 0, 4, err: -4).N0();
-		t = t/**/.N("S", 1, 2, '#', -1);
-		t = t/**/	.H("M", 0, 1, '*', 1).N("A", 0, 1, '+', 1).N("S", 0, 1, ',', 1).N0().N0();
+		t = t/**/	.h("S", 0, 1).N("S", 0, 4, err: -4).U();
+		t = t/**/.n("S", 1, 2, '#', -1);
+		t = t/**/	.h("M", 0, 1, '*', 1).N("A", 0, 1, '+', 1).N("S", 0, 1, ',', 1).UU();
 	}
 
 	[TestMethod]
@@ -478,25 +492,25 @@ public class TestSynter : IDisposable
 			dump = 3
 		};
 		var t = p.Parse("0+,1*,2#");
-		t = t/**/	.H("S", 0, 7).H("S", 0, 4).H("S", v: "0");
-		t = t/**/								.N("S", 0, 3, err: -4).N("A", v: "1").N0();
-		t = t/**/				.N("S", 0, 6, err: -4).N("A", v: "2").N0();
-		t = t/**/	.N("S", 0, 8, err: -4).N0();
-		t = t/**/.N("S", 2, 3, ',', -1);
-		t = t/**/	.H("A", 0, 2, "M", 2).N0();
-		t = t/**/.N("S", 5, 6, ',', -1);
-		t = t/**/	.H("M", 3, 5, "V", 2).N0();
-		t = t/**/.N("S", 7, 8, '#', -1);
-		t = t/**/	.H("M", 6, 7, '*', 1).N("A", 6, 7, '+', 1).N("S", 0, 7, ',', 1).N0().N0();
+		t = t/**/	.h("S", 0, 7).h("S", 0, 4).h("S", v: "0");
+		t = t/**/								.N("S", 0, 3, err: -4).n("A", v: "1").U();
+		t = t/**/				.N("S", 0, 6, err: -4).n("A", v: "2").U();
+		t = t/**/	.N("S", 0, 8, err: -4).U();
+		t = t/**/.n("S", 2, 3, ',', -1);
+		t = t/**/	.H("A", 0, 2, "M", 2).U();
+		t = t/**/.n("S", 5, 6, ',', -1);
+		t = t/**/	.H("M", 3, 5, "V", 2).U();
+		t = t/**/.n("S", 7, 8, '#', -1);
+		t = t/**/	.H("M", 6, 7, '*', 1).N("A", 6, 7, '+', 1).N("S", 0, 7, ',', 1).UU();
 		t = p.Parse("0+1*2+");
-		t = t/**/	.H("S", 0, 5).H("A", 0, 5).N0().N("S", 0, 6, err: -4).N0();
-		t = t/**/.N("S", 6, 6, null, -1);
-		t = t/**/	.H("A", 0, 6, "M", 2).N0().N0();
+		t = t/**/	.h("S", 0, 5).h("A", 0, 5).U().N("S", 0, 6, err: -4).U();
+		t = t/**/.n("S", 6, 6, null, -1);
+		t = t/**/	.H("A", 0, 6, "M", 2).UU();
 		t = p.Parse("0+1*2+,1");
-		t = t/**/	.H("S", 0, 5).H("A", 0, 5).N0().N("S", 0, 7, err: -4);
-		t = t/**/	.N("A", 7, 8).N0();
-		t = t/**/.N("S", 6, 7, ',', -1);
-		t = t/**/	.H("A", 0, 6, "M", 2).N0().N0();
+		t = t/**/	.h("S", 0, 5).h("A", 0, 5).U().N("S", 0, 7, err: -4);
+		t = t/**/	.n("A", 7, 8).U();
+		t = t/**/.n("S", 6, 7, ',', -1);
+		t = t/**/	.H("A", 0, 6, "M", 2).UU();
 	}
 
 	[TestMethod]
@@ -506,39 +520,39 @@ public class TestSynter : IDisposable
 			dump = 3
 		};
 		var t = p.Parse("()");
-		t = t/**/	.H("A").H("M").H("V").H("V", 0, 2, err: -4).N0().N0().N0().N0();
-		t = t/**/.N("S", 1, 2, ')', -1);
-		t = t/**/	.H("V", 0, 1, "A", 1).N0().N0();
+		t = t/**/	.h("A").h("M").h("V").H("V", 0, 2, err: -4).UUUU();
+		t = t/**/.n("S", 1, 2, ')', -1);
+		t = t/**/	.H("V", 0, 1, "A", 1).UU();
 		t = p.Parse("0+(),1");
-		t = t/**/	.H("S").H("A").H("A").H("M").N0();
-		t = t/**/					.N("M").H("V").H("V", 2, 4, err: -4).N0().N0().N0().N0();
-		t = t/**/	.N("A").N0();
-		t = t/**/.N("S", 3, 4, ')', -1);
-		t = t/**/	.H("V", 2, 3, "A", 1).N0().N0();
+		t = t/**/	.h("S").h("A").h("A").h("M").U();
+		t = t/**/					.n("M").h("V").H("V", 2, 4, err: -4).UUUU();
+		t = t/**/	.n("A").U();
+		t = t/**/.n("S", 3, 4, ')', -1);
+		t = t/**/	.H("V", 2, 3, "A", 1).UU();
 		t = p.Parse("0,1+(2*),3#");
-		t = t/**/	.H("S").H("S").H("S", 0, 1);
-		t = t/**/				.N("A").H("A", v: "1");
-		t = t/**/						.N("M").H("V", 4, 8).H("A", v: "2");
-		t = t/**/											.N("V", 4, 8, err: -4).N0().N0().N0().N0();
-		t = t/**/			.N("A", v: "3").N0();
-		t = t/**/	.N("S", 0, 11, err: -4).N0();
-		t = t/**/.N("S", 7, 8, ')', -1);
-		t = t/**/	.H("M", 5, 7, "V", 2).N0();
-		t = t/**/.N("S", 10, 11, '#', -1);
-		t = t/**/	.H("M", 9, 10, '*', 1).N("A", 9, 10, '+', 1).N("S", 0, 10, ',', 1).N0().N0();
+		t = t/**/	.h("S").h("S").h("S", 0, 1);
+		t = t/**/				.n("A").h("A", v: "1");
+		t = t/**/						.n("M").h("V", 4, 8).h("A", v: "2");
+		t = t/**/											.N("V", 4, 8, err: -4).UUUU();
+		t = t/**/			.n("A", v: "3").U();
+		t = t/**/	.N("S", 0, 11, err: -4).U();
+		t = t/**/.n("S", 7, 8, ')', -1);
+		t = t/**/	.H("M", 5, 7, "V", 2).U();
+		t = t/**/.n("S", 10, 11, '#', -1);
+		t = t/**/	.H("M", 9, 10, '*', 1).N("A", 9, 10, '+', 1).N("S", 0, 10, ',', 1).UU();
 		t = p.Parse("0,1+(2*)4,3+");
-		t = t/**/	.H("S").H("S").H("S", 0, 1);
-		t = t/**/				.N("A").H("A", v: "1");
-		t = t/**/						.N("M").H("V", 4, 8).H("A", v: "2");
-		t = t/**/											.N("V", 4, 8, err: -4).N0().N0().N0().N0();
-		t = t/**/			.N("S", 0, 10, err: -4).N("A", v: "3").N0();
-		t = t/**/	.N("S", 0, 12, err: -4).N0();
-		t = t/**/.N("S", 7, 8, ')', -1);
-		t = t/**/	.H("M", 5, 7, "V", 2).N0();
-		t = t/**/.N("S", 8, 9, '4', -1);
-		t = t/**/	.H("M", 4, 8, '*', 1).N("A", 2, 8, '+', 1).N("S", 0, 8, ',', 1).N0();
-		t = t/**/.N("S", 12, 12, null, -1);
-		t = t/**/	.H("A", 10, 12, "M", 2).N0().N0();
+		t = t/**/	.h("S").h("S").h("S", 0, 1);
+		t = t/**/				.n("A").h("A", v: "1");
+		t = t/**/						.n("M").h("V", 4, 8).h("A", v: "2");
+		t = t/**/											.N("V", 4, 8, err: -4).UUUU();
+		t = t/**/			.N("S", 0, 10, err: -4).n("A", v: "3").U();
+		t = t/**/	.N("S", 0, 12, err: -4).U();
+		t = t/**/.n("S", 7, 8, ')', -1);
+		t = t/**/	.H("M", 5, 7, "V", 2).U();
+		t = t/**/.n("S", 8, 9, '4', -1);
+		t = t/**/	.H("M", 4, 8, '*', 1).N("A", 2, 8, '+', 1).N("S", 0, 8, ',', 1).U();
+		t = t/**/.n("S", 12, 12, null, -1);
+		t = t/**/	.H("A", 10, 12, "M", 2).UU();
 	}
 
 	[TestMethod]
@@ -548,24 +562,24 @@ public class TestSynter : IDisposable
 			dump = 3
 		};
 		var t = p.Parse("{()");
-		t = t/**/	.H("S").H("S").H("V");
-		t = t/**/					.H("V", 1, 3, err: -4).N0().N0();
-		t = t/**/			.N("S", 0, 3, err: -4).N0().N0();
-		t = t/**/.N("P", 2, 3, ')', -1);
-		t = t/**/	.H("V", 1, 2, "N", 1).N0();
-		t = t/**/.N("P", 3, 3, null, -1);
-		t = t/**/	.H("S", 0, 3, '}', 2).N("S", 0, 3, "S", 1).N0().N0();
+		t = t/**/	.h("S").h("S").h("V");
+		t = t/**/					.H("V", 1, 3, err: -4).UU();
+		t = t/**/			.N("S", 0, 3, err: -4).UU();
+		t = t/**/.n("P", 2, 3, ')', -1);
+		t = t/**/	.H("V", 1, 2, "N", 1).U();
+		t = t/**/.n("P", 3, 3, null, -1);
+		t = t/**/	.H("S", 0, 3, '}', 2).N("S", 0, 3, "S", 1).UU();
 		p.recover = 1;
-		p.Parse("{{").Eq("P", 2, 2, null, -1).H("S", 1, 2, "S", 1).N0().N0();
+		p.Parse("{{").Eq("P", 2, 2, null, -1).H("S", 1, 2, "S", 1).UU();
 		p.recover = 2;
 		t = p.Parse("{(");
-		t = t/**/	.H("S").H("S").H("V");
-		t = t/**/					.H("V", 1, 2, err: -4).N0().N0();
-		t = t/**/			.N("S", 0, 2, err: -4).N0().N0();
-		t = t/**/.N("P", 2, 2, null, -1);
-		t = t/**/	.H("V", 1, 2, "N", 1).N0();
-		t = t/**/.N("P", 2, 2, null, -1);
-		t = t/**/	.H("V", 1, 2, "N", 1).N("S", 0, 2, '}', 2).N("S", 0, 2, "S", 1).N0().N0();
+		t = t/**/	.h("S").h("S").h("V");
+		t = t/**/					.H("V", 1, 2, err: -4).UU();
+		t = t/**/			.N("S", 0, 2, err: -4).UU();
+		t = t/**/.n("P", 2, 2, null, -1);
+		t = t/**/	.H("V", 1, 2, "N", 1).U();
+		t = t/**/.n("P", 2, 2, null, -1);
+		t = t/**/	.H("V", 1, 2, "N", 1).N("S", 0, 2, '}', 2).N("S", 0, 2, "S", 1).UU();
 	}
 
 	[TestMethod]
@@ -575,9 +589,8 @@ public class TestSynter : IDisposable
 			dump = 3
 		};
 		var t = p.Parse("{{0}}}}{1}");
-		t = t/**/	.H("S", 0, 5, "{{0}}").H("S", 1, 4, "{0}").N0();
-		t = t/**/	.N("S", 5, 6, err: -4).N("S", 6, 7, err: -4);
-		t = t/**/	.N("S", 7, 10, "{1}").N0();
-		t = t/**/.N("P", 5, 6, '}', -1).N("P", 6, 7, '}', -1).N0();
+		t = t/**/	.h("S", 0, 5, "{{0}}").h("S", 1, 4, "{0}").U();
+		t = t/**/	.N("S", 5, 6, err: -4).N("S", 6, 7, err: -4).n("S", 7, 10, "{1}").U();
+		t = t/**/.n("P", 5, 6, '}', -1).n("P", 6, 7, '}', -1).U();
 	}
 }
