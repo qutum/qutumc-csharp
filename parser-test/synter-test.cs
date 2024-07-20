@@ -185,42 +185,7 @@ public class TestSynter : IDisposable
 	}
 
 	[TestMethod]
-	public void MidRecu1()
-	{
-		var p = new SynterStr("""
-			S	= If|X =-
-			If	= if \s S \s then \s S
-				| if \s S \s then \s S \s else \s S
-			X	= a|b|c|d|e|f|g|h|i|j
-			""") { dump = 3 };
-		p.Parse("if a then b").h("If").H(v: "a").N(v: "b").U();
-		p.Parse("if a then b else c").h().H(v: "a").N(v: "b").N(v: "c").U();
-		var t = p.Parse("if a then if b then c").h().H(v: "a");
-		t = t/**/									.n().H(v: "b").N(v: "c").UU();
-		t = p.Parse("if a then if b then c else d").h().H(v: "a");
-		t = t/**/									   .n().H(v: "b").N(v: "c").U();
-		t = t/**/									   .N(v: "d").U();
-		t = p.Parse("if a then if b then c else d else e").h().H(v: "a");
-		t = t/**/											  .n().H(v: "b").N(v: "c").N(v: "d").U();
-		t = t/**/											  .N(v: "e").U();
-		t = p.Parse("if a then if b then c else if d then e else f else g");
-		t = t/**/.h().H(v: "a");
-		t = t/**/	.n().H(v: "b").N(v: "c");
-		t = t/**/		 .n().H(v: "d").N(v: "e").N(v: "f").UU();
-		t = t/**/	.N(v: "g").U();
-		t = p.Parse("if a then if b then if c then d else e else if g then h else i else j");
-		t = t/**/.h().H(v: "a");
-		t = t/**/	.n().H(v: "b");
-		t = t/**/		.n().H(v: "c").N(v: "d").N(v: "e").U();
-		t = t/**/		.n().H(v: "g").N(v: "h").N(v: "i").UU();
-		t = t/**/	.N(v: "j").U();
-		IsFalse(p.Check("if a else b"));
-		IsFalse(p.Check("if a then b then c"));
-		IsFalse(p.Check("if a then if b else c"));
-	}
-
-	[TestMethod]
-	public void MidRecu2()
+	public void MidRecu()
 	{
 		var p = new SynterStr("""
 			S	= If|X =-

@@ -15,7 +15,7 @@ public enum Syn
 {
 	all = 1, allii, alli, Block,
 	block, nestr, nests, nest, line,
-	e0, f2p,
+	e0, F2,
 	e1, e2, e3, e43, e46, e53, e56, e6, e7, e8, exp,
 	f1, f2, f3, f43, f46, f53, f56, f6, f7, f8, feed,
 }
@@ -63,7 +63,7 @@ public class Synter : Synter<Lex, Syn, Synt, Lexier>
 	f2    = e0 f1*										=		Expression
 	      | PRE f2										=+_!	Prefix operator
 	      | BINPRE f2									=+_!	Binary as prefix operator
-	f2p   = e0 f1*										=		Expression
+	F2    = e0 f1*										=		Expression
 	      | PRE f2										=+_!	Prefix operator
 	f43   = BIN43 f2									=+_!	Bitwise operator
 	f46   = BIN46 f2 f43*								=+_!	Bitwise operator
@@ -71,7 +71,7 @@ public class Synter : Synter<Lex, Syn, Synt, Lexier>
 	f56   = BIN56 f2 f43* f46* f53*						=+_!	Arithmetic operator
 	f6    = BIN6  f2 f43* f46* f53* f56*				=+_!	Comparison operator
 	f7    = BIN7  f2 f43* f46* f53* f56* f6*			=+_!	Logical operator
-	feed  =          f2p f43* f46* f53* f56* f6* f7*	=+		serial feed
+	feed  =           F2 f43* f46* f53* f56* f6* f7*	=+		serial feed
 	      | NAME BIND f2 f43* f46* f53* f56* f6* f7*	=+_!|	name feed
 	""";
 
