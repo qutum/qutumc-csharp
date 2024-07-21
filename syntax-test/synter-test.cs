@@ -360,7 +360,12 @@ public class TestSynter : IDisposable
 		t = t/**/		.n(F).H(S.e0).V(L.INT, 1).n(S.f53, L.MUL).H(S.e0).V(L.INT, 2).uu();
 		t = t/**/		.n(F).H(S.e0).V(L.INT, 3).u();
 		t = t/**/		.n(F).H(S.e0).V(L.INT, 4).n(S.f6, L.EQ).H(S.e0).V(L.INT, 5).uuuuuU();
-		t = Parse(@"0 == a 1 * 2 3 4 .v / 5 c .");
+	}
+
+	[TestMethod]
+	public void FeedRun()
+	{
+		var t = Parse(@"0 == a 1 * 2 3 4 .v / 5 c .");
 		t = t/**/	.h(B).H(S.e0).V(L.INT, "0").n(S.e6, L.EQ);
 		t = t/**/		.H(S.e0).V(L.NAME, "a");
 		t = t/**/		.n(F).H(S.e0).V(L.INT, 1).n(S.f53, L.MUL).H(S.e0).V(L.INT, 2).uu();
