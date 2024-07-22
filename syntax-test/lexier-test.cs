@@ -191,16 +191,16 @@ public class TestLexier : IDisposable
 	[TestMethod]
 	public void Name2()
 	{
-		Check("a..", "NAME=a RNAME1= RNAME1=");
-		Check("1.).", "INT=1 RNAME1= RP= RNAME1=");
-		Check("A1.b_..c-__.__", "NAME=A1 RNAME1=b_ RNAME1= RNAME1=c SUB= NAME=__ RNAME1=__");
+		Check("a..", "NAME=a RUNP= RUNP=");
+		Check("1.).", "INT=1 RUNP= RP= RUNP=");
+		Check("A1.b_..c-__.__", "NAME=A1 RUNP=b_ RUNP= RUNP=c SUB= NAME=__ RUNP=__");
 	}
 
 	[TestMethod]
 	public void Name3()
 	{
-		Check("a ..).b", "NAME=a RNAME= RNAME1= RP= RNAME1=b");
-		Check("A1 .b_..c .d", "NAME=A1 RNAME=b_ RNAME1= RNAME1=c RNAME=d");
+		Check("a ..).b", "NAME=a RUN= RUNP= RP= RUNP=b");
+		Check("A1 .b_..c .d", "NAME=A1 RUN=b_ RUNP= RUNP=c RUN=d");
 	}
 
 	[TestMethod]
@@ -224,10 +224,10 @@ public class TestLexier : IDisposable
 	[TestMethod]
 	public void Path2()
 	{
-		Check(".``", "RNAME=,");
-		Check(".`a\n", "NAME!eol unexpected RNAME=a, EOL=");
-		Check(".`a`.b.`c`", "RNAME=a, RNAME1=b RNAME1=c,");
-		Check("a .`b.b`.`c` .`d`.``", "NAME=a RNAME=b,b, RNAME1=c, RNAME=d, RNAME1=,");
+		Check(".``", "RUN=,");
+		Check(".`a\n", "NAME!eol unexpected RUN=a, EOL=");
+		Check(".`a`.b.`c`", "RUN=a, RUNP=b RUNP=c,");
+		Check("a .`b.b`.`c` .`d`.``", "NAME=a RUN=b,b, RUNP=c, RUN=d, RUNP=,");
 	}
 
 	[TestMethod]
@@ -303,7 +303,7 @@ public class TestLexier : IDisposable
 	[TestMethod]
 	public void Symbol1()
 	{
-		Check("',@#$^:;?~", "0!' 0!, 0!@ 0!# 0!$ 0!^ 0!: 0!; 0!? 0!~");
+		Check("#$':;?@^~", "0!# 0!$ 0!' 0!: 0!; 0!? 0!@ 0!^ 0!~");
 	}
 
 	[TestMethod]
