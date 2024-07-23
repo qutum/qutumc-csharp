@@ -8,10 +8,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace qutum.parser;
+namespace qutum.parser.meta;
 
 using Set = CharSet;
-
 
 file class ElGram<K, N>
 {

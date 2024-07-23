@@ -7,6 +7,7 @@
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using qutum.parser;
+using qutum.parser.meta;
 using System;
 using System.Linq;
 using System.Text;

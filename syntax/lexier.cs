@@ -11,8 +11,8 @@ using System.Text;
 
 namespace qutum.syntax;
 
-using Set = CharSet;
 using L = Lex;
+using Set = CharSet;
 
 public enum Lex
 {
@@ -36,7 +36,7 @@ public enum Lex
 	STR = LITERAL | 1, STRB, NAME, HEX, INT, FLOAT,
 
 	LP = 1, LSB, LCB, BIND, PATH, NUM,
-	RP = RIGHT | 1, RSB, RCB, FED, RUN,
+	RP = RIGHT | 1, RSB, RCB, RUN,
 	RUNP = POST | RIGHT | 1, // run as postfix
 
 
@@ -58,7 +58,7 @@ public class Lexier : Lexier<L>
 		DOL   = $
 		AMP   = & == and
 		APO   = ' == string?
-		COM   = , == fed
+		COM   = ,
 		DOT   = . == run
 		COL   = :
 		SCOL  = ;
@@ -72,7 +72,7 @@ public class Lexier : Lexier<L>
 		TIL   = ~
 	*/
 	static readonly LexGram<L> Grammar = new LexGram<L>()
-		.k(L.BIND).p["="].k(L.FED).p[","]
+		.k(L.BIND).p["="]
 
 		.k(L.LP).p["("].k(L.RP).p[")"]
 		.k(L.LSB).p["["].k(L.RSB).p["]"]

@@ -69,6 +69,8 @@ public class Synter : Synter<Lex, Syn, Synt, Lexier>
 	feed  =           F2 f43* f46* f53* f56* f6* f7*	=+!		Serial feed
 	      | NAME BIND f2 f43* f46* f53* f56* f6* f7*	=+_!	Name feed
 	""";
+	// exp = e6 (BIN7 e6)*
+	// e6 = e56 (BIN6 e56)*
 
 	public Synter(Lexier l) : base(grammar, l)
 	{

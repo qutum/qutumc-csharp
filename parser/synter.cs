@@ -5,6 +5,7 @@
 // http://qutum.com  http://qutum.cn
 //
 
+using qutum.parser.meta;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
