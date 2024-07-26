@@ -7,6 +7,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using qutum.parser.earley;
 
 namespace qutum.parser.meta;
 
@@ -120,7 +121,7 @@ public static class MetaLex
 	//       \ loop
 	//       \ byte: single/range.../esc (dup) ...
 	// \ prod ...
-	static readonly SynterStr meta = new("""
+	static readonly EarleyStr meta = new("""
 		gram  = eol* prod prods* eol*
 		prods = eol+ prod
 		prod  = key S*\=S* part1 part* =+
@@ -188,7 +189,7 @@ public static class MetaLex
 		return g;
 	}
 
-	static void Byte<K>(string gram, K k, int part, int alt, SyntStr b, object[] es, ref int en)
+	static void Byte<K>(string gram, K k, int part, int alt, EsynStr b, object[] es, ref int en)
 	{
 		var x = b.from;
 		if (gram[x] == '\\') { // escape bytes
@@ -227,7 +228,7 @@ public static class MetaLex
 			es[en++] = Range.All;
 	}
 
-	static void Dump<K>(SyntStr top, LexGram<K> gram)
+	static void Dump<K>(EsynStr top, LexGram<K> gram)
 	{
 		top.Dump();
 		using var env = EnvWriter.Use();

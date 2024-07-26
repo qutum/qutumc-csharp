@@ -12,17 +12,16 @@ using qutum.parser.earley;
 using System;
 using static Microsoft.VisualStudio.TestTools.UnitTesting.Assert;
 
-namespace qutum.test.parser;
+namespace qutum.test.parser.earley;
 
-using SynterStr = EarleyStr;
 using Ser = (EsynStr t, EarleyStr s);
 
 static class TestExtension
 {
-	public static bool Check(this SynterStr s, string input)
+	public static bool Check(this EarleyStr s, string input)
 		=> s.Begin(new LerStr(input)).Check();
 
-	public static Ser Parse(this SynterStr s, string input)
+	public static Ser Parse(this EarleyStr s, string input)
 	{
 		var t = s.Begin(new LerStr(input)).Parse().Dump();
 		using var env = EnvWriter.Begin();
@@ -81,7 +80,7 @@ static class TestExtension
 }
 
 [TestClass]
-public class TestSynter : IDisposable
+public class TestEarley : IDisposable
 {
 	readonly EnvWriter env = EnvWriter.Begin();
 
@@ -90,7 +89,7 @@ public class TestSynter : IDisposable
 	[TestMethod]
 	public void Term1()
 	{
-		var s = new SynterStr("S=k");
+		var s = new EarleyStr("S=k");
 		IsTrue(s.Check("k"));
 		IsFalse(s.Check("")); IsFalse(s.Check("kk")); IsFalse(s.Check("K"));
 	}
@@ -98,21 +97,21 @@ public class TestSynter : IDisposable
 	[TestMethod]
 	public void Term2()
 	{
-		var s = new SynterStr("S=");
+		var s = new EarleyStr("S=");
 		IsTrue(s.Check("")); IsFalse(s.Check("a"));
 	}
 
 	[TestMethod]
 	public void Alt1()
 	{
-		var s = new SynterStr("S=|a");
+		var s = new EarleyStr("S=|a");
 		IsTrue(s.Check("")); IsTrue(s.Check("a")); IsFalse(s.Check("b"));
 	}
 
 	[TestMethod]
 	public void Alt2()
 	{
-		var s = new SynterStr("S=A\nA=a|1|#");
+		var s = new EarleyStr("S=A\nA=a|1|#");
 		IsTrue(s.Check("a")); IsTrue(s.Check("1")); IsTrue(s.Check("#"));
 		IsFalse(s.Check("")); IsFalse(s.Check("a1")); IsFalse(s.Check("A"));
 	}
@@ -120,7 +119,7 @@ public class TestSynter : IDisposable
 	[TestMethod]
 	public void Con()
 	{
-		var s = new SynterStr("S = A B|B A \nA = a|1 \nB = b|2");
+		var s = new EarleyStr("S = A B|B A \nA = a|1 \nB = b|2");
 		IsFalse(s.Check("a")); IsFalse(s.Check("1")); IsFalse(s.Check("b")); IsFalse(s.Check("2"));
 		IsTrue(s.Check("ab")); IsTrue(s.Check("ba"));
 		IsTrue(s.Check("1b")); IsTrue(s.Check("b1"));
@@ -132,21 +131,21 @@ public class TestSynter : IDisposable
 	[TestMethod]
 	public void AltPrior1()
 	{
-		var s = new SynterStr("S=.E =^ \n | E \n E=W|P \n W=a \n P=.W") { dump = 3 };
+		var s = new EarleyStr("S=.E =^ \n | E \n E=W|P \n W=a \n P=.W") { dump = 3 };
 		s.Parse(".a").h("E").H("W").uuU();
 	}
 
 	[TestMethod]
 	public void AltPrior2()
 	{
-		var s = new SynterStr("S=.E \n | E =^ \n E=W|P \n W=a \n P=.W") { dump = 3 };
+		var s = new EarleyStr("S=.E \n | E =^ \n E=W|P \n W=a \n P=.W") { dump = 3 };
 		s.Parse(".a").h("E").h("P").H("W").uuuU();
 	}
 
 	[TestMethod]
 	public void Esc()
 	{
-		var s = new SynterStr(@"S = \ss\tt\r\n\\/ | \|or\=eq\*s\+p\?q");
+		var s = new EarleyStr(@"S = \ss\tt\r\n\\/ | \|or\=eq\*s\+p\?q");
 		IsTrue(s.Check(" s\tt\r\n\\/")); IsFalse(s.Check(" s\tt\r \n\\/"));
 		IsTrue(s.Check("|or=eq*s+p?q"));
 	}
@@ -154,7 +153,7 @@ public class TestSynter : IDisposable
 	[TestMethod]
 	public void ErrHint()
 	{
-		var s = new SynterStr("S=A B =start \n A=1|2 =A12 ==oh||no\n |3 =A3 \n B= =\tempty \n |4 =B4") {
+		var s = new EarleyStr("S=A B =start \n A=1|2 =A12 ==oh||no\n |3 =A3 \n B= =\tempty \n |4 =B4") {
 			dump = 3
 		};
 		IsNull(s.Parse("").t.head);
@@ -165,7 +164,7 @@ public class TestSynter : IDisposable
 	[TestMethod]
 	public void LeftRecu()
 	{
-		var s = new SynterStr("S = S b|A \nA = a");
+		var s = new EarleyStr("S = S b|A \nA = a");
 		IsTrue(s.Check("a")); IsTrue(s.Check("ab")); IsTrue(s.Check("abb")); IsTrue(s.Check("abbb"));
 		IsFalse(s.Check("")); IsFalse(s.Check("b")); IsFalse(s.Check("aab")); IsFalse(s.Check("abbba"));
 	}
@@ -173,7 +172,7 @@ public class TestSynter : IDisposable
 	[TestMethod]
 	public void RightRecu()
 	{
-		var s = new SynterStr("S = a S|B \nB = b");
+		var s = new EarleyStr("S = a S|B \nB = b");
 		IsTrue(s.Check("b")); IsTrue(s.Check("ab")); IsTrue(s.Check("aab")); IsTrue(s.Check("aaaab"));
 		IsFalse(s.Check("")); IsFalse(s.Check("a")); IsFalse(s.Check("abb")); IsFalse(s.Check("abbba"));
 	}
@@ -181,20 +180,20 @@ public class TestSynter : IDisposable
 	[TestMethod]
 	public void RightRecuUnopt()
 	{
-		var s = new SynterStr("S= aa B \nB= A a \nA= a A|a") { dump = 3 };
+		var s = new EarleyStr("S= aa B \nB= A a \nA= a A|a") { dump = 3 };
 		IsFalse(s.Check("aa")); IsFalse(s.Check("aaa"));
 		IsTrue(s.Check("aaaa")); IsTrue(s.Check("aaaaa")); IsTrue(s.Check("aaaaaa"));
 		IsTrue(s.Check("aaaaaaa")); AreEqual(49, s.matchn);
-		s = new SynterStr("S= aa B \nB= A a \nA= A a|a") { dump = 3 };
+		s = new EarleyStr("S= aa B \nB= A a \nA= A a|a") { dump = 3 };
 		IsTrue(s.Check("aaaaaaa")); AreEqual(29, s.matchn);
-		s = new SynterStr("S= aa B \nB= A a \nA= a+") { dump = 3 };
+		s = new EarleyStr("S= aa B \nB= A a \nA= a+") { dump = 3 };
 		IsTrue(s.Check("aaaaaaa")); AreEqual(28, s.matchn);
 	}
 
 	[TestMethod]
 	public void MidRecu()
 	{
-		var s = new SynterStr("""
+		var s = new EarleyStr("""
 			S	= If|X =-
 			If	= if \s S \s then \s S
 				| if \s S \s then \s S \s else \s S
@@ -229,7 +228,7 @@ public class TestSynter : IDisposable
 	[TestMethod]
 	public void DoubleRecu()
 	{
-		var s = new SynterStr("S=S S|a");
+		var s = new EarleyStr("S=S S|a");
 		IsFalse(s.Check(""));
 		IsTrue(s.Check("a")); IsTrue(s.Check("aa")); IsTrue(s.Check("aaa")); IsTrue(s.Check("aaaa"));
 	}
@@ -237,7 +236,7 @@ public class TestSynter : IDisposable
 	[TestMethod]
 	public void AddMul()
 	{
-		var s = new SynterStr("""
+		var s = new EarleyStr("""
 			Expr  = Expr\+Mul | Mul
 			Mul   = Mul\*Value | Value
 			Value = (Expr) | Num
@@ -262,7 +261,7 @@ public class TestSynter : IDisposable
 	[TestMethod]
 	public void AddMulErr()
 	{
-		var s = new SynterStr("""
+		var s = new EarleyStr("""
 			Expr  = Expr\+Mul | Mul     = expression
 			Mul   = Mul\*Value | Value  = expression
 			Value = (Expr) | Num        = value
@@ -281,7 +280,7 @@ public class TestSynter : IDisposable
 	[TestMethod]
 	public void Greedy1()
 	{
-		var s = new SynterStr("S = A B \n A = A 1|1 \n B = 1|B 1") { dump = 3 };
+		var s = new EarleyStr("S = A B \n A = A 1|1 \n B = 1|B 1") { dump = 3 };
 		s.Parse("111").H("A", v: "1").n("B", v: "11").H("B", v: "1").uuU();
 		s.greedy = true;
 		s.Parse("111").h("A", v: "11").H("A", v: "1").u().N("B", v: "1").uU();
@@ -290,7 +289,7 @@ public class TestSynter : IDisposable
 	[TestMethod]
 	public void Greedy2()
 	{
-		var s = new SynterStr("S =A B C D \nA =1|12 \nB =234|3 \nC =5|456 \nD =67|7") {
+		var s = new EarleyStr("S =A B C D \nA =1|12 \nB =234|3 \nC =5|456 \nD =67|7") {
 			dump = 3
 		};
 		s.Parse("1234567").H("A", v: "1").N("B", v: "234").N("C", v: "5").N("D", v: "67").uU();
@@ -301,7 +300,7 @@ public class TestSynter : IDisposable
 	[TestMethod]
 	public void GreedyHint()
 	{
-		var s = new SynterStr("S = A B =*\n A = A 1|1 \n B = 1|B 1") { dump = 3 };
+		var s = new EarleyStr("S = A B =*\n A = A 1|1 \n B = 1|B 1") { dump = 3 };
 		s.Parse("111").h("A", v: "11").H("A", v: "1").u().N("B", v: "1").uU();
 		s.greedy = true;
 		s.Parse("111").h("A", v: "11").H("A", v: "1").u().N("B", v: "1").uU();
@@ -310,7 +309,7 @@ public class TestSynter : IDisposable
 	[TestMethod]
 	public void Empty1()
 	{
-		var s = new SynterStr("S=a A B \n A=|a+ \n B=A") { greedy = true, dump = 3 };
+		var s = new EarleyStr("S=a A B \n A=|a+ \n B=A") { greedy = true, dump = 3 };
 		IsTrue(s.Check("a")); IsTrue(s.Check("aa"));
 		s.Parse("aaa").H("A", v: "aa").n("B", v: "").H("A", v: "").uuU();
 	}
@@ -318,7 +317,7 @@ public class TestSynter : IDisposable
 	[TestMethod]
 	public void Empty2()
 	{
-		var s = new SynterStr("S=A B \n A=a P \n B=P b \n P=|pq") { dump = 3 };
+		var s = new EarleyStr("S=A B \n A=a P \n B=P b \n P=|pq") { dump = 3 };
 		IsTrue(s.Check("ab")); IsTrue(s.Check("apqb"));
 		IsTrue(s.Check("apqpqb")); IsFalse(s.Check("apqpqpqb"));
 	}
@@ -326,7 +325,7 @@ public class TestSynter : IDisposable
 	[TestMethod]
 	public void Option1()
 	{
-		var s = new SynterStr("S=A B?a? \n A=a|aa \n B=a") { dump = 3 };
+		var s = new EarleyStr("S=A B?a? \n A=a|aa \n B=a") { dump = 3 };
 		IsFalse(s.Check("")); IsTrue(s.Check("a")); IsTrue(s.Check("aaaa"));
 		s.Parse("aa").H("A", v: "a").uU();
 		s.Parse("aaa").H("A", v: "a").N("B", v: "a").uU();
@@ -337,7 +336,7 @@ public class TestSynter : IDisposable
 	[TestMethod]
 	public void Option2()
 	{
-		var s = new SynterStr("S=A?B? \n A=B a \n B=b");
+		var s = new EarleyStr("S=A?B? \n A=B a \n B=b");
 		IsTrue(s.Check("")); IsTrue(s.Check("ba")); IsTrue(s.Check("b"));
 		IsTrue(s.Check("bab")); IsFalse(s.Check("ab"));
 	}
@@ -345,7 +344,7 @@ public class TestSynter : IDisposable
 	[TestMethod]
 	public void More1()
 	{
-		var s = new SynterStr("S=a+") { dump = 3 };
+		var s = new EarleyStr("S=a+") { dump = 3 };
 		IsFalse(s.Check("")); IsTrue(s.Check("a")); IsTrue(s.Check("aaaaaa"));
 		IsTrue(s.Check("aaaaaaa")); AreEqual(15, s.matchn);
 	}
@@ -353,7 +352,7 @@ public class TestSynter : IDisposable
 	[TestMethod]
 	public void More2()
 	{
-		var s = new SynterStr("S=A B \n A=a P+ \n B=P+b \n P=pq") { dump = 3 };
+		var s = new EarleyStr("S=A B \n A=a P+ \n B=P+b \n P=pq") { dump = 3 };
 		IsFalse(s.Check("apqb")); IsTrue(s.Check("apqpqb"));
 		s.Parse("apqpqpqb").h("A", v: "apq").n("B", v: "pqpqb").uU();
 		s.greedy = true;
@@ -364,7 +363,7 @@ public class TestSynter : IDisposable
 	[TestMethod]
 	public void Any1()
 	{
-		var s = new SynterStr("S=a*") { dump = 3 };
+		var s = new EarleyStr("S=a*") { dump = 3 };
 		IsTrue(s.Check("")); IsTrue(s.Check("a")); IsTrue(s.Check("aaaaaa"));
 		IsTrue(s.Check("aaaaaaa")); AreEqual(16, s.matchn);
 	}
@@ -372,7 +371,7 @@ public class TestSynter : IDisposable
 	[TestMethod]
 	public void Any2()
 	{
-		var s = new SynterStr("S=A B \n A=a P* \n B=P* b \n P=p|q") { dump = 3 };
+		var s = new EarleyStr("S=A B \n A=a P* \n B=P* b \n P=p|q") { dump = 3 };
 		IsTrue(s.Check("ab")); IsTrue(s.Check("apqb")); IsTrue(s.Check("apqpqb"));
 		s.Parse("apqpqpqb").H("A", 0, 1).n("B").H("P", 1).N().N().N().N().N("P", 6).uuU();
 		AreEqual(107, s.matchn);
@@ -384,7 +383,7 @@ public class TestSynter : IDisposable
 	[TestMethod]
 	public void HintSynt1()
 	{
-		var s = new SynterStr("S=A B C\n A=1 =+\n B=1 =-\n C=1") {
+		var s = new EarleyStr("S=A B C\n A=1 =+\n B=1 =-\n C=1") {
 			tree = true, dump = 3
 		};
 		s.Parse("111").H("A").N("C").uU();
@@ -395,7 +394,7 @@ public class TestSynter : IDisposable
 	[TestMethod]
 	public void HintSynt2()
 	{
-		var s = new SynterStr("S=Z*U* \n U=A*V* =+-\n V=B*C* =+-\n Z=z \n A=a \n B=b \n C=c") {
+		var s = new EarleyStr("S=Z*U* \n U=A*V* =+-\n V=B*C* =+-\n Z=z \n A=a \n B=b \n C=c") {
 			tree = true, dump = 3
 		};
 		var t = s.Parse("zabc");
@@ -422,7 +421,7 @@ public class TestSynter : IDisposable
 	[TestMethod]
 	public void HintSynt3()
 	{
-		var s = new SynterStr("S=Z*U* \n U=A*V* =+-\n V=B*C* =+-\n Z=z =-\n A=a \n B=b \n C=c") {
+		var s = new EarleyStr("S=Z*U* \n U=A*V* =+-\n V=B*C* =+-\n Z=z =-\n A=a \n B=b \n C=c") {
 			tree = true, dump = 3
 		};
 		var t = s.Parse("zabc");
@@ -442,7 +441,7 @@ public class TestSynter : IDisposable
 	[TestMethod]
 	public void Recovery1()
 	{
-		var s = new SynterStr("S=A|S,A? =|\n A=M|A\\+M \n M=V|M\\*V \n V=0|1|2|3|4|5") {
+		var s = new EarleyStr("S=A|S,A? =|\n A=M|A\\+M \n M=V|M\\*V \n V=0|1|2|3|4|5") {
 			dump = 3
 		};
 		s.Parse("0,").h("S").h("A").h("M").H("V").uuuuU();
@@ -460,7 +459,7 @@ public class TestSynter : IDisposable
 	[TestMethod]
 	public void Recovery2()
 	{
-		var s = new SynterStr("S=A|S,A? =|\n A=M|A\\+M \n M=V|M\\*V \n V=0|1|2|3|4|5") {
+		var s = new EarleyStr("S=A|S,A? =|\n A=M|A\\+M \n M=V|M\\*V \n V=0|1|2|3|4|5") {
 			dump = 3
 		};
 		var t = s.Parse("0+,1*,2#");
@@ -488,7 +487,7 @@ public class TestSynter : IDisposable
 	[TestMethod]
 	public void Recovery3()
 	{
-		var s = new SynterStr("S=A|S,A? =*|\n A=M|A\\+M \n M=V|M\\*V \n V=(A)|N =|\n N=0|1|2|3|4|5") {
+		var s = new EarleyStr("S=A|S,A? =*|\n A=M|A\\+M \n M=V|M\\*V \n V=(A)|N =|\n N=0|1|2|3|4|5") {
 			dump = 3
 		};
 		var t = s.Parse("()");
@@ -530,7 +529,7 @@ public class TestSynter : IDisposable
 	[TestMethod]
 	public void Recovery4()
 	{
-		var s = new SynterStr("P=S+ \n S=V|{S+} =*|\n V=(N)|N =|\n N=0|1|2|3|4|5") {
+		var s = new EarleyStr("P=S+ \n S=V|{S+} =*|\n V=(N)|N =|\n N=0|1|2|3|4|5") {
 			dump = 3
 		};
 		var t = s.Parse("{()");
@@ -557,7 +556,7 @@ public class TestSynter : IDisposable
 	[TestMethod]
 	public void Recovery5()
 	{
-		var s = new SynterStr("P=S+ \n S=V|{S+} =*|\n|\\0?\\0} =-| \n V=0|1|2|3|4|5") {
+		var s = new EarleyStr("P=S+ \n S=V|{S+} =*|\n|\\0?\\0} =-| \n V=0|1|2|3|4|5") {
 			dump = 3
 		};
 		var t = s.Parse("{{0}}}}{1}");
