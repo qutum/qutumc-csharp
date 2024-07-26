@@ -85,7 +85,7 @@ public class Lexier<K> : Lexier<K, Lexi<K>> where K : struct
 	protected override Lexi<K> Error(K key, int f, int to, object value)
 		=> Lexi(new() { key = key, from = f, to = to, value = value, err = ~lexn }, true);
 
-	public override bool Is(int loc, K key) => Is(Lex(loc).key, key);
+	public override bool Is(int loc, K aim) => Is(Lex(loc).key, aim);
 
 	// to is excluded, ~from ~to for errs, first line and col are 1, col is byte number inside line
 	public (int fromL, int fromC, int toL, int toC) LineCol(int from, int to)
@@ -259,9 +259,9 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 	public L Lex() => lexs[loc];
 	public L Lex(int loc) => loc < lexn ? lexs[loc] : throw new IndexOutOfRangeException();
 
-	public bool Is(K key) => Is(loc, key);
-	public abstract bool Is(int loc, K key);
-	public virtual bool Is(K testee, K key) => Eq.Equals(testee, key);
+	public bool Is(K aim) => Is(loc, aim);
+	public abstract bool Is(int loc, K aim);
+	public virtual bool Is(K key, K aim) => Eq.Equals(key, aim);
 
 	[System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2211")]
 	protected static EqualityComparer<K> Eq = EqualityComparer<K>.Default;

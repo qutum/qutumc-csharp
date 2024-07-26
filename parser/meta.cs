@@ -56,25 +56,25 @@ file class ElGram<K, N>
 
 sealed class MetaStr(string input) : LerStr(input)
 {
-	public override bool Is(char key) => Is(input[loc], key);
+	public override bool Is(char aim) => Is(input[loc], aim);
 
-	public override bool Is(int loc, char key) => Is(input[loc], key);
+	public override bool Is(int loc, char aim) => Is(input[loc], aim);
 
 	// for meta grammar
-	public override bool Is(char t, char key) =>
-		key switch {
-			'S' => t is ' ' or '\t',    // space
-			'X' => t < 127 && Set.X[t], // hexadecimal
-			'W' => t < 127 && Set.W[t], // word
-			'O' => t < 127 && Set.O[t], // operator
-			'G' => t < 127 && Set.G[t], // grammar operator
-			'E' => t > ' ' && t < 127,  // escape
-			'I' => t < 127 && Set.I[t], // single range
-			'R' => t < 127 && Set.I[t] && t != '-' && t != '^', // range
-			'Q' => t is '?' or '*' or '+',                      // quantifier
-			'H' => t >= ' ' && t < 127 && t != '=' && t != '|', // hint
-			'V' => t is >= ' ' or '\t',                         // comment
-			_ => t == key,
+	public override bool Is(char k, char aim) =>
+		aim switch {
+			'S' => k is ' ' or '\t',    // space
+			'X' => k < 127 && Set.X[k], // hexadecimal
+			'W' => k < 127 && Set.W[k], // word
+			'O' => k < 127 && Set.O[k], // operator
+			'G' => k < 127 && Set.G[k], // grammar operator
+			'E' => k > ' ' && k < 127,  // escape
+			'I' => k < 127 && Set.I[k], // single range
+			'R' => k < 127 && Set.I[k] && k != '-' && k != '^', // range
+			'Q' => k is '?' or '*' or '+',                      // quantifier
+			'H' => k >= ' ' && k < 127 && k != '=' && k != '|', // hint
+			'V' => k is >= ' ' or '\t',                         // comment
+			_ => k == aim,
 		};
 
 	// for general grammar

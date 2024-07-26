@@ -14,42 +14,53 @@ namespace qutum.syntax;
 using L = Lex;
 using Set = CharSet;
 
+// lexemes
 public enum Lex
 {
-	BLANK /* */= 0x____10, // blanks
-	LITERAL/**/= 0x____20, // literals
-	RIGHT /* */= 0x____40, // right lexeme
-	PRE /*   */= 0x___200, // prefix operators
-	BINPRE /**/= 0x___400, // binary as prefix
-	POST /*  */= 0x___800, // postfix operators
-	BIN /*   */= 0x0ff000, // binary operators
-	BIN3 /*  */= 0x__1000,
-	BIN43 /* */= 0x__2000, // bitwise binary operators
-	BIN46 /* */= 0x__4000, // bitwise binary operators
-	BIN53 /* */= 0x__8000, // arithmetic binary operators
-	BIN56 /* */= 0x_10000, // arithmetic binary operators
-	BIN6 /*  */= 0x_20000, // comparison binary operators
-	BIN7 /*  */= 0x_40000, // logical binary operators
-	BIN8 /*  */= 0x_80000,
+	// kinds
+	LITERAL = 1,
+	POST,  // postfix operators
+	PRE,   // prefix operators
+	BIN3,
+	BIN43, // bitwise binary operators
+	BIN46, // bitwise binary operators
+	BIN53, // arithmetic binary operators
+	BIN56, // arithmetic binary operators
+	BIN6,  // comparison binary operators
+	BIN7,  // logical binary operators
+	BIN8,
+	// singles
+	BIND                          /**/, LP, LSB, LCB,
+	RUN = (Right | LCB & 255) + 1 /**/, RP, RSB, RCB,
+	EOL = (Blank | RCB & 255) + 1, IND, DED, INDR, DEDR,
+	SP, COMM, COMMB, PATH, NUM,
 
-	EOL = BLANK | 1, IND = BLANK | 2, DED, SP, INDR = BLANK | 6, DEDR, COMM, COMMB,
-	STR = LITERAL | 1, STRB, NAME, HEX, INT, FLOAT,
-
-	LP = 1, LSB, LCB, BIND, PATH, NUM,
-	RP = RIGHT | 1, RSB, RCB, RUN,
-	RUNP = POST | RIGHT | 1, // run as postfix
-
-
+	// inside kinds
+	// literal
+	STR = LITERAL << 8 | Other | 1, STRB, NAME, HEX, INT, FLOAT,
+	// postfix
+	RUNP = POST << 8 | Right | 1,
 	// bitwise
-	SHL = BIN43 | 1, SHR, ANDB = BIN46 | 1, ORB, XORB, NOTB = PRE | 1,
+	SHL = BIN43 << 8 | Bin | 1, SHR,
+	ANDB = BIN46 << 8 | Bin | 1, ORB, XORB, NOTB = PRE << 8 | Other | 1,
 	// arithmetic
-	ADD = BIN56 | BINPRE | 1, SUB, MUL = BIN53 | 1, DIV, MOD, DIVF, MODF,
+	MUL = BIN53 << 8 | Bin | 1, DIV, MOD, DIVF, MODF,
+	ADD = BIN56 << 8 | Bin | 1, SUB,
 	// comparison
-	EQ = BIN6 | 1, UEQ, LEQ, GEQ, LT, GT,
+	EQ = BIN6 << 8 | Bin | 1, UEQ, LEQ, GEQ, LT, GT,
 	// logical
-	AND = BIN7 | 1, OR, XOR, NOT = PRE | 2
+	AND = BIN7 << 8 | Bin | 1, OR, XOR, NOT = PRE << 8 | Other | 2,
+	// some arithmetic binarys as prefix
+	BINPRE = BIN56,
+
+	// groups
+	Other  /**/= 0x800_0000, // other group 1<<24
+	Right  /**/= 0x801_0000, // right-side group
+	Bin    /**/= 0x802_0000, // binary group
+	Blank  /**/= 0x880_0000, // blank group
 }
 
+// lexic parser
 public class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 {
 	/*	EXC   = ! == not
@@ -129,12 +140,13 @@ public class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 				.p[""]["fF".Mem()]
 	;
 
-	public override bool Is(L testee, L key)
-	{
-		if (testee == key) return true;
-		// key as kind contains testee
-		return ((int)key & 15) == 0 && (key & testee) != 0;
-	}
+	// key oridinal that is single or kind value, useful for syntax parser
+	public static int Ordin(L key) => (byte)((int)key >> ((int)key >> 24));
+
+	public static bool IsGroup(L key, L aim) => (int)(key & aim) << 8 != 0;
+	public static bool IsKind(L key, L aim) => (byte)((int)key >> ((int)key >> 24)) == (byte)aim;
+	public override bool Is(L key, L aim) =>
+		(byte)aim == 0 ? IsGroup(key, aim) : aim <= L.BIN8 ? IsKind(key, aim) : key == aim;
 
 	void Lexer<L, Lexi<L>>.Distinct(IEnumerable<L> keys)
 	{
@@ -181,19 +193,21 @@ public class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 		return n;
 	}
 
+	public const int IndLoc = 2, IndrLoc = 6;
+
 	void Indent()
 	{
 		if (ind < 0)
 			return;
 		int i = 1, c = ind;
 		if (indn > 0) {
-			i = Array.BinarySearch<int>(inds, 0, indn + 1, ind + L.IND - L.BLANK); // min indent as offset
+			i = Array.BinarySearch<int>(inds, 0, indn + 1, ind + IndLoc); // min indent as offset
 			i ^= i >> 31;
 			c = ind - inds[i - 1];
 			if (i <= indn) { // drop these indents
 				for (var x = indn; x >= i; indn = --x)
-					if (x > i || c < L.INDR - L.BLANK)
-						base.Lexi(inds[x] - inds[x - 1] < L.INDR - L.BLANK ? L.DED : L.DEDR,
+					if (x > i || c < IndrLoc)
+						base.Lexi(inds[x] - inds[x - 1] < IndrLoc ? L.DED : L.DEDR,
 							indf, indf, inds[x]);
 					else { // still INDR
 						Error(L.INDR, indf, indt, "indent same as upper lines expected");
@@ -201,8 +215,8 @@ public class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 					}
 			}
 		}
-		if (c >= L.IND - L.BLANK) {
-			base.Lexi(c < L.INDR - L.BLANK ? L.IND : L.INDR, indf, indt, ind);
+		if (c >= IndLoc) {
+			base.Lexi(c < IndrLoc ? L.IND : L.INDR, indf, indt, ind);
 			indn = i;
 			if (indn >= inds.Length) Array.Resize(ref inds, inds.Length << 1);
 			inds[i] = ind;
@@ -221,13 +235,13 @@ public class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 	protected override Lexi<L> Lexi(L key, int f, int to, object value)
 	{
 		Indent();
-		Lexi<L> prev;
-		if (lexn > 0 && (prev = lexs[lexn - 1]).to == f)
-			if (key == L.RUN && (prev.key & (L.RIGHT | L.LITERAL)) != 0)
+		Lexi<L> p;
+		if (lexn > 0 && (p = lexs[lexn - 1]).to == f)
+			if (key == L.RUN && (IsKind(p.key, L.LITERAL) || IsGroup(p.key, L.Right)))
 				key = L.RUNP; // run follows previous lexi densely, high precedence
-			else if ((key & L.LITERAL) != 0 && (prev.key & L.LITERAL) != 0)
+			else if (IsKind(key, L.LITERAL) && IsKind(p.key, L.LITERAL))
 				Error(key, f, to, "literal can not densely follow literal");
-			else if ((key & L.PRE) != 0 && (prev.key & (L.BLANK | L.PRE | L.BIN)) == 0)
+			else if (IsKind(key, L.PRE) && !(IsKind(p.key, L.PRE) || IsGroup(p.key, L.Blank | L.Bin)))
 				Error(key, f, to, "prefix operator can densely follow blank and prefix and binary only");
 		return base.Lexi(key, f, to, value);
 	}

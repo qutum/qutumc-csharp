@@ -32,10 +32,10 @@ public class Synter : Synter<Lex, Syn, Synt, Lexier>
 	Block = block					=+
 
 	block = line nestr? nests?
-	line  = SP? exp EOL				=!||BLANK
+	line  = SP? exp EOL				=!||Blank
 	nestr = INDR nest+ DEDR			=+		right nested blocks
 	nests = IND nest+ DED			=!|IND	nested blocks
-	nest  =	BIN block				=+_!	nested binary block
+	nest  =	Bin block				=+_!	nested binary block
 	      | block					=+		nested block
 
 	e0    = LITERAL					=+_		literal

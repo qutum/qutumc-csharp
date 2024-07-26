@@ -20,9 +20,9 @@ public interface Lexer<K, L> : IDisposable
 	L Lex() => Lex(Loc());
 	L Lex(int loc);
 
-	bool Is(K key);
-	bool Is(int loc, K key);
-	bool Is(K testee, K key);
+	bool Is(K aim);
+	bool Is(int loc, K aim);
+	bool Is(K key, K aim);
 
 	// lexs from loc to loc excluded
 	Span<L> Lexs(int from, int to, Span<L> s);
@@ -53,9 +53,9 @@ public class LerStr(string input) : Lexer<char, char>
 	public int Loc() => loc;
 	public char Lex(int loc) => input[loc];
 
-	public virtual bool Is(char key) => input[loc] == key;
-	public virtual bool Is(int loc, char key) => input[loc] == key;
-	public virtual bool Is(char testee, char key) => testee == key;
+	public virtual bool Is(char aim) => input[loc] == aim;
+	public virtual bool Is(int loc, char aim) => input[loc] == aim;
+	public virtual bool Is(char key, char aim) => key == aim;
 
 	public Span<char> Lexs(int from, int to, Span<char> s)
 	{
@@ -78,9 +78,9 @@ public class LerByte(byte[] input) : LexerSeg<byte, byte>
 	public int Loc() => loc;
 	public byte Lex(int loc) => input[loc];
 
-	public virtual bool Is(byte key) => input[loc] == key;
-	public virtual bool Is(int loc, byte key) => input[loc] == key;
-	public virtual bool Is(byte testee, byte key) => testee == key;
+	public virtual bool Is(byte aim) => input[loc] == aim;
+	public virtual bool Is(int loc, byte aim) => input[loc] == aim;
+	public virtual bool Is(byte key, byte aim) => key == aim;
 
 	public Span<byte> Lexs(int from, int to, Span<byte> s)
 	{
@@ -103,9 +103,9 @@ public class LerByteSeg(ArraySegment<byte> input) : LexerSeg<byte, byte>
 	public int Loc() => loc;
 	public byte Lex(int loc) => input[loc];
 
-	public virtual bool Is(byte key) => input[loc] == key;
-	public virtual bool Is(int loc, byte key) => input[loc] == key;
-	public virtual bool Is(byte testee, byte key) => testee == key;
+	public virtual bool Is(byte aim) => input[loc] == aim;
+	public virtual bool Is(int loc, byte aim) => input[loc] == aim;
+	public virtual bool Is(byte key, byte aim) => key == aim;
 
 	public Span<byte> Lexs(int from, int to, Span<byte> s)
 	{
@@ -128,9 +128,9 @@ public class LerByteList(List<byte> input) : Lexer<byte, byte>
 	public int Loc() => loc;
 	public byte Lex(int loc) => input[loc];
 
-	public virtual bool Is(byte key) => input[loc] == key;
-	public virtual bool Is(int loc, byte key) => input[loc] == key;
-	public virtual bool Is(byte testee, byte key) => testee == key;
+	public virtual bool Is(byte aim) => input[loc] == aim;
+	public virtual bool Is(int loc, byte aim) => input[loc] == aim;
+	public virtual bool Is(byte key, byte aim) => key == aim;
 
 	public Span<byte> Lexs(int from, int to, Span<byte> s)
 	{
