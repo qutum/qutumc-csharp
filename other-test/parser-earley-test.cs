@@ -12,7 +12,7 @@ using qutum.parser.earley;
 using System;
 using static Microsoft.VisualStudio.TestTools.UnitTesting.Assert;
 
-namespace qutum.test.parser.earley;
+namespace qutum.test.other.parser;
 
 using Ser = (EsynStr t, EarleyStr s);
 
@@ -80,7 +80,7 @@ static class TestExtension
 }
 
 [TestClass]
-public class TestEarley : IDisposable
+public class TestParserEarley : IDisposable
 {
 	readonly EnvWriter env = EnvWriter.Begin();
 

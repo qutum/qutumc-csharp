@@ -14,7 +14,7 @@ using System;
 using System.Text;
 using static Microsoft.VisualStudio.TestTools.UnitTesting.Assert;
 
-namespace qutum.test.syntax.earley;
+namespace qutum.test.other.syntax;
 
 using L = Lex;
 using S = Syn;
@@ -90,7 +90,7 @@ static class TestExtension
 }
 
 [TestClass]
-public class TestEarley : IDisposable
+public class TestSyntaxEarley : IDisposable
 {
 	readonly EnvWriter env = EnvWriter.Begin();
 
