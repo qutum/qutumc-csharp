@@ -98,11 +98,11 @@ public class Earley<K, L, N, T, Ler> where T : Esyn<N, T>, new() where Ler : Lex
 	readonly Prod begin;
 	readonly List<Alt> reca = [];
 	Match[] matchs = new Match[16384];
-	internal int matchn, completen;
-	internal int lexn; // lexi count
+	public int matchn, completen;
+	public int lexn; // lexi count
 	readonly List<int> lexm = []; // [matchn before lexi]
 	readonly int[] recm; // [latest match index of recovery Alt]
-	internal Ler ler;
+	public Ler ler;
 	public bool greedy = false; // greedy: true, may or may not: false
 								// eg. S=AB A=1|12 B=23|2  gready: (12)3  back greedy: 1(23)
 	public int recover = 10; // no recovery: 0, how many times to recover at eof: > 0

@@ -1,6 +1,6 @@
 <Project>
 	<PropertyGroup>
-		<BaseIntermediateOutputPath>..\obj\qutumc</BaseIntermediateOutputPath>
+		<BaseIntermediateOutputPath>..\bin\obj-qutumc</BaseIntermediateOutputPath>
 		<BaseOutputPath>..\bin</BaseOutputPath>
 	</PropertyGroup>
 	<Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
@@ -13,9 +13,8 @@
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(Configuration)'=='Debug'">
-		<DebugSymbols>true</DebugSymbols>
 		<DebugType>embedded</DebugType>
-		<OutputPath>..\bin\</OutputPath>
+		<DebugSymbols>true</DebugSymbols>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(Configuration)'=='Release'">
@@ -23,8 +22,9 @@
 		<OutputPath>..\bin\</OutputPath>
 	</PropertyGroup>
 
-	<Import Project="..\parser\parser.projitems" Label="Shared" />
-	<Import Project="..\syntax\syntax.projitems" Label="Shared" />
+	<ItemGroup>
+		<ProjectReference Include="..\syntax\syntax.csproj" />
+	</ItemGroup>
 
 	<Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
 </Project>

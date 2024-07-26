@@ -1,6 +1,6 @@
 <Project>
 	<PropertyGroup>
-		<BaseIntermediateOutputPath>..\obj\other-test</BaseIntermediateOutputPath>
+		<BaseIntermediateOutputPath>..\bin\obj-other-test</BaseIntermediateOutputPath>
 		<BaseOutputPath>..\bin</BaseOutputPath>
 	</PropertyGroup>
 	<Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
@@ -16,7 +16,6 @@
 	<PropertyGroup Condition="'$(Configuration)'=='Debug'">
 		<DebugType>embedded</DebugType>
 		<DebugSymbols>true</DebugSymbols>
-		<OutputPath>..\bin\</OutputPath>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(Configuration)'=='Release'">
@@ -27,13 +26,14 @@
 
 	<ItemGroup>
 		<!--RuntimeHostConfigurationOption Include="System.Globalization.Invariant" Value="true" /-->
-		<PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.5.0" ExcludeAssets="All" />
-		<PackageReference Include="MSTest.TestAdapter" Version="2.1.0" ExcludeAssets="All" />
+		<PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.5.0" />
+		<PackageReference Include="MSTest.TestAdapter" Version="2.1.0" />
 		<PackageReference Include="MSTest.TestFramework" Version="2.1.0" />
 	</ItemGroup>
 
-	<Import Project="..\parser\parser.projitems" Label="Shared" />
-	<Import Project="..\syntax\syntax.projitems" Label="Shared" />
+	<ItemGroup>
+		<ProjectReference Include="..\syntax\syntax.csproj" />
+	</ItemGroup>
 
 	<Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
 </Project>

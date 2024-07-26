@@ -127,13 +127,13 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 
 	readonly Unit begin;
 	int id;
-	internal Lexer<byte, byte> input;
+	protected Lexer<byte, byte> input;
 	int bn; // total bytes got
 	int bf, bt; // from input loc to loc excluded for each part
 	readonly List<int> lines = []; // [0, input loc after eol...]
 	readonly byte[] bytes = new byte[LexGram<K>.AltByteN + 1]; // [latest byte], @ input loc & AltByteN
 	protected int lexn, loc; // lexi count and loc
-	internal L[] lexs;
+	protected L[] lexs;
 	protected int from; // input loc for current lexi
 	public List<L> errs = []; // [error lexi]: not null, merge to lexs: null
 

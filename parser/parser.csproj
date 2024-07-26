@@ -1,13 +1,13 @@
 <Project>
 	<PropertyGroup>
-		<BaseIntermediateOutputPath>..\obj\syntax-test</BaseIntermediateOutputPath>
+		<BaseIntermediateOutputPath>..\bin\obj-parser</BaseIntermediateOutputPath>
 		<BaseOutputPath>..\bin</BaseOutputPath>
 	</PropertyGroup>
 	<Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
 
 	<PropertyGroup>
 		<TargetFramework>net8.0</TargetFramework>
-		<RootNamespace>qutum.test.syntax</RootNamespace>
+		<RootNamespace>qutum.parser</RootNamespace>
 		<SatelliteResourceLanguages>en</SatelliteResourceLanguages>
 		<ProduceReferenceAssembly>false</ProduceReferenceAssembly>
 		<IsPackable>false</IsPackable>
@@ -16,7 +16,6 @@
 	<PropertyGroup Condition="'$(Configuration)'=='Debug'">
 		<DebugType>embedded</DebugType>
 		<DebugSymbols>true</DebugSymbols>
-		<OutputPath>..\bin\</OutputPath>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(Configuration)'=='Release'">
@@ -24,16 +23,6 @@
 		<DebugSymbols>true</DebugSymbols>
 		<OutputPath>..\bin\</OutputPath>
 	</PropertyGroup>
-
-	<ItemGroup>
-		<!--RuntimeHostConfigurationOption Include="System.Globalization.Invariant" Value="true" /-->
-		<PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.5.0" ExcludeAssets="All" />
-		<PackageReference Include="MSTest.TestAdapter" Version="2.1.0" ExcludeAssets="All" />
-		<PackageReference Include="MSTest.TestFramework" Version="2.1.0" />
-	</ItemGroup>
-
-	<Import Project="..\parser\parser.projitems" Label="Shared" />
-	<Import Project="..\syntax\syntax.projitems" Label="Shared" />
 
 	<Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
 </Project>

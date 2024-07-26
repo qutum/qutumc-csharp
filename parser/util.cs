@@ -198,7 +198,7 @@ public class LinkTree<T> : IEnumerable<T> where T : LinkTree<T>
 	public IEnumerable<T> Backward() => new Backwarder { tail = tail };
 }
 
-internal class EnvWriter : StringWriter, IDisposable
+public class EnvWriter : StringWriter, IDisposable
 {
 	static readonly EnvWriter env = new();
 
