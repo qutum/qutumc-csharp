@@ -54,8 +54,6 @@ file class ElGram<K, N>
 	public ElGram<K, N> hint(string w) { prods[^1][^1].hint = w != "" ? w : null; return this; }
 }
 
-
-
 sealed class MetaStr(string input) : LerStr(input)
 {
 	public override bool Is(char key) => Is(input[loc], key);

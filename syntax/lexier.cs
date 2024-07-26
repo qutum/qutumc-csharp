@@ -50,7 +50,7 @@ public enum Lex
 	AND = BIN7 | 1, OR, XOR, NOT = PRE | 2
 }
 
-public class Lexier : Lexier<L>
+public class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 {
 	/*	EXC   = ! == not
 		QUO   = " == string
@@ -81,9 +81,9 @@ public class Lexier : Lexier<L>
 		.k(L.SHL).p["<<"].k(L.SHR).p[">>"]
 		.k(L.ANDB).p["&&"].k(L.ORB).p["||"].k(L.XORB).p["++"].k(L.NOTB).p["--"]
 
-		.k(L.ADD).p["+"].k(L.SUB).p["-"]
 		.k(L.MUL).p["*"].k(L.DIV).p["/"].k(L.MOD).p["%"]
 		.k(L.DIVF).p["//"].k(L.MODF).p["%%"]
+		.k(L.ADD).p["+"].k(L.SUB).p["-"]
 
 		.k(L.EQ).p["=="].k(L.UEQ).p["/="]
 		.k(L.LEQ).p["<="].k(L.GEQ).p[">="].k(L.LT).p["<"].k(L.GT).p[">"]
@@ -101,13 +101,13 @@ public class Lexier : Lexier<L>
 
 		.k(L.STRB).p["\\", .., "\""] // \\+"  +"\\+|+"|+[\A^"]+
 					.p["\"", "\\", ..].loop["\""].loop[Set.All.Exc("\""), ..].loop
-		.k(L.STR).p["\""] // "  *"|\n|\r\n|+[\l^""\\]+|+\\[0tnr"".`\\]|+\\x\x\x|+\\u\x\x\x\x
+		.k(L.STR).p["\""] // "  *"|\n|\r\n|+[\L^"\\]+|+\\[0tnr".`\\]|+\\x\x\x|+\\u\x\x\x\x
 				.redo["\"\n".Mem()]["\r\n"]
 					[Set.Line.Exc("\"\\"), ..].loop
 					["\\", "0tnr\".`\\".Mem()].loop
 					["\\x", Set.Hex, Set.Hex].loop["\\u", Set.Hex, Set.Hex, Set.Hex, Set.Hex].loop
 
-		.k(L.PATH).p["`"][".`"] // .?`  *`|\n|\r\n|+.|+[\l^.`\\]+|+\\[0tnr"".`\\]|+\\x\x\x|+\\u\x\x\x\x
+		.k(L.PATH).p["`"][".`"] // .?`  *`|\n|\r\n|+.|+[\L^.`\\]+|+\\[0tnr".`\\]|+\\x\x\x|+\\u\x\x\x\x
 				.redo["`\n".Mem()]["\r\n"]["."].loop
 					[Set.Line.Exc(".`\\"), ..].loop
 					["\\", "0tnr\".`\\".Mem()].loop
@@ -134,6 +134,20 @@ public class Lexier : Lexier<L>
 		if (testee == key) return true;
 		// key as kind contains testee
 		return ((int)key & 15) == 0 && (key & testee) != 0;
+	}
+
+	void Lexer<L, Lexi<L>>.Distinct(IEnumerable<L> keys)
+	{
+		L kind = 0;
+		StringBuilder err = new();
+		foreach (var k in keys)
+			if (((int)k & 15) == 0 && (kind ^ k) != (kind |= k))
+				err.Append(k + " ");
+		foreach (var k in keys)
+			if (((int)k & 15) != 0 && (kind & k) != 0)
+				err.Append(k + " ");
+		if (err.Length > 0)
+			throw new(err.ToString());
 	}
 
 	public Lexier() : base(Grammar) { }
@@ -382,8 +396,8 @@ public class Lexier : Lexier<L>
 			case (byte)'r': bs[bn++] = (byte)'\r'; break;
 			case (byte)'x': bs[bn++] = (byte)(Hex(bn + 1) << 4 | Hex(bn + 2)); break;
 			case (byte)'u':
-				Span<char> u = stackalloc char[] {
-					(char)(Hex(bn + 2) << 12 | Hex(bn + 3) << 8 | Hex(bn + 4) << 4 | Hex(bn + 5)) };
+				Span<char> u = [
+					(char)(Hex(bn + 2) << 12 | Hex(bn + 3) << 8 | Hex(bn + 4) << 4 | Hex(bn + 5)) ];
 				bn += Encoding.UTF8.GetBytes(u, bs.AsSpan(bn)); break;
 			default: bs[bn++] = bs[bn]; break;
 			}
