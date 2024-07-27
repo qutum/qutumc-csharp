@@ -285,7 +285,7 @@ public class TestLexier : IDisposable
 	}
 
 	[TestMethod]
-	public void Part1()
+	public void Wad1()
 	{
 		var l = new Ler("A=aa b cde \n B=ab \n C=bc");
 		Check(l, "aabcdee", "A=aabcde _!e"); Check(l, "abbc", "B=ab C=bc");
@@ -294,7 +294,7 @@ public class TestLexier : IDisposable
 	}
 
 	[TestMethod]
-	public void Part2()
+	public void Wad2()
 	{
 		var l = new Ler("A=a bcd|bce f \n B=abcf \n BB=bca \n C=c");
 		Check(l, "abcdf", "A=abcdf"); Check(l, "abcef", "A=abcef");
@@ -303,7 +303,7 @@ public class TestLexier : IDisposable
 	}
 
 	[TestMethod]
-	public void Part3()
+	public void Wad3()
 	{
 		var l = new Ler("A=a b+|c d");
 		Check(l, "abd", "A=abd"); Check(l, "abbd", "A=abbd");
@@ -312,7 +312,7 @@ public class TestLexier : IDisposable
 	}
 
 	[TestMethod]
-	public void Part4()
+	public void Wad4()
 	{
 		var l = new Ler("A=a b+e|c d");
 		Check(l, "abed", "A=abed"); Check(l, "abbed", "A=abbed");
@@ -433,7 +433,7 @@ public class TestLexier : IDisposable
 	[TestMethod]
 	public void Redo6()
 	{
-		Throw(() => new Ler(new LexGram<Lex>().k(Lex.A).redo["a"].p["b"]), "Redo");
+		Throw(() => new Ler(new LexGram<Lex>().k(Lex.A).redo["a"].w["b"]), "Redo");
 		Throw(() => new Ler("A=*a b c"), "");
 		Throw(() => new Ler("A=a *|b c"), "");
 	}

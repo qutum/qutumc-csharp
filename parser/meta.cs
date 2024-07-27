@@ -67,11 +67,11 @@ public static class MetaLex
 	// gram
 	// \ prod
 	//   \ key
-	//   \ part1
+	//   \ wad1
 	//     \ byte: single/range.../esc (dup) ...
 	//     \ alt1 ...
 	//       \ byte: single/range.../esc (dup) ...
-	//   \ part ...
+	//   \ wad ...
 	//     \ redo
 	//     \ loop
 	//     \ byte: single/range.../esc (dup) ...
@@ -82,11 +82,11 @@ public static class MetaLex
 	static readonly EarleyStr meta = new("""
 		gram  = eol* prod prods* eol*
 		prods = eol+ prod
-		prod  = key S*\=S* part1 part* =+
+		prod  = key S*\=S* wad1 wad* =+
 		key   = W+ =+
-		part1 = byte+ alt1* =+
+		wad1 = byte+ alt1* =+
 		alt1  = \| S* byte+ =+
-		part  = S+ redo? loop? byte+ alt* =+
+		wad  = S+ redo? loop? byte+ alt* =+
 		alt   = \| S* loop? byte+ =+
 		redo  = \* | \| S* =+
 		loop  = \+ =+
@@ -118,25 +118,25 @@ public static class MetaLex
 		foreach (var prod in top) {
 			var k = Keys(meta.ler.Lexs(prod.head.from, prod.head.to)).Single();
 			g.k(k);
-			// build part
-			foreach (var (p, part) in prod.Skip(1).Each(1)) {
-				if (p.head.name != "redo") // no backward cross parts
-					_ = g.p;
-				else if (gram[p.head.from] == '|') // empty alt
-					_ = g.p[""];
-				else // shift byte and redo part like the begin
+			// build wad
+			foreach (var (w, wad) in prod.Skip(1).Each(1)) {
+				if (w.head.name != "redo") // no backward cross wads
+					_ = g.w;
+				else if (gram[w.head.from] == '|') // empty alt
+					_ = g.w[""];
+				else // shift byte and redo wad like the begin
 					_ = g.redo;
 				// build alt
-				foreach (var (a, alt) in p.Where(t => t.name.StartsWith("alt")).Prepend(p).Each(1)) {
+				foreach (var (a, alt) in w.Where(t => t.name.StartsWith("alt")).Prepend(w).Each(1)) {
 					// build elems
 					var bytes = a.Where(t => t.name == "byte");
 					var bn = bytes.Count();
 					if (bn > LexGram<K>.AltByteN)
-						throw new($"{k}.{part}.{alt} exceeds {LexGram<K>.AltByteN} bytes :"
+						throw new($"{k}.{wad}.{alt} exceeds {LexGram<K>.AltByteN} bytes :"
 							+ meta.ler.Lexs(a.from, a.to));
 					var en = 0;
 					foreach (var (b, bx) in bytes.Each())
-						Byte(gram, k, part, alt, b, es, ref en);
+						Byte(gram, k, wad, alt, b, es, ref en);
 					_ = g[es[0..en]];
 					if (a.head.name == "loop" || a.head.next?.name == "loop")
 						_ = g.loop;
@@ -147,7 +147,7 @@ public static class MetaLex
 		return g;
 	}
 
-	static void Byte<K>(string gram, K k, int part, int alt, EsynStr b, object[] es, ref int en)
+	static void Byte<K>(string gram, K k, int wad, int alt, EsynStr b, object[] es, ref int en)
 	{
 		var x = b.from;
 		if (gram[x] == '\\') { // escape bytes
@@ -175,7 +175,7 @@ public static class MetaLex
 			for (char y = '\0'; y <= 128; y++)
 				if (rs[y]) s[n++] = y;
 			if (n == 0)
-				throw new($"No byte in {k}.{part} :{meta.ler.Lexs(b.from, b.to)}");
+				throw new($"No byte in {k}.{wad} :{meta.ler.Lexs(b.from, b.to)}");
 			es[en++] = (ReadOnlyMemory<char>)s.AsMemory(0, n);
 			++x; // range ]
 		}
@@ -193,9 +193,9 @@ public static class MetaLex
 		env.WriteLine("gram");
 		foreach (var prod in gram.prods) {
 			env.Write($".k({prod.key})");
-			foreach (var part in prod) {
-				env.Write(part.redo ? "\n  .redo" : "\n  .p");
-				foreach (var alt in part) {
+			foreach (var wad in prod) {
+				env.Write(wad.redo ? "\n  .redo" : "\n  .w");
+				foreach (var alt in wad) {
 					env.Write("[");
 					foreach (var elem in alt) {
 						if (elem.inc.Length > 0) env.Write($"[{elem.inc}]");

@@ -30,15 +30,15 @@ public struct Lexi<K> where K : struct
 public class LexGram<K>
 {
 	public readonly List<Prod> prods = [];
-	public class Prod : List<Part> { public K key; }
-	public class Part : List<Alt>
+	public class Prod : List<Wad> { public K key; }
+	public class Wad : List<Alt>
 	{
-		// skip mismatched input and redo this part
+		// skip mismatched input and redo this wad
 		public bool redo;
 	}
 	public class Alt : List<Con>
 	{
-		// match to loop part
+		// match to loop wad
 		public bool loop;
 	}
 	public class Con
@@ -53,7 +53,7 @@ public class LexGram<K>
 	public const int AltByteN = 15;
 
 	public LexGram<K> k(K key) { prods.Add(new() { key = key }); return this; }
-	public LexGram<K> p { get { prods[^1].Add([]); return this; } }
+	public LexGram<K> w { get { prods[^1].Add([]); return this; } }
 	public LexGram<K> redo { get { prods[^1].Add(new() { redo = true }); return this; } }
 	// content: string : byte sequence, ReadOnlyMemory<char> : inclusive range, .. : duplicate
 	public LexGram<K> this[params object[] cons] {
@@ -109,18 +109,18 @@ public class Lexier<K> : Lexier<K, Lexi<K>> where K : struct
 
 public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : struct // L : Lexi<K> fail
 {
-	// each unit is just before next byte or after the last byte of part
+	// each unit is just before next byte or after the last byte of wad
 	internal sealed class Unit
 	{
 		internal int id;
 		internal K key;
-		internal int part; // first is 1
+		internal int wad; // first is 1
 		internal int pren; // for next[byte] are this unit, count bytes
 		internal Unit[] next; // [next unit of byte], byte >= 128: [128]
 		internal Unit go; // when next==null or next[byte]==null or backward
 						  // go.next != null, go to begin: input end or error
 		internal int mode; // match: -1, mismatch to error: -3, mismatch to backward bytes: >=0
-						   // no backward cross parts nor duplicate bytes
+						   // no backward cross wads nor duplicate bytes
 
 		internal Unit(Lexier<K, L> l) => id = ++l.id;
 	}
@@ -129,7 +129,7 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 	int id;
 	protected Lexer<byte, byte> input;
 	int bn; // total bytes got
-	int bf, bt; // from input loc to loc excluded for each part
+	int bf, bt; // from input loc to loc excluded for each wad
 	readonly List<int> lines = []; // [0, input loc after eol...]
 	readonly byte[] bytes = new byte[LexGram<K>.AltByteN + 1]; // [latest byte], @ input loc & AltByteN
 	protected int lexn, loc; // lexi count and loc
@@ -186,13 +186,13 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 				Backward(u); // backward bytes directly
 			bt -= u.mode; u = u.go; go = u.go;
 		}
-		if (u.mode == -1) { // match a part 
+		if (u.mode == -1) { // match a wad 
 			var e = go == begin;
-			Part(u.key, u.part, ref e, bf, bt);
+			Wad(u.key, u.wad, ref e, bf, bt);
 			if (e) go = begin;
 		}
-		else { // error part
-			PartErr(u.key, u.part, go == begin || bt >= bn,
+		else { // error wad
+			WadErr(u.key, u.wad, go == begin || bt >= bn,
 				bt < bn ? bytes[bt & LexGram<K>.AltByteN] : -1, bf, bt);
 			++bt; // shift a byte
 		}
@@ -218,8 +218,8 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 		bt = to;
 	}
 
-	// make each part of a lexi
-	protected virtual void Part(K key, int part, ref bool end, int f, int to)
+	// make each wad of a lexi
+	protected virtual void Wad(K key, int wad, ref bool end, int f, int to)
 	{
 		if (from < 0) from = f;
 		if (end) {
@@ -230,8 +230,8 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 		}
 	}
 
-	// error part, input end: Byte < 0
-	protected virtual void PartErr(K key, int part, bool end, int Byte, int f, int to)
+	// error wad, input end: Byte < 0
+	protected virtual void WadErr(K key, int wad, bool end, int Byte, int f, int to)
 	{
 		if (from < 0) from = f;
 		Error(key, f, to, Byte >= 0 ? (char)Byte : null);
@@ -295,7 +295,7 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 		using var env = EnvWriter.Use();
 		var uz = us ?? [];
 		uz[u] = false; // dumped
-		env.WriteLine($"{u.id}: {u.key}.{u.part} " +
+		env.WriteLine($"{u.id}: {u.key}.{u.wad} " +
 			$"{(u.mode >= 0 ? "back" : u.mode == -1 ? "ok" : "err")}.{u.go.id} < {pre}");
 		if (!uz.ContainsKey(u.go))
 			uz[u.go] = true; // not dumped yet
@@ -318,7 +318,7 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 	Go: if (us == null)
 			foreach (var go in uz)
 				if (go.Value) {
-					Dump(go.Key, $"{go.Key.key}.{go.Key.part - 1}", uz);
+					Dump(go.Key, $"{go.Key.key}.{go.Key.wad - 1}", uz);
 					goto Go;
 				}
 	}
@@ -335,57 +335,57 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 			// build prod
 			foreach (var prod in grammar.prods) {
 				var k = prod.key;
-				if (prod.Count == 0) throw new($"No part in {k}");
-				// first unit of each part
-				var pus = prod.Skip(1).Select((_, px) => new Unit(ler) { key = k, part = px + 2 })
+				if (prod.Count == 0) throw new($"No wad in {k}");
+				// first unit of each wad
+				var wus = prod.Skip(1).Select((_, px) => new Unit(ler) { key = k, wad = px + 2 })
 					.Prepend(begin).Prepend(null)
 					.Append(begin).ToArray(); // current lexi end
-				foreach (var (p, part) in prod.Each(1)) {
-					var u = pus[part];
-					if (p.Count == 0)
-						throw new($"No altern in {k}.{part}");
-					if (p[0].Count == 0) // empty alt for option part
-						if (part == 1) throw new($"Empty altern in first part {k}.1");
-						else if (p.Count == 1) throw new($"No byte in {k}.{part}");
-						else if (p.redo) throw new($"Redo empty {k}.{part}.1");
-						else { u.go = pus[part + 1]; u.mode = -1; }
-					else if (p.redo) // shift input and redo part like the begin
-						if (part == 1) throw new($"Redo first part {k}.1");
+				foreach (var (w, wad) in prod.Each(1)) {
+					var u = wus[wad];
+					if (w.Count == 0)
+						throw new($"No altern in {k}.{wad}");
+					if (w[0].Count == 0) // empty alt for option wad
+						if (wad == 1) throw new($"Empty altern in first wad {k}.1");
+						else if (w.Count == 1) throw new($"No byte in {k}.{wad}");
+						else if (w.redo) throw new($"Redo empty {k}.{wad}.1");
+						else { u.go = wus[wad + 1]; u.mode = -1; }
+					else if (w.redo) // shift input and redo wad like the begin
+						if (wad == 1) throw new($"Redo first wad {k}.1");
 						else { u.go = u; u.mode = -3; }
-					else // no backward cross parts
+					else // no backward cross wads
 						{ u.go = begin; u.mode = -3; }
 				}
 				Unit[] aus = null;
-				// build part
-				foreach (var (p, part) in prod.Each(1)) {
-					var u = pus[part];
+				// build wad
+				foreach (var (w, wad) in prod.Each(1)) {
+					var u = wus[wad];
 					// build alt
-					var Aus = p.Select((a, alt) => {
+					var Aus = w.Select((a, alt) => {
 						++alt;
 						var bn = a.Sum(b => b.str.Length + (b.inc.Length > 0 ? 1 : 0));
 						if (a.Count == 0 ? alt > 1 : bn == 0)
-							throw new($"No byte in {k}.{part}.{alt}");
+							throw new($"No byte in {k}.{wad}.{alt}");
 						if (bn > LexGram<K>.AltByteN)
-							throw new($"{k}.{part}.{alt} exceeds {LexGram<K>.AltByteN} bytes");
-						u = pus[part];
-						var ok = !a.loop ? pus[part + 1] // go for match
-							: part > 1 ? u : throw new($"Can not loop first part {k}.1.{alt}");
-						var dup = p.redo ? u : begin; // error for repeat
+							throw new($"{k}.{wad}.{alt} exceeds {LexGram<K>.AltByteN} bytes");
+						u = wus[wad];
+						var ok = !a.loop ? wus[wad + 1] // go for match
+							: wad > 1 ? u : throw new($"Can not loop first wad {k}.1.{alt}");
+						var dup = w.redo ? u : begin; // error for repeat
 						var bx = 0; // build units from contents
 						foreach (var e in a) {
 							for (int x = 0; x < e.str.Length; x++)
-								Byte(e.str.Mem(x, x + 1), ref u, k, part, ++bx >= bn, ok,
+								Byte(e.str.Mem(x, x + 1), ref u, k, wad, ++bx >= bn, ok,
 									e.dup && x == e.str.Length - 1 ? dup : null);
 							if (e.inc.Length > 0)
-								Byte(e.inc, ref u, k, part, ++bx >= bn, ok, e.dup ? dup : null);
+								Byte(e.inc, ref u, k, wad, ++bx >= bn, ok, e.dup ? dup : null);
 						}
 						return u; // the last unit of this alt
 					}).Where(u => u.next != null).ToArray();
 					if (aus != null) {
-						u = pus[part];
+						u = wus[wad];
 						for (int x = 0; x <= 128; x++)
 							if (u.next[x] != null && aus.Any(au => au.next[x] != null))
-								throw new($"{k}.{part} and {k}.{part - 1} conflict over dup");
+								throw new($"{k}.{wad} and {k}.{wad - 1} conflict over dup");
 					}
 					aus = Aus;
 				};
@@ -395,21 +395,21 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 		}
 
 		void Byte(ReadOnlyMemory<char> bs,
-			ref Unit u, K k, int part, bool end, Unit ok, Unit dup)
+			ref Unit u, K k, int wad, bool end, Unit ok, Unit dup)
 		{
 			// buid next
 			var go = u; var mode = 0; // mismatch to backward
 			if (end) // the last byte of alt
-				{ go = ok; mode = -1; } // match part
+				{ go = ok; mode = -1; } // match wad
 			else if (dup != null) // inside duplicate bytes
 				{ go = dup; mode = -3; } // mismatch to error
-			var next = Next(k, part, u, bs.Span, go, mode, false);
+			var next = Next(k, wad, u, bs.Span, go, mode, false);
 			if (dup != null)
-				Next(k, part, next, bs.Span, go, mode, true);
+				Next(k, wad, next, bs.Span, go, mode, true);
 			u = next;
 		}
 
-		Unit Next(K key, int part, Unit u, ReadOnlySpan<char> bs, Unit go, int mode, bool dup)
+		Unit Next(K key, int wad, Unit u, ReadOnlySpan<char> bs, Unit go, int mode, bool dup)
 		{
 			Unit n = u.next?[bs[0]];
 			if (u.next == null)
@@ -418,36 +418,36 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 				// all exist nexts must be the same
 				for (int x = 1; x < bs.Length; x++)
 					if (u.next[bs[x]] != n)
-						throw new($"Prefix '{bs[x]}' of {key}.{part} and {(n ?? u.next[bs[x]]).key}"
-							+ $".{(n ?? u.next[bs[x]]).part} must be the same or distinct");
+						throw new($"Prefix '{bs[x]}' of {key}.{wad} and {(n ?? u.next[bs[x]]).key}"
+							+ $".{(n ?? u.next[bs[x]]).wad} must be the same or distinct");
 			if (n == null) {
 				n = dup ? u // duplicate bytes
-					: new Unit(ler) { key = key, part = part, pren = bs.Length, go = go, mode = mode };
+					: new Unit(ler) { key = key, wad = wad, pren = bs.Length, go = go, mode = mode };
 				for (int x = 0; x < bs.Length; x++)
 					u.next[bs[x]] = n;
 				if (dup && u.mode == -1 && mode == -3)
-					throw new($"{key}.{part} and {u.key}.{u.part} conflict over byte dup");
+					throw new($"{key}.{wad} and {u.key}.{u.wad} conflict over byte dup");
 			}
 			else if (n.pren != bs.Length) // all already nexts must be the same
-				throw new($"Prefixs of {key}.{part} and {n.key}.{n.part}"
+				throw new($"Prefixs of {key}.{wad} and {n.key}.{n.wad}"
 					+ " must be the same or distinct");
 			else if (dup != (n == u)) // already exist next must not conflict
-				throw new($"{key}.{part} and {n.key}.{n.part} conflict over dup byte");
+				throw new($"{key}.{wad} and {n.key}.{n.wad} conflict over dup byte");
 			else if (!dup)
-				Mode(key, part, n, go, mode); // check mode for already exist next
+				Mode(key, wad, n, go, mode); // check mode for already exist next
 			return n;
 		}
 
-		static void Mode(K key, int part, Unit u, Unit go, int mode)
+		static void Mode(K key, int wad, Unit u, Unit go, int mode)
 		{
 			if (u.mode + mode == -2) // both match
-				throw new($"{key}.{part} and {u.key}.{u.part} conflict over match");
+				throw new($"{key}.{wad} and {u.key}.{u.wad} conflict over match");
 			if (u.mode + mode == -6 && u.go != go) // both error
-				throw new($"{key}.{part} and {u.key}.{u.part} conflict over error");
+				throw new($"{key}.{wad} and {u.key}.{u.wad} conflict over error");
 			if (u.mode + mode == -3) // error and backward
-				throw new($"{key}.{part} and {u.key}.{u.part} conflict over duplicate");
+				throw new($"{key}.{wad} and {u.key}.{u.wad} conflict over duplicate");
 			if (u.mode == 0 && mode != 0) {
-				u.key = key; u.part = part; u.go = go; u.mode = mode;
+				u.key = key; u.wad = wad; u.go = go; u.mode = mode;
 			}
 			else if (u.mode == -3 && mode == -1) {
 				u.go = go; u.mode = mode;

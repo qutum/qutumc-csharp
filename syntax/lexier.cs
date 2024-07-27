@@ -83,61 +83,61 @@ public class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 		TIL   = ~
 	*/
 	static readonly LexGram<L> Grammar = new LexGram<L>()
-		.k(L.BIND).p["="]
+		.k(L.BIND).w["="]
 
-		.k(L.LP).p["("].k(L.RP).p[")"]
-		.k(L.LSB).p["["].k(L.RSB).p["]"]
-		.k(L.LCB).p["{"].k(L.RCB).p["}"]
+		.k(L.LP).w["("].k(L.RP).w[")"]
+		.k(L.LSB).w["["].k(L.RSB).w["]"]
+		.k(L.LCB).w["{"].k(L.RCB).w["}"]
 
-		.k(L.SHL).p["<<"].k(L.SHR).p[">>"]
-		.k(L.ANDB).p["&&"].k(L.ORB).p["||"].k(L.XORB).p["++"].k(L.NOTB).p["--"]
+		.k(L.SHL).w["<<"].k(L.SHR).w[">>"]
+		.k(L.ANDB).w["&&"].k(L.ORB).w["||"].k(L.XORB).w["++"].k(L.NOTB).w["--"]
 
-		.k(L.MUL).p["*"].k(L.DIV).p["/"].k(L.MOD).p["%"]
-		.k(L.DIVF).p["//"].k(L.MODF).p["%%"]
-		.k(L.ADD).p["+"].k(L.SUB).p["-"]
+		.k(L.MUL).w["*"].k(L.DIV).w["/"].k(L.MOD).w["%"]
+		.k(L.DIVF).w["//"].k(L.MODF).w["%%"]
+		.k(L.ADD).w["+"].k(L.SUB).w["-"]
 
-		.k(L.EQ).p["=="].k(L.UEQ).p["/="]
-		.k(L.LEQ).p["<="].k(L.GEQ).p[">="].k(L.LT).p["<"].k(L.GT).p[">"]
+		.k(L.EQ).w["=="].k(L.UEQ).w["/="]
+		.k(L.LEQ).w["<="].k(L.GEQ).w[">="].k(L.LT).w["<"].k(L.GT).w[">"]
 
-		.k(L.AND).p["&"].k(L.OR).p["|"].k(L.XOR).p["+|"].k(L.NOT).p["!"]
+		.k(L.AND).w["&"].k(L.OR).w["|"].k(L.XOR).w["+|"].k(L.NOT).w["!"]
 
-		.k(L.EOL).p["\n"]["\r\n"]
-		.k(L.SP).p[" \t".Mem()] // [\s\t]  |+\s+|+\t+
-				.p[""][" ", ..].loop["\t", ..].loop
+		.k(L.EOL).w["\n"]["\r\n"]
+		.k(L.SP).w[" \t".Mem()] // [\s\t]  |+\s+|+\t+
+				.w[""][" ", ..].loop["\t", ..].loop
 
-		.k(L.COMM).p["##"] // ##  |[\A^\n]+
-					.p[""][Set.All.Exc("\n"), ..]
-		.k(L.COMMB).p["\\", .., "#"] // \\+#  +#\\+|+#|+[\A^#]+
-					.p["#", "\\", ..].loop["#"].loop[Set.All.Exc("#"), ..].loop
+		.k(L.COMM).w["##"] // ##  |[\A^\n]+
+					.w[""][Set.All.Exc("\n"), ..]
+		.k(L.COMMB).w["\\", .., "#"] // \\+#  +#\\+|+#|+[\A^#]+
+					.w["#", "\\", ..].loop["#"].loop[Set.All.Exc("#"), ..].loop
 
-		.k(L.STRB).p["\\", .., "\""] // \\+"  +"\\+|+"|+[\A^"]+
-					.p["\"", "\\", ..].loop["\""].loop[Set.All.Exc("\""), ..].loop
-		.k(L.STR).p["\""] // "  *"|\n|\r\n|+[\L^"\\]+|+\\[0tnr".`\\]|+\\x\x\x|+\\u\x\x\x\x
+		.k(L.STRB).w["\\", .., "\""] // \\+"  +"\\+|+"|+[\A^"]+
+					.w["\"", "\\", ..].loop["\""].loop[Set.All.Exc("\""), ..].loop
+		.k(L.STR).w["\""] // "  *"|\n|\r\n|+[\L^"\\]+|+\\[0tnr".`\\]|+\\x\x\x|+\\u\x\x\x\x
 				.redo["\"\n".Mem()]["\r\n"]
 					[Set.Line.Exc("\"\\"), ..].loop
 					["\\", "0tnr\".`\\".Mem()].loop
 					["\\x", Set.Hex, Set.Hex].loop["\\u", Set.Hex, Set.Hex, Set.Hex, Set.Hex].loop
 
-		.k(L.PATH).p["`"][".`"] // .?`  *`|\n|\r\n|+.|+[\L^.`\\]+|+\\[0tnr".`\\]|+\\x\x\x|+\\u\x\x\x\x
+		.k(L.PATH).w["`"][".`"] // .?`  *`|\n|\r\n|+.|+[\L^.`\\]+|+\\[0tnr".`\\]|+\\x\x\x|+\\u\x\x\x\x
 				.redo["`\n".Mem()]["\r\n"]["."].loop
 					[Set.Line.Exc(".`\\"), ..].loop
 					["\\", "0tnr\".`\\".Mem()].loop
 					["\\x", Set.Hex, Set.Hex].loop["\\u", Set.Hex, Set.Hex, Set.Hex, Set.Hex].loop
 
-		.k(L.NAME).p[Set.Alpha.Inc("_")][Set.Alpha.Inc("_"), Set.Word, ..] // [\a_]\w*
-		.k(L.RUN).p["."] // .|.[\a_]\w*
+		.k(L.NAME).w[Set.Alpha.Inc("_")][Set.Alpha.Inc("_"), Set.Word, ..] // [\a_]\w*
+		.k(L.RUN).w["."] // .|.[\a_]\w*
 						[".", Set.Alpha.Inc("_")][".", Set.Alpha.Inc("_"), Set.Word, ..]
 
-		.k(L.HEX).p["0x"]["0X"] // 0[xX]  _*\x  |+_*\x+
-				.p[Set.Hex]["_", .., Set.Hex]
-				.p[""][Set.Hex, ..].loop["_", .., Set.Hex, ..].loop
+		.k(L.HEX).w["0x"]["0X"] // 0[xX]  _*\x  |+_*\x+
+				.w[Set.Hex]["_", .., Set.Hex]
+				.w[""][Set.Hex, ..].loop["_", .., Set.Hex, ..].loop
 		.k(L.NUM) // 0|[1-9]  |+_*\d+  |.\d+  |+_+\d+  |[eE][\+\-]?\d+  |[fF]
-				.p["0"][Set.Dec.Exc("0")]
-				.p[""][Set.Dec, ..].loop["_", .., Set.Dec, ..].loop
-				.p[""][".", Set.Dec, ..]
-				.p[""]["_", .., Set.Dec, ..].loop
-				.p[""]["eE".Mem(), Set.Dec, ..]["eE".Mem(), "+-".Mem(), Set.Dec, ..]
-				.p[""]["fF".Mem()]
+				.w["0"][Set.Dec.Exc("0")]
+				.w[""][Set.Dec, ..].loop["_", .., Set.Dec, ..].loop
+				.w[""][".", Set.Dec, ..]
+				.w[""]["_", .., Set.Dec, ..].loop
+				.w[""]["eE".Mem(), Set.Dec, ..]["eE".Mem(), "+-".Mem(), Set.Dec, ..]
+				.w[""]["fF".Mem()]
 	;
 
 	// key oridinal that is single or kind value, useful for syntax parser
@@ -166,7 +166,7 @@ public class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 
 	byte[] bs = new byte[4096]; // buffer used by some lexi
 	int bn;
-	int nn, nf, ne; // end of each number part
+	int nn, nf, ne; // end of each number wad
 	int indb; // indent byte, unknown: -1
 	int indn; // indent count
 	int[] inds = new int[100]; // [0, indent column...]
@@ -228,7 +228,7 @@ public class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 	{
 		var end = true;
 		if (eof)
-			Part(L.EOL, 1, ref end, bn, bn);
+			Wad(L.EOL, 1, ref end, bn, bn);
 		ind = 0; indf = indt = bn; Indent();
 	}
 
@@ -246,14 +246,14 @@ public class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 		return base.Lexi(key, f, to, value);
 	}
 
-	protected override void PartErr(L key, int part, bool end, int b, int f, int to)
+	protected override void WadErr(L key, int wad, bool end, int b, int f, int to)
 	{
 		if (key == L.PATH)
 			key = L.NAME;
-		base.PartErr(key, part, end, b, f, to);
+		base.WadErr(key, wad, end, b, f, to);
 	}
 
-	protected override void Part(L key, int part, ref bool end, int f, int to)
+	protected override void Wad(L key, int wad, ref bool end, int f, int to)
 	{
 		object v = null;
 		if (from < 0) {
@@ -273,7 +273,7 @@ public class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 			goto End;
 
 		case L.SP:
-			if (part == 1)
+			if (wad == 1)
 				bs[0] = (byte)(f < 1 || input.Lex(f - 1) == '\n' ? 1 : 0); // maybe line start
 			if (bs[0] != 0)
 				if (indb < 0)
@@ -298,11 +298,11 @@ public class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 			break;
 
 		case L.COMMB:
-			if (part == 1) {
-				bn = to; // begin part loc
+			if (wad == 1) {
+				bn = to; // begin wad loc
 				return;
 			}
-			if (to - f != bn - from || input.Lex(f) != '#') // check end part length
+			if (to - f != bn - from || input.Lex(f) != '#') // check end wad length
 				return;
 			end = true;
 			if (!allBlank)
@@ -311,17 +311,17 @@ public class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 			break;
 
 		case L.STRB:
-			if (part == 1) {
-				bn = to; // begin part loc
+			if (wad == 1) {
+				bn = to; // begin wad loc
 				return;
 			}
-			if (to - f != bn - from || input.Lex(f) != '"') // check end part length
+			if (to - f != bn - from || input.Lex(f) != '"') // check end wad length
 				return;
 			end = true; bn = Input(bn, f, 0);
 			break;
 
 		case L.STR:
-			if (part == 1)
+			if (wad == 1)
 				return;
 			if (end) {
 				if (input.Lex(to - 1) == '\n') {
@@ -341,9 +341,9 @@ public class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 			break;
 
 		case L.NUM:
-			if (part == 2) nn = to - from; // end of integer part
-			else if (part == 4) nf = to - from; // end of fraction part
-			else if (part == 5) ne = to - from; // end of exponent part
+			if (wad == 2) nn = to - from; // end of integer wad
+			else if (wad == 4) nf = to - from; // end of fraction wad
+			else if (wad == 5) ne = to - from; // end of exponent wad
 			if (!end)
 				return;
 			bn = Input(from, to, 0);
@@ -361,7 +361,7 @@ public class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 			break;
 
 		case L.PATH:
-			if (part == 1)
+			if (wad == 1)
 				return;
 			var split = end || input.Lex(f) == '.';
 			if (split) {
