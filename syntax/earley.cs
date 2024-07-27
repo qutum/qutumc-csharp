@@ -12,7 +12,7 @@ using System.Linq;
 
 namespace qutum.syntax.earley;
 
-public enum Syn
+public enum Esy
 {
 	all = 1, allii, alli, Block,
 	block, nestr, nests, nest, line,
@@ -20,11 +20,11 @@ public enum Syn
 	F2, f1, f2, f3, f43, f46, f53, f56, f6, f7, f8, feed,
 }
 
-public class Synt : Esyn<Syn, Synt>
+public class Esyn : Esyn<Esy, Esyn>
 {
 }
 
-public class Earley : Earley<Lex, Syn, Synt, Lexier>
+public class Earley : Earley<Lex, Esy, Esyn, Lexier>
 {
 	static readonly string grammar = """
 	all   = allii? alli? Block*
@@ -83,15 +83,15 @@ public class Earley : Earley<Lex, Syn, Synt, Lexier>
 			: s.Count == 0 ? "" : string.Join(" ", s.Select(t => t.ToString()).ToArray());
 	}
 
-	protected override Syn Name(string name) => Enum.Parse<Syn>(name);
+	protected override Esy Name(string name) => Enum.Parse<Esy>(name);
 
-	public override Synt Parse()
+	public override Esyn Parse()
 	{
 		var t = base.Parse();
 		// add error lexis
-		Synt tail = t;
+		Esyn tail = t;
 		foreach (var (err, x) in ler.errs.Each())
-			tail.AddNext(tail = new Synt {
+			tail.AddNext(tail = new Esyn {
 				from = ~x, to = ~x - 1, err = -1, info = err.key, dump = "" + err
 			});
 		return t;

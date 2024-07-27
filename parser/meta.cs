@@ -13,48 +13,6 @@ namespace qutum.parser.meta;
 
 using Set = CharSet;
 
-file class ElGram<K, N>
-{
-	public readonly List<Prod> prods = [];
-	public class Prod : List<Alt> { public N name; }
-	public class Alt
-	{
-		public readonly List<object> cons = [];
-		internal bool prior; // prior than other Alts of the same Prod or of all recovery
-		internal sbyte greedy; // as Synter.greedy: 0, greedy: 1, back greedy: -1
-		internal sbyte synt; // as Synter.tree: 0, make Synt: 2, omit Synt: -1
-							 // omit if no prev nor next or has 0 or 1 sub: 1
-		internal bool lex; // save first shifted lexi to Synt.info
-		internal bool errExpect; // make expect synt when error
-		internal string hint;
-	}
-
-	public ElGram<K, N> prod(N name) { prods.Add(new Prod { name = name }); return this; }
-	public ElGram<K, N> this[params object[] cons] {
-		get {
-			Alt a = new();
-			prods[^1].Add(a);
-			if (prods[^1][^1].cons.Count == 1 && cons.Length == 1 && cons[0] == null)
-				return this;
-			foreach (var v in cons)
-				if (v is N or K or Qua) a.cons.Add(v);
-				else if (v is IEnumerable<K> ks)
-					a.cons.AddRange(ks.Cast<object>());
-				else throw new($"wrong altern content {v?.GetType()}");
-			return this;
-		}
-	}
-	public ElGram<K, N> prior { get { prods[^1][^1].prior = true; return this; } }
-	public ElGram<K, N> greedy { get { prods[^1][^1].greedy = 1; return this; } }
-	public ElGram<K, N> greedyBack { get { prods[^1][^1].greedy = -1; return this; } }
-	public ElGram<K, N> synt { get { prods[^1][^1].synt = 1; return this; } }
-	public ElGram<K, N> syntMust { get { prods[^1][^1].synt = 2; return this; } }
-	public ElGram<K, N> syntOmit { get { prods[^1][^1].synt = -1; return this; } }
-	public ElGram<K, N> lexi { get { prods[^1][^1].lex = true; return this; } }
-	public ElGram<K, N> errExpect { get { prods[^1][^1].errExpect = true; return this; } }
-	public ElGram<K, N> hint(string w) { prods[^1][^1].hint = w != "" ? w : null; return this; }
-}
-
 sealed class MetaStr(string input) : LerStr(input)
 {
 	public override bool Is(char aim) => Is(input[loc], aim);

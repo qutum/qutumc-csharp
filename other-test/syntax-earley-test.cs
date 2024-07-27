@@ -17,8 +17,8 @@ using static Microsoft.VisualStudio.TestTools.UnitTesting.Assert;
 namespace qutum.test.other.syntax;
 
 using L = Lex;
-using S = Syn;
-using Ser = (Synt t, Earley s);
+using S = Esy;
+using Ser = (Esyn t, Earley s);
 
 static class TestExtension
 {
