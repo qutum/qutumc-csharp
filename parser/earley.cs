@@ -52,8 +52,8 @@ file class EarGram<K, N>
 	{
 		public readonly List<object> cons = [];
 		internal bool prior; // prior than other Alts of the same Prod or of all recovery
-		internal sbyte greedy; // as Synter.greedy: 0, greedy: 1, back greedy: -1
-		internal sbyte synt; // as Synter.tree: 0, make Synt: 2, omit Synt: -1
+		internal sbyte greedy; // as earley.greedy: 0, greedy: 1, back greedy: -1
+		internal sbyte synt; // as earley.tree: 0, make Synt: 2, omit Synt: -1
 							 // omit if no prev nor next or has 0 or 1 sub: 1
 		internal bool lex; // save first shifted lexi to Synt.info
 		internal bool errExpect; // make expect synt when error
@@ -118,8 +118,8 @@ public class Earley<K, L, N, T, Ler> where T : Esyn<N, T>, new() where Ler : Lex
 		internal N name;
 		internal Con[] s;
 		internal bool prior; // prior than other Alts of the same Prod or of all recovery
-		internal sbyte greedy; // as synter.greedy: 0, greedy: 1, back greedy: -1
-		internal sbyte synt; // as synter.tree: 0, make Synt: 2, omit Synt: -1
+		internal sbyte greedy; // as earley.greedy: 0, greedy: 1, back greedy: -1
+		internal sbyte synt; // as earley.tree: 0, make Synt: 2, omit Synt: -1
 							 // omit if no prev nor next or has 0 or 1 sub: 1
 		internal bool lex; // save first shifted lexi to Synt.info
 		internal bool errExpect; // make expect synt when error
