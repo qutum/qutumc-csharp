@@ -76,7 +76,7 @@ public class LexGram<K>
 // lexic parser
 public class Lexier<K> : Lexier<K, Lexi<K>> where K : struct
 {
-	public Lexier(LexGram<K> grammar, bool dump = false) : base(grammar, dump) { }
+	public Lexier(LexGram<K> grammar, bool dumpGram = false) : base(grammar, dumpGram) { }
 
 	// from input f loc to loc excluded
 	protected override Lexi<K> Lexi(K key, int f, int to, object value)
@@ -183,8 +183,8 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 	Go: var go = u.go;
 		if (u.mode >= 0) { // failed to greedy
 			if (u.mode == 0)
-				Backward(u); // backward bytes directly
-			bt -= u.mode; u = u.go; go = u.go;
+				BuildBack(u);
+			bt -= u.mode; u = u.go; go = u.go; // backward bytes directly
 		}
 		if (u.mode == -1) { // match a wad 
 			var e = go == begin;
@@ -202,12 +202,12 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 		goto Step;
 	}
 
-	private static void Backward(Unit u)
+	private static void BuildBack(Unit u)
 	{
 		var go = u.go;
 		if (go.mode < 0) u.mode = 1;
 		else {
-			Backward(go); u.mode = go.mode + 1; u.go = go.go;
+			BuildBack(go); u.mode = go.mode + 1; u.go = go.go;
 		}
 	}
 
@@ -323,7 +323,8 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 				}
 	}
 
-	public Lexier(LexGram<K> grammar, bool dump = false) => begin = new Build(this).Do(grammar, dump);
+	public Lexier(LexGram<K> grammar, bool dumpGram = false)
+		=> begin = new Build(this).Do(grammar, dumpGram);
 
 	class Build(Lexier<K, L> ler)
 	{

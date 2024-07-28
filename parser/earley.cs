@@ -44,6 +44,8 @@ public class EsynStr : Esyn<string, EsynStr>
 {
 }
 
+public enum Qua : byte { Opt = 0, One = 1, Any = 2, More = 3 };
+
 file class EarGram<K, N>
 {
 	public readonly List<Prod> prods = [];
@@ -52,7 +54,7 @@ file class EarGram<K, N>
 	{
 		public readonly List<object> cons = [];
 		internal bool prior; // prior than other Alts of the same Prod or of all recovery
-		internal sbyte greedy; // as earley.greedy: 0, greedy: 1, back greedy: -1
+		internal sbyte greedy; // as earley.greedy: 0, greedy: 1, lazy: -1
 		internal sbyte synt; // as earley.tree: 0, make Synt: 2, omit Synt: -1
 							 // omit if no prev nor next or has 0 or 1 sub: 1
 		internal bool lex; // save first shifted lexi to Synt.info
@@ -98,8 +100,6 @@ public class EarleyStr : EarleyChar
 	public EarleyStr(string gram, LerStr ler = null) : base(gram, ler ?? new LerStr("")) { }
 }
 
-public enum Qua : byte { Opt = 0, One = 1, Any = 2, More = 3 };
-
 // syntax parser using extended Earley algorithm
 public class Earley<K, L, N, T, Ler> where T : Esyn<N, T>, new() where Ler : Lexer<K, L>
 {
@@ -118,7 +118,7 @@ public class Earley<K, L, N, T, Ler> where T : Esyn<N, T>, new() where Ler : Lex
 		internal N name;
 		internal Con[] s;
 		internal bool prior; // prior than other Alts of the same Prod or of all recovery
-		internal sbyte greedy; // as earley.greedy: 0, greedy: 1, back greedy: -1
+		internal sbyte greedy; // as earley.greedy: 0, greedy: 1, lazy: -1
 		internal sbyte synt; // as earley.tree: 0, make Synt: 2, omit Synt: -1
 							 // omit if no prev nor next or has 0 or 1 sub: 1
 		internal bool lex; // save first shifted lexi to Synt.info
@@ -133,7 +133,7 @@ public class Earley<K, L, N, T, Ler> where T : Esyn<N, T>, new() where Ler : Lex
 		public override string ToString()
 			=> dump ??= name + "="
 				+ string.Join(' ', s.Where(c => c.p != null).Select(c =>
-				(c.p is Prod p ? p.name.ToString() : Esc(c.p))
+				(c.p is Prod p ? p.name : c.p).ToString()
 				+ (c.q == More ? "+" : c.q == Any ? "*" : c.q == Opt ? "?" : "")));
 	}
 
@@ -146,7 +146,7 @@ public class Earley<K, L, N, T, Ler> where T : Esyn<N, T>, new() where Ler : Lex
 	readonly int[] recm; // [latest match index of recovery Alt]
 	public Ler ler;
 	public bool greedy = false; // greedy: true, may or may not: false
-								// eg. S=AB A=1|12 B=23|2  gready: (12)3  back greedy: 1(23)
+								// eg. S=AB A=1|12 B=23|3  gready: (12)3  lazy: 1(23)
 	public int recover = 10; // no recovery: 0, how many times to recover at eof: > 0
 	public bool tree = true; // make whole tree from complete Alts
 	public int dump = 0; // no: 0, lexis for tree leaf: 1, lexis: 2, lexis and Alt: 3
@@ -472,7 +472,7 @@ public class Earley<K, L, N, T, Ler> where T : Esyn<N, T>, new() where Ler : Lex
 			(dump <= 2 ? m.a.hint ?? m.a.name.ToString() : m.a.ToString())
 			+ $" :: {Dump(ler.Lexs(m.from, m.to))}";
 	}
-	string Dump(object v) => dumper?.Invoke(v) ?? Esc(v.ToString());
+	string Dump(object v) => dumper?.Invoke(v) ?? Esc(v);
 	static string Esc(object v)
 	{
 		return v.ToString().Replace("\n", "\\n").Replace("\r", "\\r").Replace("\t", "\\t");

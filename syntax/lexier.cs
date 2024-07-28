@@ -279,8 +279,8 @@ public class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 				if (indb < 0)
 					indb = input.Lex(f); // first line start, save the indent byte
 				else if (f < to && input.Lex(f) != indb) { // mix \s and \t
-					bs[0] = 0; // as not line start
-					Error(key, f, to, "do not mix tabs and spaces for indent");
+					bs[0] = 0; // as not line start and indent unchanged
+					Error(key, f, to, "do not mix tabs and spaces for indent"); // TODO delayed to omit this if COMM
 				}
 			if (!end)
 				return;

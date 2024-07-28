@@ -188,9 +188,10 @@ public static class MetaLex
 
 	static void Dump<K>(EsynStr top, LexGram<K> gram)
 	{
-		top.Dump();
 		using var env = EnvWriter.Use();
-		env.WriteLine("gram");
+		env.WriteLine("meta:");
+		top.Dump();
+		env.WriteLine("gram:");
 		foreach (var prod in gram.prods) {
 			env.Write($".k({prod.key})");
 			foreach (var wad in prod) {
