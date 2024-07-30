@@ -56,7 +56,7 @@ file class EarGram<K, N>
 		internal bool prior; // prior than other Alts of the same Prod or of all recovery
 		internal sbyte greedy; // as earley.greedy: 0, greedy: 1, lazy: -1
 		internal sbyte synt; // as earley.tree: 0, make Synt: 2, omit Synt: -1
-							 // omit if no prev nor next or has 0 or 1 sub: 1
+							 // omit if no up or has 0 or 1 sub: 1
 		internal bool lex; // save first shifted lexi to Synt.info
 		internal bool errExpect; // make expect synt when error
 		internal string hint;
@@ -120,7 +120,7 @@ public class Earley<K, L, N, T, Ler> where T : Esyn<N, T>, new() where Ler : Lex
 		internal bool prior; // prior than other Alts of the same Prod or of all recovery
 		internal sbyte greedy; // as earley.greedy: 0, greedy: 1, lazy: -1
 		internal sbyte synt; // as earley.tree: 0, make Synt: 2, omit Synt: -1
-							 // omit if no prev nor next or has 0 or 1 sub: 1
+							 // omit if no up or has 0 or 1 sub: 1
 		internal bool lex; // save first shifted lexi to Synt.info
 		internal bool errExpect; // make expect synt when error
 		internal int recover; // no: -1, recover ahead to last One or More K index: > 0,
@@ -177,8 +177,8 @@ public class Earley<K, L, N, T, Ler> where T : Esyn<N, T>, new() where Ler : Lex
 		int m = Parse(out T err, recover);
 		bool _ = false;
 		T t = m >= 0
-			? Accepted(m, null, ref _).AddNextSub(err)
-			: err.head.Remove().AddNextSub(err);
+			? Accepted(m, null, ref _).AppendSubOf(err)
+			: err.head.Remove().AppendSubOf(err);
 		Array.Fill(matchs, default, 0, matchn);
 		lexm.Clear();
 		return t;
@@ -414,7 +414,7 @@ public class Earley<K, L, N, T, Ler> where T : Esyn<N, T>, new() where Ler : Lex
 			}
 		if (t != up) {
 			if (omitSub && t.head != null && t.head.next == null)
-				t.AddSub(t.head.Remove());
+				t.AddSubOf(t.head.Remove());
 			if (m.a.synt != 1 || up == null || t.head?.next != null) {
 				up?.AddHead(t);
 				t.dump = Dump(m, t.head == null);

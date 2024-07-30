@@ -55,7 +55,7 @@ public class LinkTree<T> : IEnumerable<T> where T : LinkTree<T>
 {
 	public T up, prev, next, head, tail;
 
-	// add sub and all sub.next after tail
+	// after this.tail add sub and all sub.next
 	public T Add(T sub)
 	{
 		if (sub == null)
@@ -72,7 +72,7 @@ public class LinkTree<T> : IEnumerable<T> where T : LinkTree<T>
 		return (T)this;
 	}
 
-	// add sub and all sub.next before head
+	// before this.head add sub and all sub.next 
 	public T AddHead(T sub)
 	{
 		if (sub == null)
@@ -89,8 +89,8 @@ public class LinkTree<T> : IEnumerable<T> where T : LinkTree<T>
 		return (T)this;
 	}
 
-	// add subs of t after tail
-	public T AddSub(T t)
+	// after tail add subs of t
+	public T AddSubOf(T t)
 	{
 		if (t?.head == null)
 			return (T)this;
@@ -100,8 +100,8 @@ public class LinkTree<T> : IEnumerable<T> where T : LinkTree<T>
 		return Add(x);
 	}
 
-	// add sub and all sub.next after last next
-	public T AddNext(T next)
+	// after final this.next append next and all next.next 
+	public T Append(T next)
 	{
 		if (next == null)
 			return (T)this;
@@ -113,10 +113,10 @@ public class LinkTree<T> : IEnumerable<T> where T : LinkTree<T>
 		return (T)this;
 	}
 
-	// add subs of t after last next
-	public T AddNextSub(T t)
+	// after final this.next append subs of t
+	public T AppendSubOf(T t)
 	{
-		if (t == null || t.head == null)
+		if (t?.head == null)
 			return (T)this;
 		Debug.Assert(up == null);
 		var end = (T)this;

@@ -55,7 +55,7 @@ public class TestLexier : IDisposable
 		CheckSp("\\### \\# ###\\ ###\\ ab", "COMM=COMMB SP= COMM=");
 		CheckSp("\\## \\## ##\\ ##\\ \nab", "COMM=COMMB SP= COMM= EOL= NAME=ab");
 		Check("\\## \\## ##\\ ##\\ \nab", "NAME=ab");
-		Check("\\\\", "COMMB!");
+		Check("\\", "COMMB!"); Check("\\\\", "COMMB!");
 	}
 
 	[TestMethod]

@@ -91,7 +91,7 @@ public class Earley : Earley<Lex, Esy, Esyn, Lexier>
 		// add error lexis
 		Esyn tail = t;
 		foreach (var (err, x) in ler.errs.Each())
-			tail.AddNext(tail = new Esyn {
+			tail.Append(tail = new Esyn {
 				from = ~x, to = ~x - 1, err = -1, info = err.key, dump = "" + err
 			});
 		return t;

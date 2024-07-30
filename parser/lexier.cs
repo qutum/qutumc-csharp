@@ -110,7 +110,7 @@ public class Lexier<K> : Lexier<K, Lexi<K>> where K : struct
 public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : struct // L : Lexi<K> fail
 {
 	// each unit is just before next byte or after the last byte of wad
-	internal sealed class Unit
+	sealed class Unit
 	{
 		internal int id;
 		internal K key;
@@ -122,11 +122,11 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 		internal int mode; // match: -1, mismatch to error: -3, mismatch to backward bytes: >=0
 						   // no backward cross wads nor duplicate bytes
 
-		internal Unit(Lexier<K, L> l) => id = ++l.id;
+		internal Unit(Lexier<K, L> l) => id = ++l.uid;
 	}
 
 	readonly Unit begin;
-	int id;
+	int uid;
 	protected Lexer<byte, byte> input;
 	int bn; // total bytes got
 	int bf, bt; // from input loc to loc excluded for each wad
