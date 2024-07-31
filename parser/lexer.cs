@@ -142,7 +142,7 @@ public class LerByteList(List<byte> input) : Lexer<byte, byte>
 
 public static class CharSet
 {
-	internal static bool[] L = new bool[129], // single line, no \r \n, \x80
+	internal static bool[]	L = new bool[129], // single line, no \r \n, \x80
 							D = new bool[129], // decimal
 							X = new bool[129], // hexadecimal
 							A = new bool[129], // alphabet

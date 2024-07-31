@@ -22,9 +22,7 @@ public struct Lexi<K> where K : struct
 	public override readonly string ToString() => $"{key}{(err < 0 ? "!" : "=")}{value}";
 
 	public readonly string ToString(Func<object, string> dumper)
-	{
-		return $"{key}{(err < 0 ? "!" : "=")}{dumper(value)}";
-	}
+		=> $"{key}{(err < 0 ? "!" : "=")}{dumper(value)}";
 }
 
 public class LexGram<K>
@@ -256,7 +254,7 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 
 	public int Loc() => Math.Min(loc, lexn);
 	public L Lex() => lexs[loc];
-	public L Lex(int loc) => loc < lexn ? lexs[loc] : throw new IndexOutOfRangeException();
+	public L Lex(int loc) => lexs.AsSpan(0, lexn)[loc];
 
 	public bool Is(K aim) => Is(loc, aim);
 	public abstract bool Is(int loc, K aim);

@@ -55,6 +55,22 @@ public class LinkTree<T> : IEnumerable<T> where T : LinkTree<T>
 {
 	public T up, prev, next, head, tail;
 
+	public T First()
+	{
+		var t = (T)this;
+		while (t.prev != null)
+			t = t.prev;
+		return t;
+	}
+
+	public T Final()
+	{
+		var t = (T)this;
+		while (t.next != null)
+			t = t.next;
+		return t;
+	}
+
 	// after this.tail add sub and all sub.next
 	public T Add(T sub)
 	{
@@ -106,10 +122,7 @@ public class LinkTree<T> : IEnumerable<T> where T : LinkTree<T>
 		if (next == null)
 			return (T)this;
 		Debug.Assert(up == null && next.up == null && next.prev == null);
-		var end = (T)this;
-		while (end.next != null)
-			end = end.next;
-		(next.prev = end).next = next;
+		(next.prev = Final()).next = next;
 		return (T)this;
 	}
 
@@ -119,12 +132,9 @@ public class LinkTree<T> : IEnumerable<T> where T : LinkTree<T>
 		if (t?.head == null)
 			return (T)this;
 		Debug.Assert(up == null);
-		var end = (T)this;
-		while (end.next != null)
-			end = end.next;
 		var x = t.head;
 		t.head = t.tail = null;
-		(x.prev = end).next = x;
+		(x.prev = Final()).next = x;
 		for (x.up = null; x.next != null; x.up = null)
 			x = x.next;
 		return (T)this;

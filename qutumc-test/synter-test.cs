@@ -37,7 +37,7 @@ static class TestExtension
 	}
 	public static Ser V(this Ser s, params object[] Vs)
 	{
-		Lexi<L>[] vs = new Lexi<L>[Vs.Length];
+		var vs = new Lexi<L>[Vs.Length];
 		int n = 0;
 		for (int x = 0; x < Vs.Length; x++)
 			if (Vs[x] is L l)

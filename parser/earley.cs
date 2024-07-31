@@ -26,9 +26,7 @@ public class Esyn<N, T> : LinkTree<T> where T : Esyn<N, T>
 	public string dump;
 
 	public override string ToString()
-	{
-		return $"{from}:{to}{(err == 0 ? info : err < -1 ? "" + err : "!")} {dump ?? info ?? name}";
-	}
+		=> $"{from}:{to}{(err == 0 ? info : err == -1 ? "!" : "?")} {dump ?? info ?? name}";
 
 	public override string ToString(object extra)
 	{
@@ -36,7 +34,7 @@ public class Esyn<N, T> : LinkTree<T> where T : Esyn<N, T>
 			return ToString();
 		var (fl, fc, tl, tc) = loc(from, to);
 		return $"{fl}.{fc}:{tl}.{tc}{(err == 0 ? info != null ? " " + info : ""
-			: err < -1 ? "" + err : "!")} {dump ?? info ?? name}";
+			: err == -1 ? "!" : "?")} {dump ?? info ?? name}";
 	}
 }
 
