@@ -16,7 +16,7 @@ public interface Lexer<K, L> : IDisposable
 	bool Next();
 	// current lex location, <0 before first Next()
 	int Loc();
-	L Lex() => Lex(Loc());
+	L Lex();
 	L Lex(int loc);
 
 	bool Is(K aim);
@@ -30,9 +30,6 @@ public interface Lexer<K, L> : IDisposable
 
 	// text to single or several keys
 	IEnumerable<K> Keys(string text);
-
-	// check each keys distinct from others, otherwise throw exception
-	void Distinct(IEnumerable<K> keys) { }
 }
 
 public interface LexerSeg<K, L> : Lexer<K, L>
@@ -50,6 +47,7 @@ public class LerStr(string input) : Lexer<char, char>
 
 	public bool Next() => ++loc < input.Length;
 	public int Loc() => loc;
+	public char Lex() => input[loc];
 	public char Lex(int loc) => input[loc];
 
 	public virtual bool Is(char aim) => input[loc] == aim;
@@ -75,6 +73,7 @@ public class LerByte(byte[] input) : LexerSeg<byte, byte>
 
 	public bool Next() => ++loc < input.Length;
 	public int Loc() => loc;
+	public byte Lex() => input[loc];
 	public byte Lex(int loc) => input[loc];
 
 	public virtual bool Is(byte aim) => input[loc] == aim;
@@ -100,6 +99,7 @@ public class LerByteSeg(ArraySegment<byte> input) : LexerSeg<byte, byte>
 
 	public bool Next() => ++loc < input.Count;
 	public int Loc() => loc;
+	public byte Lex() => input[loc];
 	public byte Lex(int loc) => input[loc];
 
 	public virtual bool Is(byte aim) => input[loc] == aim;
@@ -125,6 +125,7 @@ public class LerByteList(List<byte> input) : Lexer<byte, byte>
 
 	public bool Next() => ++loc < input.Count;
 	public int Loc() => loc;
+	public byte Lex() => input[loc];
 	public byte Lex(int loc) => input[loc];
 
 	public virtual bool Is(byte aim) => input[loc] == aim;

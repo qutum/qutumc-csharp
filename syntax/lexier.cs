@@ -61,7 +61,7 @@ public enum Lex
 }
 
 // lexic parser
-public class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
+public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 {
 	/*	EXC   = ! == not
 		QUO   = " == string
@@ -141,14 +141,16 @@ public class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 	;
 
 	// key oridinal that is single or kind value, useful for syntax parser
-	public static int Ordin(L key) => (byte)((int)key >> ((int)key >> 24));
+	public static ushort Ordin(Lexier ler)
+		=> (byte)((int)ler.lexs[ler.loc].key >> ((int)ler.lexs[ler.loc].key >> 24));
 
 	public static bool IsGroup(L key, L aim) => (int)(key & aim) << 8 != 0;
 	public static bool IsKind(L key, L aim) => (byte)((int)key >> ((int)key >> 24)) == (byte)aim;
 	public override bool Is(L key, L aim) =>
 		(byte)aim == 0 ? IsGroup(key, aim) : aim <= L.BIN8 ? IsKind(key, aim) : key == aim;
 
-	void Lexer<L, Lexi<L>>.Distinct(IEnumerable<L> keys)
+	// check each keys distinct from others, otherwise throw exception
+	public static void Distinct(IEnumerable<L> keys)
 	{
 		L kind = 0;
 		StringBuilder err = new();

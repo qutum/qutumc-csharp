@@ -8,14 +8,13 @@
 #pragma warning disable IDE0059
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using qutum.parser;
-using qutum.parser.earley;
 using System;
+using System.Linq;
 using static Microsoft.VisualStudio.TestTools.UnitTesting.Assert;
 
 namespace qutum.test.parser;
 
-using SynterStr = EarleyStr;
-using Ser = (EsynStr t, EarleyStr s);
+using Ser = (SyntStr t, SynterStr s);
 
 static class TestExtension
 {
@@ -25,8 +24,6 @@ static class TestExtension
 	public static Ser Parse(this SynterStr s, string input)
 	{
 		var t = s.Begin(new LerStr(input)).Parse().Dump();
-		using var env = EnvWriter.Begin();
-		env.WriteLine($"---- match {s.matchn} / lexi {s.lexn} = {s.matchn / Math.Max(s.lexn, 1)} ----");
 		return (t, s);
 	}
 
@@ -87,6 +84,44 @@ public class TestSynter : IDisposable
 
 	public void Dispose() => env.Dispose();
 
+	public static SynterStr NewSer(string Alts, char[] keys, ushort[] names, SynForm<char, string>[] forms)
+	{
+		var alts = Alts.Split('\n', ' ').Select(alt => new SynAlt<string> {
+			name = alt[0..1],
+			len = alt.Length - 2, // N=
+			lex = alt.IndexOfAny(keys, 2) - 2,
+		}).ToArray();
+		var ks = keys.Select(k => (ushort)k).Prepend(default);
+		foreach (var form in forms)
+			if (form != null) {
+				form.modes = form.modes.Prepend(default).ToArray();
+				Array.Sort(form.keys = ks.ToArray(), form.modes, 1, keys.Length);
+				if (form.pushs != null)
+					Array.Sort(form.names = names[0..], form.pushs);
+			}
+		return new(ler => ler.Lex(), name => name[0], alts, forms);
+	}
+
+	[TestMethod]
+	public void TigerF325()
+	{
+		var s = NewSer("S=E E=T+E E=T T=a", ['a', 'b', '+', '\0'], ['E', 'T'], [ null,
+			new() { modes = [5, 5, 0, 0],      pushs=[2, 3] },
+			new() { modes = [0, 0, 0, -2-0]                 },
+			new() { modes = [0, 0, 4, -2-2]                 },
+			new() { modes = [5, 5, 0, 0],      pushs=[6, 3] },
+			new() { modes = [0, 0, -2-3, -2-3]              },
+			new() { modes = [0, 0, 0, -2-1]                 },
+		]);
+		IsTrue(s.Check("a")); IsTrue(s.Check("b"));
+		IsTrue(s.Check("a+b")); IsTrue(s.Check("a+b+a"));
+		IsFalse(s.Check("c")); IsFalse(s.Check("+")); IsFalse(s.Check("ab"));
+		IsFalse(s.Check("a+")); IsFalse(s.Check("+b"));
+		IsFalse(s.Check("a+b+")); IsFalse(s.Check("+a+b")); IsFalse(s.Check("a++b"));
+		s.dump = 3;
+	}
+
+	/*
 	[TestMethod]
 	public void Term1()
 	{
@@ -190,42 +225,42 @@ public class TestSynter : IDisposable
 		s = new SynterStr("S= aa B \nB= A a \nA= a+") { dump = 3 };
 		IsTrue(s.Check("aaaaaaa")); AreEqual(28, s.matchn);
 	}
-
-	[TestMethod]
-	public void MidRecu()
-	{
-		var s = new SynterStr("""
-			S	= If|X =-
-			If	= if \s S \s then \s S
-				| if \s S \s then \s S \s else \s S
-			X	= a|b|c|d|e|f|g|h|i|j
-			""") { dump = 3 };
-		s.Parse("if a then b").h("If").H(v: "a").N(v: "b").uuU();
-		s.Parse("if a then b else c").h().H(v: "a").N(v: "b").N(v: "c").uuU();
-		var t = s.Parse("if a then if b then c").h().H(v: "a");
-		t = t/**/									.n().H(v: "b").N(v: "c").uuuU();
-		t = s.Parse("if a then if b then c else d").h().H(v: "a");
-		t = t/**/									   .n().H(v: "b").N(v: "c").u();
-		t = t/**/									   .N(v: "d").uuU();
-		t = s.Parse("if a then if b then c else d else e").h().H(v: "a");
-		t = t/**/											  .n().H(v: "b").N(v: "c").N(v: "d").u();
-		t = t/**/											  .N(v: "e").uuU();
-		t = s.Parse("if a then if b then c else if d then e else f else g");
-		t = t/**/.h().H(v: "a");
-		t = t/**/	.n().H(v: "b").N(v: "c");
-		t = t/**/		 .n().H(v: "d").N(v: "e").N(v: "f").uu();
-		t = t/**/	.N(v: "g").uuU();
-		t = s.Parse("if a then if b then if c then d else e else if g then h else i else j");
-		t = t/**/.h().H(v: "a");
-		t = t/**/	.n().H(v: "b");
-		t = t/**/		.n().H(v: "c").N(v: "d").N(v: "e").u();
-		t = t/**/		.n().H(v: "g").N(v: "h").N(v: "i").uu();
-		t = t/**/	.N(v: "j").uuU();
-		IsFalse(s.Check("if a else b"));
-		IsFalse(s.Check("if a then b then c"));
-		IsFalse(s.Check("if a then if b else c"));
-	}
-
+*/
+	//[TestMethod]
+	//public void MidRecu()
+	//{
+	//	var s = new SynterStr("""
+	//		S	= If|X =-
+	//		If	= if \s S \s then \s S
+	//			| if \s S \s then \s S \s else \s S
+	//		X	= a|b|c|d|e|f|g|h|i|j
+	//		""") { dump = 3 };
+	//	s.Parse("if a then b").h("If").H(v: "a").N(v: "b").uuU();
+	//	s.Parse("if a then b else c").h().H(v: "a").N(v: "b").N(v: "c").uuU();
+	//	var t = s.Parse("if a then if b then c").h().H(v: "a");
+	//	t = t/**/									.n().H(v: "b").N(v: "c").uuuU();
+	//	t = s.Parse("if a then if b then c else d").h().H(v: "a");
+	//	t = t/**/									   .n().H(v: "b").N(v: "c").u();
+	//	t = t/**/									   .N(v: "d").uuU();
+	//	t = s.Parse("if a then if b then c else d else e").h().H(v: "a");
+	//	t = t/**/											  .n().H(v: "b").N(v: "c").N(v: "d").u();
+	//	t = t/**/											  .N(v: "e").uuU();
+	//	t = s.Parse("if a then if b then c else if d then e else f else g");
+	//	t = t/**/.h().H(v: "a");
+	//	t = t/**/	.n().H(v: "b").N(v: "c");
+	//	t = t/**/		 .n().H(v: "d").N(v: "e").N(v: "f").uu();
+	//	t = t/**/	.N(v: "g").uuU();
+	//	t = s.Parse("if a then if b then if c then d else e else if g then h else i else j");
+	//	t = t/**/.h().H(v: "a");
+	//	t = t/**/	.n().H(v: "b");
+	//	t = t/**/		.n().H(v: "c").N(v: "d").N(v: "e").u();
+	//	t = t/**/		.n().H(v: "g").N(v: "h").N(v: "i").uu();
+	//	t = t/**/	.N(v: "j").uuU();
+	//	IsFalse(s.Check("if a else b"));
+	//	IsFalse(s.Check("if a then b then c"));
+	//	IsFalse(s.Check("if a then if b else c"));
+	//}
+	/*
 	[TestMethod]
 	public void DoubleRecu()
 	{
@@ -391,178 +426,178 @@ public class TestSynter : IDisposable
 		s.tree = false;
 		s.Parse("111").H("A").uU();
 	}
+*/
+	//[TestMethod]
+	//public void HintSynt2()
+	//{
+	//	var s = new SynterStr("S=Z*U* \n U=A*V* =+-\n V=B*C* =+-\n Z=z \n A=a \n B=b \n C=c") {
+	//		tree = true, dump = 3
+	//	};
+	//	var t = s.Parse("zabc");
+	//	t = t/**/.H("Z");
+	//	t = t/**/.n("U").H("A");
+	//	t = t/**/		.n("V").H("B");
+	//	t = t/**/				.N("C").uuuU();
+	//	t = s.Parse("zab");
+	//	t = t/**/.H("Z");
+	//	t = t/**/.n("U").H("A");
+	//	t = t/**/		.N("B").uuU();
+	//	t = s.Parse("zbc");
+	//	t = t/**/.H("Z");
+	//	t = t/**/.n("U").H("B");
+	//	t = t/**/		.N("C").uuU();
+	//	t = s.Parse("abc");
+	//	t = t/**/.H("A");
+	//	t = t/**/.n("V").H("B");
+	//	t = t/**/		.N("C").uuU();
+	//	s.Parse("ab").H("A").N("B").uU();
+	//	s.Parse("bc").H("B").N("C").uU();
+	//}
 
-	[TestMethod]
-	public void HintSynt2()
-	{
-		var s = new SynterStr("S=Z*U* \n U=A*V* =+-\n V=B*C* =+-\n Z=z \n A=a \n B=b \n C=c") {
-			tree = true, dump = 3
-		};
-		var t = s.Parse("zabc");
-		t = t/**/.H("Z");
-		t = t/**/.n("U").H("A");
-		t = t/**/		.n("V").H("B");
-		t = t/**/				.N("C").uuuU();
-		t = s.Parse("zab");
-		t = t/**/.H("Z");
-		t = t/**/.n("U").H("A");
-		t = t/**/		.N("B").uuU();
-		t = s.Parse("zbc");
-		t = t/**/.H("Z");
-		t = t/**/.n("U").H("B");
-		t = t/**/		.N("C").uuU();
-		t = s.Parse("abc");
-		t = t/**/.H("A");
-		t = t/**/.n("V").H("B");
-		t = t/**/		.N("C").uuU();
-		s.Parse("ab").H("A").N("B").uU();
-		s.Parse("bc").H("B").N("C").uU();
-	}
+	//[TestMethod]
+	//public void HintSynt3()
+	//{
+	//	var s = new SynterStr("S=Z*U* \n U=A*V* =+-\n V=B*C* =+-\n Z=z =-\n A=a \n B=b \n C=c") {
+	//		tree = true, dump = 3
+	//	};
+	//	var t = s.Parse("zabc");
+	//	t = t/**/.H("A");
+	//	t = t/**/.n("V").H("B");
+	//	t = t/**/		.N("C").uuU();
+	//	s.Parse("zab").H("A").N("B").uU();
+	//	s.Parse("zbc").H("B").N("C").uU();
+	//	t = s.Parse("abc");
+	//	t = t/**/.H("A");
+	//	t = t/**/.n("V").H("B");
+	//	t = t/**/		.N("C").uuU();
+	//	s.Parse("ab").H("A").N("B").uU();
+	//	s.Parse("bc").H("B").N("C").uU();
+	//}
 
-	[TestMethod]
-	public void HintSynt3()
-	{
-		var s = new SynterStr("S=Z*U* \n U=A*V* =+-\n V=B*C* =+-\n Z=z =-\n A=a \n B=b \n C=c") {
-			tree = true, dump = 3
-		};
-		var t = s.Parse("zabc");
-		t = t/**/.H("A");
-		t = t/**/.n("V").H("B");
-		t = t/**/		.N("C").uuU();
-		s.Parse("zab").H("A").N("B").uU();
-		s.Parse("zbc").H("B").N("C").uU();
-		t = s.Parse("abc");
-		t = t/**/.H("A");
-		t = t/**/.n("V").H("B");
-		t = t/**/		.N("C").uuU();
-		s.Parse("ab").H("A").N("B").uU();
-		s.Parse("bc").H("B").N("C").uU();
-	}
+	//[TestMethod]
+	//public void Recovery1()
+	//{
+	//	var s = new SynterStr("S=A|S,A? =|\n A=M|A\\+M \n M=V|M\\*V \n V=0|1|2|3|4|5") {
+	//		dump = 3
+	//	};
+	//	s.Parse("0,").h("S").h("A").h("M").H("V").uuuuU();
+	//	s.Parse("+").Eq(v: '+', err: -1).Leaf().U();
+	//	s.Parse("+0").Eq(v: '+', err: -1).Leaf().U();
+	//	s.Parse("+,+0").Eq(v: '+', err: -1).Leaf().U();
+	//	s.Parse("0+").h("S", 0, 1).N("S", err: -4).u().n(to: 2, err: -1).H("A", 0, 2, "M", 2).uU();
+	//	s.Parse("0*").h("S", 0, 1).N("S", err: -4).u().n(to: 2, err: -1).H("M", 0, 2, "V", 2).uU();
+	//	var t = s.Parse("0#&$");
+	//	t = t/**/	.h("S", 0, 1).N("S", 0, 4, err: -4).u();
+	//	t = t/**/.n("S", 1, 2, '#', -1);
+	//	t = t/**/	.h("M", 0, 1, '*', 1).N("A", 0, 1, '+', 1).N("S", 0, 1, ',', 1).uU();
+	//}
 
-	[TestMethod]
-	public void Recovery1()
-	{
-		var s = new SynterStr("S=A|S,A? =|\n A=M|A\\+M \n M=V|M\\*V \n V=0|1|2|3|4|5") {
-			dump = 3
-		};
-		s.Parse("0,").h("S").h("A").h("M").H("V").uuuuU();
-		s.Parse("+").Eq(v: '+', err: -1).Leaf().U();
-		s.Parse("+0").Eq(v: '+', err: -1).Leaf().U();
-		s.Parse("+,+0").Eq(v: '+', err: -1).Leaf().U();
-		s.Parse("0+").h("S", 0, 1).N("S", err: -4).u().n(to: 2, err: -1).H("A", 0, 2, "M", 2).uU();
-		s.Parse("0*").h("S", 0, 1).N("S", err: -4).u().n(to: 2, err: -1).H("M", 0, 2, "V", 2).uU();
-		var t = s.Parse("0#&$");
-		t = t/**/	.h("S", 0, 1).N("S", 0, 4, err: -4).u();
-		t = t/**/.n("S", 1, 2, '#', -1);
-		t = t/**/	.h("M", 0, 1, '*', 1).N("A", 0, 1, '+', 1).N("S", 0, 1, ',', 1).uU();
-	}
+	//[TestMethod]
+	//public void Recovery2()
+	//{
+	//	var s = new SynterStr("S=A|S,A? =|\n A=M|A\\+M \n M=V|M\\*V \n V=0|1|2|3|4|5") {
+	//		dump = 3
+	//	};
+	//	var t = s.Parse("0+,1*,2#");
+	//	t = t/**/	.h("S", 0, 7).h("S", 0, 4).h("S", v: "0");
+	//	t = t/**/								.N("S", 0, 3, err: -4).n("A", v: "1").u();
+	//	t = t/**/				.N("S", 0, 6, err: -4).n("A", v: "2").u();
+	//	t = t/**/	.N("S", 0, 8, err: -4).u();
+	//	t = t/**/.n("S", 2, 3, ',', -1);
+	//	t = t/**/	.H("A", 0, 2, "M", 2).u();
+	//	t = t/**/.n("S", 5, 6, ',', -1);
+	//	t = t/**/	.H("M", 3, 5, "V", 2).u();
+	//	t = t/**/.n("S", 7, 8, '#', -1);
+	//	t = t/**/	.H("M", 6, 7, '*', 1).N("A", 6, 7, '+', 1).N("S", 0, 7, ',', 1).uU();
+	//	t = s.Parse("0+1*2+");
+	//	t = t/**/	.h("S", 0, 5).h("A", 0, 5).u().N("S", 0, 6, err: -4).u();
+	//	t = t/**/.n("S", 6, 6, null, -1);
+	//	t = t/**/	.H("A", 0, 6, "M", 2).uU();
+	//	t = s.Parse("0+1*2+,1");
+	//	t = t/**/	.h("S", 0, 5).h("A", 0, 5).u().N("S", 0, 7, err: -4);
+	//	t = t/**/	.n("A", 7, 8).u();
+	//	t = t/**/.n("S", 6, 7, ',', -1);
+	//	t = t/**/	.H("A", 0, 6, "M", 2).uU();
+	//}
 
-	[TestMethod]
-	public void Recovery2()
-	{
-		var s = new SynterStr("S=A|S,A? =|\n A=M|A\\+M \n M=V|M\\*V \n V=0|1|2|3|4|5") {
-			dump = 3
-		};
-		var t = s.Parse("0+,1*,2#");
-		t = t/**/	.h("S", 0, 7).h("S", 0, 4).h("S", v: "0");
-		t = t/**/								.N("S", 0, 3, err: -4).n("A", v: "1").u();
-		t = t/**/				.N("S", 0, 6, err: -4).n("A", v: "2").u();
-		t = t/**/	.N("S", 0, 8, err: -4).u();
-		t = t/**/.n("S", 2, 3, ',', -1);
-		t = t/**/	.H("A", 0, 2, "M", 2).u();
-		t = t/**/.n("S", 5, 6, ',', -1);
-		t = t/**/	.H("M", 3, 5, "V", 2).u();
-		t = t/**/.n("S", 7, 8, '#', -1);
-		t = t/**/	.H("M", 6, 7, '*', 1).N("A", 6, 7, '+', 1).N("S", 0, 7, ',', 1).uU();
-		t = s.Parse("0+1*2+");
-		t = t/**/	.h("S", 0, 5).h("A", 0, 5).u().N("S", 0, 6, err: -4).u();
-		t = t/**/.n("S", 6, 6, null, -1);
-		t = t/**/	.H("A", 0, 6, "M", 2).uU();
-		t = s.Parse("0+1*2+,1");
-		t = t/**/	.h("S", 0, 5).h("A", 0, 5).u().N("S", 0, 7, err: -4);
-		t = t/**/	.n("A", 7, 8).u();
-		t = t/**/.n("S", 6, 7, ',', -1);
-		t = t/**/	.H("A", 0, 6, "M", 2).uU();
-	}
+	//[TestMethod]
+	//public void Recovery3()
+	//{
+	//	var s = new SynterStr("S=A|S,A? =*|\n A=M|A\\+M \n M=V|M\\*V \n V=(A)|N =|\n N=0|1|2|3|4|5") {
+	//		dump = 3
+	//	};
+	//	var t = s.Parse("()");
+	//	t = t/**/	.h("A").h("M").h("V").H("V", 0, 2, err: -4).uuuu();
+	//	t = t/**/.n("S", 1, 2, ')', -1);
+	//	t = t/**/	.H("V", 0, 1, "A", 1).uU();
+	//	t = s.Parse("0+(),1");
+	//	t = t/**/	.h("S").h("A").h("A").h("M").u();
+	//	t = t/**/					.n("M").h("V").H("V", 2, 4, err: -4).uuuu();
+	//	t = t/**/	.n("A").u();
+	//	t = t/**/.n("S", 3, 4, ')', -1);
+	//	t = t/**/	.H("V", 2, 3, "A", 1).uU();
+	//	t = s.Parse("0,1+(2*),3#");
+	//	t = t/**/	.h("S").h("S").h("S", 0, 1);
+	//	t = t/**/				.n("A").h("A", v: "1");
+	//	t = t/**/						.n("M").h("V", 4, 8).h("A", v: "2");
+	//	t = t/**/											.N("V", 4, 8, err: -4).uuuu();
+	//	t = t/**/			.n("A", v: "3").u();
+	//	t = t/**/	.N("S", 0, 11, err: -4).u();
+	//	t = t/**/.n("S", 7, 8, ')', -1);
+	//	t = t/**/	.H("M", 5, 7, "V", 2).u();
+	//	t = t/**/.n("S", 10, 11, '#', -1);
+	//	t = t/**/	.H("M", 9, 10, '*', 1).N("A", 9, 10, '+', 1).N("S", 0, 10, ',', 1).uU();
+	//	t = s.Parse("0,1+(2*)4,3+");
+	//	t = t/**/	.h("S").h("S").h("S", 0, 1);
+	//	t = t/**/				.n("A").h("A", v: "1");
+	//	t = t/**/						.n("M").h("V", 4, 8).h("A", v: "2");
+	//	t = t/**/											.N("V", 4, 8, err: -4).uuuu();
+	//	t = t/**/			.N("S", 0, 10, err: -4).n("A", v: "3").u();
+	//	t = t/**/	.N("S", 0, 12, err: -4).u();
+	//	t = t/**/.n("S", 7, 8, ')', -1);
+	//	t = t/**/	.H("M", 5, 7, "V", 2).u();
+	//	t = t/**/.n("S", 8, 9, '4', -1);
+	//	t = t/**/	.H("M", 4, 8, '*', 1).N("A", 2, 8, '+', 1).N("S", 0, 8, ',', 1).u();
+	//	t = t/**/.n("S", 12, 12, null, -1);
+	//	t = t/**/	.H("A", 10, 12, "M", 2).uU();
+	//}
 
-	[TestMethod]
-	public void Recovery3()
-	{
-		var s = new SynterStr("S=A|S,A? =*|\n A=M|A\\+M \n M=V|M\\*V \n V=(A)|N =|\n N=0|1|2|3|4|5") {
-			dump = 3
-		};
-		var t = s.Parse("()");
-		t = t/**/	.h("A").h("M").h("V").H("V", 0, 2, err: -4).uuuu();
-		t = t/**/.n("S", 1, 2, ')', -1);
-		t = t/**/	.H("V", 0, 1, "A", 1).uU();
-		t = s.Parse("0+(),1");
-		t = t/**/	.h("S").h("A").h("A").h("M").u();
-		t = t/**/					.n("M").h("V").H("V", 2, 4, err: -4).uuuu();
-		t = t/**/	.n("A").u();
-		t = t/**/.n("S", 3, 4, ')', -1);
-		t = t/**/	.H("V", 2, 3, "A", 1).uU();
-		t = s.Parse("0,1+(2*),3#");
-		t = t/**/	.h("S").h("S").h("S", 0, 1);
-		t = t/**/				.n("A").h("A", v: "1");
-		t = t/**/						.n("M").h("V", 4, 8).h("A", v: "2");
-		t = t/**/											.N("V", 4, 8, err: -4).uuuu();
-		t = t/**/			.n("A", v: "3").u();
-		t = t/**/	.N("S", 0, 11, err: -4).u();
-		t = t/**/.n("S", 7, 8, ')', -1);
-		t = t/**/	.H("M", 5, 7, "V", 2).u();
-		t = t/**/.n("S", 10, 11, '#', -1);
-		t = t/**/	.H("M", 9, 10, '*', 1).N("A", 9, 10, '+', 1).N("S", 0, 10, ',', 1).uU();
-		t = s.Parse("0,1+(2*)4,3+");
-		t = t/**/	.h("S").h("S").h("S", 0, 1);
-		t = t/**/				.n("A").h("A", v: "1");
-		t = t/**/						.n("M").h("V", 4, 8).h("A", v: "2");
-		t = t/**/											.N("V", 4, 8, err: -4).uuuu();
-		t = t/**/			.N("S", 0, 10, err: -4).n("A", v: "3").u();
-		t = t/**/	.N("S", 0, 12, err: -4).u();
-		t = t/**/.n("S", 7, 8, ')', -1);
-		t = t/**/	.H("M", 5, 7, "V", 2).u();
-		t = t/**/.n("S", 8, 9, '4', -1);
-		t = t/**/	.H("M", 4, 8, '*', 1).N("A", 2, 8, '+', 1).N("S", 0, 8, ',', 1).u();
-		t = t/**/.n("S", 12, 12, null, -1);
-		t = t/**/	.H("A", 10, 12, "M", 2).uU();
-	}
+	//[TestMethod]
+	//public void Recovery4()
+	//{
+	//	var s = new SynterStr("P=S+ \n S=V|{S+} =*|\n V=(N)|N =|\n N=0|1|2|3|4|5") {
+	//		dump = 3
+	//	};
+	//	var t = s.Parse("{()");
+	//	t = t/**/	.h("S").h("S").h("V");
+	//	t = t/**/					.H("V", 1, 3, err: -4).uu();
+	//	t = t/**/			.N("S", 0, 3, err: -4).uu();
+	//	t = t/**/.n("P", 2, 3, ')', -1);
+	//	t = t/**/	.H("V", 1, 2, "N", 1).u();
+	//	t = t/**/.n("P", 3, 3, null, -1);
+	//	t = t/**/	.H("S", 0, 3, '}', 2).N("S", 0, 3, "S", 1).uU();
+	//	s.recover = 1;
+	//	s.Parse("{{").Eq("P", 2, 2, null, -1).H("S", 1, 2, "S", 1).uU();
+	//	s.recover = 2;
+	//	t = s.Parse("{(");
+	//	t = t/**/	.h("S").h("S").h("V");
+	//	t = t/**/					.H("V", 1, 2, err: -4).uu();
+	//	t = t/**/			.N("S", 0, 2, err: -4).uu();
+	//	t = t/**/.n("P", 2, 2, null, -1);
+	//	t = t/**/	.H("V", 1, 2, "N", 1).u();
+	//	t = t/**/.n("P", 2, 2, null, -1);
+	//	t = t/**/	.H("V", 1, 2, "N", 1).N("S", 0, 2, '}', 2).N("S", 0, 2, "S", 1).uU();
+	//}
 
-	[TestMethod]
-	public void Recovery4()
-	{
-		var s = new SynterStr("P=S+ \n S=V|{S+} =*|\n V=(N)|N =|\n N=0|1|2|3|4|5") {
-			dump = 3
-		};
-		var t = s.Parse("{()");
-		t = t/**/	.h("S").h("S").h("V");
-		t = t/**/					.H("V", 1, 3, err: -4).uu();
-		t = t/**/			.N("S", 0, 3, err: -4).uu();
-		t = t/**/.n("P", 2, 3, ')', -1);
-		t = t/**/	.H("V", 1, 2, "N", 1).u();
-		t = t/**/.n("P", 3, 3, null, -1);
-		t = t/**/	.H("S", 0, 3, '}', 2).N("S", 0, 3, "S", 1).uU();
-		s.recover = 1;
-		s.Parse("{{").Eq("P", 2, 2, null, -1).H("S", 1, 2, "S", 1).uU();
-		s.recover = 2;
-		t = s.Parse("{(");
-		t = t/**/	.h("S").h("S").h("V");
-		t = t/**/					.H("V", 1, 2, err: -4).uu();
-		t = t/**/			.N("S", 0, 2, err: -4).uu();
-		t = t/**/.n("P", 2, 2, null, -1);
-		t = t/**/	.H("V", 1, 2, "N", 1).u();
-		t = t/**/.n("P", 2, 2, null, -1);
-		t = t/**/	.H("V", 1, 2, "N", 1).N("S", 0, 2, '}', 2).N("S", 0, 2, "S", 1).uU();
-	}
-
-	[TestMethod]
-	public void Recovery5()
-	{
-		var s = new SynterStr("P=S+ \n S=V|{S+} =*|\n|\\0?\\0} =-| \n V=0|1|2|3|4|5") {
-			dump = 3
-		};
-		var t = s.Parse("{{0}}}}{1}");
-		t = t/**/	.h("S", 0, 5, "{{0}}").h("S", 1, 4, "{0}").u();
-		t = t/**/	.N("S", 5, 6, err: -4).N("S", 6, 7, err: -4).n("S", 7, 10, "{1}").u();
-		t = t/**/.n("P", 5, 6, '}', -1).n("P", 6, 7, '}', -1).U();
-	}
+	//[TestMethod]
+	//public void Recovery5()
+	//{
+	//	var s = new SynterStr("P=S+ \n S=V|{S+} =*|\n|\\0?\\0} =-| \n V=0|1|2|3|4|5") {
+	//		dump = 3
+	//	};
+	//	var t = s.Parse("{{0}}}}{1}");
+	//	t = t/**/	.h("S", 0, 5, "{{0}}").h("S", 1, 4, "{0}").u();
+	//	t = t/**/	.N("S", 5, 6, err: -4).N("S", 6, 7, err: -4).n("S", 7, 10, "{1}").u();
+	//	t = t/**/.n("P", 5, 6, '}', -1).n("P", 6, 7, '}', -1).U();
+	//}
 }

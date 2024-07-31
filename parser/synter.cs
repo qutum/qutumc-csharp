@@ -36,48 +36,12 @@ public class SyntStr : Synt<string, SyntStr>
 {
 }
 
-// TODO
-public enum Qua : byte { Opt = 0, One = 1, Any = 2, More = 3 };
-
-// synter grammar
-public class SynGram<K, N>
-{
-	public readonly List<Prod> prods = [];
-	public class Prod : List<Alt> { public N name; }
-	public class Alt
-	{
-		public readonly List<object> cons = [];
-		internal sbyte synt; // as Synter.tree: 0, make Synt: 2, omit Synt: -1
-		internal bool lex; // save first lex of cons to Synt.info
-		internal bool error; // make expecting Synt when error
-		internal string hint;
-	}
-
-	public SynGram<K, N> prod(N name) { prods.Add(new Prod { name = name }); return this; }
-	public SynGram<K, N> this[params object[] cons] {
-		get {
-			Alt a = new();
-			prods[^1].Add(a);
-			foreach (var v in cons)
-				if (v is N or K) a.cons.Add(v);
-				else throw new($"wrong altern content {v?.GetType()}");
-			return this;
-		}
-	}
-	public SynGram<K, N> synt { get { prods[^1][^1].synt = 2; return this; } }
-	public SynGram<K, N> syntMay { get { prods[^1][^1].synt = 1; return this; } }
-	public SynGram<K, N> syntOmit { get { prods[^1][^1].synt = -1; return this; } }
-	public SynGram<K, N> lex { get { prods[^1][^1].lex = true; return this; } }
-	public SynGram<K, N> err { get { prods[^1][^1].error = true; return this; } }
-	public SynGram<K, N> hint(string w) { prods[^1][^1].hint = w != "" ? w : null; return this; }
-}
-
 public sealed class SynAlt<N>
 {
 	public N name;
 	public int len;
 	public bool rec; // is this for error recovery
-	public sbyte synt; // as Synter.tree: 0, make Synt: 2, omit Synt: -1
+	public sbyte synt; // as Synter.tree: 0, make Synt: 1, omit Synt: -1
 	public int lex; // save lex at this index to Synt.info, no save: <0
 	public string hint;
 	public string dump;
@@ -86,11 +50,11 @@ public sealed class SynAlt<N>
 }
 public sealed class SynForm<K, N>
 {
-	public short[] modes; // for each key: shift to: form index+1, reduce: alt ~index, error: 0
+	public short[] modes; // for each key: shift to: form index, reduce: alt -2-index, error: -1
 	public ushort[] keys; // compact modes: { 0 for others, key oridnals ... }, normal: null
 	public short rec; // recover error: mode, no recovery: 0
 	public string err; // error hint
-	public short[] pushs; // for each name: push form index
+	public short[] pushs; // for each name: push: form index
 	public ushort[] names; // compact pushs: { 0 for others, name ordinals ... }, normal: null
 
 	public short Get(ushort x, short[] v, ushort[] i)
@@ -100,7 +64,7 @@ public sealed class SynForm<K, N>
 		case 2: return i[1] == x ? v[1] : v[0];
 		case 3: return i[1] == x ? v[1] : i[2] == x ? v[2] : v[0];
 		case 4: return i[1] == x ? v[1] : i[2] == x ? v[2] : i[3] == x ? v[3] : v[0];
-		default: var j = Array.BinarySearch(i, 1, i.Length, x); return j > 0 ? v[j] : v[0];
+		default: var j = Array.BinarySearch(i, 1, i.Length - 1, x); return j > 0 ? v[j] : v[0];
 		}
 	}
 }
@@ -122,9 +86,10 @@ public class SynterStr : Synter<char, char, string, SyntStr, LerStr>
 // syntax parser using LR algorithm
 public class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler : class, Lexer<K, L>
 {
-	readonly SynAlt<N>[] alts; // reduce [0] by eof after forms[0]: finish
+	readonly SynAlt<N>[] alts; // reduce [0] by eof after forms[init]: finish
 	readonly SynForm<K, N>[] forms;
 	readonly Stack<(SynForm<K, N> form, object with)> stack = new(); // with is lex or Synt
+	protected int init = 0; // first form index
 
 	protected Func<Ler, ushort> lexOrd; // ordinal from 1, default lex for eof: 0
 	protected Func<N, ushort> nameOrd; // ordinal from 1
@@ -134,15 +99,15 @@ public class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler : cla
 	public int dump = 0; // no: 0, lexs only for tree leaf: 1, lexs: 2, lexs and Alts: 3
 	public Func<object, string> dumper = null;
 
-
 	public Synter(Func<Ler, ushort> lexOrd, Func<N, ushort> nameOrd,
 		SynAlt<N>[] alts, SynForm<K, N>[] forms)
 	{
-		if (alts.Length is < 1 or > 32767)
+		if (alts.Length is 0 or > 32767)
 			throw new($"{nameof(alts)} length: {alts.Length}");
-		if (forms.Length is < 1 or > 32767)
+		if (forms.Length is 0 or > 32767)
 			throw new($"{nameof(forms)} length: {forms.Length}");
 		this.lexOrd = lexOrd; this.nameOrd = nameOrd; this.alts = alts; this.forms = forms;
+		init = forms[0] != null ? 0 : 1;
 	}
 
 	public Synter<K, L, N, T, Ler> Begin(Ler ler) { this.ler = ler; return this; }
@@ -164,7 +129,7 @@ public class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler : cla
 
 	T Parse(out T errs, bool check)
 	{
-		stack.Push((forms[0], null));
+		stack.Push((forms[init], null));
 		T err = errs = null;
 	Next:
 		var key = ler.Next() ? lexOrd(ler) : default;
@@ -173,19 +138,19 @@ public class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler : cla
 		var (form, _) = stack.Peek();
 		var mode = form.Get(key, form.modes, form.keys);
 	Recover:
-		if (mode > 0) { // shift
-			stack.Push((forms[mode - 1], check ? null : info == ler ? ler.Lex() : info));
+		if (mode >= init) { // shift
+			stack.Push((forms[mode], check ? null : info == ler ? ler.Lex() : info));
 			goto Next;
 		}
-		else if (mode < 0) { // reduce
-			var alt = alts[~mode];
+		else if (mode < -1) { // reduce
+			var alt = alts[-2 - mode];
 			T t = check ? null : new T {
 				name = alt.name, to = ler.Loc() + 1,
 				err = alt.rec ? -2 : 0
 			};
 			for (var i = alt.len - 1; i >= 0; i--) {
 				var (_, with) = stack.Pop();
-				if (check) ;
+				if (check) { }
 				else if (with is T h)
 					t.AddHead(h);
 				else if (i == alt.lex)
@@ -195,7 +160,7 @@ public class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler : cla
 			var push = form.Get(nameOrd(alt.name), form.pushs, form.names);
 			stack.Push((forms[push], t));
 			// reduce alts[0] by eof after forms[0]
-			if (form == forms[0] && alt == alts[0] && key == default)
+			if (form == forms[init] && alt == alts[0] && key == default)
 				goto Done;
 			goto Loop;
 		}
