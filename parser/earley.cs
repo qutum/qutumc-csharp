@@ -20,9 +20,9 @@ using EarleyChar = Earley<char, char, string, EsynStr, LerStr>;
 public class Esyn<N, T> : LinkTree<T> where T : Esyn<N, T>
 {
 	public N name;
-	public int from, to; // lexis from loc to loc excluded, for error may < 0
+	public int from, to; // lexs from loc to loc excluded, for error may < 0
 	public int err; // no error: 0, error: -1, error step: > 0, recovered: -4
-	public object info; // error Lexi, expected Alt hint/name or K, or recovered Prod hint/name or K
+	public object info; // error lex, expected Alt hint/name or K, or recovered Prod hint/name or K
 	public string dump;
 
 	public override string ToString()
@@ -57,7 +57,7 @@ file class EarGram<K, N>
 		internal sbyte greedy; // as earley.greedy: 0, greedy: 1, lazy: -1
 		internal sbyte synt; // as earley.tree: 0, make Synt: 2, omit Synt: -1
 							 // omit if no up or has 0 or 1 sub: 1
-		internal bool lex; // save first shifted lexi to Synt.info
+		internal bool lex; // save first shifted lex to Synt.info
 		internal bool errExpect; // make expect synt when error
 		internal string hint;
 	}
@@ -83,7 +83,7 @@ file class EarGram<K, N>
 	public EarGram<K, N> synt { get { prods[^1][^1].synt = 1; return this; } }
 	public EarGram<K, N> syntMust { get { prods[^1][^1].synt = 2; return this; } }
 	public EarGram<K, N> syntOmit { get { prods[^1][^1].synt = -1; return this; } }
-	public EarGram<K, N> lexi { get { prods[^1][^1].lex = true; return this; } }
+	public EarGram<K, N> lex { get { prods[^1][^1].lex = true; return this; } }
 	public EarGram<K, N> errExpect { get { prods[^1][^1].errExpect = true; return this; } }
 	public EarGram<K, N> hint(string w) { prods[^1][^1].hint = w != "" ? w : null; return this; }
 }
@@ -121,7 +121,7 @@ public class Earley<K, L, N, T, Ler> where T : Esyn<N, T>, new() where Ler : Lex
 		internal sbyte greedy; // as earley.greedy: 0, greedy: 1, lazy: -1
 		internal sbyte synt; // as earley.tree: 0, make Synt: 2, omit Synt: -1
 							 // omit if no up or has 0 or 1 sub: 1
-		internal bool lex; // save first shifted lexi to Synt.info
+		internal bool lex; // save first shifted lex to Synt.info
 		internal bool errExpect; // make expect synt when error
 		internal int recover; // no: -1, recover ahead to last One or More K index: > 0,
 							  // recover just at last One or More Prod index without shift: > 0
@@ -141,15 +141,15 @@ public class Earley<K, L, N, T, Ler> where T : Esyn<N, T>, new() where Ler : Lex
 	readonly List<Alt> reca = [];
 	Match[] matchs = new Match[16384];
 	public int matchn, completen;
-	public int lexn; // lexi count
-	readonly List<int> lexm = []; // [matchn before lexi]
+	public int lexn; // lex count
+	readonly List<int> lexm = []; // [matchn before lex]
 	readonly int[] recm; // [latest match index of recovery Alt]
 	public Ler ler;
 	public bool greedy = false; // greedy: true, may or may not: false
 								// eg. S=AB A=1|12 B=23|3  gready: (12)3  lazy: 1(23)
 	public int recover = 10; // no recovery: 0, how many times to recover at eof: > 0
 	public bool tree = true; // make whole tree from complete Alts
-	public int dump = 0; // no: 0, lexis for tree leaf: 1, lexis: 2, lexis and Alt: 3
+	public int dump = 0; // no: 0, lexs for tree leaf: 1, lexs: 2, lexs and Alt: 3
 	public int errExpect = 2; // no: 0, One or More: 2, all: 3
 	public Func<object, string> dumper = null;
 
@@ -497,7 +497,7 @@ public class Earley<K, L, N, T, Ler> where T : Esyn<N, T>, new() where Ler : Lex
 			{ "hintp", "^" }, // hint prior
 			{ "hintg", "*|/" }, // hint greedy
 			{ "hintt", "+|-|+ -" }, // hint synt
-			{ "hintl", "_" }, // hint lexi
+			{ "hintl", "_" }, // hint lex
 			{ "hinte", "!" }, // hint err expect
 			{ "hintr", "\x1|\x1 W+|\x1 G|\x1 \\ E" }, // hint recover
 			{ "hintd", "\x1 W+|\x1 G|\x1 \\ E" }, // hint recovery deny

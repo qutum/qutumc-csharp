@@ -232,7 +232,7 @@ public class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 		ind = 0; indf = indt = bn; Indent();
 	}
 
-	protected override Lexi<L> Lexi(L key, int f, int to, object value)
+	protected override void Lexi(L key, int f, int to, object value)
 	{
 		Indent();
 		Lexi<L> p;
@@ -243,7 +243,7 @@ public class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 				Error(key, f, to, "literal can not densely follow literal");
 			else if (IsKind(key, L.PRE) && !(IsKind(p.key, L.PRE) || IsGroup(p.key, L.Blank | L.Bin)))
 				Error(key, f, to, "prefix operator can densely follow blank and prefix and binary only");
-		return base.Lexi(key, f, to, value);
+		base.Lexi(key, f, to, value);
 	}
 
 	protected override void WadErr(L key, int wad, bool end, int b, int f, int to)

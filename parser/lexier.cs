@@ -15,9 +15,9 @@ namespace qutum.parser;
 public struct Lexi<K> where K : struct
 {
 	public K key;
-	public object value;
 	public int from, to; // input from loc to loc excluded
 	public int err; // lexis ~loc before this error found
+	public object value;
 
 	public override readonly string ToString() => $"{key}{(err < 0 ? "!" : "=")}{value}";
 
@@ -79,10 +79,10 @@ public class Lexier<K> : Lexier<K, Lexi<K>> where K : struct
 	public Lexier(LexGram<K> grammar, bool dumpGram = false) : base(grammar, dumpGram) { }
 
 	// from input f loc to loc excluded
-	protected override Lexi<K> Lexi(K key, int f, int to, object value)
+	protected override void Lexi(K key, int f, int to, object value)
 		=> Lexi(new() { key = key, from = f, to = to, value = value });
 	// from input f loc to loc excluded
-	protected override Lexi<K> Error(K key, int f, int to, object value)
+	protected override void Error(K key, int f, int to, object value)
 		=> Lexi(new() { key = key, from = f, to = to, value = value, err = ~lexn }, true);
 
 	public override bool Is(int loc, K aim) => Is(Lex(loc).key, aim);
@@ -241,7 +241,7 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 	// input end
 	protected virtual void InputEnd(int bn) { }
 
-	protected L Lexi(L lexi, bool err = false)
+	protected void Lexi(L lexi, bool err = false)
 	{
 		if (err && errs != null)
 			errs.Add(lexi);
@@ -249,11 +249,10 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 			if (lexn == lexs.Length) Array.Resize(ref lexs, Math.Max(lexs.Length << 1, 65536));
 			lexs[lexn++] = lexi;
 		}
-		return lexi;
 	}
 
-	protected abstract L Lexi(K key, int f, int to, object value);
-	protected abstract L Error(K key, int f, int to, object value);
+	protected abstract void Lexi(K key, int f, int to, object value);
+	protected abstract void Error(K key, int f, int to, object value);
 
 	public int Loc() => Math.Min(loc, lexn);
 	public L Lex() => lexs[loc];
