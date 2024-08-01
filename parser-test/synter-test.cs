@@ -35,7 +35,8 @@ static class TestExtension
 		if (name != null) AreEqual(name, s.t.name);
 		if (from != null) AreEqual(from, s.t.from);
 		if (to != null) AreEqual(to, s.t.to);
-		if (v != null) AreEqual(v, s.t.err == 0 ? s.s.ler.Lexs(s.t.from, s.t.to) : s.t.info);
+		if (v != null) AreEqual(v,
+			v is string && s.t.err == 0 ? s.s.ler.Lexs(s.t.from, s.t.to) : s.t.info);
 		return s;
 	}
 
@@ -75,6 +76,7 @@ static class TestExtension
 	public static Ser uuuu(this Ser s) => u(u(u(u(s))));
 	public static Ser uuuU(this Ser s) => U(u(u(u(s))));
 	public static Ser uuuuU(this Ser s) => U(u(u(u(u(s)))));
+	public static Ser uuuuuU(this Ser s) => U(u(u(u(u(u(s))))));
 }
 
 [TestClass]
@@ -84,12 +86,13 @@ public class TestSynter : IDisposable
 
 	public void Dispose() => env.Dispose();
 
-	public static SynterStr NewSer(string Alts, char[] keys, ushort[] names, SynForm<char, string>[] forms)
+	public static SynterStr NewSer(string Alts, char[] keys, ushort[] names, SynForm[] forms)
 	{
 		var alts = Alts.Split('\n', ' ').Select(alt => new SynAlt<string> {
 			name = alt[0..1],
-			len = alt.Length - 2, // N=
+			len = alt.Length - 2,
 			lex = alt.IndexOfAny(keys, 2) - 2,
+			synt = alt[1] switch { '+' => 1, '-' => -1, _ => 0 },
 		}).ToArray();
 		var ks = keys.Select(k => (ushort)k).Prepend(default); // { other... }
 		foreach (var form in forms)
@@ -106,26 +109,65 @@ public class TestSynter : IDisposable
 	public void TigerF325()
 	{
 		var s = NewSer("S=E E=T+E E=T T=a", ['a', 'b', '+', '\0'], ['E', 'T'], [ null,
-			new() { modes = [5, 5, 0, 0],      pushs=[2, 3] },
-			new() { modes = [0, 0, 0, -2-0]                 },
-			new() { modes = [0, 0, 4, -2-2]                 },
-			new() { modes = [5, 5, 0, 0],      pushs=[6, 3] },
-			new() { modes = [0, 0, -2-3, -2-3]              },
-			new() { modes = [0, 0, 0, -2-1]                 },
+			new() { modes = [5, 5, 0, 0],      pushs = [2, 3] },
+			new() { modes = [0, 0, 0, -2-0]                   },
+			new() { modes = [0, 0, 4, -2-2]                   },
+			new() { modes = [5, 5, 0, 0],      pushs = [6, 3] },
+			new() { modes = [0, 0, -2-3, -2-3]                },
+			new() { modes = [0, 0, 0, -2-1]                   },
 		]);
 		IsTrue(s.Check("a")); IsTrue(s.Check("b"));
 		IsTrue(s.Check("a+b")); IsTrue(s.Check("a+b+a"));
-		IsFalse(s.Check("c")); IsFalse(s.Check("+")); IsFalse(s.Check("ab"));
-		IsFalse(s.Check("a+")); IsFalse(s.Check("+b"));
+		IsFalse(s.Check()); IsFalse(s.Check("c")); IsFalse(s.Check("+"));
+		IsFalse(s.Check("ab")); IsFalse(s.Check("a+")); IsFalse(s.Check("+b"));
 		IsFalse(s.Check("a+b+")); IsFalse(s.Check("+a+b")); IsFalse(s.Check("a++b"));
 		s.dump = 3;
 		var t = s.Parse("a+b+a");
 		t = t/**/.Eq("S", 0, 5).h("E");
-		t = t/**/				.H("T", 0, 1, v: "a");
-		t = t/**/				.n("E", 2, 5, v: "b+a").H("T", 2, 3, v: "b");
-		t = t/**/									.n("E").H("T", 4, 5, v: "a").uuuuU();
+		t = t/**/				.H("T", 0, 1, v: 'a');
+		t = t/**/				.n("E", 2, 5, v: '+').H("T", 2, 3, v: 'b');
+		t = t/**/									.n("E").H("T", 4, 5, v: 'a').uuuuU();
 	}
 
+	[TestMethod]
+	public void TigerF322()
+	{
+		var s = NewSer("Z=S S=(L) S=a L-S L=L,S", ['(', ')', 'a', 'b', ',', '\0'], ['S', 'L'], [ null,
+			new() { modes = [3, 0, 2, 2, 0, 0],                  pushs = [4, 0] },
+			new() { modes = [-2-2, -2-2, -2-2, -2-2, -2-2, -2-2]                },
+			new() { modes = [3, 0, 2, 2, 0, 0],                  pushs = [7, 5] },
+			new() { modes = [0, 0, 0, 0, 0, -2-0]                               },
+			new() { modes = [0, 6, 0, 0, 8, 0]                                  },
+			new() { modes = [-2-1, -2-1, -2-1, -2-1, -2-1, -2-1]                },
+			new() { modes = [-2-3, -2-3, -2-3, -2-3, -2-3, -2-3]                },
+			new() { modes = [3, 0, 2, 2, 0, 0],                  pushs = [9, 0] },
+			new() { modes = [-2-4, -2-4, -2-4, -2-4, -2-4, -2-4]                },
+		]);
+		IsTrue(s.Check("a")); IsTrue(s.Check("b"));
+		IsTrue(s.Check("(a)")); IsTrue(s.Check("((a))"));
+		IsTrue(s.Check("(a,b)")); IsTrue(s.Check("(a,((b)))")); IsTrue(s.Check("(((a)),(b))"));
+		IsTrue(s.Check("((a,b),a)")); IsTrue(s.Check("(a,((a,b)))")); IsTrue(s.Check("((a,b),(b,a))"));
+		IsTrue(s.Check("(a,b,a)")); IsTrue(s.Check("((a),((b)),a)")); IsTrue(s.Check("(a,b,(a))"));
+		IsTrue(s.Check("((a,b),(b,a),(a,a))")); IsTrue(s.Check("((a,b),((a,(b,a)),a),(a,a))"));
+		IsFalse(s.Check("z")); IsFalse(s.Check(",")); IsFalse(s.Check("(")); IsFalse(s.Check(")"));
+		IsFalse(s.Check("ab")); IsFalse(s.Check("a,b")); IsFalse(s.Check("a,,b"));
+		IsFalse(s.Check("(a")); IsFalse(s.Check("b)")); IsFalse(s.Check("a,")); IsFalse(s.Check(",b"));
+		IsFalse(s.Check("(a,b))")); IsFalse(s.Check("((a)")); IsFalse(s.Check("(b,)"));
+		IsFalse(s.Check("((a,b)")); IsFalse(s.Check("((a,(b,a)),b"));
+		s.dump = 3;
+		var t = s.Parse("((a,b),((a,(b,a)),b),(a,b))").Eq("Z", 0, 27);
+		t = t/**/.h("S", v: '(').h("L", v: ',');
+		t = t/**/	.h("L", v: ',').h("S", 1, 6, '(');
+		t = t/**/						.h("L", v: ',').H("S", v: 'a').N("S", v: 'b').uu();
+		t = t/**/			.n("S", 7, 20, '(');
+		t = t/**/				.h("L", v: ',').h("S", 8, 17, '(');
+		t = t/**/									.h("L", v: ',').H("S", v: 'a');
+		t = t/**/										.n("S", 11, 16, '(').h("L", v: ',');
+		t = t/**/											.H("S", v: 'b').N("S", v: 'a').uuuu();
+		t = t/**/								.N("S", v: 'b').uuu();
+		t = t/**/	.n("S", 21, 26, '(').h("L", v: ',');
+		t = t/**/						.H("S", v: 'a').N("S", v: 'b').uuuuuU();
+	}
 	/*
 	[TestMethod]
 	public void Term1()
