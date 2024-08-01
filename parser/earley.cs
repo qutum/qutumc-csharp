@@ -25,8 +25,8 @@ public class Esyn<N, T> : LinkTree<T> where T : Esyn<N, T>
 	public object info; // error lex, expected Alt hint/name or K, or recovered Prod hint/name or K
 	public string dump;
 
-	public override string ToString()
-		=> $"{from}:{to}{(err == 0 ? info : err == -1 ? "!" : "?")} {dump ?? info ?? name}";
+	public override string ToString() => $"{from}:{to}{(err == 0 ? info != null ? " " + info : ""
+		: err < -1 ? "?" : "!")} {dump ?? (err == 0 ? null : info) ?? name}";
 
 	public override string ToString(object extra)
 	{
@@ -34,7 +34,7 @@ public class Esyn<N, T> : LinkTree<T> where T : Esyn<N, T>
 			return ToString();
 		var (fl, fc, tl, tc) = loc(from, to);
 		return $"{fl}.{fc}:{tl}.{tc}{(err == 0 ? info != null ? " " + info : ""
-			: err == -1 ? "!" : "?")} {dump ?? info ?? name}";
+			: err < -1 ? "?" : "!")} {dump ?? (err == 0 ? null : info) ?? name}";
 	}
 }
 
@@ -468,7 +468,7 @@ public class Earley<K, L, N, T, Ler> where T : Esyn<N, T>, new() where Ler : Lex
 	{
 		return dump <= 0 || dump == 1 && !leaf ? null :
 			(dump <= 2 ? m.a.hint ?? m.a.name.ToString() : m.a.ToString())
-			+ $" :: {Dump(ler.Lexs(m.from, m.to))}";
+				+ $" :: {Dump(ler.Lexs(m.from, m.to))}";
 	}
 	string Dump(object v) => dumper?.Invoke(v) ?? Esc(v);
 	static string Esc(object v)

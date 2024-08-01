@@ -85,7 +85,7 @@ public class Lexier<K> : Lexier<K, Lexi<K>> where K : struct
 
 	public override bool Is(int loc, K aim) => Is(Lex(loc).key, aim);
 
-	// to is excluded, ~from ~to for errs, first line and col are 1, col is byte number inside line
+	// to is excluded, ~from ~to for errs, first line and col are 1, col is byte index inside line
 	public (int fromL, int fromC, int toL, int toC) LineCol(int from, int to)
 	{
 		if (lexn == 0)
@@ -279,7 +279,7 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 	public static IEnumerable<K> Keyz(string text) => [Enum.Parse<K>(text)];
 	public virtual IEnumerable<K> Keys(string text) => Keyz(text);
 
-	// first line and col are 1, col is byte number inside line
+	// first line and col are 1, col is byte index inside line
 	public (int line, int column) LineCol(int inputLoc)
 	{
 		var line = lines.BinarySearch(inputLoc);

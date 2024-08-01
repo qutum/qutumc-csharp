@@ -91,7 +91,7 @@ public class TestSynter : IDisposable
 			len = alt.Length - 2, // N=
 			lex = alt.IndexOfAny(keys, 2) - 2,
 		}).ToArray();
-		var ks = keys.Select(k => (ushort)k).Prepend(default);
+		var ks = keys.Select(k => (ushort)k).Prepend(default); // { other... }
 		foreach (var form in forms)
 			if (form != null) {
 				form.modes = form.modes.Prepend(default).ToArray();
@@ -119,6 +119,11 @@ public class TestSynter : IDisposable
 		IsFalse(s.Check("a+")); IsFalse(s.Check("+b"));
 		IsFalse(s.Check("a+b+")); IsFalse(s.Check("+a+b")); IsFalse(s.Check("a++b"));
 		s.dump = 3;
+		var t = s.Parse("a+b+a");
+		t = t/**/.Eq("S", 0, 5).h("E");
+		t = t/**/				.H("T", 0, 1, v: "a");
+		t = t/**/				.n("E", 2, 5, v: "b+a").H("T", 2, 3, v: "b");
+		t = t/**/									.n("E").H("T", 4, 5, v: "a").uuuuU();
 	}
 
 	/*

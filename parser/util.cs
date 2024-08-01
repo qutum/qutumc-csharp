@@ -63,7 +63,7 @@ public class LinkTree<T> : IEnumerable<T> where T : LinkTree<T>
 		return t;
 	}
 
-	public T Final()
+	public T Last()
 	{
 		var t = (T)this;
 		while (t.next != null)
@@ -116,17 +116,17 @@ public class LinkTree<T> : IEnumerable<T> where T : LinkTree<T>
 		return Add(x);
 	}
 
-	// after final this.next append next and all next.next 
+	// after last this.next append next and all next.next 
 	public T Append(T next)
 	{
 		if (next == null)
 			return (T)this;
 		Debug.Assert(up == null && next.up == null && next.prev == null);
-		(next.prev = Final()).next = next;
+		(next.prev = Last()).next = next;
 		return (T)this;
 	}
 
-	// after final this.next append subs of t
+	// after last this.next append subs of t
 	public T AppendSubOf(T t)
 	{
 		if (t?.head == null)
@@ -134,7 +134,7 @@ public class LinkTree<T> : IEnumerable<T> where T : LinkTree<T>
 		Debug.Assert(up == null);
 		var x = t.head;
 		t.head = t.tail = null;
-		(x.prev = Final()).next = x;
+		(x.prev = Last()).next = x;
 		for (x.up = null; x.next != null; x.up = null)
 			x = x.next;
 		return (T)this;
