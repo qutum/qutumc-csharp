@@ -156,34 +156,33 @@ public class LinkTree<T> : IEnumerable<T> where T : LinkTree<T>
 		return (T)this;
 	}
 
-	public T Dump(object extra = null)
+	public T Dump(object extra = null, int after = 1)
 	{
-		int o = dumpOrder, upo = up?.dumpOrder ?? 1;
-		bool afterup = upo > 0 || upo == 0 && this != up.head;
+		bool first = prev == null && (up == null || after <= 0);
+		bool last = next == null && (up == null || after > 0);
+		string noInd = up == null && after == 0 ? "" : null;
+		int o = dumpOrder;
 		for (var t = head; ; t = t.next) {
-			if (o > 0 ? t == head : o < 0 ? t == null : t == head?.next)
-				using (var env = EnvWriter.Indent(up == null ? "" : afterup ? "\\ " : "/ "))
+			if (t == (o > 0 ? head : o < 0 ? null : head?.next))
+				using (var env = EnvWriter.Indent
+					(noInd ?? (after > 0 ? first ? "- " : "\\ " : last ? "- " : "/ ")))
 					env.WriteLine(ToString(extra));
 			if (t == null)
 				break;
-			using (var env = EnvWriter.Indent
-				(up == null ? "" :
-				(o > 0 || o == 0 && t != head
-					? afterup && this == up.tail
-					: !afterup && this == up.head) ? "  " :
-				"| "))
-				t.Dump(extra);
+			int After = o > 0 || o == 0 && t != head ? 1 : -1; // sub after this
+			using (var env = EnvWriter.Indent(noInd ?? ((After > 0 ? last : first) ? "  " : "| ")))
+				t.Dump(extra, After);
 		}
 		if (up == null && prev == null)
 			for (var t = next; t != null; t = t.next)
-				t.Dump(extra);
+				t.Dump(extra, after);
 		return (T)this;
 	}
 
 	// preorder >0, inorder 0, postorder <0
 	public virtual int dumpOrder => 1;
 
-	public virtual string ToString(object extra) => "dump";
+	public virtual string ToString(object extra) => extra?.ToString() ?? "dump";
 
 	// enumerate subs
 	public IEnumerator<T> GetEnumerator()
