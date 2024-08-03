@@ -18,17 +18,6 @@ using Ser = (EsynStr t, EarleyStr s);
 
 static class TestExtension
 {
-	public static bool Check(this EarleyStr s, string input)
-		=> s.Begin(new LerStr(input)).Check();
-
-	public static Ser Parse(this EarleyStr s, string input)
-	{
-		var t = s.Begin(new LerStr(input)).Parse().Dump();
-		using var env = EnvWriter.Begin();
-		env.WriteLine($"---- match {s.matchn} / lexi {s.lexn} = {s.matchn / Math.Max(s.lexn, 1)} ----");
-		return (t, s);
-	}
-
 	public static Ser Eq(this Ser s,
 		string name = null, int? from = null, int? to = null, object v = null, int err = 0)
 	{
@@ -86,371 +75,379 @@ public class TestParserEarley : IDisposable
 
 	public void Dispose() => env.Dispose();
 
+	EarleyStr ser;
+
+	void NewSer(string grammar) => ser = new EarleyStr(grammar) { dump = 3 };
+
+	public void True(string input) => IsTrue(ser.Begin(new LerStr(input)).Check());
+	public void False(string input) => IsFalse(ser.Begin(new LerStr(input)).Check());
+
+	public Ser Parse(string input)
+	{
+		var t = ser.Begin(new LerStr(input)).Parse().Dump();
+		using var env = EnvWriter.Begin();
+		env.WriteLine($"---- {ser.matchn} match/lexi {ser.lexn} = {ser.matchn / Math.Max(ser.lexn, 1)} ----");
+		return (t, ser);
+	}
+
+
 	[TestMethod]
 	public void Term1()
 	{
-		var s = new EarleyStr("S=k");
-		IsTrue(s.Check("k"));
-		IsFalse(s.Check("")); IsFalse(s.Check("kk")); IsFalse(s.Check("K"));
+		NewSer("S=k");
+		True("k");
+		False(""); False("kk"); False("K");
 	}
 
 	[TestMethod]
 	public void Term2()
 	{
-		var s = new EarleyStr("S=");
-		IsTrue(s.Check("")); IsFalse(s.Check("a"));
+		NewSer("S=");
+		True(""); False("a");
 	}
 
 	[TestMethod]
 	public void Alt1()
 	{
-		var s = new EarleyStr("S=|a");
-		IsTrue(s.Check("")); IsTrue(s.Check("a")); IsFalse(s.Check("b"));
+		NewSer("S=|a");
+		True(""); True("a"); False("b");
 	}
 
 	[TestMethod]
 	public void Alt2()
 	{
-		var s = new EarleyStr("S=A\nA=a|1|#");
-		IsTrue(s.Check("a")); IsTrue(s.Check("1")); IsTrue(s.Check("#"));
-		IsFalse(s.Check("")); IsFalse(s.Check("a1")); IsFalse(s.Check("A"));
+		NewSer("S=A\nA=a|1|#");
+		True("a"); True("1"); True("#");
+		False(""); False("a1"); False("A");
 	}
 
 	[TestMethod]
 	public void Con()
 	{
-		var s = new EarleyStr("S = A B|B A \nA = a|1 \nB = b|2");
-		IsFalse(s.Check("a")); IsFalse(s.Check("1")); IsFalse(s.Check("b")); IsFalse(s.Check("2"));
-		IsTrue(s.Check("ab")); IsTrue(s.Check("ba"));
-		IsTrue(s.Check("1b")); IsTrue(s.Check("b1"));
-		IsTrue(s.Check("a2")); IsTrue(s.Check("2a"));
-		IsTrue(s.Check("12")); IsTrue(s.Check("21"));
-		IsFalse(s.Check("aba")); IsFalse(s.Check("12ab"));
+		NewSer("S = A B|B A \nA = a|1 \nB = b|2");
+		False("a"); False("1"); False("b"); False("2");
+		True("ab"); True("ba");
+		True("1b"); True("b1");
+		True("a2"); True("2a");
+		True("12"); True("21");
+		False("aba"); False("12ab");
 	}
 
 	[TestMethod]
 	public void AltPrior1()
 	{
-		var s = new EarleyStr("S=.E =^ \n | E \n E=W|P \n W=a \n P=.W") { dump = 3 };
-		s.Parse(".a").h("E").H("W").uuU();
+		NewSer("S=.E =^ \n | E \n E=W|P \n W=a \n P=.W");
+		Parse(".a").h("E").H("W").uuU();
 	}
 
 	[TestMethod]
 	public void AltPrior2()
 	{
-		var s = new EarleyStr("S=.E \n | E =^ \n E=W|P \n W=a \n P=.W") { dump = 3 };
-		s.Parse(".a").h("E").h("P").H("W").uuuU();
+		NewSer("S=.E \n | E =^ \n E=W|P \n W=a \n P=.W");
+		Parse(".a").h("E").h("P").H("W").uuuU();
 	}
 
 	[TestMethod]
 	public void Esc()
 	{
-		var s = new EarleyStr(@"S = \ss\tt\r\n\\/ | \|or\=eq\*s\+p\?q");
-		IsTrue(s.Check(" s\tt\r\n\\/")); IsFalse(s.Check(" s\tt\r \n\\/"));
-		IsTrue(s.Check("|or=eq*s+p?q"));
+		NewSer(@"S = \ss\tt\r\n\\/ | \|or\=eq\*s\+p\?q");
+		True(" s\tt\r\n\\/"); False(" s\tt\r \n\\/");
+		True("|or=eq*s+p?q");
 	}
 
 	[TestMethod]
 	public void ErrHint()
 	{
-		var s = new EarleyStr("S=A B =start \n A=1|2 =A12 ==oh||no\n |3 =A3 \n B= =\tempty \n |4 =B4") {
-			dump = 3
-		};
-		IsNull(s.Parse("").t.head);
-		IsNull(s.Parse("4").t.head);
-		s.Parse("15").H("S", 0, 1, "empty", 1);
+		NewSer("S=A B =start \n A=1|2 =A12 ==oh||no\n |3 =A3 \n B= =\tempty \n |4 =B4");
+		IsNull(Parse("").t.head);
+		IsNull(Parse("4").t.head);
+		Parse("15").H("S", 0, 1, "empty", 1);
 	}
 
 	[TestMethod]
 	public void LeftRecu()
 	{
-		var s = new EarleyStr("S = S b|A \nA = a");
-		IsTrue(s.Check("a")); IsTrue(s.Check("ab")); IsTrue(s.Check("abb")); IsTrue(s.Check("abbb"));
-		IsFalse(s.Check("")); IsFalse(s.Check("b")); IsFalse(s.Check("aab")); IsFalse(s.Check("abbba"));
+		NewSer("S = S b|A \nA = a");
+		True("a"); True("ab"); True("abb"); True("abbb");
+		False(""); False("b"); False("aab"); False("abbba");
 	}
 
 	[TestMethod]
 	public void RightRecu()
 	{
-		var s = new EarleyStr("S = a S|B \nB = b");
-		IsTrue(s.Check("b")); IsTrue(s.Check("ab")); IsTrue(s.Check("aab")); IsTrue(s.Check("aaaab"));
-		IsFalse(s.Check("")); IsFalse(s.Check("a")); IsFalse(s.Check("abb")); IsFalse(s.Check("abbba"));
+		NewSer("S = a S|B \nB = b");
+		True("b"); True("ab"); True("aab"); True("aaaab");
+		False(""); False("a"); False("abb"); False("abbba");
 	}
 
 	[TestMethod]
 	public void RightRecuUnopt()
 	{
-		var s = new EarleyStr("S= aa B \nB= A a \nA= a A|a") { dump = 3 };
-		IsFalse(s.Check("aa")); IsFalse(s.Check("aaa"));
-		IsTrue(s.Check("aaaa")); IsTrue(s.Check("aaaaa")); IsTrue(s.Check("aaaaaa"));
-		IsTrue(s.Check("aaaaaaa")); AreEqual(49, s.matchn);
-		s = new EarleyStr("S= aa B \nB= A a \nA= A a|a") { dump = 3 };
-		IsTrue(s.Check("aaaaaaa")); AreEqual(29, s.matchn);
-		s = new EarleyStr("S= aa B \nB= A a \nA= a+") { dump = 3 };
-		IsTrue(s.Check("aaaaaaa")); AreEqual(28, s.matchn);
+		NewSer("S= aa B \nB= A a \nA= a A|a");
+		False("aa"); False("aaa");
+		True("aaaa"); True("aaaaa"); True("aaaaaa");
+		True("aaaaaaa"); AreEqual(49, ser.matchn);
+		NewSer("S= aa B \nB= A a \nA= A a|a");
+		True("aaaaaaa"); AreEqual(29, ser.matchn);
+		NewSer("S= aa B \nB= A a \nA= a+");
+		True("aaaaaaa"); AreEqual(28, ser.matchn);
 	}
 
 	[TestMethod]
 	public void MidRecu()
 	{
-		var s = new EarleyStr("""
+		NewSer("""
 			S	= If|X =-
 			If	= if \s S \s then \s S
 				| if \s S \s then \s S \s else \s S
 			X	= a|b|c|d|e|f|g|h|i|j
-			""") { dump = 3 };
-		s.Parse("if a then b").h("If").H(v: "a").N(v: "b").uuU();
-		s.Parse("if a then b else c").h().H(v: "a").N(v: "b").N(v: "c").uuU();
-		var t = s.Parse("if a then if b then c").h().H(v: "a");
+			""");
+		Parse("if a then b").h("If").H(v: "a").N(v: "b").uuU();
+		Parse("if a then b else c").h().H(v: "a").N(v: "b").N(v: "c").uuU();
+		var t = Parse("if a then if b then c").h().H(v: "a");
 		t = t/**/									.n().H(v: "b").N(v: "c").uuuU();
-		t = s.Parse("if a then if b then c else d").h().H(v: "a");
+		t = Parse("if a then if b then c else d").h().H(v: "a");
 		t = t/**/									   .n().H(v: "b").N(v: "c").u();
 		t = t/**/									   .N(v: "d").uuU();
-		t = s.Parse("if a then if b then c else d else e").h().H(v: "a");
+		t = Parse("if a then if b then c else d else e").h().H(v: "a");
 		t = t/**/											  .n().H(v: "b").N(v: "c").N(v: "d").u();
 		t = t/**/											  .N(v: "e").uuU();
-		t = s.Parse("if a then if b then c else if d then e else f else g");
+		t = Parse("if a then if b then c else if d then e else f else g");
 		t = t/**/.h().H(v: "a");
 		t = t/**/	.n().H(v: "b").N(v: "c");
 		t = t/**/		 .n().H(v: "d").N(v: "e").N(v: "f").uu();
 		t = t/**/	.N(v: "g").uuU();
-		t = s.Parse("if a then if b then if c then d else e else if g then h else i else j");
+		t = Parse("if a then if b then if c then d else e else if g then h else i else j");
 		t = t/**/.h().H(v: "a");
 		t = t/**/	.n().H(v: "b");
 		t = t/**/		.n().H(v: "c").N(v: "d").N(v: "e").u();
 		t = t/**/		.n().H(v: "g").N(v: "h").N(v: "i").uu();
 		t = t/**/	.N(v: "j").uuU();
-		IsFalse(s.Check("if a else b"));
-		IsFalse(s.Check("if a then b then c"));
-		IsFalse(s.Check("if a then if b else c"));
+		False("if a else b");
+		False("if a then b then c");
+		False("if a then if b else c");
 	}
 
 	[TestMethod]
 	public void DoubleRecu()
 	{
-		var s = new EarleyStr("S=S S|a");
-		IsFalse(s.Check(""));
-		IsTrue(s.Check("a")); IsTrue(s.Check("aa")); IsTrue(s.Check("aaa")); IsTrue(s.Check("aaaa"));
+		NewSer("S=S S|a");
+		False("");
+		True("a"); True("aa"); True("aaa"); True("aaaa");
 	}
 
 	[TestMethod]
 	public void AddMul()
 	{
-		var s = new EarleyStr("""
+		NewSer("""
 			Expr  = Expr\+Mul | Mul
 			Mul   = Mul\*Value | Value
 			Value = (Expr) | Num
 			Num   = Num Digi | Digi
 			Digi  = 0|1|2|3|4|5|6|7|8|9
-			""") { dump = 3 };
-		IsTrue(s.Check("1")); IsTrue(s.Check("07")); IsTrue(s.Check("(3)")); IsTrue(s.Check("(298)"));
-		IsFalse(s.Check("1 3")); IsFalse(s.Check("(2")); IsFalse(s.Check("39210)"));
-		IsTrue(s.Check("1*2")); IsTrue(s.Check("073*32")); IsTrue(s.Check("86*1231*787*99"));
-		IsFalse(s.Check("1*")); IsFalse(s.Check("*3")); IsFalse(s.Check("1*2*"));
-		IsTrue(s.Check("1+2")); IsTrue(s.Check("073+32")); IsTrue(s.Check("86+1231+787+99"));
-		IsFalse(s.Check("1+")); IsFalse(s.Check("+3")); IsFalse(s.Check("1+2+"));
-		IsTrue(s.Check("1*2+3")); IsTrue(s.Check("1+2*3")); IsTrue(s.Check("7+58*23+882*152*33+89*6"));
-		IsFalse(s.Check("1*+3")); IsFalse(s.Check("+3*2")); IsFalse(s.Check("+1*2+6+"));
-		IsTrue(s.Check("1*(2+3)")); IsTrue(s.Check("(1+2)*3")); IsTrue(s.Check("(7+58)*(23+882)*152*(33+89)*6"));
-		IsTrue(s.Check("(1*2)+3")); IsTrue(s.Check("(1+2*3)")); IsTrue(s.Check("7+(5*23)*(15*33+89)*0"));
-		IsTrue(s.Check("(1*(2+5)+2)+3")); IsTrue(s.Check("53+((((1))))+2*3"));
-		IsFalse(s.Check("1*(3+)")); IsFalse(s.Check("(3))*2")); IsFalse(s.Check("(5*(2)(6)+8)"));
-		IsFalse(s.Check("1*()3+5")); IsFalse(s.Check("(3))*2")); IsFalse(s.Check("(5*(2)(6)+8)"));
+			""");
+		True("1"); True("07"); True("(3)"); True("(298)");
+		False("1 3"); False("(2"); False("39210)");
+		True("1*2"); True("073*32"); True("86*1231*787*99");
+		False("1*"); False("*3"); False("1*2*");
+		True("1+2"); True("073+32"); True("86+1231+787+99");
+		False("1+"); False("+3"); False("1+2+");
+		True("1*2+3"); True("1+2*3"); True("7+58*23+882*152*33+89*6");
+		False("1*+3"); False("+3*2"); False("+1*2+6+");
+		True("1*(2+3)"); True("(1+2)*3"); True("(7+58)*(23+882)*152*(33+89)*6");
+		True("(1*2)+3"); True("(1+2*3)"); True("7+(5*23)*(15*33+89)*0");
+		True("(1*(2+5)+2)+3"); True("53+((((1))))+2*3");
+		False("1*(3+)"); False("(3))*2"); False("(5*(2)(6)+8)");
+		False("1*()3+5"); False("(3))*2"); False("(5*(2)(6)+8)");
 	}
 
 	[TestMethod]
 	public void AddMulErr()
 	{
-		var s = new EarleyStr("""
+		NewSer("""
 			Expr  = Expr\+Mul | Mul     = expression
 			Mul   = Mul\*Value | Value  = expression
 			Value = (Expr) | Num        = value
 			Num   = Num Digi | Digi     = number
 			Digi  = 0|1|2|3|4|5|6|7|8|9 = digit
-			""") { dump = 3 };
-		s.Parse("(1+2*").H("Mul", 3, 5, "value", 2).uU();
-		s.Parse("(*1*2+3)*4").H("Value", 0, 1, "expression", 1).uU();
-		s.Parse("(1+2*3))*4").H("Mul", 0, 7, '*', 1).N("Expr", 0, 7, '+', 1).uU();
-		s.Parse("(1*2+3").H("Mul", 5, 6, '*', 1).N("Value", 0, 6, ')', 2)
+			""");
+		Parse("(1+2*").H("Mul", 3, 5, "value", 2).uU();
+		Parse("(*1*2+3)*4").H("Value", 0, 1, "expression", 1).uU();
+		Parse("(1+2*3))*4").H("Mul", 0, 7, '*', 1).N("Expr", 0, 7, '+', 1).uU();
+		Parse("(1*2+3").H("Mul", 5, 6, '*', 1).N("Value", 0, 6, ')', 2)
 						.N("Expr", 1, 6, '+', 1).N("Num", 5, 6, "digit", 1).uU();
-		s.Parse("(1*2+)").H("Expr", 1, 5, "expression", 2).uU();
-		s.Parse("()").H("Value", 0, 1, "expression", 1).uU();
+		Parse("(1*2+)").H("Expr", 1, 5, "expression", 2).uU();
+		Parse("()").H("Value", 0, 1, "expression", 1).uU();
 	}
 
 	[TestMethod]
 	public void Greedy1()
 	{
-		var s = new EarleyStr("S = A B \n A = A 1|1 \n B = 1|B 1") { dump = 3 };
-		s.Parse("111").H("A", v: "1").n("B", v: "11").H("B", v: "1").uuU();
-		s.greedy = true;
-		s.Parse("111").h("A", v: "11").H("A", v: "1").u().N("B", v: "1").uU();
+		NewSer("S = A B \n A = A 1|1 \n B = 1|B 1");
+		Parse("111").H("A", v: "1").n("B", v: "11").H("B", v: "1").uuU();
+		ser.greedy = true;
+		Parse("111").h("A", v: "11").H("A", v: "1").u().N("B", v: "1").uU();
 	}
 
 	[TestMethod]
 	public void Greedy2()
 	{
-		var s = new EarleyStr("S =A B C D \nA =1|12 \nB =234|3 \nC =5|456 \nD =67|7") {
-			dump = 3
-		};
-		s.Parse("1234567").H("A", v: "1").N("B", v: "234").N("C", v: "5").N("D", v: "67").uU();
-		s.greedy = true;
-		s.Parse("1234567").H("A", v: "12").N("B", v: "3").N("C", v: "456").N("D", v: "7").uU();
+		NewSer("S =A B C D \nA =1|12 \nB =234|3 \nC =5|456 \nD =67|7");
+		Parse("1234567").H("A", v: "1").N("B", v: "234").N("C", v: "5").N("D", v: "67").uU();
+		ser.greedy = true;
+		Parse("1234567").H("A", v: "12").N("B", v: "3").N("C", v: "456").N("D", v: "7").uU();
 	}
 
 	[TestMethod]
 	public void GreedyHint()
 	{
-		var s = new EarleyStr("S = A B =*\n A = A 1|1 \n B = 1|B 1") { dump = 3 };
-		s.Parse("111").h("A", v: "11").H("A", v: "1").u().N("B", v: "1").uU();
-		s.greedy = true;
-		s.Parse("111").h("A", v: "11").H("A", v: "1").u().N("B", v: "1").uU();
+		NewSer("S = A B =*\n A = A 1|1 \n B = 1|B 1");
+		Parse("111").h("A", v: "11").H("A", v: "1").u().N("B", v: "1").uU();
+		ser.greedy = true;
+		Parse("111").h("A", v: "11").H("A", v: "1").u().N("B", v: "1").uU();
 	}
 
 	[TestMethod]
 	public void Empty1()
 	{
-		var s = new EarleyStr("S=a A B \n A=|a+ \n B=A") { greedy = true, dump = 3 };
-		IsTrue(s.Check("a")); IsTrue(s.Check("aa"));
-		s.Parse("aaa").H("A", v: "aa").n("B", v: "").H("A", v: "").uuU();
+		NewSer("S=a A B \n A=|a+ \n B=A");
+		ser.greedy = true;
+		True("a"); True("aa");
+		Parse("aaa").H("A", v: "aa").n("B", v: "").H("A", v: "").uuU();
 	}
 
 	[TestMethod]
 	public void Empty2()
 	{
-		var s = new EarleyStr("S=A B \n A=a P \n B=P b \n P=|pq") { dump = 3 };
-		IsTrue(s.Check("ab")); IsTrue(s.Check("apqb"));
-		IsTrue(s.Check("apqpqb")); IsFalse(s.Check("apqpqpqb"));
+		NewSer("S=A B \n A=a P \n B=P b \n P=|pq");
+		True("ab"); True("apqb");
+		True("apqpqb"); False("apqpqpqb");
 	}
 
 	[TestMethod]
 	public void Option1()
 	{
-		var s = new EarleyStr("S=A B?a? \n A=a|aa \n B=a") { dump = 3 };
-		IsFalse(s.Check("")); IsTrue(s.Check("a")); IsTrue(s.Check("aaaa"));
-		s.Parse("aa").H("A", v: "a").uU();
-		s.Parse("aaa").H("A", v: "a").N("B", v: "a").uU();
-		s.greedy = true;
-		s.Parse("aaa").H("A", v: "aa").N("B", v: "a").uU();
+		NewSer("S=A B?a? \n A=a|aa \n B=a");
+		False(""); True("a"); True("aaaa");
+		Parse("aa").H("A", v: "a").uU();
+		Parse("aaa").H("A", v: "a").N("B", v: "a").uU();
+		ser.greedy = true;
+		Parse("aaa").H("A", v: "aa").N("B", v: "a").uU();
 	}
 
 	[TestMethod]
 	public void Option2()
 	{
-		var s = new EarleyStr("S=A?B? \n A=B a \n B=b");
-		IsTrue(s.Check("")); IsTrue(s.Check("ba")); IsTrue(s.Check("b"));
-		IsTrue(s.Check("bab")); IsFalse(s.Check("ab"));
+		NewSer("S=A?B? \n A=B a \n B=b");
+		True(""); True("ba"); True("b");
+		True("bab"); False("ab");
 	}
 
 	[TestMethod]
 	public void More1()
 	{
-		var s = new EarleyStr("S=a+") { dump = 3 };
-		IsFalse(s.Check("")); IsTrue(s.Check("a")); IsTrue(s.Check("aaaaaa"));
-		IsTrue(s.Check("aaaaaaa")); AreEqual(15, s.matchn);
+		NewSer("S=a+");
+		False(""); True("a"); True("aaaaaa");
+		True("aaaaaaa"); AreEqual(15, ser.matchn);
 	}
 
 	[TestMethod]
 	public void More2()
 	{
-		var s = new EarleyStr("S=A B \n A=a P+ \n B=P+b \n P=pq") { dump = 3 };
-		IsFalse(s.Check("apqb")); IsTrue(s.Check("apqpqb"));
-		s.Parse("apqpqpqb").h("A", v: "apq").n("B", v: "pqpqb").uU();
-		s.greedy = true;
-		s.Parse("apqpqpqb").h("A", v: "apqpq").n("B", v: "pqb").uU();
-		AreEqual(34, s.matchn);
+		NewSer("S=A B \n A=a P+ \n B=P+b \n P=pq");
+		False("apqb"); True("apqpqb");
+		Parse("apqpqpqb").h("A", v: "apq").n("B", v: "pqpqb").uU();
+		ser.greedy = true;
+		Parse("apqpqpqb").h("A", v: "apqpq").n("B", v: "pqb").uU();
+		AreEqual(34, ser.matchn);
 	}
 
 	[TestMethod]
 	public void Any1()
 	{
-		var s = new EarleyStr("S=a*") { dump = 3 };
-		IsTrue(s.Check("")); IsTrue(s.Check("a")); IsTrue(s.Check("aaaaaa"));
-		IsTrue(s.Check("aaaaaaa")); AreEqual(16, s.matchn);
+		NewSer("S=a*");
+		True(""); True("a"); True("aaaaaa");
+		True("aaaaaaa"); AreEqual(16, ser.matchn);
 	}
 
 	[TestMethod]
 	public void Any2()
 	{
-		var s = new EarleyStr("S=A B \n A=a P* \n B=P* b \n P=p|q") { dump = 3 };
-		IsTrue(s.Check("ab")); IsTrue(s.Check("apqb")); IsTrue(s.Check("apqpqb"));
-		s.Parse("apqpqpqb").H("A", 0, 1).n("B").H("P", 1).N().N().N().N().N("P", 6).uuU();
-		AreEqual(107, s.matchn);
-		s.greedy = true;
-		s.Parse("apqpqpqb").h("A").H("P", 1).N().N().N().N().N("P", 6).u().N("B", v: "b").uU();
-		AreEqual(107, s.matchn);
+		NewSer("S=A B \n A=a P* \n B=P* b \n P=p|q");
+		True("ab"); True("apqb"); True("apqpqb");
+		Parse("apqpqpqb").H("A", 0, 1).n("B").H("P", 1).N().N().N().N().N("P", 6).uuU();
+		AreEqual(107, ser.matchn);
+		ser.greedy = true;
+		Parse("apqpqpqb").h("A").H("P", 1).N().N().N().N().N("P", 6).u().N("B", v: "b").uU();
+		AreEqual(107, ser.matchn);
 	}
 
 	[TestMethod]
 	public void HintSynt1()
 	{
-		var s = new EarleyStr("S=A B C\n A=1 =+\n B=1 =-\n C=1") {
-			tree = true, dump = 3
-		};
-		s.Parse("111").H("A").N("C").uU();
-		s.tree = false;
-		s.Parse("111").H("A").uU();
+		NewSer("S=A B C\n A=1 =+\n B=1 =-\n C=1");
+		ser.tree = true;
+		Parse("111").H("A").N("C").uU();
+		ser.tree = false;
+		Parse("111").H("A").uU();
 	}
 
 	[TestMethod]
 	public void HintSynt2()
 	{
-		var s = new EarleyStr("S=Z*U* \n U=A*V* =+-\n V=B*C* =+-\n Z=z \n A=a \n B=b \n C=c") {
-			tree = true, dump = 3
-		};
-		var t = s.Parse("zabc");
+		NewSer("S=Z*U* \n U=A*V* =+-\n V=B*C* =+-\n Z=z \n A=a \n B=b \n C=c");
+		ser.tree = true;
+		var t = Parse("zabc");
 		t = t/**/.H("Z");
 		t = t/**/.n("U").H("A");
 		t = t/**/		.n("V").H("B");
 		t = t/**/				.N("C").uuuU();
-		t = s.Parse("zab");
+		t = Parse("zab");
 		t = t/**/.H("Z");
 		t = t/**/.n("U").H("A");
 		t = t/**/		.N("B").uuU();
-		t = s.Parse("zbc");
+		t = Parse("zbc");
 		t = t/**/.H("Z");
 		t = t/**/.n("U").H("B");
 		t = t/**/		.N("C").uuU();
-		t = s.Parse("abc");
+		t = Parse("abc");
 		t = t/**/.H("A");
 		t = t/**/.n("V").H("B");
 		t = t/**/		.N("C").uuU();
-		s.Parse("ab").H("A").N("B").uU();
-		s.Parse("bc").H("B").N("C").uU();
+		Parse("ab").H("A").N("B").uU();
+		Parse("bc").H("B").N("C").uU();
 	}
 
 	[TestMethod]
 	public void HintSynt3()
 	{
-		var s = new EarleyStr("S=Z*U* \n U=A*V* =+-\n V=B*C* =+-\n Z=z =-\n A=a \n B=b \n C=c") {
-			tree = true, dump = 3
-		};
-		var t = s.Parse("zabc");
+		NewSer("S=Z*U* \n U=A*V* =+-\n V=B*C* =+-\n Z=z =-\n A=a \n B=b \n C=c");
+		ser.tree = true;
+		var t = Parse("zabc");
 		t = t/**/.H("A");
 		t = t/**/.n("V").H("B");
 		t = t/**/		.N("C").uuU();
-		s.Parse("zab").H("A").N("B").uU();
-		s.Parse("zbc").H("B").N("C").uU();
-		t = s.Parse("abc");
+		Parse("zab").H("A").N("B").uU();
+		Parse("zbc").H("B").N("C").uU();
+		t = Parse("abc");
 		t = t/**/.H("A");
 		t = t/**/.n("V").H("B");
 		t = t/**/		.N("C").uuU();
-		s.Parse("ab").H("A").N("B").uU();
-		s.Parse("bc").H("B").N("C").uU();
+		Parse("ab").H("A").N("B").uU();
+		Parse("bc").H("B").N("C").uU();
 	}
 
 	[TestMethod]
 	public void Recovery1()
 	{
-		var s = new EarleyStr("S=A|S,A? =|\n A=M|A\\+M \n M=V|M\\*V \n V=0|1|2|3|4|5") {
-			dump = 3
-		};
-		s.Parse("0,").h("S").h("A").h("M").H("V").uuuuU();
-		s.Parse("+").Eq(v: '+', err: -1).Leaf().U();
-		s.Parse("+0").Eq(v: '+', err: -1).Leaf().U();
-		s.Parse("+,+0").Eq(v: '+', err: -1).Leaf().U();
-		s.Parse("0+").h("S", 0, 1).N("S", err: -4).u().n(to: 2, err: -1).H("A", 0, 2, "M", 2).uU();
-		s.Parse("0*").h("S", 0, 1).N("S", err: -4).u().n(to: 2, err: -1).H("M", 0, 2, "V", 2).uU();
-		var t = s.Parse("0#&$");
+		NewSer("S=A|S,A? =|\n A=M|A\\+M \n M=V|M\\*V \n V=0|1|2|3|4|5");
+		Parse("0,").h("S").h("A").h("M").H("V").uuuuU();
+		Parse("+").Eq(v: '+', err: -1).Leaf().U();
+		Parse("+0").Eq(v: '+', err: -1).Leaf().U();
+		Parse("+,+0").Eq(v: '+', err: -1).Leaf().U();
+		Parse("0+").h("S", 0, 1).N("S", err: -4).u().n(to: 2, err: -1).H("A", 0, 2, "M", 2).uU();
+		Parse("0*").h("S", 0, 1).N("S", err: -4).u().n(to: 2, err: -1).H("M", 0, 2, "V", 2).uU();
+		var t = Parse("0#&$");
 		t = t/**/	.h("S", 0, 1).N("S", 0, 4, err: -4).u();
 		t = t/**/.n("S", 1, 2, '#', -1);
 		t = t/**/	.h("M", 0, 1, '*', 1).N("A", 0, 1, '+', 1).N("S", 0, 1, ',', 1).uU();
@@ -459,10 +456,8 @@ public class TestParserEarley : IDisposable
 	[TestMethod]
 	public void Recovery2()
 	{
-		var s = new EarleyStr("S=A|S,A? =|\n A=M|A\\+M \n M=V|M\\*V \n V=0|1|2|3|4|5") {
-			dump = 3
-		};
-		var t = s.Parse("0+,1*,2#");
+		NewSer("S=A|S,A? =|\n A=M|A\\+M \n M=V|M\\*V \n V=0|1|2|3|4|5");
+		var t = Parse("0+,1*,2#");
 		t = t/**/	.h("S", 0, 7).h("S", 0, 4).h("S", v: "0");
 		t = t/**/								.N("S", 0, 3, err: -4).n("A", v: "1").u();
 		t = t/**/				.N("S", 0, 6, err: -4).n("A", v: "2").u();
@@ -473,11 +468,11 @@ public class TestParserEarley : IDisposable
 		t = t/**/	.H("M", 3, 5, "V", 2).u();
 		t = t/**/.n("S", 7, 8, '#', -1);
 		t = t/**/	.H("M", 6, 7, '*', 1).N("A", 6, 7, '+', 1).N("S", 0, 7, ',', 1).uU();
-		t = s.Parse("0+1*2+");
+		t = Parse("0+1*2+");
 		t = t/**/	.h("S", 0, 5).h("A", 0, 5).u().N("S", 0, 6, err: -4).u();
 		t = t/**/.n("S", 6, 6, null, -1);
 		t = t/**/	.H("A", 0, 6, "M", 2).uU();
-		t = s.Parse("0+1*2+,1");
+		t = Parse("0+1*2+,1");
 		t = t/**/	.h("S", 0, 5).h("A", 0, 5).u().N("S", 0, 7, err: -4);
 		t = t/**/	.n("A", 7, 8).u();
 		t = t/**/.n("S", 6, 7, ',', -1);
@@ -487,20 +482,18 @@ public class TestParserEarley : IDisposable
 	[TestMethod]
 	public void Recovery3()
 	{
-		var s = new EarleyStr("S=A|S,A? =*|\n A=M|A\\+M \n M=V|M\\*V \n V=(A)|N =|\n N=0|1|2|3|4|5") {
-			dump = 3
-		};
-		var t = s.Parse("()");
+		NewSer("S=A|S,A? =*|\n A=M|A\\+M \n M=V|M\\*V \n V=(A)|N =|\n N=0|1|2|3|4|5");
+		var t = Parse("()");
 		t = t/**/	.h("A").h("M").h("V").H("V", 0, 2, err: -4).uuuu();
 		t = t/**/.n("S", 1, 2, ')', -1);
 		t = t/**/	.H("V", 0, 1, "A", 1).uU();
-		t = s.Parse("0+(),1");
+		t = Parse("0+(),1");
 		t = t/**/	.h("S").h("A").h("A").h("M").u();
 		t = t/**/					.n("M").h("V").H("V", 2, 4, err: -4).uuuu();
 		t = t/**/	.n("A").u();
 		t = t/**/.n("S", 3, 4, ')', -1);
 		t = t/**/	.H("V", 2, 3, "A", 1).uU();
-		t = s.Parse("0,1+(2*),3#");
+		t = Parse("0,1+(2*),3#");
 		t = t/**/	.h("S").h("S").h("S", 0, 1);
 		t = t/**/				.n("A").h("A", v: "1");
 		t = t/**/						.n("M").h("V", 4, 8).h("A", v: "2");
@@ -511,7 +504,7 @@ public class TestParserEarley : IDisposable
 		t = t/**/	.H("M", 5, 7, "V", 2).u();
 		t = t/**/.n("S", 10, 11, '#', -1);
 		t = t/**/	.H("M", 9, 10, '*', 1).N("A", 9, 10, '+', 1).N("S", 0, 10, ',', 1).uU();
-		t = s.Parse("0,1+(2*)4,3+");
+		t = Parse("0,1+(2*)4,3+");
 		t = t/**/	.h("S").h("S").h("S", 0, 1);
 		t = t/**/				.n("A").h("A", v: "1");
 		t = t/**/						.n("M").h("V", 4, 8).h("A", v: "2");
@@ -529,10 +522,8 @@ public class TestParserEarley : IDisposable
 	[TestMethod]
 	public void Recovery4()
 	{
-		var s = new EarleyStr("P=S+ \n S=V|{S+} =*|\n V=(N)|N =|\n N=0|1|2|3|4|5") {
-			dump = 3
-		};
-		var t = s.Parse("{()");
+		NewSer("P=S+ \n S=V|{S+} =*|\n V=(N)|N =|\n N=0|1|2|3|4|5");
+		var t = Parse("{()");
 		t = t/**/	.h("S").h("S").h("V");
 		t = t/**/					.H("V", 1, 3, err: -4).uu();
 		t = t/**/			.N("S", 0, 3, err: -4).uu();
@@ -540,10 +531,10 @@ public class TestParserEarley : IDisposable
 		t = t/**/	.H("V", 1, 2, "N", 1).u();
 		t = t/**/.n("P", 3, 3, null, -1);
 		t = t/**/	.H("S", 0, 3, '}', 2).N("S", 0, 3, "S", 1).uU();
-		s.recover = 1;
-		s.Parse("{{").Eq("P", 2, 2, null, -1).H("S", 1, 2, "S", 1).uU();
-		s.recover = 2;
-		t = s.Parse("{(");
+		ser.recover = 1;
+		Parse("{{").Eq("P", 2, 2, null, -1).H("S", 1, 2, "S", 1).uU();
+		ser.recover = 2;
+		t = Parse("{(");
 		t = t/**/	.h("S").h("S").h("V");
 		t = t/**/					.H("V", 1, 2, err: -4).uu();
 		t = t/**/			.N("S", 0, 2, err: -4).uu();
@@ -556,10 +547,8 @@ public class TestParserEarley : IDisposable
 	[TestMethod]
 	public void Recovery5()
 	{
-		var s = new EarleyStr("P=S+ \n S=V|{S+} =*|\n|\\0?\\0} =-| \n V=0|1|2|3|4|5") {
-			dump = 3
-		};
-		var t = s.Parse("{{0}}}}{1}");
+		NewSer("P=S+ \n S=V|{S+} =*|\n|\\0?\\0} =-| \n V=0|1|2|3|4|5");
+		var t = Parse("{{0}}}}{1}");
 		t = t/**/	.h("S", 0, 5, "{{0}}").h("S", 1, 4, "{0}").u();
 		t = t/**/	.N("S", 5, 6, err: -4).N("S", 6, 7, err: -4).n("S", 7, 10, "{1}").u();
 		t = t/**/.n("P", 5, 6, '}', -1).n("P", 6, 7, '}', -1).U();

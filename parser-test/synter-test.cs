@@ -18,15 +18,6 @@ using Ser = (SyntStr t, SynterStr s);
 
 static class TestExtension
 {
-	public static bool Check(this SynterStr s, string input)
-		=> s.Begin(new LerStr(input)).Check();
-
-	public static Ser Parse(this SynterStr s, string input)
-	{
-		var t = s.Begin(new LerStr(input)).Parse().Dump();
-		return (t, s);
-	}
-
 	public static Ser Eq(this Ser s,
 		string name = null, int? from = null, int? to = null, object v = null, int err = 0)
 	{
@@ -86,7 +77,9 @@ public class TestSynter : IDisposable
 
 	public void Dispose() => env.Dispose();
 
-	public static SynterStr NewSer(string Alts, char[] keys, ushort[] names, SynForm[] forms)
+	SynterStr ser;
+
+	public void NewSer(string Alts, char[] keys, ushort[] names, SynForm[] forms)
 	{
 		var alts = Alts.Split('\n', ' ').Select(alt => new SynAlt<string> {
 			name = alt[0..1],
@@ -102,13 +95,19 @@ public class TestSynter : IDisposable
 				if (form.pushs != null)
 					Array.Sort(form.names = names[0..], form.pushs);
 			}
-		return new(ler => ler.Lex(), name => name[0], alts, forms) { dump = 3 };
+		ser = new(ler => ler.Lex(), name => name[0], alts, forms) { dump = 3 };
 	}
+
+	public void True(string input) => IsTrue(ser.Begin(new LerStr(input)).Check());
+	public void False(string input) => IsFalse(ser.Begin(new LerStr(input)).Check());
+
+	public Ser Parse(string input) => (ser.Begin(new LerStr(input)).Parse().Dump(), ser);
+
 
 	[TestMethod]
 	public void TigerF325()
 	{
-		var s = NewSer("S=E E=T+E E=T T=a", ['a', 'b', '+', '\0'], ['E', 'T'], [ null,
+		NewSer("S=E E=T+E E=T T=a", ['a', 'b', '+', '\0'], ['E', 'T'], [ null,
 			new() { modes = [5, 5,   0,   0], pushs = [2, 3] },
 			new() { modes = [0, 0,   0,-2-0],                },
 			new() { modes = [0, 0,   4,-2-2],                },
@@ -116,12 +115,12 @@ public class TestSynter : IDisposable
 			new() { modes = [0, 0,-2-3,-2-3],                },
 			new() { modes = [0, 0,   0,-2-1],                },
 		]);
-		IsTrue(s.Check("a")); IsTrue(s.Check("b"));
-		IsTrue(s.Check("a+b")); IsTrue(s.Check("a+b+a"));
-		IsFalse(s.Check()); IsFalse(s.Check("c")); IsFalse(s.Check("+"));
-		IsFalse(s.Check("ab")); IsFalse(s.Check("a+")); IsFalse(s.Check("+b"));
-		IsFalse(s.Check("a+b+")); IsFalse(s.Check("+a+b")); IsFalse(s.Check("a++b"));
-		var t = s.Parse("a+b+a");
+		True("a"); True("b");
+		True("a+b"); True("a+b+a");
+		False(""); False("c"); False("+");
+		False("ab"); False("a+"); False("+b");
+		False("a+b+"); False("+a+b"); False("a++b");
+		var t = Parse("a+b+a");
 		t = t/**/.Eq("S", 0, 5).h("E");
 		t = t/**/				.H("T", 0, 1, v: 'a');
 		t = t/**/				.n("E", 2, 5, v: '+').H("T", 2, 3, v: 'b');
@@ -131,7 +130,7 @@ public class TestSynter : IDisposable
 	[TestMethod]
 	public void TigerF328()
 	{
-		var s = NewSer("Z=S S=V=E S-E E-V V=a V=*E", ['a', 'b', '*', '=', '\0'], ['S', 'E', 'V'], [ null,
+		NewSer("Z=S S=V=E S-E E-V V=a V=*E", ['a', 'b', '*', '=', '\0'], ['S', 'E', 'V'], [ null,
 			new() { modes = [8, 8, 6,   0,   0], pushs = [2,  5, 3] },
 			new() { modes = [0, 0, 0,   0,-2-0],                    },
 			new() { modes = [0, 0, 0,   4,-2-3],                    },
@@ -143,13 +142,13 @@ public class TestSynter : IDisposable
 			new() { modes = [0, 0, 0,   0,-2-1],                    },
 			new() { modes = [0, 0, 0,-2-5,-2-5],                    },
 		]);
-		IsTrue(s.Check("a")); IsTrue(s.Check("*b")); IsTrue(s.Check("**a"));
-		IsTrue(s.Check("a=b")); IsTrue(s.Check("a=*b")); IsTrue(s.Check("b=**a"));
-		IsTrue(s.Check("*a=b")); IsTrue(s.Check("*b=*a")); IsTrue(s.Check("*a=**b"));
-		IsTrue(s.Check("**a=b")); IsTrue(s.Check("**a=*b")); IsTrue(s.Check("**b=**a"));
-		var t = s.Parse("**a");
+		True("a"); True("*b"); True("**a");
+		True("a=b"); True("a=*b"); True("b=**a");
+		True("*a=b"); True("*b=*a"); True("*a=**b");
+		True("**a=b"); True("**a=*b"); True("**b=**a");
+		var t = Parse("**a");
 		t = t/**/.Eq("Z", 0, 3).h("V", v: '*').h("V", v: '*').H("V", v: 'a').uuuU();
-		t = s.Parse("**b=***a").Eq("Z", 0, 8);
+		t = Parse("**b=***a").Eq("Z", 0, 8);
 		t = t/**/.h("S", v: '=').h("V", v: '*').h("V", v: '*').H("V", v: 'b').uu();
 		t = t/**/				.n("V", v: '*').h("V", v: '*').h("V", v: '*').H("V", v: 'a').uuuuuU();
 	}
@@ -157,7 +156,7 @@ public class TestSynter : IDisposable
 	[TestMethod]
 	public void TigerF322()
 	{
-		var s = NewSer("Z=S S=(L) S=a L-S L=L,S", ['(', ')', 'a', 'b', ',', '\0'], ['S', 'L'], [ null,
+		NewSer("Z=S S=(L) S=a L-S L=L,S", ['(', ')', 'a', 'b', ',', '\0'], ['S', 'L'], [ null,
 			new() { modes = [   3,   0,   2,   2,   0,   0], pushs = [4, 0] },
 			new() { modes = [-2-2,-2-2,-2-2,-2-2,-2-2,-2-2],                },
 			new() { modes = [   3,   0,   2,   2,   0,   0], pushs = [7, 5] },
@@ -168,18 +167,18 @@ public class TestSynter : IDisposable
 			new() { modes = [   3,   0,   2,   2,   0,   0], pushs = [9, 0] },
 			new() { modes = [-2-4,-2-4,-2-4,-2-4,-2-4,-2-4],                },
 		]);
-		IsTrue(s.Check("a")); IsTrue(s.Check("b"));
-		IsTrue(s.Check("(a)")); IsTrue(s.Check("((a))"));
-		IsTrue(s.Check("(a,b)")); IsTrue(s.Check("(a,((b)))")); IsTrue(s.Check("(((a)),(b))"));
-		IsTrue(s.Check("((a,b),a)")); IsTrue(s.Check("(a,((a,b)))")); IsTrue(s.Check("((a,b),(b,a))"));
-		IsTrue(s.Check("(a,b,a)")); IsTrue(s.Check("((a),((b)),a)")); IsTrue(s.Check("(a,b,(a))"));
-		IsTrue(s.Check("((a,b),(b,a),(a,a))")); IsTrue(s.Check("((a,b),((a,(b,a)),a),(a,a))"));
-		IsFalse(s.Check("z")); IsFalse(s.Check(",")); IsFalse(s.Check("(")); IsFalse(s.Check(")"));
-		IsFalse(s.Check("ab")); IsFalse(s.Check("a,b")); IsFalse(s.Check("a,,b"));
-		IsFalse(s.Check("(a")); IsFalse(s.Check("b)")); IsFalse(s.Check("a,")); IsFalse(s.Check(",b"));
-		IsFalse(s.Check("(a,b))")); IsFalse(s.Check("((a)")); IsFalse(s.Check("(b,)"));
-		IsFalse(s.Check("((a,b)")); IsFalse(s.Check("((a,(b,a)),b"));
-		var t = s.Parse("((a,b),((a,(b,a)),b),(a,b))").Eq("Z", 0, 27);
+		True("a"); True("b");
+		True("(a)"); True("((a))");
+		True("(a,b)"); True("(a,((b)))"); True("(((a)),(b))");
+		True("((a,b),a)"); True("(a,((a,b)))"); True("((a,b),(b,a))");
+		True("(a,b,a)"); True("((a),((b)),a)"); True("(a,b,(a))");
+		True("((a,b),(b,a),(a,a))"); True("((a,b),((a,(b,a)),a),(a,a))");
+		False("z"); False(","); False("("); False(")");
+		False("ab"); False("a,b"); False("a,,b");
+		False("(a"); False("b)"); False("a,"); False(",b");
+		False("(a,b))"); False("((a)"); False("(b,)");
+		False("((a,b)"); False("((a,(b,a)),b");
+		var t = Parse("((a,b),((a,(b,a)),b),(a,b))").Eq("Z", 0, 27);
 		t = t/**/.h("S", v: '(').h("L", v: ',');
 		t = t/**/	.h("L", v: ',').h("S", 1, 6, '(');
 		t = t/**/						.h("L", v: ',').H("S", v: 'a').N("S", v: 'b').uu();
@@ -196,7 +195,7 @@ public class TestSynter : IDisposable
 	[TestMethod]
 	public void Dragon2F451()
 	{
-		var s = NewSer("Z=S S=iSeS S=iS S=a", ['i', 'e', 'a', 'b', 'c', '\0'], ['S'], [
+		NewSer("Z=S S=iSeS S=iS S=a", ['i', 'e', 'a', 'b', 'c', '\0'], ['S'], [
 			new() { modes = [ 2,  -1,  3,  3,  3,  -1], pushs = [1] },
 			new() { modes = [-1,  -1, -1, -1, -1,-2-0],             },
 			new() { modes = [ 2,  -1,  3,  3,  3,  -1], pushs = [4] },
@@ -205,32 +204,61 @@ public class TestSynter : IDisposable
 			new() { modes = [ 2,  -1,  3,  3,  3,  -1], pushs = [6] },
 			new() { modes = [-1,-2-1, -1, -1, -1, -2-1],             },
 		]);
-		IsTrue(s.Check("b")); IsTrue(s.Check("ia")); IsTrue(s.Check("iaeb"));
-		IsTrue(s.Check("iia")); IsTrue(s.Check("iiaeb")); IsTrue(s.Check("iaeib"));
-		IsTrue(s.Check("iiaebec")); IsTrue(s.Check("iaeibec"));
-		IsTrue(s.Check("iiia")); IsTrue(s.Check("iiiaeb"));
-		IsTrue(s.Check("iiaeib")); IsTrue(s.Check("iaeiib"));
-		IsTrue(s.Check("iiiaebec")); IsTrue(s.Check("iiaeibec")); IsTrue(s.Check("iiaebeic"));
-		IsTrue(s.Check("iaeiibec")); IsTrue(s.Check("iaeibeic"));
-		IsTrue(s.Check("iiiaebecea")); IsTrue(s.Check("iiaeibecea"));
-		IsTrue(s.Check("iaeiibecea")); IsTrue(s.Check("iaeibeiaec"));
-		var t = s.Parse("iiiaebec");
+		True("b"); True("ia"); True("iaeb");
+		True("iia"); True("iiaeb"); True("iaeib");
+		True("iiaebec"); True("iaeibec");
+		True("iiia"); True("iiiaeb"); True("iiaeib"); True("iaeiib");
+		True("iiiaebec"); True("iiaeibec"); True("iiaebeic");
+		True("iaeiibec"); True("iaeibeic");
+		True("iiiaebecea"); True("iiaeibecea"); True("iaeiibecea"); True("iaeibeiaec");
+		var t = Parse("iiiaebec");
 		t = t/**/.h(v: 'i').h(v: 'i').h(v: 'i');
 		t = t/**/						.H(v: 'a').N(v: 'b').u();
 		t = t/**/					.N(v: 'c').uuuU();
-		t = s.Parse("iiaebeic");
+		t = Parse("iiaebeic");
 		t = t/**/.h(v: 'i').h(v: 'i');
 		t = t/**/				.H(v: 'a').N(v: 'b').u();
 		t = t/**/			.n(v: 'i').H(v: 'c').uuuU();
-		t = s.Parse("iiaeibecea");
+		t = Parse("iiaeibecea");
 		t = t/**/.h(v: 'i').h(v: 'i');
 		t = t/**/				.H(v: 'a').n(v: 'i');
 		t = t/**/					.H(v: 'b').N(v: 'c').uu();
 		t = t/**/			.N(v: 'a').uuU();
-		t = s.Parse("iaeiibecea");
+		t = Parse("iaeiibecea");
 		t = t/**/.h(v: 'i').H(v: 'a');
 		t = t/**/			.n(v: 'i').h(v: 'i');
 		t = t/**/						.H(v: 'b').N(v: 'c').u();
 		t = t/**/					.N(v: 'a').uuuU();
+	}
+
+	[TestMethod]
+	public void Dragon2F449()
+	{
+		NewSer("E=E+E E=E*E E-(E) E=a", ['a', 'b', '+', '*', '(', ')', '\0'], ['E'], [
+			new() { modes = [ 3,  3,  -1,  -1,  2,  -1,  -1], pushs = [1] },
+			new() { modes = [-1, -1,   4,   5, -1,  -1,  -1],             },
+			new() { modes = [ 3,  3,  -1,  -1,  2,  -1,  -1], pushs = [6] },
+			new() { modes = [-1, -1,-2-3,-2-3, -1,-2-3,-2-3],             },
+			new() { modes = [ 3,  3,  -1,  -1,  2,  -1,  -1], pushs = [7] },
+			new() { modes = [ 3,  3,  -1,  -1,  2,  -1,  -1], pushs = [8] },
+			new() { modes = [-1, -1,   4,   5, -1,   9,  -1],             },
+			new() { modes = [-1, -1,-2-0,   5, -1,-2-0,-2-0],             },
+			new() { modes = [-1, -1,-2-1,-2-1, -1,-2-1,-2-1],             },
+			new() { modes = [-1, -1,-2-2,-2-2, -1,-2-2,-2-2],             },
+		]); // no E'->E
+		True("a"); True("a+b"); True("a*b");
+		True("(b)"); True("(b*a)"); True("(b+a)"); True("(a)*b"); True("a+(b)");
+		True("a+b+a"); True("a*b*a"); True("a+b*a"); True("b*a+b");
+		True("(a)+a+a"); True("b*(b)*b"); True("a+(b*a+b)*b");
+		True("(a)+(a*a)"); True("(b*(b))*b"); True("a+((b*a+b)*b)");
+		False("+"); False("a+"); False("*b"); False("a++b");
+		False("(b)a"); False("a*((b"); False("b+a)"); False("(a*)+b");
+		var t = Parse("a+b*((b*a+b)*b)");
+		t = t/**/.Eq(v: '+').H(v: 'a');
+		t = t/**/		.n("E", 2, 15, '*').H(v: 'b');
+		t = t/**/						.n("E", 5, 14, '*').h("E", 6, 11, '+');
+		t = t/**/												.h(v: '*').H(v: 'b').N(v: 'a').u();
+		t = t/**/												.N(v: 'b').u();
+		t = t/**/											.N(v: 'b').uuuU();
 	}
 }
