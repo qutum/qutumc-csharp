@@ -13,11 +13,11 @@ namespace qutum.parser.meta;
 
 using Set = CharSet;
 
-sealed class MetaStr(string input) : LerStr(input)
+sealed class MetaStr(string read) : LerStr(read)
 {
-	public override bool Is(char aim) => Is(input[loc], aim);
+	public override bool Is(char aim) => Is(read[loc], aim);
 
-	public override bool Is(int loc, char aim) => Is(input[loc], aim);
+	public override bool Is(int loc, char aim) => Is(read[loc], aim);
 
 	// for meta grammar
 	public override bool Is(char k, char aim) =>
@@ -99,12 +99,12 @@ public static class MetaLex
 	};
 
 	public static LexGram<K> Gram<K>(string gram, bool dump = false) where K : struct
-		=> Gram(gram, Lexier<K>.Keyz, dump);
+		=> Gram(gram, Lexier<K>.Keys_, dump);
 
 	public static LexGram<K> Gram<K>(string gram, Func<string, IEnumerable<K>> Keys, bool dump = false)
 	{
-		using var input = new MetaStr(gram);
-		var top = meta.Begin(input).Parse();
+		using var read = new MetaStr(gram);
+		var top = meta.Begin(read).Parse();
 		if (top.err != 0) {
 			using var input2 = new MetaStr(gram);
 			var dum = meta.dump; meta.dump = 3;

@@ -98,11 +98,11 @@ public class TestSynter : IDisposable
 
 	readonly Earley ser = new(new Lexier()) { dump = 2 };
 
-	Ser Parse(string input)
+	Ser Parse(string read)
 	{
-		env.WriteLine(input);
+		env.WriteLine(read);
 		ser.ler.Dispose();
-		ser.ler.Begin(new LerByte(Encoding.UTF8.GetBytes(input)));
+		ser.ler.Begin(new LerByte(Encoding.UTF8.GetBytes(read)));
 		var t = ser.Parse().Dump((Func<int, int, (int, int, int, int)>)ser.ler.LineCol);
 		env.WriteLine($"--- match {ser.matchn} / lexi {ser.lexn} = {ser.matchn / Math.Max(ser.lexn, 1)} ---");
 		return (t, ser);

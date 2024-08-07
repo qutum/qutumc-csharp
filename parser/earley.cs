@@ -545,8 +545,8 @@ public class Earley<K, L, N, T, Ler> where T : Esyn<N, T>, new() where Ler : Lex
 
 	public Earley(string gram, Ler ler)
 	{
-		using var input = new MetaStr(gram);
-		var top = meta.Begin(input).Parse();
+		using var read = new MetaStr(gram);
+		var top = meta.Begin(read).Parse();
 		if (top.err != 0) {
 			using var input2 = new MetaStr(gram);
 			var dump = meta.dump; meta.dump = 3;

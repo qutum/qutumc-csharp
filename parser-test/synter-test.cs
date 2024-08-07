@@ -98,10 +98,10 @@ public class TestSynter : IDisposable
 		ser = new(ler => ler.Lex(), name => name[0], alts, forms) { dump = 3 };
 	}
 
-	public void True(string input) => IsTrue(ser.Begin(new LerStr(input)).Check());
-	public void False(string input) => IsFalse(ser.Begin(new LerStr(input)).Check());
+	public void True(string read) => IsTrue(ser.Begin(new LerStr(read)).Check());
+	public void False(string read) => IsFalse(ser.Begin(new LerStr(read)).Check());
 
-	public Ser Parse(string input) => (ser.Begin(new LerStr(input)).Parse().Dump(), ser);
+	public Ser Parse(string read) => (ser.Begin(new LerStr(read)).Parse().Dump(), ser);
 
 
 	[TestMethod]

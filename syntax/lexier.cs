@@ -172,10 +172,10 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 	int indb; // indent byte, unknown: -1
 	int indn; // indent count
 	int[] inds = new int[100]; // [0, indent column...]
-	int ind, indf, indt; // indent column 0 based, from input loc to loc excluded
+	int ind, indf, indt; // indent column 0 based, read from loc to excluded loc
 	bool crlf; // \r\n found
 	readonly List<string> path = [];
-	public bool eof = true; // insert eol at input end
+	public bool eof = true; // insert eol at end of read
 	public bool allValue = false; // set all lexis value
 	public bool allBlank = false; // keep spaces without indent and offset, comments and empty lines
 
@@ -186,12 +186,12 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 		crlf = false; path.Clear();
 	}
 
-	int Input(int f, int to, int x)
+	int Read(int f, int to, int x)
 	{
 		var n = x + to - f;
 		if (bs.Length < n)
 			Array.Resize(ref bs, n + 4095 & ~4095);
-		input.Lexs(f, to, bs.AsSpan(x));
+		read.Lexs(f, to, bs.AsSpan(x));
 		return n;
 	}
 
@@ -226,7 +226,7 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 	Done: ind = -1;
 	}
 
-	protected override void InputEnd(int bn)
+	protected override void ReadEnd(int bn)
 	{
 		var end = true;
 		if (eof)
@@ -276,11 +276,11 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 
 		case L.SP:
 			if (wad == 1)
-				bs[0] = (byte)(f < 1 || input.Lex(f - 1) == '\n' ? 1 : 0); // maybe line start
+				bs[0] = (byte)(f < 1 || read.Lex(f - 1) == '\n' ? 1 : 0); // maybe line start
 			if (bs[0] != 0)
 				if (indb < 0)
-					indb = input.Lex(f); // first line start, save the indent byte
-				else if (f < to && input.Lex(f) != indb) { // mix \s and \t
+					indb = read.Lex(f); // first line start, save the indent byte
+				else if (f < to && read.Lex(f) != indb) { // mix \s and \t
 					bs[0] = 0; // as not line start and indent unchanged
 					Error(key, f, to, "do not mix tabs and spaces for indent"); // TODO delayed to omit this if COMM
 				}
@@ -304,7 +304,7 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 				bn = to; // begin wad loc
 				return;
 			}
-			if (to - f != bn - from || input.Lex(f) != '#') // check end wad length
+			if (to - f != bn - from || read.Lex(f) != '#') // check end wad length
 				return;
 			end = true;
 			if (!allBlank)
@@ -317,28 +317,28 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 				bn = to; // begin wad loc
 				return;
 			}
-			if (to - f != bn - from || input.Lex(f) != '"') // check end wad length
+			if (to - f != bn - from || read.Lex(f) != '"') // check end wad length
 				return;
-			end = true; bn = Input(bn, f, 0);
+			end = true; bn = Read(bn, f, 0);
 			break;
 
 		case L.STR:
 			if (wad == 1)
 				return;
 			if (end) {
-				if (input.Lex(to - 1) == '\n') {
+				if (read.Lex(to - 1) == '\n') {
 					Error(key, f, to, "eol unexpected");
 					BackByte(to = f); // next lexi will be eol
 				}
 				break;
 			}
-			Input(f, to, bn); Unesc(f, to);
+			Read(f, to, bn); Unesc(f, to);
 			return; // inside string
 
 		case L.HEX:
 			if (!end)
 				return;
-			bn = Input(from, to, 0);
+			bn = Read(from, to, 0);
 			key = L.INT; v = Hex(); // as INT
 			break;
 
@@ -348,7 +348,7 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 			else if (wad == 5) ne = to - from; // end of exponent wad
 			if (!end)
 				return;
-			bn = Input(from, to, 0);
+			bn = Read(from, to, 0);
 			v = Num(ref key);
 			break;
 
@@ -359,13 +359,13 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 				Error(key, f, to, "too long");
 				to = f + 40;
 			}
-			bn = Input(f, to, 0);
+			bn = Read(f, to, 0);
 			break;
 
 		case L.PATH:
 			if (wad == 1)
 				return;
-			var split = end || input.Lex(f) == '.';
+			var split = end || read.Lex(f) == '.';
 			if (split) {
 				if (bn > 40) {
 					Error(L.NAME, to - 1, to - 1, "too long");
@@ -375,22 +375,22 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 				bn = 0;
 			}
 			if (end) {
-				if (input.Lex(to - 1) == '\n') {
+				if (read.Lex(to - 1) == '\n') {
 					Error(L.NAME, f, to, "eol unexpected");
 					BackByte(to = f); // next lexi will be eol
 				}
-				key = input.Lex(from) != '.' ? L.NAME : L.RUN;
+				key = read.Lex(from) != '.' ? L.NAME : L.RUN;
 				v = path.ToArray();
 				break;
 			}
 			if (!split) {
-				Input(f, to, bn); Unesc(f, to);
+				Read(f, to, bn); Unesc(f, to);
 			}
 			return; // inside path
 
 		default:
 			if (allValue)
-				bn = Input(from, to, 0);
+				bn = Read(from, to, 0);
 			break;
 		}
 		if (!end)

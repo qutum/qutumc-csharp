@@ -15,7 +15,7 @@ namespace qutum.parser;
 public struct Lexi<K> where K : struct
 {
 	public K key;
-	public int from, to; // input from loc to loc excluded
+	public int from, to; // read from loc to excluded loc
 	public int err; // lexis ~loc before this error found
 	public object value;
 
@@ -31,7 +31,7 @@ public class LexGram<K>
 	public class Prod : List<Wad> { public K key; }
 	public class Wad : List<Alt>
 	{
-		// skip mismatched input and redo this wad
+		// skip mismatched read then redo this wad
 		public bool redo;
 	}
 	public class Alt : List<Con>
@@ -76,10 +76,10 @@ public class Lexier<K> : Lexier<K, Lexi<K>> where K : struct
 {
 	public Lexier(LexGram<K> grammar, bool dumpGram = false) : base(grammar, dumpGram) { }
 
-	// from input f loc to loc excluded
+	// from f loc of read to excluded loc
 	protected override void Lexi(K key, int f, int to, object value)
 		=> Lexi(new() { key = key, from = f, to = to, value = value });
-	// from input f loc to loc excluded
+	// from f loc of read to excluded loc
 	protected override void Error(K key, int f, int to, object value)
 		=> Lexi(new() { key = key, from = f, to = to, value = value, err = ~lexn }, true);
 
@@ -116,7 +116,7 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 		internal int pren; // for next[byte] are this unit, count bytes
 		internal Unit[] next; // [next unit of byte], byte >= 128: [128]
 		internal Unit go; // when next==null or next[byte]==null or backward
-						  // go.next != null, go to begin: input end or error
+						  // go.next != null, go to begin: end of read or error
 		internal int mode; // match: -1, mismatch to error: -3, mismatch to backward bytes: >=0
 						   // no backward cross wads nor duplicate bytes
 
@@ -125,25 +125,25 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 
 	readonly Unit begin;
 	int uid;
-	protected Lexer<byte, byte> input;
+	protected Lexer<byte, byte> read;
 	int bn; // total bytes got
-	int bf, bt; // from input loc to loc excluded for each wad
-	readonly List<int> lines = []; // [0, input loc after eol...]
-	readonly byte[] bytes = new byte[LexGram<K>.AltByteN + 1]; // [latest byte], @ input loc & AltByteN
+	int bf, bt; // read from loc to excluded loc for each wad
+	readonly List<int> lines = []; // [0, loc of read after eol...]
+	readonly byte[] bytes = new byte[LexGram<K>.AltByteN + 1]; // {latest bytes}[read loc & AltByteN]
 	protected int lexn, loc; // lexi count and loc
 	protected L[] lexs;
-	protected int from; // input loc for current lexi
+	protected int from; // read loc for current lexi
 	public List<L> errs = []; // [error lexi]: not null, merge to lexs: null
 
-	public virtual IDisposable Begin(Lexer<byte, byte> input)
+	public virtual IDisposable Begin(Lexer<byte, byte> read)
 	{
 		Dispose(); Clear();
-		this.input = input;
+		this.read = read;
 		return this;
 	}
 
 	// results keep available
-	public virtual void Dispose() { input?.Dispose(); input = null; }
+	public virtual void Dispose() { read?.Dispose(); read = null; }
 
 	public virtual void Clear()
 	{
@@ -159,18 +159,18 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 		var u = begin;
 	Step: bf = bt;
 	Next: if (bt >= bn)
-			if (input.Next()) {
-				if ((bytes[bn++ & LexGram<K>.AltByteN] = input.Lex()) == '\n')
+			if (read.Next()) {
+				if ((bytes[bn++ & LexGram<K>.AltByteN] = read.Lex()) == '\n')
 					lines.Add(bn);
 			}
 			else if (u == begin || bt > bn) {
 				if (bn >= 0) {
-					InputEnd(bn); // call only once
+					ReadEnd(bn); // call only once
 					bn = -1;
 				}
 				return loc < lexn;
 			}
-			else // input end but lexi not
+			else // end of read but not lexi
 				goto Go;
 		var b = bytes[bt & LexGram<K>.AltByteN];
 		if (u.next[b < 128 ? b : 128] is Unit v) { // one byte by one, even for utf
@@ -222,13 +222,13 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 		if (from < 0) from = f;
 		if (end) {
 			Span<byte> s = to - from <= 1024 ? stackalloc byte[to - from] : new byte[to - from];
-			input.Lexs(from, to, s);
+			read.Lexs(from, to, s);
 			Lexi(key, from, to, Encoding.UTF8.GetString(s));
 			from = -1;
 		}
 	}
 
-	// error wad, input end: Byte < 0
+	// error wad. end of read: Byte < 0
 	protected virtual void WadErr(K key, int wad, bool end, int Byte, int f, int to)
 	{
 		if (from < 0) from = f;
@@ -236,8 +236,8 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 		if (end) from = -1;
 	}
 
-	// input end
-	protected virtual void InputEnd(int bn) { }
+	// end of read
+	protected virtual void ReadEnd(int bn) { }
 
 	protected void Lexi(L lexi, bool err = false)
 	{
@@ -276,8 +276,8 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 	}
 	IEnumerable<L> Lexer<K, L>.Lexs(int from, int to) => Lexs(from, to);
 
-	public static IEnumerable<K> Keyz(string text) => [Enum.Parse<K>(text)];
-	public virtual IEnumerable<K> Keys(string text) => Keyz(text);
+	public static IEnumerable<K> Keys_(string keys) => [Enum.Parse<K>(keys)];
+	public virtual IEnumerable<K> Keys(string keys) => Keys_(keys);
 
 	// first line and col are 1, col is byte index inside line
 	public (int line, int column) LineCol(int inputLoc)
@@ -347,7 +347,7 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 						else if (w.Count == 1) throw new($"No byte in {k}.{wad}");
 						else if (w.redo) throw new($"Redo empty {k}.{wad}.1");
 						else { u.go = wus[wad + 1]; u.mode = -1; }
-					else if (w.redo) // shift input and redo wad like the begin
+					else if (w.redo) // shift read then redo wad like the begin
 						if (wad == 1) throw new($"Redo first wad {k}.1");
 						else { u.go = u; u.mode = -3; }
 					else // no backward cross wads

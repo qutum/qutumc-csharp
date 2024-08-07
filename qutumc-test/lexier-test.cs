@@ -24,10 +24,10 @@ public class TestLexier : IDisposable
 
 	readonly Lexier ler = new() { eof = false, errs = null };
 
-	void Check(string input, string s)
+	void Check(string read, string s)
 	{
-		env.WriteLine(input);
-		using var __ = ler.Begin(new LerByte(Encoding.UTF8.GetBytes(input)));
+		env.WriteLine(read);
+		using var __ = ler.Begin(new LerByte(Encoding.UTF8.GetBytes(read)));
 		while (ler.Next())
 			;
 		var z = string.Join(" ", ler.Lexs(0, ler.Loc()).Select(t => t.ToString(Dump)).ToArray());
@@ -37,11 +37,11 @@ public class TestLexier : IDisposable
 
 	static string Dump(object v) => v is object[] s ? string.Join(',', s) + "," : v?.ToString() ?? "";
 
-	void CheckSp(string input, string s)
+	void CheckSp(string read, string s)
 	{
 		ler.allBlank = true;
 		try {
-			Check(input, s);
+			Check(read, s);
 		}
 		finally {
 			ler.allBlank = false;

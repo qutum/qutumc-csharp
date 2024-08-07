@@ -30,11 +30,11 @@ public class TestLexier : IDisposable
 
 	void NewLer(string grammar) => ler = new(MetaLex.Gram<Lex>(grammar, true), true) { errs = null };
 
-	void Check(string input, string s) => Check(Encoding.UTF8.GetBytes(input), s);
+	void Check(string read, string s) => Check(Encoding.UTF8.GetBytes(read), s);
 
-	void Check(byte[] input, string s)
+	void Check(byte[] read, string s)
 	{
-		using var __ = ler.Begin(new LerByte(input));
+		using var __ = ler.Begin(new LerByte(read));
 		while (ler.Next()) ;
 		var z = string.Join(" ", ler.Lexs(0, ler.Loc()).Select(t => t.ToString()).ToArray());
 		env.WriteLine(z);
