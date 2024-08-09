@@ -38,13 +38,13 @@ static class TestExtension
 	public static Ser V(this Ser s, params object[] Vs)
 	{
 		Lexi<L>[] vs = new Lexi<L>[Vs.Length];
-		int n = 0;
+		int z = 0;
 		for (int x = 0; x < Vs.Length; x++)
 			if (Vs[x] is L l)
-				vs[n++] = new Lexi<L> { key = l };
+				vs[z++] = new Lexi<L> { key = l };
 			else
-				vs[n - 1].value = Vs[x];
-		AreEqual(s.s.dumper(vs.Seg(0, n)),
+				vs[z - 1].value = Vs[x];
+		AreEqual(s.s.dumper(vs.Seg(0, z)),
 			s.s.dumper(s.t.from >= 0 ? s.s.ler.Lexs(s.t.from, s.t.to)
 				: s.s.ler.errs.GetRange(~s.t.from, ~s.t.to - ~s.t.from).ToArray().Seg()));
 		return s;
@@ -104,7 +104,7 @@ public class TestSyntaxEarley : IDisposable
 		ser.ler.Dispose();
 		ser.ler.Begin(new LerByte(Encoding.UTF8.GetBytes(read)));
 		var t = ser.Parse().Dump((Func<int, int, (int, int, int, int)>)ser.ler.LineCol);
-		env.WriteLine($"--- match {ser.matchn} / lexi {ser.lexn} = {ser.matchn / Math.Max(ser.lexn, 1)} ---");
+		env.WriteLine($"--- match {ser.matchz} / lexi {ser.lexz} = {ser.matchz / Math.Max(ser.lexz, 1)} ---");
 		return (t, ser);
 	}
 

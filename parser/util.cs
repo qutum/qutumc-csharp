@@ -313,9 +313,9 @@ public class EnvWriter : StringWriter, IDisposable
 		base.WriteLine(buffer); Flush();
 	}
 
-	public override void WriteLine(char[] buffer, int index, int count)
+	public override void WriteLine(char[] buffer, int index, int size)
 	{
-		base.WriteLine(buffer, index, count); Flush();
+		base.WriteLine(buffer, index, size); Flush();
 	}
 
 	public override void WriteLine(decimal value)

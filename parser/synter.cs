@@ -39,7 +39,7 @@ public class SyntStr : Synt<string, SyntStr>
 public sealed class SynAlt<N>
 {
 	public N name;
-	public int len;
+	public int size;
 	public int lex; // save lex at this index to Synt.info, no save: <0
 	public sbyte synt; // as Synter.tree: 0, make Synt: 1, omit Synt: -1
 	public bool rec; // is this for error recovery
@@ -47,7 +47,7 @@ public sealed class SynAlt<N>
 	public string dump;
 
 	public override string ToString() => dump ??= $"{name}{(rec ? "!!" : "")}{(
-		synt > 0 ? "+" : synt < 0 ? "-" : "")} #{len}{(lex >= 0 ? "_" + lex : "")} {hint}";
+		synt > 0 ? "+" : synt < 0 ? "-" : "")} #{size}{(lex >= 0 ? "_" + lex : "")} {hint}";
 }
 public sealed class SynForm
 {
@@ -103,9 +103,9 @@ public class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler : cla
 	public Synter(Func<Ler, ushort> lexOrd, Func<N, ushort> nameOrd, SynAlt<N>[] alts, SynForm[] forms)
 	{
 		if (alts.Length is 0 or > 32767)
-			throw new($"{nameof(alts)} length: {alts.Length}");
+			throw new($"{nameof(alts)} size: {alts.Length}");
 		if (forms.Length is 0 or > 32767)
-			throw new($"{nameof(forms)} length: {forms.Length}");
+			throw new($"{nameof(forms)} size: {forms.Length}");
 		this.lexOrd = lexOrd; this.nameOrd = nameOrd; this.alts = alts; this.forms = forms;
 		init = (short)(forms[0] != null ? 0 : 1);
 	}
@@ -134,7 +134,7 @@ public class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler : cla
 			bool omit = alt.synt == 0 ? !tree : alt.synt < 0; // omit Synt of Alt
 			T t = omit ? null : new() { name = alt.name, to = ler.Loc(), err = alt.rec ? -2 : 0 };
 			int loc = 0; // lexic loc of head
-			for (var i = alt.len - 1; i >= 0; i--) {
+			for (var i = alt.size - 1; i >= 0; i--) {
 				(_, loc, var with) = stack.Pop();
 				if (omit)
 					t = (with as T)?.Append(t) ?? t; // flatten Synts inside Alt
@@ -182,7 +182,7 @@ public class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler : cla
 		}
 		else if (mode < -1) { // reduce
 			var alt = alts[-2 - mode];
-			for (var i = 0; i < alt.len; i++)
+			for (var i = 0; i < alt.size; i++)
 				stack.Pop();
 			form = forms[stack.Peek().form];
 			var name = nameOrd(alt.name);

@@ -81,18 +81,18 @@ public class Lexier<K> : Lexier<K, Lexi<K>> where K : struct
 		=> Lexi(new() { key = key, from = f, to = to, value = value });
 	// from f loc of read to excluded loc
 	protected override void Error(K key, int f, int to, object value)
-		=> Lexi(new() { key = key, from = f, to = to, value = value, err = ~lexn }, true);
+		=> Lexi(new() { key = key, from = f, to = to, value = value, err = ~size }, true);
 
 	public override bool Is(int loc, K aim) => Is(Lex(loc).key, aim);
 
 	// to is excluded, ~from ~to for errs, first line and col are 1, col is byte index inside line
 	public (int fromL, int fromC, int toL, int toC) LineCol(int from, int to)
 	{
-		if (lexn == 0)
+		if (size == 0)
 			return (1, 1, 1, 1);
 		int bf, bt;
 		if (from >= 0) {
-			bf = from < lexn ? Lex(from).from : Lex(from - 1).to;
+			bf = from < size ? Lex(from).from : Lex(from - 1).to;
 			bt = from < to ? Math.Max(Lex(to - 1).to, bf) : bf;
 		}
 		else {
@@ -113,7 +113,7 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 		internal int id;
 		internal K key;
 		internal int wad; // first is 1
-		internal int pren; // for next[byte] are this unit, count bytes
+		internal int prez; // for next[byte] are this unit, count bytes
 		internal Unit[] next; // [next unit of byte], byte >= 128: [128]
 		internal Unit go; // when next==null or next[byte]==null or backward
 						  // go.next != null, go to begin: end of read or error
@@ -126,11 +126,11 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 	readonly Unit begin;
 	int uid;
 	protected Lexer<byte, byte> read;
-	int bn; // total bytes got
+	int bz; // total bytes got
 	int bf, bt; // read from loc to excluded loc for each wad
 	readonly List<int> lines = []; // [0, loc of read after eol...]
 	readonly byte[] bytes = new byte[LexGram<K>.AltByteN + 1]; // {latest bytes}[read loc & AltByteN]
-	protected int lexn, loc; // lexi count and loc
+	protected int size, loc; // lexs size, current loc
 	protected L[] lexs;
 	protected int from; // read loc for current lexi
 	public List<L> errs = []; // [error lexi]: not null, merge to lexs: null
@@ -147,28 +147,28 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 
 	public virtual void Clear()
 	{
-		bn = bf = bt = 0;
+		bz = bf = bt = 0;
 		lines.Clear(); lines.Add(0);
-		lexn = 0; loc = -1; lexs = [];
+		size = 0; loc = -1; lexs = [];
 		from = -1; errs?.Clear();
 	}
 
 	public bool Next()
 	{
-		if (++loc < lexn) return true;
+		if (++loc < size) return true;
 		var u = begin;
 	Step: bf = bt;
-	Next: if (bt >= bn)
+	Next: if (bt >= bz)
 			if (read.Next()) {
-				if ((bytes[bn++ & LexGram<K>.AltByteN] = read.Lex()) == '\n')
-					lines.Add(bn);
+				if ((bytes[bz++ & LexGram<K>.AltByteN] = read.Lex()) == '\n')
+					lines.Add(bz);
 			}
-			else if (u == begin || bt > bn) {
-				if (bn >= 0) {
-					ReadEnd(bn); // call only once
-					bn = -1;
+			else if (u == begin || bt > bz) {
+				if (bz >= 0) {
+					ReadEnd(bz); // call only once
+					bz = -1;
 				}
-				return loc < lexn;
+				return loc < size;
 			}
 			else // end of read but not lexi
 				goto Go;
@@ -190,11 +190,11 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 			if (e) go = begin;
 		}
 		else { // error wad
-			WadErr(u.key, u.wad, go == begin || bt >= bn,
-				bt < bn ? bytes[bt & LexGram<K>.AltByteN] : -1, bf, bt);
+			WadErr(u.key, u.wad, go == begin || bt >= bz,
+				bt < bz ? bytes[bt & LexGram<K>.AltByteN] : -1, bf, bt);
 			++bt; // shift a byte
 		}
-		if (go == begin && loc < lexn)
+		if (go == begin && loc < size)
 			return true;
 		u = go;
 		goto Step;
@@ -211,7 +211,7 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 
 	protected void BackByte(int to)
 	{
-		if (to < bn - LexGram<K>.AltByteN)
+		if (to < bz - LexGram<K>.AltByteN)
 			throw new("back too much bytes");
 		bt = to;
 	}
@@ -237,24 +237,24 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 	}
 
 	// end of read
-	protected virtual void ReadEnd(int bn) { }
+	protected virtual void ReadEnd(int bz) { }
 
 	protected void Lexi(L lexi, bool err = false)
 	{
 		if (err && errs != null)
 			errs.Add(lexi);
 		else {
-			if (lexn == lexs.Length) Array.Resize(ref lexs, Math.Max(lexs.Length << 1, 65536));
-			lexs[lexn++] = lexi;
+			if (size == lexs.Length) Array.Resize(ref lexs, Math.Max(lexs.Length << 1, 65536));
+			lexs[size++] = lexi;
 		}
 	}
 
 	protected abstract void Lexi(K key, int f, int to, object value);
 	protected abstract void Error(K key, int f, int to, object value);
 
-	public int Loc() => Math.Min(loc, lexn);
+	public int Loc() => Math.Min(loc, size);
 	public L Lex() => lexs[loc];
-	public L Lex(int loc) => lexs.AsSpan(0, lexn)[loc];
+	public L Lex(int loc) => lexs.AsSpan(0, size)[loc];
 
 	public bool Is(K aim) => Is(loc, aim);
 	public abstract bool Is(int loc, K aim);
@@ -265,13 +265,13 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 
 	public Span<L> Lexs(int from, int to, Span<L> s)
 	{
-		if (from >= lexn || to > lexn) throw new IndexOutOfRangeException();
+		if (from >= size || to > size) throw new IndexOutOfRangeException();
 		lexs.AsSpan(from, to - from).CopyTo(s);
 		return s;
 	}
 	public ArraySegment<L> Lexs(int from, int to)
 	{
-		if (to > lexn) throw new IndexOutOfRangeException();
+		if (to > size) throw new IndexOutOfRangeException();
 		return lexs.Seg(from, to);
 	}
 	IEnumerable<L> Lexer<K, L>.Lexs(int from, int to) => Lexs(from, to);
@@ -290,12 +290,13 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 	static void Dump(Unit u, string pre, Dictionary<Unit, bool> us = null)
 	{
 		using var env = EnvWriter.Use();
-		var uz = us ?? [];
-		uz[u] = false; // dumped
+		var usNull = us == null;
+		us ??= [];
+		us[u] = false; // dumped
 		env.WriteLine($"{u.id}: {u.key}.{u.wad} " +
 			$"{(u.mode >= 0 ? "back" : u.mode == -1 ? "ok" : "err")}.{u.go.id} < {pre}");
-		if (!uz.ContainsKey(u.go))
-			uz[u.go] = true; // not dumped yet
+		if (!us.ContainsKey(u.go))
+			us[u.go] = true; // not dumped yet
 		if (u.next == null)
 			return;
 		foreach (var n in u.next.Where(n => n != null).Distinct()) {
@@ -310,12 +311,12 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 			if (n == u)
 				env.WriteLine($"+ < {string.Join(' ', s)}");
 			else
-				Dump(n, string.Join(' ', s), uz);
+				Dump(n, string.Join(' ', s), us);
 		}
-	Go: if (us == null)
-			foreach (var go in uz)
+	Go: if (usNull)
+			foreach (var go in us)
 				if (go.Value) {
-					Dump(go.Key, $"{go.Key.key}.{go.Key.wad - 1}", uz);
+					Dump(go.Key, $"{go.Key.key}.{go.Key.wad - 1}", us);
 					goto Go;
 				}
 	}
@@ -360,10 +361,10 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 					// build alt
 					var Aus = w.Select((a, alt) => {
 						++alt;
-						var bn = a.Sum(b => b.str.Length + (b.inc.Length > 0 ? 1 : 0));
-						if (a.Count == 0 ? alt > 1 : bn == 0)
+						var bz = a.Sum(b => b.str.Length + (b.inc.Length > 0 ? 1 : 0));
+						if (a.Count == 0 ? alt > 1 : bz == 0)
 							throw new($"No byte in {k}.{wad}.{alt}");
-						if (bn > LexGram<K>.AltByteN)
+						if (bz > LexGram<K>.AltByteN)
 							throw new($"{k}.{wad}.{alt} exceeds {LexGram<K>.AltByteN} bytes");
 						u = wus[wad];
 						var ok = !a.loop ? wus[wad + 1] // go for match
@@ -372,10 +373,10 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 						var bx = 0; // build units from contents
 						foreach (var e in a) {
 							for (int x = 0; x < e.str.Length; x++)
-								Byte(e.str.Mem(x, x + 1), ref u, k, wad, ++bx >= bn, ok,
+								Byte(e.str.Mem(x, x + 1), ref u, k, wad, ++bx >= bz, ok,
 									e.dup && x == e.str.Length - 1 ? dup : null);
 							if (e.inc.Length > 0)
-								Byte(e.inc, ref u, k, wad, ++bx >= bn, ok, e.dup ? dup : null);
+								Byte(e.inc, ref u, k, wad, ++bx >= bz, ok, e.dup ? dup : null);
 						}
 						return u; // the last unit of this alt
 					}).Where(u => u.next != null).ToArray();
@@ -420,13 +421,13 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 							+ $".{(n ?? u.next[bs[x]]).wad} must be the same or distinct");
 			if (n == null) {
 				n = dup ? u // duplicate bytes
-					: new Unit(ler) { key = key, wad = wad, pren = bs.Length, go = go, mode = mode };
+					: new Unit(ler) { key = key, wad = wad, prez = bs.Length, go = go, mode = mode };
 				for (int x = 0; x < bs.Length; x++)
 					u.next[bs[x]] = n;
 				if (dup && u.mode == -1 && mode == -3)
 					throw new($"{key}.{wad} and {u.key}.{u.wad} conflict over byte dup");
 			}
-			else if (n.pren != bs.Length) // all already nexts must be the same
+			else if (n.prez != bs.Length) // all already nexts must be the same
 				throw new($"Prefixs of {key}.{wad} and {n.key}.{n.wad}"
 					+ " must be the same or distinct");
 			else if (dup != (n == u)) // already exist next must not conflict

@@ -83,7 +83,7 @@ public class TestSynter : IDisposable
 	{
 		var alts = Alts.Split('\n', ' ').Select(alt => new SynAlt<string> {
 			name = alt[0..1],
-			len = alt.Length - 2,
+			size = alt.Length - 2,
 			lex = alt.IndexOfAny(keys, 2) - 2,
 			synt = alt[1] switch { '+' => 1, '-' => -1, _ => 0 },
 		}).ToArray();
@@ -102,7 +102,6 @@ public class TestSynter : IDisposable
 	public void False(string read) => IsFalse(ser.Begin(new LerStr(read)).Check());
 
 	public Ser Parse(string read) => (ser.Begin(new LerStr(read)).Parse().Dump(), ser);
-
 
 	[TestMethod]
 	public void TigerF325()

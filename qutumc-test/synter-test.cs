@@ -104,7 +104,7 @@ public class TestSynter : IDisposable
 		ser.ler.Dispose();
 		ser.ler.Begin(new LerByte(Encoding.UTF8.GetBytes(read)));
 		var t = ser.Parse().Dump((Func<int, int, (int, int, int, int)>)ser.ler.LineCol);
-		env.WriteLine($"--- match {ser.matchn} / lexi {ser.lexn} = {ser.matchn / Math.Max(ser.lexn, 1)} ---");
+		env.WriteLine($"--- match {ser.matchz} / lexi {ser.lexz} = {ser.matchz / Math.Max(ser.lexz, 1)} ---");
 		return (t, ser);
 	}
 

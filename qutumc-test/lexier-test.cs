@@ -30,9 +30,9 @@ public class TestLexier : IDisposable
 		using var __ = ler.Begin(new LerByte(Encoding.UTF8.GetBytes(read)));
 		while (ler.Next())
 			;
-		var z = string.Join(" ", ler.Lexs(0, ler.Loc()).Select(t => t.ToString(Dump)).ToArray());
-		env.WriteLine(z);
-		AreEqual(s, z);
+		var ls = string.Join(" ", ler.Lexs(0, ler.Loc()).Select(t => t.ToString(Dump)).ToArray());
+		env.WriteLine(ls);
+		AreEqual(s, ls);
 	}
 
 	static string Dump(object v) => v is object[] s ? string.Join(',', s) + "," : v?.ToString() ?? "";

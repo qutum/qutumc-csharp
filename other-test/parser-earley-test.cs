@@ -86,10 +86,9 @@ public class TestParserEarley : IDisposable
 	{
 		var t = ser.Begin(new LerStr(read)).Parse().Dump();
 		using var env = EnvWriter.Begin();
-		env.WriteLine($"---- {ser.matchn} match/lexi {ser.lexn} = {ser.matchn / Math.Max(ser.lexn, 1)} ----");
+		env.WriteLine($"---- {ser.matchz} match/lexi {ser.lexz} = {ser.matchz / Math.Max(ser.lexz, 1)} ----");
 		return (t, ser);
 	}
-
 
 	[TestMethod]
 	public void Term1()
@@ -186,11 +185,11 @@ public class TestParserEarley : IDisposable
 		NewSer("S= aa B \nB= A a \nA= a A|a");
 		False("aa"); False("aaa");
 		True("aaaa"); True("aaaaa"); True("aaaaaa");
-		True("aaaaaaa"); AreEqual(49, ser.matchn);
+		True("aaaaaaa"); AreEqual(49, ser.matchz);
 		NewSer("S= aa B \nB= A a \nA= A a|a");
-		True("aaaaaaa"); AreEqual(29, ser.matchn);
+		True("aaaaaaa"); AreEqual(29, ser.matchz);
 		NewSer("S= aa B \nB= A a \nA= a+");
-		True("aaaaaaa"); AreEqual(28, ser.matchn);
+		True("aaaaaaa"); AreEqual(28, ser.matchz);
 	}
 
 	[TestMethod]
@@ -348,7 +347,7 @@ public class TestParserEarley : IDisposable
 	{
 		NewSer("S=a+");
 		False(""); True("a"); True("aaaaaa");
-		True("aaaaaaa"); AreEqual(15, ser.matchn);
+		True("aaaaaaa"); AreEqual(15, ser.matchz);
 	}
 
 	[TestMethod]
@@ -359,7 +358,7 @@ public class TestParserEarley : IDisposable
 		Parse("apqpqpqb").h("A", v: "apq").n("B", v: "pqpqb").uU();
 		ser.greedy = true;
 		Parse("apqpqpqb").h("A", v: "apqpq").n("B", v: "pqb").uU();
-		AreEqual(34, ser.matchn);
+		AreEqual(34, ser.matchz);
 	}
 
 	[TestMethod]
@@ -367,7 +366,7 @@ public class TestParserEarley : IDisposable
 	{
 		NewSer("S=a*");
 		True(""); True("a"); True("aaaaaa");
-		True("aaaaaaa"); AreEqual(16, ser.matchn);
+		True("aaaaaaa"); AreEqual(16, ser.matchz);
 	}
 
 	[TestMethod]
@@ -376,10 +375,10 @@ public class TestParserEarley : IDisposable
 		NewSer("S=A B \n A=a P* \n B=P* b \n P=p|q");
 		True("ab"); True("apqb"); True("apqpqb");
 		Parse("apqpqpqb").H("A", 0, 1).n("B").H("P", 1).N().N().N().N().N("P", 6).uuU();
-		AreEqual(107, ser.matchn);
+		AreEqual(107, ser.matchz);
 		ser.greedy = true;
 		Parse("apqpqpqb").h("A").H("P", 1).N().N().N().N().N("P", 6).u().N("B", v: "b").uU();
-		AreEqual(107, ser.matchn);
+		AreEqual(107, ser.matchz);
 	}
 
 	[TestMethod]

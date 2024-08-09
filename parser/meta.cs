@@ -130,14 +130,14 @@ public static class MetaLex
 				foreach (var (a, alt) in w.Where(t => t.name.StartsWith("alt")).Prepend(w).Each(1)) {
 					// build elems
 					var bytes = a.Where(t => t.name == "byte");
-					var bn = bytes.Count();
-					if (bn > LexGram<K>.AltByteN)
+					var bz = bytes.Count();
+					if (bz > LexGram<K>.AltByteN)
 						throw new($"{k}.{wad}.{alt} exceeds {LexGram<K>.AltByteN} bytes :"
 							+ meta.ler.Lexs(a.from, a.to));
-					var en = 0;
+					var ez = 0;
 					foreach (var (b, bx) in bytes.Each())
-						Byte(gram, k, wad, alt, b, es, ref en);
-					_ = g[es[0..en]];
+						Byte(gram, k, wad, alt, b, es, ref ez);
+					_ = g[es[0..ez]];
 					if (a.head.name == "loop" || a.head.next?.name == "loop")
 						_ = g.loop;
 				};
@@ -147,11 +147,11 @@ public static class MetaLex
 		return g;
 	}
 
-	static void Byte<K>(string gram, K k, int wad, int alt, EsynStr b, object[] es, ref int en)
+	static void Byte<K>(string gram, K k, int wad, int alt, EsynStr b, object[] es, ref int ez)
 	{
 		var x = b.from;
 		if (gram[x] == '\\') { // escape bytes
-			es[en++] = MetaStr.Unesc(gram, x, b.to, true).Mem();
+			es[ez++] = MetaStr.Unesc(gram, x, b.to, true).Mem();
 			x += 2;
 		}
 		// build range
@@ -176,14 +176,14 @@ public static class MetaLex
 				if (rs[y]) s[n++] = y;
 			if (n == 0)
 				throw new($"No byte in {k}.{wad} :{meta.ler.Lexs(b.from, b.to)}");
-			es[en++] = (ReadOnlyMemory<char>)s.AsMemory(0, n);
+			es[ez++] = (ReadOnlyMemory<char>)s.AsMemory(0, n);
 			++x; // range ]
 		}
 		else // single byte
-			es[en++] = Set.ONE[gram[x++]];
+			es[ez++] = Set.ONE[gram[x++]];
 		// byte dup +
 		if (x < b.to)
-			es[en++] = Range.All;
+			es[ez++] = Range.All;
 	}
 
 	static void Dump<K>(EsynStr top, LexGram<K> gram)
