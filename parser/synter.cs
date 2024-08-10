@@ -74,14 +74,14 @@ public sealed class SynForm
 public class Synter<K, N, T, Ler> : Synter<K, Lexi<K>, N, T, Ler>
 	where K : struct where T : Synt<N, T>, new() where Ler : class, LexerSeg<K, Lexi<K>>
 {
-	public Synter(Func<Ler, ushort> lexOrd, Func<N, ushort> nameOrd,
-		SynAlt<N>[] alts, SynForm[] forms) : base(lexOrd, nameOrd, alts, forms) { }
+	public Synter(Func<Ler, ushort> lexOrd, Func<N, ushort> nameOrd, SynAlt<N>[] alts, SynForm[] forms)
+		: base(lexOrd, nameOrd, alts, forms) { }
 }
 
 public class SynterStr : Synter<char, char, string, SyntStr, LerStr>
 {
-	public SynterStr(Func<LerStr, ushort> lexOrd, Func<string, ushort> nameOrd,
-		SynAlt<string>[] alts, SynForm[] forms) : base(lexOrd, nameOrd, alts, forms) { }
+	public SynterStr(Func<string, ushort> nameOrd, SynAlt<string>[] alts, SynForm[] forms)
+		: base(ler => ler.Lex(), nameOrd, alts, forms) { }
 }
 
 // syntax parser using LR algorithm
@@ -158,7 +158,7 @@ public class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler : cla
 		}
 		// error
 		(mode, info) = (form.rec, form.err);
-		var e = new T() { err = -1, info = info };
+		T e = new() { err = -1, info = info };
 		_ = err == null ? errs = e : err.Append(e);
 		err = e;
 		if (mode != init - 1)

@@ -25,6 +25,7 @@ public struct Lexi<K> where K : struct
 		=> $"{key}{(err < 0 ? "!" : "=")}{dumper(value)}";
 }
 
+// lexic grammar
 public class LexGram<K>
 {
 	public readonly List<Prod> prods = [];
@@ -53,7 +54,7 @@ public class LexGram<K>
 	public LexGram<K> k(K key) { prods.Add(new() { key = key }); return this; }
 	public LexGram<K> w { get { prods[^1].Add([]); return this; } }
 	public LexGram<K> redo { get { prods[^1].Add(new() { redo = true }); return this; } }
-	// content: string : byte sequence, ReadOnlyMemory<char> : inclusive range, .. : duplicate
+	// string : byte sequence, ReadOnlyMemory<char> : inclusive range, .. : duplicate
 	public LexGram<K> this[params object[] cons] {
 		get {
 			Alt a = [];
@@ -72,40 +73,7 @@ public class LexGram<K>
 }
 
 // lexic parser
-public class Lexier<K> : Lexier<K, Lexi<K>> where K : struct
-{
-	public Lexier(LexGram<K> grammar, bool dumpGram = false) : base(grammar, dumpGram) { }
-
-	// from f loc of read to excluded loc
-	protected override void Lexi(K key, int f, int to, object value)
-		=> Lexi(new() { key = key, from = f, to = to, value = value });
-	// from f loc of read to excluded loc
-	protected override void Error(K key, int f, int to, object value)
-		=> Lexi(new() { key = key, from = f, to = to, value = value, err = ~size }, true);
-
-	public override bool Is(int loc, K aim) => Is(Lex(loc).key, aim);
-
-	// to is excluded, ~from ~to for errs, first line and col are 1, col is byte index inside line
-	public (int fromL, int fromC, int toL, int toC) LineCol(int from, int to)
-	{
-		if (size == 0)
-			return (1, 1, 1, 1);
-		int bf, bt;
-		if (from >= 0) {
-			bf = from < size ? Lex(from).from : Lex(from - 1).to;
-			bt = from < to ? Math.Max(Lex(to - 1).to, bf) : bf;
-		}
-		else {
-			from = ~from; to = ~to;
-			bf = from < errs.Count ? errs[from].from : errs[from - 1].to;
-			bt = from < to ? Math.Max(errs[to - 1].to, bf) : bf;
-		}
-		var (fl, fc) = LineCol(bf); var (tl, tc) = LineCol(bt);
-		return (fl, fc, tl, tc);
-	}
-}
-
-public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : struct // L : Lexi<K> fail
+public class Lexier<K> : LexerSeg<K, Lexi<K>> where K : struct
 {
 	// each unit is just before next byte or after the last byte of wad
 	sealed class Unit
@@ -120,7 +88,7 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 		internal int mode; // match: -1, mismatch to error: -3, mismatch to backward bytes: >=0
 						   // no backward cross wads nor duplicate bytes
 
-		internal Unit(Lexier<K, L> l) => id = ++l.uid;
+		internal Unit(Lexier<K> l) => id = ++l.uid;
 	}
 
 	readonly Unit begin;
@@ -131,9 +99,9 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 	readonly List<int> lines = []; // [0, loc of read after eol...]
 	readonly byte[] bytes = new byte[LexGram<K>.AltByteN + 1]; // {latest bytes}[read loc & AltByteN]
 	protected int size, loc; // lexs size, current loc
-	protected L[] lexs;
+	protected Lexi<K>[] lexs;
 	protected int from; // read loc for current lexi
-	public List<L> errs = []; // [error lexi]: not null, merge to lexs: null
+	public List<Lexi<K>> errs = []; // [error lexi]: not null, merge to lexs: null
 
 	public virtual IDisposable Begin(Lexer<byte, byte> read)
 	{
@@ -239,7 +207,7 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 	// end of read
 	protected virtual void ReadEnd(int bz) { }
 
-	protected void Lexi(L lexi, bool err = false)
+	protected void Lexi(Lexi<K> lexi, bool err = false)
 	{
 		if (err && errs != null)
 			errs.Add(lexi);
@@ -249,32 +217,36 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 		}
 	}
 
-	protected abstract void Lexi(K key, int f, int to, object value);
-	protected abstract void Error(K key, int f, int to, object value);
+	// from f loc of read to excluded loc
+	protected virtual void Lexi(K key, int f, int to, object value)
+		=> Lexi(new() { key = key, from = f, to = to, value = value });
+	// from f loc of read to excluded loc
+	protected virtual void Error(K key, int f, int to, object value)
+		=> Lexi(new() { key = key, from = f, to = to, value = value, err = ~size }, true);
 
 	public int Loc() => Math.Min(loc, size);
-	public L Lex() => lexs[loc];
-	public L Lex(int loc) => lexs.AsSpan(0, size)[loc];
+	public Lexi<K> Lex() => lexs[loc];
+	public Lexi<K> Lex(int loc) => lexs.AsSpan(0, size)[loc];
 
-	public bool Is(K aim) => Is(loc, aim);
-	public abstract bool Is(int loc, K aim);
+	public bool Is(K aim) => Is(lexs[loc].key, aim);
+	public bool Is(int loc, K aim) => Is(Lex(loc).key, aim);
 	public virtual bool Is(K key, K aim) => Eq.Equals(key, aim);
 
 	[System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2211")]
 	protected static EqualityComparer<K> Eq = EqualityComparer<K>.Default;
 
-	public Span<L> Lexs(int from, int to, Span<L> s)
+	public Span<Lexi<K>> Lexs(int from, int to, Span<Lexi<K>> s)
 	{
 		if (from >= size || to > size) throw new IndexOutOfRangeException();
 		lexs.AsSpan(from, to - from).CopyTo(s);
 		return s;
 	}
-	public ArraySegment<L> Lexs(int from, int to)
+	public ArraySegment<Lexi<K>> Lexs(int from, int to)
 	{
 		if (to > size) throw new IndexOutOfRangeException();
 		return lexs.Seg(from, to);
 	}
-	IEnumerable<L> Lexer<K, L>.Lexs(int from, int to) => Lexs(from, to);
+	IEnumerable<Lexi<K>> Lexer<K, Lexi<K>>.Lexs(int from, int to) => Lexs(from, to);
 
 	public static IEnumerable<K> Keys_(string keys) => [Enum.Parse<K>(keys)];
 	public virtual IEnumerable<K> Keys(string keys) => Keys_(keys);
@@ -285,6 +257,25 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 		var line = lines.BinarySearch(inputLoc);
 		line = (line ^ line >> 31) + (~line >>> 31);
 		return (line, inputLoc - lines[line - 1] + 1);
+	}
+
+	// excluded to, ~from ~to for errs, first line and col are 1, col is byte index inside line
+	public (int fromL, int fromC, int toL, int toC) LineCol(int from, int to)
+	{
+		if (size == 0)
+			return (1, 1, 1, 1);
+		int bf, bt;
+		if (from >= 0) {
+			bf = from < size ? Lex(from).from : Lex(from - 1).to;
+			bt = from < to ? Math.Max(Lex(to - 1).to, bf) : bf;
+		}
+		else {
+			from = ~from; to = ~to;
+			bf = from < errs.Count ? errs[from].from : errs[from - 1].to;
+			bt = from < to ? Math.Max(errs[to - 1].to, bf) : bf;
+		}
+		var (fl, fc) = LineCol(bf); var (tl, tc) = LineCol(bt);
+		return (fl, fc, tl, tc);
 	}
 
 	static void Dump(Unit u, string pre, Dictionary<Unit, bool> us = null)
@@ -324,7 +315,7 @@ public abstract class Lexier<K, L> : LexerSeg<K, L> where K : struct where L : s
 	public Lexier(LexGram<K> grammar, bool dumpGram = false)
 		=> begin = new Build(this).Do(grammar, dumpGram);
 
-	class Build(Lexier<K, L> ler)
+	class Build(Lexier<K> ler)
 	{
 		internal Unit Do(LexGram<K> grammar, bool dump)
 		{

@@ -95,7 +95,7 @@ public class TestSynter : IDisposable
 				if (form.pushs != null)
 					Array.Sort(form.names = names[0..], form.pushs);
 			}
-		ser = new(ler => ler.Lex(), name => name[0], alts, forms) { dump = 3 };
+		ser = new(name => name[0], alts, forms) { dump = 3 };
 	}
 
 	public void True(string read) => IsTrue(ser.Begin(new LerStr(read)).Check());
