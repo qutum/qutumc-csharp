@@ -52,7 +52,7 @@ public sealed class SynAlt<N>
 public sealed class SynForm
 {
 	public short[] modes; // for each key: shift to: form index, reduce: alt -2-index, error: -1
-	public ushort[] keys; // compact modes: { 0 for others, key oridnals ... }, normal: null
+	public ushort[] keys; // compact modes: { 0 for others, key ordinals ... }, normal: null
 	public short rec; // recover error: mode, no recovery: 0
 	public string err; // error hint
 	public short[] pushs; // for each name: push: form index
@@ -74,8 +74,8 @@ public sealed class SynForm
 public class Synter<K, N, T, Ler> : Synter<K, Lexi<K>, N, T, Ler>
 	where K : struct where T : Synt<N, T>, new() where Ler : class, LexerSeg<K, Lexi<K>>
 {
-	public Synter(Func<Ler, ushort> lexOrd, Func<N, ushort> nameOrd, SynAlt<N>[] alts, SynForm[] forms)
-		: base(lexOrd, nameOrd, alts, forms) { }
+	public Synter(Func<Ler, ushort> keyOrd, Func<N, ushort> nameOrd, SynAlt<N>[] alts, SynForm[] forms)
+		: base(keyOrd, nameOrd, alts, forms) { }
 }
 
 public class SynterStr : Synter<char, char, string, SyntStr, LerStr>
@@ -93,20 +93,20 @@ public class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler : cla
 		= new(); // (form index, lex loc or Synt.from, null for lex or Synt or recovery hint)
 	protected short init; // first form index
 
-	protected Func<Ler, ushort> lexOrd; // ordinal from 1, default lex for eof: 0
+	protected Func<Ler, ushort> keyOrd; // ordinal from 1, lex for eof: 0
 	protected Func<N, ushort> nameOrd; // ordinal from 1
 	public Ler ler;
 	public bool tree = true; // make Synt tree by default
 	public int dump = 0; // no: 0, lexs only for tree leaf: 1, lexs: 2, lexs and Alts: 3
 	public Func<object, string> dumper = null;
 
-	public Synter(Func<Ler, ushort> lexOrd, Func<N, ushort> nameOrd, SynAlt<N>[] alts, SynForm[] forms)
+	public Synter(Func<Ler, ushort> keyOrd, Func<N, ushort> nameOrd, SynAlt<N>[] alts, SynForm[] forms)
 	{
 		if (alts.Length is 0 or > 32767)
 			throw new($"{nameof(alts)} size: {alts.Length}");
 		if (forms.Length is 0 or > 32767)
 			throw new($"{nameof(forms)} size: {forms.Length}");
-		this.lexOrd = lexOrd; this.nameOrd = nameOrd; this.alts = alts; this.forms = forms;
+		this.keyOrd = keyOrd; this.nameOrd = nameOrd; this.alts = alts; this.forms = forms;
 		init = (short)(forms[0] != null ? 0 : 1);
 	}
 
@@ -119,7 +119,7 @@ public class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler : cla
 		T err = null, errs = null;
 		var finish = nameOrd(alts[0].name);
 	Next:
-		var key = ler.Next() ? lexOrd(ler) : default;
+		var key = ler.Next() ? keyOrd(ler) : default;
 	Loop:
 		object info = null;
 		var form = forms[stack.Peek().form];
@@ -172,7 +172,7 @@ public class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler : cla
 		stack.Push((init, -1, null));
 		var finish = nameOrd(alts[0].name);
 	Next:
-		var key = ler.Next() ? lexOrd(ler) : default;
+		var key = ler.Next() ? keyOrd(ler) : default;
 	Loop:
 		var form = forms[stack.Peek().form];
 		var mode = SynForm.Get(key, form.modes, form.keys);

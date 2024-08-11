@@ -61,11 +61,11 @@ public class LexGram<K>
 			prods[^1][^1].Add(a);
 			if (prods[^1][^1].Count == 1 && cons.Length == 1 && "".Equals(cons[0]))
 				return this;
-			foreach (var v in cons)
-				if (v is Range) a[^1].dup = true;
-				else if (v is string str) a.Add(new Con { str = str });
-				else if (v is ReadOnlyMemory<char> inc) a.Add(new Con { inc = inc });
-				else throw new($"wrong altern content {v?.GetType()}");
+			foreach (var c in cons)
+				if (c is Range) a[^1].dup = true;
+				else if (c is string str) a.Add(new() { str = str });
+				else if (c is ReadOnlyMemory<char> inc) a.Add(new() { inc = inc });
+				else throw new($"wrong altern content {c?.GetType()}");
 			return this;
 		}
 	}
