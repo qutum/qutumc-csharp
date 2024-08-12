@@ -18,7 +18,7 @@ public class SynGram<K, N>
 	// { K or N ... }
 	public class Alt : List<object>
 	{
-		public int lex = -1; // save lex at this index to Synt.info, no save: <0
+		public short lex = -1; // save lex at this index to Synt.info, no save: <0
 		public sbyte synt; // as Synter.tree: 0, make Synt: 1, omit Synt: -1
 		public string hint;
 	}
@@ -30,7 +30,7 @@ public class SynGram<K, N>
 			Alt a = [];
 			prods[^1].Add(a);
 			foreach (var c in cons)
-				if (c is Range) a.lex = a.Count - 1;
+				if (c is Range) a.lex = (short)(a.Count - 1);
 				else if (c is N or K) a.Add(c);
 				else throw new($"wrong altern content {c?.GetType()}");
 			return this;
@@ -46,53 +46,61 @@ public class SerMaker<K, N>
 {
 	readonly Func<K, ushort> keyOrd;
 	readonly Func<N, ushort> nameOrd;
-	readonly SortedDictionary<ushort, (K k, int x)> keys = []; // ordinal to (key, index)
-	readonly SortedDictionary<ushort, (N n, int x)> names = []; // ordinal to (name, index)
+	readonly ushort[] keyOs, nameOs; // ordered by ordinals
+	readonly K[] keys; // at key ordinal index
+	readonly N[] names; // at name ordinal index
 	readonly N finish;
 	readonly SynGram<K, N>.Prod[] prods; // at name ordinal index
 	readonly SynAlt<N>[] alts;
 	readonly (bool empty, HashSet<K> first)[] firsts; // at name ordinal index
+
+	private int Key(K k) => Array.BinarySearch(keyOs, keyOrd(k));
+	private int Name(N n) => Array.BinarySearch(nameOs, nameOrd(n));
 
 	public SerMaker(SynGram<K, N> gram, Func<K, ushort> keyOrd, Func<N, ushort> nameOrd,
 		Action<IEnumerable<K>> distinct)
 	{
 		this.keyOrd = keyOrd; this.nameOrd = nameOrd;
 		// names
+		SortedDictionary<ushort, N> ns = [];
 		foreach (var (p, px) in gram.prods.Each())
-			if (!names.TryAdd(nameOrd(p.name), (p.name, 0)))
+			if (!ns.TryAdd(nameOrd(p.name), p.name))
 				throw new($"duplicate name {p.name}");
-		foreach (var ((o, (n, _)), x) in names.ToArray().Each())
-			names[o] = (n, x);
+		nameOs = [.. ns.Keys];
+		names = [.. ns.Values];
 		finish = gram.prods[0].name;
 
 		// prods
-		prods = new SynGram<K, N>.Prod[names.Count];
+		prods = new SynGram<K, N>.Prod[names.Length];
 		foreach (var p in gram.prods)
-			prods[names[nameOrd(p.name)].x] = p;
+			prods[Name(p.name)] = p;
 		// alts
+		SortedDictionary<ushort, K> ks = [];
 		List<SynAlt<N>> As = [];
 		foreach (var p in gram.prods)
 			foreach (var (a, ax) in p.Each()) {
 				foreach (var c in a)
 					if (c is K k)
-						keys.Add(keyOrd(k), (k, 0));
-					else if (!names.ContainsKey(nameOrd((N)c)))
+						ks.Add(keyOrd(k), k);
+					else if (Name((N)c) < 0)
 						throw new($"name {c} in {p.name}.{ax} not found");
 				if (a.lex >= 0 && a[a.lex] is not K)
-					throw new($"{p.name}.{ax} lex {a[a.lex]} must be lexic key");
+					throw new($"{p.name}.{ax} lex {a[a.lex]} not lexic key");
 				As.Add(new() {
-					name = p.name, size = a.Count, lex = a.lex, synt = a.synt,
-					hint = a.hint, dump = null, // TODO
+					name = p.name, size = checked((short)a.Count), lex = a.lex,
+					synt = a.synt, hint = a.hint, dump = null, // TODO
 				});
 			}
+		if (As.Count is 0 or > 32767)
+			throw new($"alterns size {As.Count}");
 		alts = [.. As];
 
 		// keys
-		distinct(keys.Select(i => i.Value.k));
-		foreach (var ((o, (k, _)), x) in keys.ToArray().Each())
-			keys[o] = (k, x);
+		keyOs = [.. ks.Keys];
+		keys = [.. ks.Values];
+		distinct(keys);
 		// others
-		firsts = new (bool, HashSet<K>)[names.Count];
+		firsts = new (bool, HashSet<K>)[names.Length];
 		Firsts();
 	}
 
@@ -103,8 +111,7 @@ public class SerMaker<K, N>
 				var nf = firsts[px].first ??= [];
 				foreach (var a in p) {
 					foreach (var c in a) {
-						var (ce, cf) = c is K k ? (false, k.Enum())
-							: ((bool, IEnumerable<K>))firsts[names[nameOrd((N)c)].x];
+						var (ce, cf) = First(c, null);
 						foreach (var f in cf ?? [])
 							loop |= nf.Add(f);
 						if (!ce)
@@ -115,7 +122,7 @@ public class SerMaker<K, N>
 			}
 	}
 
-	public (bool empty, IEnumerable<K> first) First(N name) => firsts[names[nameOrd(name)].x];
+	public (bool empty, IEnumerable<K> first) First(N name) => firsts[Name(name)];
 
 	public (bool empty, IEnumerable<K> first) First(N name, K ahead)
 	{

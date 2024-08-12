@@ -38,8 +38,8 @@ public class SyntStr : Synt<string, SyntStr>
 public sealed class SynAlt<N>
 {
 	public N name;
-	public int size;
-	public int lex; // save lex at this index to Synt.info, no save: <0
+	public short size;
+	public short lex; // save lex at this index to Synt.info, no save: <0
 	public sbyte synt; // as Synter.tree: 0, make Synt: 1, omit Synt: -1
 	public bool rec; // is this for error recovery
 	public string hint;
@@ -102,9 +102,9 @@ public class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler : cla
 	public Synter(Func<Ler, ushort> keyOrd, Func<N, ushort> nameOrd, SynAlt<N>[] alts, SynForm[] forms)
 	{
 		if (alts.Length is 0 or > 32767)
-			throw new($"{nameof(alts)} size: {alts.Length}");
+			throw new($"{nameof(alts)} size {alts.Length}");
 		if (forms.Length is 0 or > 32767)
-			throw new($"{nameof(forms)} size: {forms.Length}");
+			throw new($"{nameof(forms)} size {forms.Length}");
 		this.keyOrd = keyOrd; this.nameOrd = nameOrd; this.alts = alts; this.forms = forms;
 		init = (short)(forms[0] != null ? 0 : 1);
 	}

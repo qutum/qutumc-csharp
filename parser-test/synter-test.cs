@@ -82,8 +82,8 @@ public class TestSynter : IDisposable
 	{
 		var alts = Alts.Split('\n', ' ').Select(alt => new SynAlt<string> {
 			name = alt[0..1],
-			size = alt.Length - 2,
-			lex = alt.IndexOfAny(keys, 2) - 2,
+			size = (short)(alt.Length - 2),
+			lex = (short)(alt.IndexOfAny(keys, 2) - 2),
 			synt = alt[1] switch { '+' => 1, '-' => -1, _ => 0 },
 		}).ToArray();
 		var ks = keys.Select(k => (ushort)k).Prepend(default); // { other... }
