@@ -24,31 +24,11 @@ public static class Extension
 
 	public static ArraySegment<T> Seg<T>(this T[] s, int from, int to) => new(s, from, to - from);
 
-	public static Enum1<T> Enum<T>(this T v) => new(v);
 	public static MemoryEnum<T> Enum<T>(this ReadOnlyMemory<T> s) => new(s);
 
 	public static ReadOnlyMemory<char> Mem(this string s) => s.AsMemory();
 
 	public static ReadOnlyMemory<char> Mem(this string s, int from, int to) => s.AsMemory(from, to - from);
-}
-
-public readonly struct Enum1<T>(T v) : IEnumerable<T>
-{
-	public IEnumerator<T> GetEnumerator() => new Enum { v = v };
-
-	IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
-
-	struct Enum : IEnumerator<T>
-	{
-		internal T v;
-		bool x = false;
-		public Enum() { }
-		public readonly T Current => x ? v : throw new IndexOutOfRangeException();
-		readonly object IEnumerator.Current => Current;
-		public bool MoveNext() => x != (x = true);
-		public void Reset() => x = false;
-		public readonly void Dispose() { }
-	}
 }
 
 public readonly struct MemoryEnum<T>(ReadOnlyMemory<T> mem) : IEnumerable<T>

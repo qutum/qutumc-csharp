@@ -21,7 +21,7 @@ public class TestLexier : IDisposable
 
 	public void Dispose() => env.Dispose();
 
-	readonly Lexier ler = new() { eof = false, errs = null };
+	readonly Lexier ler = new() { eor = false, errs = null };
 
 	void Check(string read, string s)
 	{
@@ -119,7 +119,7 @@ public class TestLexier : IDisposable
 	[TestMethod]
 	public void Eof2()
 	{
-		ler.eof = true;
+		ler.eor = true;
 		CheckSp("a\n", "NAME=a EOL= EOL=");
 		CheckSp("a\t", "NAME=a SP= EOL=");
 		CheckSp("\ta\t", "IND=4 NAME=a SP= EOL= DED=4");

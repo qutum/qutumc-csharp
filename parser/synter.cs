@@ -50,21 +50,21 @@ public sealed class SynAlt<N>
 }
 public sealed class SynForm
 {
-	public short[] modes; // for each key: shift to: form index, reduce: alt -2-index, error: -1
+	public short[] modes; // for each key: shift to: form index, reduce: -2-alt index, error: -1
 	public ushort[] keys; // compact modes: { 0 for others, key ordinals ... }, normal: null
 	public short rec; // recover error: mode, no recovery: 0
 	public string err; // error hint
 	public short[] pushs; // for each name: push: form index
 	public ushort[] names; // compact pushs: { 0 for others, name ordinals ... }, normal: null
 
-	public static short Get(ushort x, short[] v, ushort[] i)
+	public static short Get(ushort o, short[] s, ushort[] x)
 	{
-		if (i == null) return v[x];
-		switch (i.Length) {
-		case 2: return i[1] == x ? v[1] : v[0];
-		case 3: return i[1] == x ? v[1] : i[2] == x ? v[2] : v[0];
-		case 4: return i[1] == x ? v[1] : i[2] == x ? v[2] : i[3] == x ? v[3] : v[0];
-		default: var j = Array.BinarySearch(i, 1, i.Length - 1, x); return v[j > 0 ? j : 0];
+		if (x == null) return s[o];
+		switch (x.Length) {
+		case 2: return x[1] == o ? s[1] : s[0];
+		case 3: return x[1] == o ? s[1] : x[2] == o ? s[2] : s[0];
+		case 4: return x[1] == o ? s[1] : x[2] == o ? s[2] : x[3] == o ? s[3] : s[0];
+		default: var y = Array.BinarySearch(x, 1, x.Length - 1, o); return s[y > 0 ? y : 0];
 		}
 	}
 }
@@ -86,13 +86,13 @@ public class SynterStr : Synter<char, char, string, SyntStr, LerStr>
 // syntax parser using LR algorithm
 public class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler : class, Lexer<K, L>
 {
-	readonly SynAlt<N>[] alts; // reduce [0].name by eof after forms[init]: finish
+	readonly SynAlt<N>[] alts; // reduce [0].name by eor after forms[init]: finish
 	readonly SynForm[] forms;
 	readonly Stack<(short form, int loc, object with)> stack
 		= new(); // (form index, lex loc or Synt.from, null for lex or Synt or recovery hint)
 	protected short init; // first form index
 
-	protected Func<Ler, ushort> keyOrd; // ordinal from 1, lex for eof: 0
+	protected Func<Ler, ushort> keyOrd; // ordinal from 1, default for eor: 0
 	protected Func<N, ushort> nameOrd; // ordinal from 1
 	public Ler ler;
 	public bool tree = true; // make Synt tree by default
@@ -149,7 +149,7 @@ public class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler : cla
 			var name = nameOrd(alt.name);
 			if (form == forms[init] && name == finish && key == default) {
 				stack.Clear();
-				return t.Append(errs); // reduce alts[0] by eof after forms[init], finish
+				return t.Append(errs); // reduce alts[0] by eor after forms[init], finish
 			}
 			var push = SynForm.Get(name, form.pushs, form.names);
 			stack.Push((push, loc, t));
@@ -187,7 +187,7 @@ public class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler : cla
 			var name = nameOrd(alt.name);
 			if (form == forms[init] && name == finish && key == default) {
 				stack.Clear();
-				return true; // reduce alts[0] by eof after forms[init]
+				return true; // reduce alts[0] by eor after forms[init]
 			}
 			var push = SynForm.Get(nameOrd(alt.name), form.pushs, form.names);
 			stack.Push((push, 0, null));

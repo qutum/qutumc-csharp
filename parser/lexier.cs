@@ -81,7 +81,7 @@ public class Lexier<K> : LexerSeg<K, Lexi<K>> where K : struct
 		internal int prez; // for next[byte] are this unit, count bytes
 		internal Unit[] next; // [next unit of byte], byte >= 128: [128]
 		internal Unit go; // when next==null or next[byte]==null or backward
-						  // go.next != null, go to begin: end of read or error
+						  // go.next != null, go to begin: eor or error
 		internal int mode; // match: -1, mismatch to error: -3, mismatch to backward bytes: >=0
 						   // no backward cross wads nor duplicate bytes
 
@@ -132,12 +132,12 @@ public class Lexier<K> : LexerSeg<K, Lexi<K>> where K : struct
 			}
 			else if (u == begin || bt > bz) {
 				if (bz >= 0) {
-					ReadEnd(bz); // call only once
+					Eor(bz); // call only once
 					bz = -1;
 				}
 				return loc < size;
 			}
-			else // end of read but not lexi
+			else // eor but lexi not end
 				goto Go;
 		var b = bytes[bt & AltByteN];
 		if (u.next[b < 128 ? b : 128] is Unit v) { // one byte by one, even for utf
@@ -195,7 +195,7 @@ public class Lexier<K> : LexerSeg<K, Lexi<K>> where K : struct
 		}
 	}
 
-	// error wad. end of read: Byte < 0
+	// error wad. eor: Byte < 0
 	protected virtual void WadErr(K key, int wad, bool end, int Byte, int f, int to)
 	{
 		if (from < 0) from = f;
@@ -203,8 +203,8 @@ public class Lexier<K> : LexerSeg<K, Lexi<K>> where K : struct
 		if (end) from = -1;
 	}
 
-	// end of read
-	protected virtual void ReadEnd(int bz) { }
+	// eor
+	protected virtual void Eor(int bz) { }
 
 	protected void Lexi(Lexi<K> lexi, bool err = false)
 	{

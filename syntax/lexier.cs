@@ -175,7 +175,7 @@ public sealed class Lexier : Lexier<K>, Lexer<K, Lexi<K>>
 	int ind, indf, indt; // indent column 0 based, read from loc to excluded loc
 	bool crlf; // \r\n found
 	readonly List<string> path = [];
-	public bool eof = true; // insert eol at end of read
+	public bool eor = true; // insert eol at eor
 	public bool allValue = false; // set all lexis value
 	public bool allBlank = false; // keep spaces without indent and offset, comments and empty lines
 
@@ -226,10 +226,10 @@ public sealed class Lexier : Lexier<K>, Lexer<K, Lexi<K>>
 	Done: ind = -1;
 	}
 
-	protected override void ReadEnd(int bz)
+	protected override void Eor(int bz)
 	{
 		var end = true;
-		if (eof)
+		if (eor)
 			Wad(K.EOL, 1, ref end, bz, bz);
 		ind = 0; indf = indt = bz; Indent();
 	}

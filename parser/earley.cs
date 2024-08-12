@@ -102,7 +102,7 @@ public class Earley<K, L, N, T, Ler> where T : Esyn<N, T>, new() where Ler : Lex
 	public Ler ler;
 	public bool greedy = false; // greedy: true, may or may not: false
 								// eg. S=AB A=1|12 B=23|3  gready: (12)3  lazy: 1(23)
-	public int recover = 10; // no recovery: 0, how many times to recover at eof: > 0
+	public int recover = 10; // no recovery: 0, how many times to recover at eor: > 0
 	public bool tree = true; // make whole tree from complete Alts
 	public int dump = 0; // no: 0, lexs for tree leaf: 1, lexs: 2, lexs and Alt: 3
 	public int errExpect = 2; // no: 0, One or More: 2, all: 3
@@ -297,9 +297,9 @@ public class Earley<K, L, N, T, Ler> where T : Esyn<N, T>, new() where Ler : Lex
 		return false;
 	}
 
-	bool Recover(bool eof, ref int shift)
+	bool Recover(bool eor, ref int shift)
 	{
-		shift = eof ? -1 : 0;
+		shift = eor ? -1 : 0;
 		int max = -1;
 		for (int ax = 0; ax < reca.Count; ax++) {
 			var x = recm[ax];
@@ -321,8 +321,8 @@ public class Earley<K, L, N, T, Ler> where T : Esyn<N, T>, new() where Ler : Lex
 						recm[ax] = -1;
 						goto Cont;
 					}
-			if (m.a.s[m.a.recover].p is K k2 ? pair == 0 && (eof || ler.Is(k2))
-				: m.step == m.a.recover && (eof || m.to == lexz - 1))
+			if (m.a.s[m.a.recover].p is K k2 ? pair == 0 && (eor || ler.Is(k2))
+				: m.step == m.a.recover && (eor || m.to == lexz - 1))
 				if (max < 0
 					|| m.a.prior && !matchs[max].a.prior
 					|| m.a.prior == matchs[max].a.prior && x > max)
