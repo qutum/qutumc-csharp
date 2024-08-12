@@ -58,8 +58,6 @@ public class LexGram<K>
 		get {
 			Alt a = [];
 			prods[^1][^1].Add(a);
-			if (prods[^1][^1].Count == 1 && cons.Length == 1 && "".Equals(cons[0]))
-				return this;
 			foreach (var c in cons)
 				if (c is Range) a[^1].dup = true;
 				else if (c is string str) a.Add(new() { str = str });
@@ -363,12 +361,12 @@ public class Lexier<K> : LexerSeg<K, Lexi<K>> where K : struct
 							: wad > 1 ? u : throw new($"Can not loop first wad {k}.1.{alt}");
 						var dup = w.redo ? u : begin; // error for repeat
 						var bx = 0; // build units from contents
-						foreach (var e in a) {
-							for (int x = 0; x < e.str.Length; x++)
-								Byte(e.str.Mem(x, x + 1), ref u, k, wad, ++bx >= bz, ok,
-									e.dup && x == e.str.Length - 1 ? dup : null);
-							if (e.inc.Length > 0)
-								Byte(e.inc, ref u, k, wad, ++bx >= bz, ok, e.dup ? dup : null);
+						foreach (var c in a) {
+							for (int x = 0; x < c.str.Length; x++)
+								Byte(c.str.Mem(x, x + 1), ref u, k, wad, ++bx >= bz, ok,
+									c.dup && x == c.str.Length - 1 ? dup : null);
+							if (c.inc.Length > 0)
+								Byte(c.inc, ref u, k, wad, ++bx >= bz, ok, c.dup ? dup : null);
 						}
 						return u; // the last unit of this alt
 					}).Where(u => u.next != null).ToArray();

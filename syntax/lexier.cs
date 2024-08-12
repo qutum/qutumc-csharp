@@ -103,10 +103,10 @@ public sealed class Lexier : Lexier<K>, Lexer<K, Lexi<K>>
 
 		.k(K.EOL).w["\n"]["\r\n"]
 		.k(K.SP).w[" \t".Mem()] // [\s\t]  |+\s+|+\t+
-				.w[""][" ", ..].loop["\t", ..].loop
+				.w[[]][" ", ..].loop["\t", ..].loop
 
 		.k(K.COMM).w["##"] // ##  |[\A^\n]+
-					.w[""][Set.All.Exc("\n"), ..]
+					.w[[]][Set.All.Exc("\n"), ..]
 		.k(K.COMMB).w["\\", .., "#"] // \\+#  +#\\+|+#|+[\A^#]+
 					.w["#", "\\", ..].loop["#"].loop[Set.All.Exc("#"), ..].loop
 
@@ -130,14 +130,14 @@ public sealed class Lexier : Lexier<K>, Lexer<K, Lexi<K>>
 
 		.k(K.HEX).w["0x"]["0X"] // 0[xX]  _*\x  |+_*\x+
 				.w[Set.Hex]["_", .., Set.Hex]
-				.w[""][Set.Hex, ..].loop["_", .., Set.Hex, ..].loop
+				.w[[]][Set.Hex, ..].loop["_", .., Set.Hex, ..].loop
 		.k(K.NUM) // 0|[1-9]  |+_*\d+  |.\d+  |+_+\d+  |[eE][\+\-]?\d+  |[fF]
 				.w["0"][Set.Dec.Exc("0")]
-				.w[""][Set.Dec, ..].loop["_", .., Set.Dec, ..].loop
-				.w[""][".", Set.Dec, ..]
-				.w[""]["_", .., Set.Dec, ..].loop
-				.w[""]["eE".Mem(), Set.Dec, ..]["eE".Mem(), "+-".Mem(), Set.Dec, ..]
-				.w[""]["fF".Mem()]
+				.w[[]][Set.Dec, ..].loop["_", .., Set.Dec, ..].loop
+				.w[[]][".", Set.Dec, ..]
+				.w[[]]["_", .., Set.Dec, ..].loop
+				.w[[]]["eE".Mem(), Set.Dec, ..]["eE".Mem(), "+-".Mem(), Set.Dec, ..]
+				.w[[]]["fF".Mem()]
 	;
 
 	// key ordinal is single or kind value, useful for syntax parser

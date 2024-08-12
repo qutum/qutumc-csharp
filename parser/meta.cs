@@ -125,7 +125,7 @@ public static class MetaLex
 				if (w.head.name != "redo") // no backward cross wads
 					_ = g.w;
 				else if (gram[w.head.from] == '|') // empty alt
-					_ = g.w[""];
+					_ = g.w[[]];
 				else // shift byte and redo wad like the begin
 					_ = g.redo;
 				// build alt
