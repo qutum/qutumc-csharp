@@ -19,7 +19,7 @@ using L = Lex;
 using S = Esy;
 using Ser = (Esyn t, Earley s);
 
-static class TestExtension
+file static class Extension
 {
 	public static Ser Eq(this Ser s,
 		S? name = null, object v = null, double? from = null, double? to = null, int err = 0)

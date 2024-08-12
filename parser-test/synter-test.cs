@@ -15,7 +15,7 @@ namespace qutum.test.parser;
 
 using Ser = (SyntStr t, SynterStr s);
 
-static class TestExtension
+file static class Extension
 {
 	public static Ser Eq(this Ser s,
 		string name = null, int? from = null, int? to = null, object v = null, int err = 0)
@@ -126,7 +126,7 @@ public class TestSynter : IDisposable
 	}
 
 	[TestMethod]
-	public void TigerF328()
+	public void TigerT328()
 	{
 		NewSer("Z=S S=V=E S-E E-V V=a V=*E", ['a', 'b', '*', '=', '\0'], ['S', 'E', 'V'], [ null,
 			new() { modes = [8, 8, 6,   0,   0], pushs = [2,  5, 3] },
@@ -152,7 +152,7 @@ public class TestSynter : IDisposable
 	}
 
 	[TestMethod]
-	public void TigerF322()
+	public void TigerT322()
 	{
 		NewSer("Z=S S=(L) S=a L-S L=L,S", ['(', ')', 'a', 'b', ',', '\0'], ['S', 'L'], [ null,
 			new() { modes = [   3,   0,   2,   2,   0,   0], pushs = [4, 0] },
