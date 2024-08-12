@@ -4,6 +4,7 @@
 // Under the terms of the GNU General Public License version 3
 // http://qutum.com  http://qutum.cn
 //
+#pragma warning disable IDE0078 // Use pattern matching
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -102,6 +103,7 @@ public static class MetaLex
 		=> Gram(gram, Lexier<K>.Keys_, dump);
 
 	public static LexGram<K> Gram<K>(string gram, Func<string, IEnumerable<K>> Keys, bool dump = false)
+		 where K : struct
 	{
 		using var read = new MetaStr(gram);
 		var top = meta.Begin(read).Parse();
@@ -113,7 +115,7 @@ public static class MetaLex
 			throw e;
 		}
 		LexGram<K> g = new();
-		var es = new object[LexGram<K>.AltByteN << 1];
+		var es = new object[Lexier<K>.AltByteN << 1];
 		// build prod
 		foreach (var prod in top) {
 			var k = Keys(meta.ler.Lexs(prod.head.from, prod.head.to)).Single();
@@ -131,8 +133,8 @@ public static class MetaLex
 					// build elems
 					var bytes = a.Where(t => t.name == "byte");
 					var bz = bytes.Count();
-					if (bz > LexGram<K>.AltByteN)
-						throw new($"{k}.{wad}.{alt} exceeds {LexGram<K>.AltByteN} bytes :"
+					if (bz > Lexier<K>.AltByteN)
+						throw new($"{k}.{wad}.{alt} exceeds {Lexier<K>.AltByteN} bytes :"
 							+ meta.ler.Lexs(a.from, a.to));
 					var ez = 0;
 					foreach (var (b, bx) in bytes.Each())

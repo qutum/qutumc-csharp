@@ -4,8 +4,7 @@
 // Under the terms of the GNU General Public License version 3
 // http://qutum.com  http://qutum.cn
 //
-
-#pragma warning disable IDE0059
+#pragma warning disable IDE0059 // Unnecessary assignment
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using qutum.parser;
 using qutum.syntax;
@@ -41,7 +40,7 @@ static class TestExtension
 		int n = 0;
 		for (int x = 0; x < Vs.Length; x++)
 			if (Vs[x] is L l)
-				vs[n++] = new Lexi<L> { key = l };
+				vs[n++] = new() { key = l };
 			else
 				vs[n - 1].value = Vs[x];
 		AreEqual(s.s.dumper(vs.Seg(0, n)),

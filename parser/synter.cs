@@ -4,7 +4,6 @@
 // Under the terms of the GNU General Public License version 3
 // http://qutum.com  http://qutum.cn
 //
-
 using System;
 using System.Collections.Generic;
 

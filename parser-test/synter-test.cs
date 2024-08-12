@@ -4,8 +4,7 @@
 // Under the terms of the GNU General Public License version 3
 // http://qutum.com  http://qutum.cn
 //
-
-#pragma warning disable IDE0059
+#pragma warning disable IDE0059 // Unnecessary assignment
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using qutum.parser;
 using System;

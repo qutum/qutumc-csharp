@@ -4,7 +4,6 @@
 // Under the terms of the GNU General Public License version 3
 // http://qutum.com  http://qutum.cn
 //
-
 using qutum.parser.meta;
 using System;
 using System.Collections.Generic;
@@ -475,8 +474,8 @@ public class Earley<K, L, N, T, Ler> where T : Esyn<N, T>, new() where Ler : Lex
 					.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 				// build con
 				var cons = s.Select(c => {
-					var q = c.Length == 1 || !(c[^1] is char x) ? One
-							: x == '?' ? Opt : x == '*' ? Any : x == '+' ? More : One;
+					var q = c.Length == 1 ? One
+							: c[^1] switch { '?' => Opt, '*' => Any, '+' => More, _ => One };
 					var p = q == One ? c : c[0..^1];
 					return new EarleyChar.Con {
 						p = prods.TryGetValue(p, out var a) ? a : (object)keys.Keys(p).First(),
