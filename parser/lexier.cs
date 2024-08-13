@@ -290,12 +290,7 @@ public class Lexier<K> : LexerSeg<K, Lexi<K>> where K : struct
 		if (u.next == null)
 			return;
 		foreach (var n in u.next.Where(n => n != null).Distinct()) {
-			var s = u.next.Select(
-				(nn, b) => nn != n ? null
-				: b is > ' ' and < 127 ? ((char)b).ToString()
-				: b == ' ' ? "\\s" : b == '\t' ? "\\t" : b == '\n' ? "\\n" : b == '\r' ? "\\r"
-				: b >= 128 ? "\\U" : b == 0 ? "\\0"
-				: $"\\x{b:x02}")
+			var s = u.next.Select((nn, b) => nn != n ? null : CharSet.Unesc((byte)b))
 				.Where(x => x != null);
 			using var ind = EnvWriter.Indent("  ");
 			if (n == u)

@@ -143,7 +143,7 @@ public class LerByteList(List<byte> read) : Lexer<byte, byte>
 
 public static class CharSet
 {
-	internal static bool[]	L = new bool[129], // single line, no \r \n, \x80
+	internal static bool[] L = new bool[129],  // single line, no \r \n, \x80
 							D = new bool[129], // decimal
 							X = new bool[129], // hexadecimal
 							A = new bool[129], // alphabet
@@ -199,4 +199,16 @@ public static class CharSet
 		=> inc.Enum().Except(exc.Enum()).ToArray().AsMemory();
 	public static ReadOnlyMemory<char> Exc(this ReadOnlyMemory<char> inc, string exc)
 		=> Exc(inc, exc.Mem());
+
+	public static string Unesc<K>(K k)
+	{
+		if (k is byte bb && bb >= 128)
+			return "\\U";
+		if (k is char c || k is byte b && (c = (char)b) == c)
+			return c is > ' ' and < (char)127 ? c.ToString()
+				: c == ' ' ? "\\s" : c == '\t' ? "\\t" : c == '\n' ? "\\n" : c == '\r' ? "\\r"
+				: c >= 128 ? $"\\U{c:x04}" : c == 0 ? "\\0"
+				: $"\\x{c:x02}";
+		return k.ToString();
+	}
 }

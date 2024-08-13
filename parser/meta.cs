@@ -12,8 +12,6 @@ using qutum.parser.earley;
 
 namespace qutum.parser.meta;
 
-using Set = CharSet;
-
 sealed class MetaStr(string read) : LerStr(read)
 {
 	public override bool Is(char aim) => Is(read[loc], aim);
@@ -23,17 +21,17 @@ sealed class MetaStr(string read) : LerStr(read)
 	// for meta grammar
 	public override bool Is(char k, char aim) =>
 		aim switch {
-			'S' => k is ' ' or '\t',    // space
-			'X' => k < 127 && Set.X[k], // hexadecimal
-			'W' => k < 127 && Set.W[k], // word
-			'O' => k < 127 && Set.O[k], // operator
-			'G' => k < 127 && Set.G[k], // grammar operator
-			'E' => k > ' ' && k < 127,  // escape
-			'I' => k < 127 && Set.I[k], // single range
-			'R' => k < 127 && Set.I[k] && k != '-' && k != '^', // range
-			'Q' => k is '?' or '*' or '+',                      // quantifier
-			'H' => k >= ' ' && k < 127 && k != '=' && k != '|', // hint
-			'V' => k is >= ' ' or '\t',                         // comment
+			'S' => k is ' ' or '\t',        // space
+			'X' => k < 127 && CharSet.X[k], // hexadecimal
+			'W' => k < 127 && CharSet.W[k], // word
+			'O' => k < 127 && CharSet.O[k], // operator
+			'G' => k < 127 && CharSet.G[k], // grammar operator
+			'E' => k > ' ' && k < 127,      // escape
+			'I' => k < 127 && CharSet.I[k], // single range
+			'R' => k < 127 && CharSet.I[k] && k != '-' && k != '^', // range
+			'Q' => k is '?' or '*' or '+',                          // quantifier
+			'H' => k >= ' ' && k < 127 && k != '=' && k != '|',     // hint
+			'V' => k is >= ' ' or '\t',                             // comment
 			_ => k == aim,
 		};
 
@@ -50,14 +48,14 @@ sealed class MetaStr(string read) : LerStr(read)
 			'r' => "\r",
 			'0' => "\0",
 			_ => (lexer ? c : '\0') switch {
-				'A' => Set.ALL,
-				'l' => Set.LINE,
-				'd' => Set.DEC,
-				'x' => Set.HEX,
-				'a' => Set.ALPHA,
-				'w' => Set.WORD,
+				'A' => CharSet.ALL,
+				'l' => CharSet.LINE,
+				'd' => CharSet.DEC,
+				'x' => CharSet.HEX,
+				'a' => CharSet.ALPHA,
+				'w' => CharSet.WORD,
 				'u' => "\x80",
-				_ => c < 129 ? Set.ONE[c] : c.ToString(),
+				_ => c < 129 ? CharSet.ONE[c] : c.ToString(),
 			}
 		};
 	}
@@ -161,7 +159,7 @@ public static class MetaLex
 			++x;
 			Span<bool> rs = stackalloc bool[129]; bool inc = true;
 			if (x != b.head?.from) // inclusive range omitted, use default
-				Set.RI.CopyTo(rs);
+				CharSet.RI.CopyTo(rs);
 			foreach (var r in b) {
 				inc &= x == (x = r.from); // before ^
 				if (gram[x] == '\\')
@@ -182,7 +180,7 @@ public static class MetaLex
 			++x; // range ]
 		}
 		else // single byte
-			es[ez++] = Set.ONE[gram[x++]];
+			es[ez++] = CharSet.ONE[gram[x++]];
 		// byte dup +
 		if (x < b.to)
 			es[ez++] = Range.All;

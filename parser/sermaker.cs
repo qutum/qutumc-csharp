@@ -8,10 +8,12 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Xml.Linq;
 
 namespace qutum.parser;
 
-using Modes = List<(int mode, List<(int a, int kx)> alts)>;
+using static System.Runtime.InteropServices.JavaScript.JSType;
+using Modes = List<(int shift, int alt)>;
 
 // syntax grammar
 public class SynGram<K, N>
@@ -21,10 +23,14 @@ public class SynGram<K, N>
 	// { K or N ... }
 	public class Alt : List<object>
 	{
+		public N name;
 		public short lex = -1; // save lex at this index to Synt.info, no save: <0
 		public sbyte synt; // as Synter.tree: 0, make Synt: 1, omit Synt: -1
 		public string hint;
-		internal short alt;
+		public string dump;
+		internal short alt; // alt index of whole grammar
+
+		public override string ToString() => dump ??= $"{name} = {string.Join(' ', this)}"; // TODO
 	}
 
 	public SynGram<K, N> n(N name) { prods.Add(new() { name = name }); return this; }
@@ -32,6 +38,7 @@ public class SynGram<K, N>
 	public SynGram<K, N> this[params object[] cons] {
 		get {
 			Alt a = [];
+			a.name = prods[^1].name;
 			prods[^1].Add(a);
 			foreach (var c in cons)
 				if (c is Range) a.lex = (short)(a.Count - 1);
@@ -48,33 +55,16 @@ public class SynGram<K, N>
 // syntax parser maker
 public class SerMaker<K, N>
 {
-	struct Item
-	{
-		internal short alt;
-		internal short next;
-		internal K ahead; // key ordinal, eor: default
-	}
-	struct Form
-	{
-		internal HashSet<Item> Is;
-		internal Modes[] modes; // at key ordinal index, shift to: form index, reduce: -2-alt index, error: -1
-		internal List<(int push, int nx)> pushs; // push: form index
-	}
-
 	readonly Func<K, ushort> keyOrd; // ordinal from 1, default for eor: 0
 	readonly Func<N, ushort> nameOrd; // ordinal from 1
 	readonly ushort[] keyOs, nameOs; // { ordinal... }
 	readonly K[] keys; // at key ordinal index
 	readonly N[] names; // at name ordinal index
 
-	readonly int finish; // at name ordinal index
+	readonly int accept; // at name ordinal index
 	readonly SynGram<K, N>.Prod[] prods; // at name ordinal index
 	readonly SynGram<K, N>.Alt[] alts;
-
 	readonly (bool empty, HashSet<K> first)[] firsts; // at name ordinal index
-	readonly List<Form> forms = [];
-
-	readonly SynAlt<N>[] Alts;
 
 	private int Key(K k) => Array.BinarySearch(keyOs, keyOrd(k));
 	private int Name(N n) => Array.BinarySearch(nameOs, nameOrd(n));
@@ -89,7 +79,7 @@ public class SerMaker<K, N>
 			if (!ns.TryAdd(nameOrd(p.name), p.name)) throw new($"duplicate name {p.name}");
 		nameOs = [.. ns.Keys];
 		names = [.. ns.Values];
-		finish = Name(gram.prods[0].name);
+		accept = Name(gram.prods[0].name);
 
 		// prods
 		prods = new SynGram<K, N>.Prod[names.Length];
@@ -113,7 +103,7 @@ public class SerMaker<K, N>
 				alts[alt] = a;
 				Alts[alt] = new() {
 					name = p.name, size = checked((short)a.Count), lex = a.lex,
-					synt = a.synt, hint = a.hint, dump = null, // TODO
+					synt = a.synt, hint = a.hint,
 				};
 				a.alt = alt++;
 			}
@@ -136,10 +126,9 @@ public class SerMaker<K, N>
 				var nf = firsts[px].first ??= [];
 				foreach (var a in p) {
 					foreach (var c in a) {
-						var (ce, cf) = First(c, null);
-						foreach (var f in cf ?? [])
-							loop |= nf.Add(f);
-						if (!ce)
+						var (cempty, cf) = c is K k ? (false, [k]) : First((N)c);
+						loop |= nf.Adds(cf);
+						if (!cempty)
 							goto A;
 					}
 					_ = firsts[px].empty || (loop = firsts[px].empty = true); A:;
@@ -149,102 +138,125 @@ public class SerMaker<K, N>
 
 	public (bool empty, IEnumerable<K> first) First(N name) => firsts[Name(name)];
 
-	public (bool empty, IEnumerable<K> first) First(N name, K ahead)
+	class Items : Dictionary<(SynGram<K, N>.Alt alt, short next),
+		HashSet<K>> // lookaheads
 	{
-		var (empty, first) = First(name);
-		return (false, empty ? first.Append(ahead) : first);
+	}
+	struct Form
+	{
+		internal Items Is;
+		internal Modes[] modes; // at key ordinal index, error: null,
+								// { shift to form index for alt index, shift -1 then reduce alt index }
+		internal int?[] pushs;  // at name ordinal index, push form index
 	}
 
-	public (bool empty, IEnumerable<K> first) First(object name, object ahead)
-		=> name is K k ? (false, [k]) : ahead == null ? First((N)name) : First((N)name, (K)ahead);
+	readonly List<Form> forms = [];
+	public int formInit = 0;
+	readonly SynAlt<N>[] Alts;
 
-	int AddForm(HashSet<Item> Is)
+	static bool AddItem(Items Is, SynGram<K, N>.Alt alt, int next, IEnumerable<K> heads)
+	{
+		if (Is.TryGetValue((alt, (short)next), out var hs))
+			return hs.Adds(heads);
+		Is[(alt, (short)next)] = [.. heads];
+		return true;
+	}
+	int AddForm(Items Is)
 	{
 		Debug.Assert(Is.Count > 0);
-		foreach (var (f, x) in forms.Each())
-			if (f.Is.SetEquals(Is))
-				return x;
-		forms.Add(new() {
-			Is = Is, modes = new Modes[keys.Length], pushs = []
-		});
+		foreach (var (f, x) in forms.Skip(formInit).Each(formInit))
+			if (f.Is.Count == Is.Count) {
+				foreach (var (fi, fh) in f.Is)
+					if (!Is.TryGetValue(fi, out var h) || !fh.SetEquals(h))
+						goto No;
+				return x; No:;
+			}
+		forms.Add(new() { Is = Is, modes = new Modes[keys.Length], pushs = new int?[names.Length] });
 		return forms.Count - 1;
 	}
 
-	HashSet<Item> Closure(HashSet<Item> Is)
+	Items Closure(Items Is)
 	{
-		for (var loop = true; !(loop = !loop);)
-			foreach (var i in Is) {
-				var a = alts[i.alt];
-				if (i.next >= a.Count || a[i.next] is not N next)
-					continue;
-				var p = prods[Name(next)];
-				var f = i.next + 1 < a.Count ? First(a[i.next + 1], i.ahead) : First(i.ahead, null);
-				foreach (var h in f.first)
-					foreach (var A in p)
-						loop |= Is.Add(new() { alt = A.alt, ahead = h });
-			}
+	Loop: foreach (var ((a, next), heads) in Is) {
+			if (next >= a.Count || a[next] is not N name)
+				continue;
+			var (e, f) = next + 1 >= a.Count ? (false, heads)
+						: a[next + 1] is K k ? (false, [k]) : First((N)a[next + 1]);
+			var loop = false;
+			foreach (var A in prods[Name(name)])
+				loop |= AddItem(Is, A, 0, e && heads.Count > 0 ? [.. f, .. heads] : f);
+			if (loop)
+				goto Loop;
+		}
 		return Is;
 	}
 
 	void ShiftPush(Form f)
 	{
-		foreach (var i in f.Is) {
-			var a = alts[i.alt];
-			if (i.next >= a.Count)
+		foreach (var ((a, next), _) in f.Is) {
+			if (next >= a.Count)
 				continue;
-			HashSet<Item> js = [];
-			foreach (var j in f.Is) {
-				var b = alts[j.alt];
-				if (j.next < b.Count && b[j.next].Equals(a[i.next]))
-					js.Add(j with { next = (short)(j.next + 1) });
+			Items js = [];
+			foreach (var ((A, Next), heads) in f.Is) {
+				if (Next < A.Count && A[Next].Equals(a[next]))
+					AddItem(js, A, Next + 1, heads);
 			}
-			var to = AddForm(Closure(js)); int kx;
-			if (a[i.next] is K k)
-				f.modes[kx = Key(k)] = [(to, [(i.alt, kx)])];
+			var to = AddForm(Closure(js));
+			if (a[next] is K k)
+				f.modes[Key(k)] = [(to, a.alt)];
 			else
-				f.pushs.Add((Name((N)a[i.next]), to));
+				f.pushs[Name((N)a[next])] = to;
 		}
 	}
 
 	void Reduce(Form f)
 	{
-		foreach (var i in f.Is) {
-			var a = alts[i.alt];
-			if (i.next < a.Count)
-				continue;
-			var R = SynForm.Reduce(i.alt);
-			var A = (i.alt, Key(i.ahead));
-			var ms = f.modes[Key(i.ahead)] ??= [];
-			foreach (var m in ms)
-				if (m.mode == R) {
-					m.alts.Add(A); goto M;
-				}
-			ms.Add((R, [A])); M:;
-		}
+		foreach (var ((a, next), heads) in f.Is)
+			if (next >= a.Count)
+				foreach (var head in heads.Append(default)) // lookaheads and eor
+					(f.modes[Key(head)] ??= []).Add((-1, a.alt));
 	}
 
-	public List<Modes> Forms()
+	public void Forms()
 	{
 		if (forms.Count > 0)
-			return null;
-		forms.Add(new() {
-			Is = Closure([.. prods[finish].Select(a => new Item { alt = a.alt })])
-		});
-		for (var x = 0; x < forms.Count; x++) {
+			return;
+		forms.AddRange(Enumerable.Repeat<Form>(default, formInit));
+		Items init = [];
+		foreach (var a in prods[accept])
+			init[(a, 0)] = [];
+		AddForm(Closure(init));
+		for (var x = formInit; x < forms.Count; x++) {
 			if (x >= 32767) throw new("too many forms");
 			ShiftPush(forms[x]);
 		}
-		foreach (var f in forms)
+		foreach (var f in forms.Skip(formInit))
 			Reduce(f);
+	}
 
-		// conflict
-		List<Modes> confs = [];
-		foreach (var f in forms)
-			foreach (var (k, kx) in keys.Each())
-				if (f.modes[kx]?.Count > 1)
-					confs.Add(f.modes[kx]);
+	public List<(K key, Modes modes)> Clash(bool dump)
+	{
+		List<(K key, Modes modes)> clash = [];
+		foreach (var f in forms.Skip(formInit))
+			foreach (var (m, kx) in f.modes.Each())
+				if (m?.Count > 1)
+					clash.Add((keys[kx], m));
+		if (dump) {
+			using var env = EnvWriter.Begin();
+			foreach (var ((key, modes), cx) in clash.Each(1)) {
+				env.WriteLine($"clash {cx:3} by {CharSet.Unesc(key)}");
+				using var ind = EnvWriter.Indent();
+				foreach (var (shift, alt) in modes)
+					env.WriteLine($"{(shift >= 0 ? "shift" : "reduct")} {Alts[alt].dump}");
+			}
+		}
+		return clash;
+	}
 
-		return confs;
+	public void Make(bool dumpClash = true)
+	{
+		Firsts();
+		Forms();
+		Clash(dumpClash);
 	}
 }
-;

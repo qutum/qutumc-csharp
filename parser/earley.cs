@@ -85,9 +85,8 @@ public class Earley<K, L, N, T, Ler> where T : Esyn<N, T>, new() where Ler : Lex
 		internal string hint;
 		internal string dump;
 
-		public override string ToString()
-			=> dump ??= name + "="
-				+ string.Join(' ', s.Where(c => c.p != null).Select(c =>
+		public override string ToString() => dump ??= name + "="
+			+ string.Join(' ', s.Where(c => c.p != null).Select(c =>
 				(c.p is Prod p ? p.name : c.p).ToString()
 				+ (c.q == More ? "+" : c.q == Any ? "*" : c.q == Opt ? "?" : "")));
 	}

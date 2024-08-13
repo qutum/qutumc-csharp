@@ -88,7 +88,7 @@ public class SynterStr : Synter<char, char, string, SyntStr, LerStr>
 // syntax parser using LR algorithm
 public class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler : class, Lexer<K, L>
 {
-	readonly SynAlt<N>[] alts; // reduce [0].name by eor after forms[init]: finish
+	readonly SynAlt<N>[] alts; // reduce [0].name by eor after forms[init]: accept
 	readonly SynForm[] forms;
 	readonly Stack<(short form, int loc, object with)> stack
 		= new(); // (form index, lex loc or Synt.from, null for lex or Synt or recovery hint)
@@ -118,7 +118,7 @@ public class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler : cla
 	{
 		stack.Push((init, -1, null));
 		T err = null, errs = null;
-		var finish = nameOrd(alts[0].name);
+		var accept = nameOrd(alts[0].name);
 	Next:
 		var key = ler.Next() ? keyOrd(ler) : default;
 	Loop:
@@ -149,9 +149,9 @@ public class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler : cla
 			}
 			form = forms[stack.Peek().form];
 			var name = nameOrd(alt.name);
-			if (form == forms[init] && name == finish && key == default) {
+			if (form == forms[init] && name == accept && key == default) {
 				stack.Clear();
-				return t.Append(errs); // reduce alts[0] by eor after forms[init], finish
+				return t.Append(errs); // reduce alts[0] by eor after forms[init], accept
 			}
 			var push = SynForm.Get(name, form.pushs, form.names);
 			stack.Push((push, loc, t));
@@ -165,13 +165,13 @@ public class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler : cla
 		if (mode != init - 1)
 			goto Recover;
 		stack.Clear();
-		return errs; // no Alt for recovery now
+		return errs; // no Alt for recovery now, reject
 	}
 
 	public virtual bool Check()
 	{
 		stack.Push((init, -1, null));
-		var finish = nameOrd(alts[0].name);
+		var accept = nameOrd(alts[0].name);
 	Next:
 		var key = ler.Next() ? keyOrd(ler) : default;
 	Loop:
@@ -187,9 +187,9 @@ public class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler : cla
 				stack.Pop();
 			form = forms[stack.Peek().form];
 			var name = nameOrd(alt.name);
-			if (form == forms[init] && name == finish && key == default) {
+			if (form == forms[init] && name == accept && key == default) {
 				stack.Clear();
-				return true; // reduce alts[0] by eor after forms[init]
+				return true; // reduce alts[0] by eor after forms[init], accept
 			}
 			var push = SynForm.Get(nameOrd(alt.name), form.pushs, form.names);
 			stack.Push((push, 0, null));

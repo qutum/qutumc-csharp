@@ -29,6 +29,12 @@ public static class Extension
 	public static ReadOnlyMemory<char> Mem(this string s) => s.AsMemory();
 
 	public static ReadOnlyMemory<char> Mem(this string s, int from, int to) => s.AsMemory(from, to - from);
+
+	public static bool Adds<T>(this ISet<T> s, IEnumerable<T> add)
+	{
+		if (add == null) return false;
+		var z = s.Count; s.UnionWith(add); return s.Count > z;
+	}
 }
 
 public readonly struct MemoryEnum<T>(ReadOnlyMemory<T> mem) : IEnumerable<T>
