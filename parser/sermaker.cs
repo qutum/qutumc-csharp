@@ -8,12 +8,8 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Xml.Linq;
 
 namespace qutum.parser;
-
-using static System.Runtime.InteropServices.JavaScript.JSType;
-using Modes = List<(int shift, int alt)>;
 
 // syntax grammar
 public class SynGram<K, N>
@@ -95,7 +91,7 @@ public class SerMaker<K, N>
 			foreach (var (a, ax) in p.Each()) {
 				foreach (var c in a)
 					if (c is K k)
-						ks.Add(keyOrd(k), k);
+						ks[keyOrd(k)] = k;
 					else if (Name((N)c) < 0)
 						throw new($"name {c} in {p.name}.{ax} not found");
 				if (a.lex >= 0 && a[a.lex] is not K)
@@ -139,8 +135,19 @@ public class SerMaker<K, N>
 	public (bool empty, IEnumerable<K> first) First(N name) => firsts[Name(name)];
 
 	class Items : Dictionary<(SynGram<K, N>.Alt alt, short next),
-		HashSet<K>> // lookaheads
+		HashSet<K>> // lookaheads, eor excluded
+	{ }
+	[System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2231:Overload operator equals")]
+	public struct Modes
 	{
+		public (int to, SynGram<K, N>.Alt alt) shift; // no shift: null alt
+		internal HashSet<SynGram<K, N>.Alt> redus; // no reduces: null
+
+		public override readonly int GetHashCode()
+			=> HashCode.Combine(shift.alt, redus?.Count); // ignore form index for clash only
+		public override readonly bool Equals(object o)
+			=> o is Modes v && shift.alt == v.shift.alt // ignore form index for clash only
+				&& (redus?.SetEquals(v.redus) ?? v.redus == null);
 	}
 	struct Form
 	{
@@ -151,7 +158,6 @@ public class SerMaker<K, N>
 	}
 
 	readonly List<Form> forms = [];
-	public int formInit = 0;
 	readonly SynAlt<N>[] Alts;
 
 	static bool AddItem(Items Is, SynGram<K, N>.Alt alt, int next, IEnumerable<K> heads)
@@ -164,10 +170,10 @@ public class SerMaker<K, N>
 	int AddForm(Items Is)
 	{
 		Debug.Assert(Is.Count > 0);
-		foreach (var (f, x) in forms.Skip(formInit).Each(formInit))
+		foreach (var (f, x) in forms.Each())
 			if (f.Is.Count == Is.Count) {
-				foreach (var (fi, fh) in f.Is)
-					if (!Is.TryGetValue(fi, out var h) || !fh.SetEquals(h))
+				foreach (var (i, h) in Is)
+					if (!f.Is.TryGetValue(i, out var fh) || !fh.SetEquals(h))
 						goto No;
 				return x; No:;
 			}
@@ -203,7 +209,7 @@ public class SerMaker<K, N>
 			}
 			var to = AddForm(Closure(js));
 			if (a[next] is K k)
-				f.modes[Key(k)] = [(to, a.alt)];
+				f.modes[Key(k)].shift = (to, a);
 			else
 				f.pushs[Name((N)a[next])] = to;
 		}
@@ -214,42 +220,44 @@ public class SerMaker<K, N>
 		foreach (var ((a, next), heads) in f.Is)
 			if (next >= a.Count)
 				foreach (var head in heads.Append(default)) // lookaheads and eor
-					(f.modes[Key(head)] ??= []).Add((-1, a.alt));
+					(f.modes[Key(head)].redus ??= []).Add(a);
 	}
 
 	public void Forms()
 	{
 		if (forms.Count > 0)
 			return;
-		forms.AddRange(Enumerable.Repeat<Form>(default, formInit));
 		Items init = [];
 		foreach (var a in prods[accept])
 			init[(a, 0)] = [];
 		AddForm(Closure(init));
-		for (var x = formInit; x < forms.Count; x++) {
+		for (var x = 0; x < forms.Count; x++) {
 			if (x >= 32767) throw new("too many forms");
 			ShiftPush(forms[x]);
 		}
-		foreach (var f in forms.Skip(formInit))
+		foreach (var f in forms)
 			Reduce(f);
 	}
 
-	public List<(K key, Modes modes)> Clash(bool dump)
+	public HashSet<(K key, Modes modes)> Clash(bool dump)
 	{
-		List<(K key, Modes modes)> clash = [];
-		foreach (var f in forms.Skip(formInit))
+		HashSet<(K key, Modes modes)> clash = [];
+		foreach (var f in forms)
 			foreach (var (m, kx) in f.modes.Each())
-				if (m?.Count > 1)
+				if (m.redus?.Count > (m.shift.alt != null ? 0 : 1))
 					clash.Add((keys[kx], m));
 		if (dump) {
 			using var env = EnvWriter.Begin();
 			foreach (var ((key, modes), cx) in clash.Each(1)) {
-				env.WriteLine($"clash {cx:3} by {CharSet.Unesc(key)}");
-				using var ind = EnvWriter.Indent();
-				foreach (var (shift, alt) in modes)
-					env.WriteLine($"{(shift >= 0 ? "shift" : "reduct")} {Alts[alt].dump}");
+				env.WriteLine($"clash {cx} by {CharSet.Unesc(key)}");
+				using var ind = EnvWriter.Indent("\t\t\t");
+				if (modes.shift.alt != null)
+					env.WriteLine("shift " + modes.shift.alt);
+				foreach (var alt in modes.redus)
+					env.WriteLine("reduct " + alt);
 			}
 		}
+		// TODO solve
 		return clash;
 	}
 
