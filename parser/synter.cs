@@ -57,6 +57,8 @@ public sealed class SynForm
 	public short[] pushs; // for each name: push: form index
 	public ushort[] names; // compact pushs: { 0 for others, name ordinals ... }, normal: null
 
+	public static short Reduce(int alt) => (short)(-2 - alt);
+
 	public static short Get(ushort o, short[] s, ushort[] x)
 	{
 		if (x == null) return s[o];
@@ -129,7 +131,7 @@ public class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler : cla
 			goto Next;
 		}
 		if (mode < -1) { // reduce
-			var alt = alts[-2 - mode];
+			var alt = alts[SynForm.Reduce(mode)];
 			bool omit = alt.synt == 0 ? !tree : alt.synt < 0; // omit Synt of Alt
 			T t = omit ? null : new() { name = alt.name, to = ler.Loc(), err = alt.rec ? -2 : 0 };
 			int loc = 0; // lexic loc of head
@@ -180,7 +182,7 @@ public class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler : cla
 			goto Next;
 		}
 		else if (mode < -1) { // reduce
-			var alt = alts[-2 - mode];
+			var alt = alts[SynForm.Reduce(mode)];
 			for (var i = 0; i < alt.size; i++)
 				stack.Pop();
 			form = forms[stack.Peek().form];

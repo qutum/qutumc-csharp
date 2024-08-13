@@ -97,6 +97,8 @@ public class TestSynter : IDisposable
 		ser = new(name => name[0], alts, forms) { dump = 3 };
 	}
 
+	public static short R(int alt) => SynForm.Reduce(alt);
+
 	public void True(string read) => IsTrue(ser.Begin(new LerStr(read)).Check());
 	public void False(string read) => IsFalse(ser.Begin(new LerStr(read)).Check());
 
@@ -107,11 +109,11 @@ public class TestSynter : IDisposable
 	{
 		NewSer("S=E E=T+E E=T T=a", ['a', 'b', '+', '\0'], ['E', 'T'], [ null,
 			new() { modes = [5, 5,   0,   0], pushs = [2, 3] },
-			new() { modes = [0, 0,   0,-2-0],                },
-			new() { modes = [0, 0,   4,-2-2],                },
+			new() { modes = [0, 0,   0,R(0)],                },
+			new() { modes = [0, 0,   4,R(2)],                },
 			new() { modes = [5, 5,   0,   0], pushs = [6, 3] },
-			new() { modes = [0, 0,-2-3,-2-3],                },
-			new() { modes = [0, 0,   0,-2-1],                },
+			new() { modes = [0, 0,R(3),R(3)],                },
+			new() { modes = [0, 0,   0,R(1)],                },
 		]);
 		True("a"); True("b");
 		True("a+b"); True("a+b+a");
@@ -130,15 +132,15 @@ public class TestSynter : IDisposable
 	{
 		NewSer("Z=S S=V=E S-E E-V V=a V=*E", ['a', 'b', '*', '=', '\0'], ['S', 'E', 'V'], [ null,
 			new() { modes = [8, 8, 6,   0,   0], pushs = [2,  5, 3] },
-			new() { modes = [0, 0, 0,   0,-2-0],                    },
-			new() { modes = [0, 0, 0,   4,-2-3],                    },
+			new() { modes = [0, 0, 0,   0,R(0)],                    },
+			new() { modes = [0, 0, 0,   4,R(3)],                    },
 			new() { modes = [8, 8, 6,   0,   0], pushs = [0,  9, 7] },
-			new() { modes = [0, 0, 0,   0,-2-2],                    },
+			new() { modes = [0, 0, 0,   0,R(2)],                    },
 			new() { modes = [8, 8, 6,   0,   0], pushs = [0, 10, 7] },
-			new() { modes = [0, 0, 0,-2-3,-2-3],                    },
-			new() { modes = [0, 0, 0,-2-4,-2-4],                    },
-			new() { modes = [0, 0, 0,   0,-2-1],                    },
-			new() { modes = [0, 0, 0,-2-5,-2-5],                    },
+			new() { modes = [0, 0, 0,R(3),R(3)],                    },
+			new() { modes = [0, 0, 0,R(4),R(4)],                    },
+			new() { modes = [0, 0, 0,   0,R(1)],                    },
+			new() { modes = [0, 0, 0,R(5),R(5)],                    },
 		]);
 		True("a"); True("*b"); True("**a");
 		True("a=b"); True("a=*b"); True("b=**a");
@@ -156,14 +158,14 @@ public class TestSynter : IDisposable
 	{
 		NewSer("Z=S S=(L) S=a L-S L=L,S", ['(', ')', 'a', 'b', ',', '\0'], ['S', 'L'], [ null,
 			new() { modes = [   3,   0,   2,   2,   0,   0], pushs = [4, 0] },
-			new() { modes = [-2-2,-2-2,-2-2,-2-2,-2-2,-2-2],                },
+			new() { modes = [R(2),R(2),R(2),R(2),R(2),R(2)],                },
 			new() { modes = [   3,   0,   2,   2,   0,   0], pushs = [7, 5] },
-			new() { modes = [   0,   0,   0,   0,   0,-2-0],                },
+			new() { modes = [   0,   0,   0,   0,   0,R(0)],                },
 			new() { modes = [   0,   6,   0,   0,   8,   0],                },
-			new() { modes = [-2-1,-2-1,-2-1,-2-1,-2-1,-2-1],                },
-			new() { modes = [-2-3,-2-3,-2-3,-2-3,-2-3,-2-3],                },
+			new() { modes = [R(1),R(1),R(1),R(1),R(1),R(1)],                },
+			new() { modes = [R(3),R(3),R(3),R(3),R(3),R(3)],                },
 			new() { modes = [   3,   0,   2,   2,   0,   0], pushs = [9, 0] },
-			new() { modes = [-2-4,-2-4,-2-4,-2-4,-2-4,-2-4],                },
+			new() { modes = [R(4),R(4),R(4),R(4),R(4),R(4)],                },
 		]);
 		True("a"); True("b");
 		True("(a)"); True("((a))");
@@ -195,12 +197,12 @@ public class TestSynter : IDisposable
 	{
 		NewSer("Z=S S=iSeS S=iS S=a", ['i', 'e', 'a', 'b', 'c', '\0'], ['S'], [
 			new() { modes = [ 2,  -1,  3,  3,  3,  -1], pushs = [1] },
-			new() { modes = [-1,  -1, -1, -1, -1,-2-0],             },
+			new() { modes = [-1,  -1, -1, -1, -1,R(0)],             },
 			new() { modes = [ 2,  -1,  3,  3,  3,  -1], pushs = [4] },
-			new() { modes = [-1,-2-3, -1, -1, -1,-2-3],             },
-			new() { modes = [-1,   5, -1, -1, -1,-2-2],             },
+			new() { modes = [-1,R(3), -1, -1, -1,R(3)],             },
+			new() { modes = [-1,   5, -1, -1, -1,R(2)],             },
 			new() { modes = [ 2,  -1,  3,  3,  3,  -1], pushs = [6] },
-			new() { modes = [-1,-2-1, -1, -1, -1, -2-1],             },
+			new() { modes = [-1,R(1), -1, -1, -1,R(1)],             },
 		]);
 		True("b"); True("ia"); True("iaeb");
 		True("iia"); True("iiaeb"); True("iaeib");
@@ -236,13 +238,13 @@ public class TestSynter : IDisposable
 			new() { modes = [ 3,  3,  -1,  -1,  2,  -1,  -1], pushs = [1] },
 			new() { modes = [-1, -1,   4,   5, -1,  -1,  -1],             },
 			new() { modes = [ 3,  3,  -1,  -1,  2,  -1,  -1], pushs = [6] },
-			new() { modes = [-1, -1,-2-3,-2-3, -1,-2-3,-2-3],             },
+			new() { modes = [-1, -1,R(3),R(3), -1,R(3),R(3)],             },
 			new() { modes = [ 3,  3,  -1,  -1,  2,  -1,  -1], pushs = [7] },
 			new() { modes = [ 3,  3,  -1,  -1,  2,  -1,  -1], pushs = [8] },
 			new() { modes = [-1, -1,   4,   5, -1,   9,  -1],             },
-			new() { modes = [-1, -1,-2-0,   5, -1,-2-0,-2-0],             },
-			new() { modes = [-1, -1,-2-1,-2-1, -1,-2-1,-2-1],             },
-			new() { modes = [-1, -1,-2-2,-2-2, -1,-2-2,-2-2],             },
+			new() { modes = [-1, -1,R(0),   5, -1,R(0),R(0)],             },
+			new() { modes = [-1, -1,R(1),R(1), -1,R(1),R(1)],             },
+			new() { modes = [-1, -1,R(2),R(2), -1,R(2),R(2)],             },
 		]); // no E'->E
 		True("a"); True("a+b"); True("a*b");
 		True("(b)"); True("(b*a)"); True("(b+a)"); True("(a)*b"); True("a+(b)");
