@@ -18,43 +18,43 @@ using Ser = (SyntStr t, SynterStr s);
 file static class Extension
 {
 	public static Ser Eq(this Ser s,
-		string name = null, int? from = null, int? to = null, object v = null, int err = 0)
+		string name = null, int? from = null, int? to = null, object d = null, int err = 0)
 	{
 		AreNotEqual(null, s.t);
 		AreEqual(err, s.t.err);
 		if (name != null) AreEqual(name, s.t.name);
 		if (from != null) AreEqual(from, s.t.from);
 		if (to != null) AreEqual(to, s.t.to);
-		if (v != null) AreEqual(v,
-			v is string && s.t.err == 0 ? s.s.ler.Lexs(s.t.from, s.t.to) : s.t.info);
+		if (d != null) AreEqual(d,
+			d is string && s.t.err == 0 ? s.s.ler.Lexs(s.t.from, s.t.to) : s.t.info);
 		return s;
 	}
 
 	public static Ser h(this Ser s,
-		string name = null, int? from = null, int? to = null, object v = null, int err = 0)
-		=> (s.t.head, s.s).Eq(name, from, to, v, err);
+		string name = null, int? from = null, int? to = null, object d = null, int err = 0)
+		=> (s.t.head, s.s).Eq(name, from, to, d, err);
 	public static Ser t(this Ser s,
-		string name = null, int? from = null, int? to = null, object v = null, int err = 0)
-		=> (s.t.tail, s.s).Eq(name, from, to, v, err);
+		string name = null, int? from = null, int? to = null, object d = null, int err = 0)
+		=> (s.t.tail, s.s).Eq(name, from, to, d, err);
 	public static Ser n(this Ser s,
-		string name = null, int? from = null, int? to = null, object v = null, int err = 0)
-		=> (s.t.next, s.s).Eq(name, from, to, v, err);
+		string name = null, int? from = null, int? to = null, object d = null, int err = 0)
+		=> (s.t.next, s.s).Eq(name, from, to, d, err);
 	public static Ser p(this Ser s,
-		string name = null, int? from = null, int? to = null, object v = null, int err = 0)
-		=> (s.t.prev, s.s).Eq(name, from, to, v, err);
+		string name = null, int? from = null, int? to = null, object d = null, int err = 0)
+		=> (s.t.prev, s.s).Eq(name, from, to, d, err);
 
 	public static Ser H(this Ser s,
-		string name = null, int? from = null, int? to = null, object v = null, int err = 0)
-		=> h(s, name, from, to, v, err).Leaf();
+		string name = null, int? from = null, int? to = null, object d = null, int err = 0)
+		=> h(s, name, from, to, d, err).Leaf();
 	public static Ser T(this Ser s,
-		string name = null, int? from = null, int? to = null, object v = null, int err = 0)
-		=> t(s, name, from, to, v, err).Leaf();
+		string name = null, int? from = null, int? to = null, object d = null, int err = 0)
+		=> t(s, name, from, to, d, err).Leaf();
 	public static Ser N(this Ser s,
-		string name = null, int? from = null, int? to = null, object v = null, int err = 0)
-		=> n(s, name, from, to, v, err).Leaf();
+		string name = null, int? from = null, int? to = null, object d = null, int err = 0)
+		=> n(s, name, from, to, d, err).Leaf();
 	public static Ser P(this Ser s,
-		string name = null, int? from = null, int? to = null, object v = null, int err = 0)
-		=> p(s, name, from, to, v, err).Leaf();
+		string name = null, int? from = null, int? to = null, object d = null, int err = 0)
+		=> p(s, name, from, to, d, err).Leaf();
 
 	public static Ser Leaf(this Ser s) { AreEqual(null, s.t.head); return s; }
 	public static Ser u(this Ser s) { AreEqual(null, s.t.next); AreNotEqual(null, s.t.up); return (s.t.up, s.s); }
@@ -122,9 +122,9 @@ public class TestSynter : IDisposable
 		False("a+b+"); False("+a+b"); False("a++b");
 		var t = Parse("a+b+a");
 		t = t/**/.Eq("S", 0, 5).h("E");
-		t = t/**/				.H("T", 0, 1, v: 'a');
-		t = t/**/				.n("E", 2, 5, v: '+').H("T", 2, 3, v: 'b');
-		t = t/**/									.n("E").H("T", 4, 5, v: 'a').uuuuU();
+		t = t/**/				.H("T", 0, 1, d: 'a');
+		t = t/**/				.n("E", 2, 5, d: '+').H("T", 2, 3, d: 'b');
+		t = t/**/									.n("E").H("T", 4, 5, d: 'a').uuuuU();
 	}
 
 	[TestMethod]
@@ -147,10 +147,10 @@ public class TestSynter : IDisposable
 		True("*a=b"); True("*b=*a"); True("*a=**b");
 		True("**a=b"); True("**a=*b"); True("**b=**a");
 		var t = Parse("**a");
-		t = t/**/.Eq("Z", 0, 3).h("V", v: '*').h("V", v: '*').H("V", v: 'a').uuuU();
+		t = t/**/.Eq("Z", 0, 3).h("V", d: '*').h("V", d: '*').H("V", d: 'a').uuuU();
 		t = Parse("**b=***a").Eq("Z", 0, 8);
-		t = t/**/.h("S", v: '=').h("V", v: '*').h("V", v: '*').H("V", v: 'b').uu();
-		t = t/**/				.n("V", v: '*').h("V", v: '*').h("V", v: '*').H("V", v: 'a').uuuuuU();
+		t = t/**/.h("S", d: '=').h("V", d: '*').h("V", d: '*').H("V", d: 'b').uu();
+		t = t/**/				.n("V", d: '*').h("V", d: '*').h("V", d: '*').H("V", d: 'a').uuuuuU();
 	}
 
 	[TestMethod]
@@ -179,17 +179,17 @@ public class TestSynter : IDisposable
 		False("(a,b))"); False("((a)"); False("(b,)");
 		False("((a,b)"); False("((a,(b,a)),b");
 		var t = Parse("((a,b),((a,(b,a)),b),(a,b))").Eq("Z", 0, 27);
-		t = t/**/.h("S", v: '(').h("L", v: ',');
-		t = t/**/	.h("L", v: ',').h("S", 1, 6, '(');
-		t = t/**/						.h("L", v: ',').H("S", v: 'a').N("S", v: 'b').uu();
+		t = t/**/.h("S", d: '(').h("L", d: ',');
+		t = t/**/	.h("L", d: ',').h("S", 1, 6, '(');
+		t = t/**/						.h("L", d: ',').H("S", d: 'a').N("S", d: 'b').uu();
 		t = t/**/			.n("S", 7, 20, '(');
-		t = t/**/				.h("L", v: ',').h("S", 8, 17, '(');
-		t = t/**/									.h("L", v: ',').H("S", v: 'a');
-		t = t/**/										.n("S", 11, 16, '(').h("L", v: ',');
-		t = t/**/											.H("S", v: 'b').N("S", v: 'a').uuuu();
-		t = t/**/								.N("S", v: 'b').uuu();
-		t = t/**/	.n("S", 21, 26, '(').h("L", v: ',');
-		t = t/**/						.H("S", v: 'a').N("S", v: 'b').uuuuuU();
+		t = t/**/				.h("L", d: ',').h("S", 8, 17, '(');
+		t = t/**/									.h("L", d: ',').H("S", d: 'a');
+		t = t/**/										.n("S", 11, 16, '(').h("L", d: ',');
+		t = t/**/											.H("S", d: 'b').N("S", d: 'a').uuuu();
+		t = t/**/								.N("S", d: 'b').uuu();
+		t = t/**/	.n("S", 21, 26, '(').h("L", d: ',');
+		t = t/**/						.H("S", d: 'a').N("S", d: 'b').uuuuuU();
 	}
 
 	[TestMethod]
@@ -212,23 +212,23 @@ public class TestSynter : IDisposable
 		True("iaeiibec"); True("iaeibeic");
 		True("iiiaebecea"); True("iiaeibecea"); True("iaeiibecea"); True("iaeibeiaec");
 		var t = Parse("iiiaebec");
-		t = t/**/.h(v: 'i').h(v: 'i').h(v: 'i');
-		t = t/**/						.H(v: 'a').N(v: 'b').u();
-		t = t/**/					.N(v: 'c').uuuU();
+		t = t/**/.h(d: 'i').h(d: 'i').h(d: 'i');
+		t = t/**/						.H(d: 'a').N(d: 'b').u();
+		t = t/**/					.N(d: 'c').uuuU();
 		t = Parse("iiaebeic");
-		t = t/**/.h(v: 'i').h(v: 'i');
-		t = t/**/				.H(v: 'a').N(v: 'b').u();
-		t = t/**/			.n(v: 'i').H(v: 'c').uuuU();
+		t = t/**/.h(d: 'i').h(d: 'i');
+		t = t/**/				.H(d: 'a').N(d: 'b').u();
+		t = t/**/			.n(d: 'i').H(d: 'c').uuuU();
 		t = Parse("iiaeibecea");
-		t = t/**/.h(v: 'i').h(v: 'i');
-		t = t/**/				.H(v: 'a').n(v: 'i');
-		t = t/**/					.H(v: 'b').N(v: 'c').uu();
-		t = t/**/			.N(v: 'a').uuU();
+		t = t/**/.h(d: 'i').h(d: 'i');
+		t = t/**/				.H(d: 'a').n(d: 'i');
+		t = t/**/					.H(d: 'b').N(d: 'c').uu();
+		t = t/**/			.N(d: 'a').uuU();
 		t = Parse("iaeiibecea");
-		t = t/**/.h(v: 'i').H(v: 'a');
-		t = t/**/			.n(v: 'i').h(v: 'i');
-		t = t/**/						.H(v: 'b').N(v: 'c').u();
-		t = t/**/					.N(v: 'a').uuuU();
+		t = t/**/.h(d: 'i').H(d: 'a');
+		t = t/**/			.n(d: 'i').h(d: 'i');
+		t = t/**/						.H(d: 'b').N(d: 'c').u();
+		t = t/**/					.N(d: 'a').uuuU();
 	}
 
 	[TestMethod]
@@ -254,11 +254,11 @@ public class TestSynter : IDisposable
 		False("+"); False("a+"); False("*b"); False("a++b");
 		False("(b)a"); False("a*((b"); False("b+a)"); False("(a*)+b");
 		var t = Parse("a+b*((b*a+b)*b)");
-		t = t/**/.Eq(v: '+').H(v: 'a');
-		t = t/**/		.n("E", 2, 15, '*').H(v: 'b');
+		t = t/**/.Eq(d: '+').H(d: 'a');
+		t = t/**/		.n("E", 2, 15, '*').H(d: 'b');
 		t = t/**/						.n("E", 5, 14, '*').h("E", 6, 11, '+');
-		t = t/**/												.h(v: '*').H(v: 'b').N(v: 'a').u();
-		t = t/**/												.N(v: 'b').u();
-		t = t/**/											.N(v: 'b').uuuU();
+		t = t/**/												.h(d: '*').H(d: 'b').N(d: 'a').u();
+		t = t/**/												.N(d: 'b').u();
+		t = t/**/											.N(d: 'b').uuuU();
 	}
 }

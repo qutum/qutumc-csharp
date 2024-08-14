@@ -34,7 +34,7 @@ public class TestLexier : IDisposable
 		AreEqual(s, ls);
 	}
 
-	static string Dump(object v) => v is object[] s ? string.Join(',', s) + "," : v?.ToString() ?? "";
+	static string Dump(object d) => d is object[] s ? string.Join(',', s) + "," : d?.ToString() ?? "";
 
 	void CheckSp(string read, string s)
 	{

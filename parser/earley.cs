@@ -426,10 +426,10 @@ public class Earley<K, L, N, T, Ler> where T : Esyn<N, T>, new() where Ler : Lex
 			(dump <= 2 ? m.a.hint ?? m.a.name.ToString() : m.a.ToString())
 				+ $" :: {Dump(ler.Lexs(m.from, m.to))}";
 	}
-	string Dump(object v) => dumper?.Invoke(v) ?? Esc(v);
-	static string Esc(object v)
+	string Dump(object d) => dumper?.Invoke(d) ?? Esc(d);
+	static string Esc(object d)
 	{
-		return v.ToString().Replace("\n", "\\n").Replace("\r", "\\r").Replace("\t", "\\t");
+		return d.ToString().Replace("\n", "\\n").Replace("\r", "\\r").Replace("\t", "\\t");
 	}
 
 	// bootstrap
@@ -542,9 +542,9 @@ public class Earley<K, L, N, T, Ler> where T : Esyn<N, T>, new() where Ler : Lex
 					.Append(null)
 					.ToArray();
 				// build alt
-				var cons = s.Select((v, x) =>
-					new Con { p = v, q = v != null && s[x + 1] is Qua r ? r : One })
-					.Where(v => v.p is not Qua)
+				var cons = s.Select((c, x) =>
+					new Con { p = c, q = c != null && s[x + 1] is Qua r ? r : One })
+					.Where(c => c.p is not Qua)
 					.ToArray();
 				return new Alt { name = prod.name, s = cons, recover = -1 };
 			}).ToArray();

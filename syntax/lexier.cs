@@ -257,7 +257,7 @@ public sealed class Lexier : Lexier<K>, Lexer<K, Lexi<K>>
 
 	protected override void Wad(K key, int wad, ref bool end, int f, int to)
 	{
-		object v = null;
+		object d = null;
 		if (from < 0) {
 			from = f; bz = 0; path.Clear();
 		}
@@ -309,7 +309,7 @@ public sealed class Lexier : Lexier<K>, Lexer<K, Lexi<K>>
 			end = true;
 			if (!allBlank)
 				goto End;
-			key = K.COMM; v = nameof(K.COMMB); // as COMM
+			key = K.COMM; d = nameof(K.COMMB); // as COMM
 			break;
 
 		case K.STRB:
@@ -339,7 +339,7 @@ public sealed class Lexier : Lexier<K>, Lexer<K, Lexi<K>>
 			if (!end)
 				return;
 			bz = Read(from, to, 0);
-			key = K.INT; v = Hex(); // as INT
+			key = K.INT; d = Hex(); // as INT
 			break;
 
 		case K.NUM:
@@ -349,7 +349,7 @@ public sealed class Lexier : Lexier<K>, Lexer<K, Lexi<K>>
 			if (!end)
 				return;
 			bz = Read(from, to, 0);
-			v = Num(ref key);
+			d = Num(ref key);
 			break;
 
 		case K.NAME:
@@ -380,7 +380,7 @@ public sealed class Lexier : Lexier<K>, Lexer<K, Lexi<K>>
 					BackByte(to = f); // next lexi will be eol
 				}
 				key = read.Lex(from) != '.' ? K.NAME : K.RUN;
-				v = path.ToArray();
+				d = path.ToArray();
 				break;
 			}
 			if (!split) {
@@ -395,7 +395,7 @@ public sealed class Lexier : Lexier<K>, Lexer<K, Lexi<K>>
 		}
 		if (!end)
 			return;
-		Lexi(key, from, to, v ?? (bz > 0 ? Encoding.UTF8.GetString(bs, 0, bz) : null));
+		Lexi(key, from, to, d ?? (bz > 0 ? Encoding.UTF8.GetString(bs, 0, bz) : null));
 	End: // lexi already made
 		from = -1;
 	}
