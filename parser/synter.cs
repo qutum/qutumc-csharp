@@ -43,10 +43,10 @@ public sealed class SynAlt<N>
 	public sbyte synt; // as Synter.tree: 0, make Synt: 1, omit Synt: -1
 	public bool rec; // is this for error recovery
 	public string hint;
-	public string dump;
+	public object dump;
 
-	public override string ToString() => dump ??= $"{name}{(rec ? "!!" : "")}{(
-		synt > 0 ? "+" : synt < 0 ? "-" : "")} #{size}{(lex >= 0 ? "_" + lex : "")} {hint}";
+	public override string ToString() => dump as string ??
+		(string)(dump = (dump as Func<string>)?.Invoke() ?? hint ?? $"{name} alt");
 }
 public sealed class SynForm
 {
