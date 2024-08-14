@@ -26,7 +26,7 @@ public struct Lexi<K> where K : struct
 }
 
 // lexic grammar
-public class LexGram<K>
+public class LexGram<K> where K : struct
 {
 	public readonly List<Prod> prods = [];
 	public class Prod : List<Wad> { public K key; }
@@ -292,7 +292,7 @@ public class Lexier<K> : LexerSeg<K, Lexi<K>> where K : struct
 		foreach (var n in u.next.Where(n => n != null).Distinct()) {
 			var s = u.next.Select((nn, b) => nn != n ? null : CharSet.Unesc((byte)b))
 				.Where(x => x != null);
-			using var ind = EnvWriter.Indent("  ");
+			using var _ = EnvWriter.Indent("  ");
 			if (n == u)
 				env.WriteLine($"+ < {string.Join(' ', s)}");
 			else

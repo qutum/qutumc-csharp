@@ -282,7 +282,7 @@ public sealed class Lexier : Lexier<K>, Lexer<K, Lexi<K>>
 					indb = read.Lex(f); // first line start, save the indent byte
 				else if (f < to && read.Lex(f) != indb) { // mix \s and \t
 					bs[0] = 0; // as not line start and indent unchanged
-					Error(key, f, to, "do not mix tabs and spaces for indent"); // TODO delayed to omit this if COMM
+					Error(key, f, to, "do not mix tabs and spaces for indent"); // TODO omit this before COMM
 				}
 			if (!end)
 				return;

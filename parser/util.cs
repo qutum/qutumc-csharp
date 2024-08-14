@@ -17,8 +17,8 @@ namespace qutum;
 
 public static class Extension
 {
-	public static IEnumerable<(T v, int x)> Each<T>(this IEnumerable<T> s, int offset = 0)
-		=> s.Select((v, x) => (v, x + offset));
+	public static IEnumerable<(T d, int x)> Each<T>(this IEnumerable<T> s, int offset = 0)
+		=> s.Select((d, x) => (d, x + offset));
 
 	public static ArraySegment<T> Seg<T>(this T[] s) => new(s);
 

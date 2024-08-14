@@ -23,6 +23,21 @@ file static class Extension
 		AreEqual(empty, eq.empty);
 		AreEqual(first, string.Join(" ", eq.first.Order()));
 	}
+
+	public static void Eq<K, N>(this Dictionary<SerMaker<K, N>.Clash, (HashSet<K> ks, short m)> eqs,
+		params (HashSet<K>, short?, short[])[] s)
+	{
+		AreEqual(eqs.Count, s.Length);
+		foreach (var (ks, shift, redus) in s) {
+			int mode = shift < 0 ? 0 : redus.Min() < 0 ? SynForm.Reduce(~redus.Min()) : -1;
+			IsTrue(eqs.TryGetValue(new() {
+				shift = (short?)(shift ^ shift >> 15),
+				redus = redus.Select(r => (short)(r ^ r >> 15)).ToHashSet()
+			}, out var eq));
+			IsTrue(eq.ks.SetEquals(ks));
+			AreEqual(Math.Min((int)eq.m, 0), mode);
+		}
+	}
 }
 
 [TestClass]
@@ -70,40 +85,79 @@ public class TestSerMaker : IDisposable
 	}
 
 	[TestMethod]
+	public void Clash1()
+	{
+		NewMake(new Gram()
+			.n("E")['i']['1']
+					["E", "E"]
+		);
+		make.Firsts(); make.Forms();
+		make.Clashs().Eq(
+			(['i'], 0, [2]),
+			(['1'], 1, [2])
+		);
+		make.alts[2].clash = 1;
+		make.Clashs().Eq(
+			(['i'], 0, [2]),
+			(['1'], 1, [2])
+		);
+		make.alts[0].clash = make.alts[1].clash = 1;
+		make.Clashs().Eq(
+			(['i'], ~0, [2]),
+			(['1'], ~1, [2])
+		);
+	}
+
+	[TestMethod]
 	public void ClashTigerF332()
 	{
 		NewMake(new Gram()
 			.n("P")["L"]
-			.n("S")['?', 'i', '&', "S"]
-					['?', 'i', '&', "S", '|', "S"]
-					['(', "S", ')']
+			.n("S")['i', '=', 'i']
 					['*', 'i', ':', "S"]
-					['i', '=', 'i']
+					['(', "S", ')']
+					['?', 'i', '&', "S", '|', "S"]
+					['?', 'i', '&', "S"]
 			.n("L")["S"]["L", ';', "S"]
 		);
 		make.Firsts(); make.Forms();
-		IsTrue(make.Clashs(true).SetEquals([
-			('|', new() { shift = make.Alts[2], redus = [make.Alts[1]] }),
-		]));
+		make.Clashs().Eq((['|'], 4, [5]));
+		make.alts[4].clash = make.alts[5].clash = 1;
+		make.Clashs().Eq((['|'], ~4, [5]));
 	}
 
 	[TestMethod]
 	public void ClashTigerF337()
 	{
 		NewMake(new Gram()
-			.n("S")['i', ':', "A"]['i', ':', "B"]
-			.n("B")["B", '|', "B"]["B", '&', "B"]
+			.n("S")['i', ':', "A"]['i', ':', "B"]['i', ':', "C"]
+			.n("B")["B", '&', "B"]["B", '|', "B"]
 					["A", '=', "A"]['i']
 			.n("A")["A", '+', "A"]['i']
+			.n("C")['i']["D"]
+			.n("D")['i']
 		);
 		make.Firsts(); make.Forms();
-		IsTrue(make.Clashs(true).SetEquals([
-			('|', new() { shift = make.Alts[2], redus = [make.Alts[2]] }),
-			('|', new() { shift = make.Alts[2], redus = [make.Alts[3]] }),
-			('&', new() { shift = make.Alts[3], redus = [make.Alts[2]] }),
-			('&', new() { shift = make.Alts[3], redus = [make.Alts[3]] }),
-			('+', new() { shift = make.Alts[6], redus = [make.Alts[6]] }),
-			('\0', new() { redus = [make.Alts[5], make.Alts[7]] }),
-		]));
+		make.Clashs().Eq(
+			(['&'], 3, [3]),
+			(['&'], 3, [4]),
+			(['|'], 4, [3]),
+			(['|'], 4, [4]),
+			(['+'], 7, [7]),
+			(['\0'], null, [6, 8]),
+			(['\0'], null, [6, 8, 9, 11])
+		);
+		make.alts[3].clash = make.alts[4].clash = 1;
+		make.alts[7].clash = 2;
+		make.alts[6].clash = make.alts[8].clash = make.alts[9].clash = make.alts[11].clash = 1;
+		make.Clashs().Eq(
+			(['&'], 3, [~3]),
+			(['&'], ~3, [4]),
+			(['|'], 4, [~3]),
+			(['|'], 4, [~4]),
+			(['+'], ~7, [7]),
+			(['\0'], null, [~6, 8]),
+			(['\0'], null, [~6, 8, 9, 11])
+		);
 	}
 }

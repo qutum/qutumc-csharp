@@ -186,7 +186,7 @@ public static class MetaLex
 			es[ez++] = Range.All;
 	}
 
-	static void Dump<K>(EsynStr top, LexGram<K> gram)
+	static void Dump<K>(EsynStr top, LexGram<K> gram) where K : struct
 	{
 		using var env = EnvWriter.Use();
 		env.WriteLine("meta:");

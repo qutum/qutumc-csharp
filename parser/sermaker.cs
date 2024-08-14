@@ -22,12 +22,14 @@ public class SynGram<K, N>
 		public N name;
 		public short lex = -1; // save lex at this index to Synt.info, no save: <0
 		public sbyte synt; // as Synter.tree: 0, make Synt: 1, omit Synt: -1
+		public byte clash; // clash: reject: 0, one of solve rules: >0
 		public bool rec;
 		public string hint;
 		internal short alt; // alt index of whole grammar
 
 		public override string ToString() => $"{name} = {string.Join(' ', this)} {(
-			rec ? "!!" : "")}{(synt > 0 ? "+" : synt < 0 ? "-" : "")}{(lex >= 0 ? "_" + lex : "")} {hint}";
+			rec ? "!!" : "")}{(clash == 1 ? "<" : clash > 1 ? ">" : "")}{(
+			synt > 0 ? "+" : synt < 0 ? "-" : "")}{(lex >= 0 ? "_" + lex : "")} {hint}";
 	}
 
 	public SynGram<K, N> n(N name) { prods.Add(new() { name = name }); return this; }
@@ -46,6 +48,8 @@ public class SynGram<K, N>
 	}
 	public SynGram<K, N> synt { get { prods[^1][^1].synt = 1; return this; } }
 	public SynGram<K, N> syntOmit { get { prods[^1][^1].synt = -1; return this; } }
+	public SynGram<K, N> clash { get { prods[^1][^1].clash = 1; return this; } }
+	public SynGram<K, N> clashRight { get { prods[^1][^1].clash = 2; return this; } }
 	public SynGram<K, N> hint(string w) { prods[^1][^1].hint = w != "" ? w : null; return this; }
 }
 
@@ -63,7 +67,7 @@ public class SerMaker<K, N>
 
 	readonly int accept; // at name ordinal index
 	readonly SynGram<K, N>.Prod[] prods; // at name ordinal index
-	readonly SynGram<K, N>.Alt[] alts;
+	public readonly SynGram<K, N>.Alt[] alts;
 	readonly (bool empty, HashSet<K> first)[] firsts; // at name ordinal index
 
 	public void Firsts()
@@ -90,26 +94,25 @@ public class SerMaker<K, N>
 		HashSet<K>> // lookaheads, eor excluded
 	{ }
 	[System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2231:Overload operator equals")]
-	public struct Modes
+	public struct Clash
 	{
-		public SynAlt<N> shift; // no shift: null alt
-		public HashSet<SynAlt<N>> redus; // no reduces: null
-										 // for distinct clashs
+		public short? shift; // alt index, no shift: null
+		public HashSet<short> redus; // alt index, no reduces: null
 		public override readonly int GetHashCode() => HashCode.Combine(shift, redus?.Count);
-		public override readonly bool Equals(object o) => o is Modes v && shift == v.shift
-				&& (redus?.SetEquals(v.redus) ?? v.redus == null);
+		public override readonly bool Equals(object o) => o is Clash d && shift == d.shift
+				&& (redus?.SetEquals(d.redus) ?? d.redus == null);
 	}
 	struct Form
 	{
 		internal Items Is;
-		internal (int shift, Modes s)[] modes; // at key ordinal index, error: null,
-											   // { shift to form index for s.shift,
-											   // shift -1 and s.shift null then reduce s.redus }
-		internal int?[] pushs; // at name ordinal index, push form index
+		internal (int shift, Clash c)[] clashs; // shift: form index if c.shift not null
+												// reduce: c.redus otherwise, at key ordinal index
+		internal int?[] pushs; // push form index, at name ordinal index
+		internal short[] modes; // solved modes, at key ordinal index
 	}
 
 	readonly List<Form> forms = [];
-	public readonly SynAlt<N>[] Alts;
+	readonly SynAlt<N>[] Alts;
 
 	static bool AddItem(Items Is, SynGram<K, N>.Alt alt, int next, IEnumerable<K> heads)
 	{
@@ -129,8 +132,10 @@ public class SerMaker<K, N>
 				return x; No:;
 			}
 		forms.Add(new() {
-			Is = Is, modes = new (int, Modes)[keys.Length], pushs = new int?[names.Length]
+			Is = Is, clashs = new (int, Clash)[keys.Length], pushs = new int?[names.Length],
+			modes = new short[keys.Length]
 		});
+		Array.Fill(forms[^1].modes, (short)-1);
 		return forms.Count - 1;
 	}
 
@@ -162,7 +167,7 @@ public class SerMaker<K, N>
 			}
 			var to = AddForm(Closure(js));
 			if (a[next] is K k)
-				f.modes[Key(k)] = (to, new() { shift = Alts[a.alt] });
+				f.clashs[Key(k)] = (to, new() { shift = a.alt });
 			else
 				f.pushs[Name((N)a[next])] = to;
 		}
@@ -173,7 +178,7 @@ public class SerMaker<K, N>
 		foreach (var ((a, next), heads) in f.Is)
 			if (next >= a.Count)
 				foreach (var head in heads.Append(default)) // lookaheads and eor
-					(f.modes[Key(head)].s.redus ??= []).Add(Alts[a.alt]);
+					(f.clashs[Key(head)].c.redus ??= []).Add(a.alt);
 	}
 
 	public void Forms()
@@ -192,26 +197,53 @@ public class SerMaker<K, N>
 			Reduce(f);
 	}
 
-	public HashSet<(K key, Modes modes)> Clashs(bool dump)
+	// solve 1: diff alt: earliest alt, same alt: reduce (left associative)
+	// solve 2: diff alt: earliest alt, same alt: shift (right associative)
+	public Dictionary<Clash, (HashSet<K> keys, short mode)> Clashs(bool detail = true, bool dump = true)
 	{
-		HashSet<(K key, Modes modes)> clashs = [];
+		Dictionary<Clash, (HashSet<K> keys, short mode)> clashs = [];
 		foreach (var f in forms)
-			foreach (var ((_, s), kx) in f.modes.Each())
-				if (s.redus?.Count > (s.shift != null ? 0 : 1))
-					clashs.Add((keys[kx], s));
+			foreach (var ((shift, c), kx) in f.clashs.Each())
+				if (c.redus?.Count > (c.shift != null ? 0 : 1)) {
+					if (clashs.TryGetValue(c, out var ok)) {
+						// already solved
+						f.modes[kx] = ok.mode;
+						ok.keys.Add(keys[kx]);
+					}
+					else { // solve
+						short mode = -1;
+						if (c.redus.All(r => alts[r].clash != 0)) {
+							var r = c.redus.Min();
+							if (c.shift is not short i)
+								mode = SynForm.Reduce(r); // reduce
+							else if (alts[i].clash > 0)
+								if (i < r || i == r && alts[i].clash == 2)
+									mode = (short)shift; // shift
+								else
+									mode = SynForm.Reduce(r); // reduce
+						}
+						f.modes[kx] = mode;
+						clashs[c] = ([keys[kx]], mode);
+					}
+				}
+		if (!detail)
+			foreach (var (ok, _) in clashs.Where(c => c.Value.mode != -1))
+				clashs.Remove(ok);
 		if (dump) {
 			using var env = EnvWriter.Begin();
-			foreach (var ((key, s), cx) in clashs.Each(1)) {
-				env.WriteLine($"clash {cx} by {CharSet.Unesc(key)}");
-				using var ind = EnvWriter.Indent("\t\t\t");
-				if (s.shift != null)
-					env.WriteLine("shift " + s.shift);
-				foreach (var r in s.redus)
-					env.WriteLine("reduct " + r);
+			env.WriteLine("-- clashes and solutions --");
+			using var _ = EnvWriter.Indent();
+			foreach (var ((c, (keys, mode)), cx) in clashs.Each(1)) {
+				env.Write(cx + (mode == -1 ? "  : " : " :: "));
+				env.WriteLine(string.Join(' ', keys.Select(k => CharSet.Unesc(k))));
+				using var __ = EnvWriter.Indent("\t\t");
+				if (c.shift is short sh)
+					env.WriteLine((mode >= 0 ? "SHIFT " : "shift ") + Alts[sh]);
+				foreach (var r in c.redus)
+					env.WriteLine((r == SynForm.Reduce(mode) ? "REDUCE " : "reduce ") + Alts[r]);
 			}
 		}
-		// TODO solve
-		return clashs;
+		return clashs.Count > 0 ? clashs : null;
 	}
 
 	public void Make(bool dumpClash = true)
