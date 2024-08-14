@@ -85,7 +85,7 @@ public class Lexier<K> : LexerSeg<K, Lexi<K>> where K : struct
 		internal int mode; // match: -1, mismatch to error: -3, mismatch to backward bytes: >=0
 						   // no backward cross wads nor duplicate bytes
 
-		internal Unit(Lexier<K> l) => id = ++l.uid;
+		internal Unit(Lexier<K> l) => id = l.uid++;
 	}
 
 	readonly Unit begin;
@@ -283,6 +283,8 @@ public class Lexier<K> : LexerSeg<K, Lexi<K>> where K : struct
 		var usNull = us == null;
 		us ??= [];
 		us[u] = false; // dumped
+		if (u.id == 0)
+			env.WriteLine("unit:");
 		env.WriteLine($"{u.id}: {u.key}.{u.wad} " +
 			$"{(u.mode >= 0 ? "back" : u.mode == -1 ? "ok" : "err")}.{u.go.id} < {pre}");
 		if (!us.ContainsKey(u.go))
@@ -369,7 +371,7 @@ public class Lexier<K> : LexerSeg<K, Lexi<K>> where K : struct
 						u = wus[wad];
 						for (int x = 0; x <= 128; x++)
 							if (u.next[x] != null && aus.Any(au => au.next[x] != null))
-								throw new($"{k}.{wad} and {k}.{wad - 1} conflict over dup");
+								throw new($"{k}.{wad} and {k}.{wad - 1} clash over dup");
 					}
 					aus = Aus;
 				};
@@ -410,13 +412,13 @@ public class Lexier<K> : LexerSeg<K, Lexi<K>> where K : struct
 				for (int x = 0; x < bs.Length; x++)
 					u.next[bs[x]] = n;
 				if (dup && u.mode == -1 && mode == -3)
-					throw new($"{key}.{wad} and {u.key}.{u.wad} conflict over byte dup");
+					throw new($"{key}.{wad} and {u.key}.{u.wad} clash over byte dup");
 			}
 			else if (n.prez != bs.Length) // all already nexts must be the same
 				throw new($"Prefixs of {key}.{wad} and {n.key}.{n.wad}"
 					+ " must be the same or distinct");
-			else if (dup != (n == u)) // already exist next must not conflict
-				throw new($"{key}.{wad} and {n.key}.{n.wad} conflict over dup byte");
+			else if (dup != (n == u)) // already exist next must not clash
+				throw new($"{key}.{wad} and {n.key}.{n.wad} clash over dup byte");
 			else if (!dup)
 				Mode(key, wad, n, go, mode); // check mode for already exist next
 			return n;
@@ -425,11 +427,11 @@ public class Lexier<K> : LexerSeg<K, Lexi<K>> where K : struct
 		static void Mode(K key, int wad, Unit u, Unit go, int mode)
 		{
 			if (u.mode + mode == -2) // both match
-				throw new($"{key}.{wad} and {u.key}.{u.wad} conflict over match");
+				throw new($"{key}.{wad} and {u.key}.{u.wad} clash over match");
 			if (u.mode + mode == -6 && u.go != go) // both error
-				throw new($"{key}.{wad} and {u.key}.{u.wad} conflict over error");
+				throw new($"{key}.{wad} and {u.key}.{u.wad} clash over error");
 			if (u.mode + mode == -3) // error and backward
-				throw new($"{key}.{wad} and {u.key}.{u.wad} conflict over duplicate");
+				throw new($"{key}.{wad} and {u.key}.{u.wad} clash over duplicate");
 			if (u.mode == 0 && mode != 0) {
 				u.key = key; u.wad = wad; u.go = go; u.mode = mode;
 			}

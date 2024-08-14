@@ -109,7 +109,7 @@ public static class MetaLex
 			using var input2 = new MetaStr(gram);
 			var dum = meta.dump; meta.dump = 3;
 			meta.Begin(input2).Parse().Dump(); meta.dump = dum;
-			var e = new Exception(); e.Data["err"] = top;
+			var e = new Exception("lexic grammar error"); e.Data["err"] = top;
 			throw e;
 		}
 		LexGram<K> g = new();

@@ -183,7 +183,7 @@ public class TestLexier : IDisposable
 	[TestMethod]
 	public void Alt1()
 	{
-		Throw(() => NewLer("A=ab| ac \n B=ab"), "B.1 and A.1 conflict");
+		Throw(() => NewLer("A=ab| ac \n B=ab"), "B.1 and A.1 clash");
 	}
 
 	[TestMethod]
@@ -205,7 +205,7 @@ public class TestLexier : IDisposable
 	[TestMethod]
 	public void Alt4()
 	{
-		Throw(() => NewLer("A=a[a-c^ac]|a[b-b]"), "A.1 and A.1 conflict");
+		Throw(() => NewLer("A=a[a-c^ac]|a[b-b]"), "A.1 and A.1 clash");
 		Throw(() => NewLer("A=a[a-c^a]|ab"), "Prefix.* of A.1 and A.1");
 	}
 
@@ -243,7 +243,7 @@ public class TestLexier : IDisposable
 	[TestMethod]
 	public void Dup5()
 	{
-		Throw(() => NewLer("A=a \n B=a+"), "B.1 and A.1 conflict");
+		Throw(() => NewLer("A=a \n B=a+"), "B.1 and A.1 clash");
 		Throw(() => NewLer("A=aa \n B=a+"), "B.1 and A.1 .*dup");
 		Throw(() => NewLer("A=a \n B=a+b"), "B.1 and A.1 .*dup");
 		Throw(() => NewLer("A=aa \n B=a+b"), "B.1 and A.1 .*dup");
@@ -431,8 +431,8 @@ public class TestLexier : IDisposable
 	public void Redo6()
 	{
 		Throw(() => new Lexier<Lex>(new LexGram<Lex>().k(Lex.A).redo["a"].w["b"]), "Redo");
-		Throw(() => NewLer("A=*a b c"), "");
-		Throw(() => NewLer("A=a *|b c"), "");
+		Throw(() => NewLer("A=*a b c"), "grammar");
+		Throw(() => NewLer("A=a *|b c"), "grammar");
 	}
 
 	[TestMethod]
@@ -454,7 +454,7 @@ public class TestLexier : IDisposable
 	public void Utf1()
 	{
 		Throw(() => NewLer("A=\\u+ \n B=\\u\\A"), "Prefix.* of B.1 and A.1");
-		Throw(() => NewLer("A=\\u+ \n B=\\u\\u"), "B.1 and A.1 conflict");
+		Throw(() => NewLer("A=\\u+ \n B=\\u\\u"), "B.1 and A.1 clash");
 		Throw(() => NewLer("A=\\u+ \n B=\\A"), "Prefix.* of B.1 and A.1");
 	}
 
@@ -474,5 +474,20 @@ public class TestLexier : IDisposable
 		Check("a", "B=a");
 		var bs = Encoding.UTF8.GetBytes("a好z"); bs[2] = 0;
 		Check(bs, "A=" + Encoding.UTF8.GetString(bs));
+	}
+
+	[TestMethod]
+	public void SameKey1()
+	{
+		NewLer("A=a\nA=b");
+		Check("a", "A=a"); Check("b", "A=b");
+		NewLer("A=ab c\nA=abd");
+		Check("abc", "A=abc"); Check("abd", "A=abd");
+	}
+
+	[TestMethod]
+	public void SameKey2()
+	{
+		Throw(() => NewLer("A=a\nA=b|a"), "A.1 and A.1 clash");
 	}
 }
