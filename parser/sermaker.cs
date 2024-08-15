@@ -20,15 +20,15 @@ public class SynGram<K, N>
 	public class Alt : List<object>
 	{
 		public N name;
+		public int clash; // reject: 0, solve 1: 1, solve 2: 2
 		public short lex = -1; // save lex at this index to Synt.info, no save: <0
 		public sbyte synt; // as Synter.tree: 0, make Synt: 1, omit Synt: -1
-		public byte clash; // clash: reject: 0, one of solve rules: >0
 		public bool rec;
 		public string hint;
 		internal short alt; // alt index of whole grammar
 
-		public override string ToString() => $"{name} = {string.Join(' ', this)} {(
-			rec ? "!!" : "")}{(clash == 1 ? "<" : clash > 1 ? ">" : "")}{(
+		public override string ToString() => $"{name} = {string.Join(' ', this)}  {(
+			clash == 0 ? "" : clash == 1 ? "<" : ">")}{(rec ? "!!" : "")}{(
 			synt > 0 ? "+" : synt < 0 ? "-" : "")}{(lex >= 0 ? "_" + lex : "")} {hint}";
 	}
 
@@ -46,10 +46,10 @@ public class SynGram<K, N>
 			return this;
 		}
 	}
-	public SynGram<K, N> synt { get { prods[^1][^1].synt = 1; return this; } }
-	public SynGram<K, N> syntOmit { get { prods[^1][^1].synt = -1; return this; } }
 	public SynGram<K, N> clash { get { prods[^1][^1].clash = 1; return this; } }
 	public SynGram<K, N> clashRight { get { prods[^1][^1].clash = 2; return this; } }
+	public SynGram<K, N> synt { get { prods[^1][^1].synt = 1; return this; } }
+	public SynGram<K, N> syntOmit { get { prods[^1][^1].synt = -1; return this; } }
 	public SynGram<K, N> hint(string w) { prods[^1][^1].hint = w != "" ? w : null; return this; }
 }
 
@@ -197,8 +197,8 @@ public class SerMaker<K, N>
 			Reduce(f);
 	}
 
-	// solve 1: diff alt: earliest alt, same alt: reduce (left associative)
-	// solve 2: diff alt: earliest alt, same alt: shift (right associative)
+	// solve 1: shift or reduce the latest alt, rerduce the same alt (left associative)
+	// solve 2: shift or reduce the latest alt, shift the same alt (right associative)
 	public Dictionary<Clash, (HashSet<K> keys, short mode)> Clashs(bool detail = true, bool dump = true)
 	{
 		Dictionary<Clash, (HashSet<K> keys, short mode)> clashs = [];
@@ -212,12 +212,12 @@ public class SerMaker<K, N>
 					}
 					else { // solve
 						short mode = -1;
-						if (c.redus.All(r => alts[r].clash != 0)) {
-							var r = c.redus.Min();
+						if (c.redus.All(r => alts[r].clash > 0)) {
+							var r = c.redus.Max();
 							if (c.shift is not short i)
 								mode = SynForm.Reduce(r); // reduce
 							else if (alts[i].clash > 0)
-								if (i < r || i == r && alts[i].clash == 2)
+								if (i > r || i == r && alts[i].clash > 1)
 									mode = (short)shift; // shift
 								else
 									mode = SynForm.Reduce(r); // reduce
@@ -232,15 +232,14 @@ public class SerMaker<K, N>
 		if (dump) {
 			using var env = EnvWriter.Begin();
 			env.WriteLine("clashes and solutions:");
-			using var _ = EnvWriter.Indent();
 			foreach (var ((c, (keys, mode)), cx) in clashs.Each(1)) {
 				env.Write(cx + (mode == -1 ? "  : " : " :: "));
 				env.WriteLine(string.Join(' ', keys.Select(k => CharSet.Unesc(k))));
-				using var __ = EnvWriter.Indent("\t\t");
-				if (c.shift is short sh)
-					env.WriteLine((mode >= 0 ? "SHIFT " : "shift ") + Alts[sh]);
+				using var _ = EnvWriter.Indent("\t\t");
+				if (c.shift is short i)
+					env.WriteLine($"{(mode >= 0 ? "SHIFT" : "shift")} {i}  {Alts[i]}");
 				foreach (var r in c.redus)
-					env.WriteLine((r == SynForm.Reduce(mode) ? "REDUCE " : "reduce ") + Alts[r]);
+					env.WriteLine($"{(r == SynForm.Reduce(mode) ? "REDUCE" : "reduce")} {r}  {Alts[r]}");
 			}
 		}
 		return clashs.Count > 0 ? clashs : null;

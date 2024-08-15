@@ -15,6 +15,7 @@ using static Microsoft.VisualStudio.TestTools.UnitTesting.Assert;
 namespace qutum.test.parser;
 
 using Gram = SynGram<char, string>;
+using ClashEq = (HashSet<char>, short[], short?)[];
 
 file static class Extension
 {
@@ -24,8 +25,8 @@ file static class Extension
 		AreEqual(first, string.Join(" ", eq.first.Order()));
 	}
 
-	public static void Eq<K, N>(this Dictionary<SerMaker<K, N>.Clash, (HashSet<K> ks, short m)> eqs,
-		params (HashSet<K>, short[], short?)[] s)
+	public static void Eq(this Dictionary<SerMaker<char, string>.Clash, (HashSet<char> ks, short m)> eqs,
+		params ClashEq s)
 	{
 		AreEqual(eqs.Count, s.Length);
 		foreach (var (ks, redus, shift) in s) {
@@ -106,6 +107,68 @@ public class TestSerMaker : IDisposable
 	}
 
 	[TestMethod]
+	public void Clash2()
+	{
+		NewMake(new Gram()
+			.n("E")["E", ',', "E"].clash
+					["E", '+', "E"].clash
+					["E", '^', "E"].clashRight
+					['a']['b']
+		);
+		make.Firsts(); make.Forms();
+		make.Clashs().Eq(
+			([','], [~0], 0),
+			([','], [~1], 0),
+			([','], [~2], 0),
+			(['+'], [0], ~1),
+			(['+'], [~1], 1),
+			(['+'], [~2], 1),
+			(['^'], [0], ~2),
+			(['^'], [1], ~2),
+			(['^'], [2], ~2)
+		);
+		NewMake(new Gram()
+			.n("E")["E", ",", "E"].clash
+					["E", '+', "E"].clash
+					["E", '^', "E"].clashRight
+			.n(",")[','].clash
+			.n("E")['a']['b']
+		);
+		make.Firsts(); make.Forms();
+		ClashEq eq = [
+			([','], [0], ~3),
+			([','], [1], ~3),
+			([','], [2], ~3),
+			(['+'], [0], ~1),
+			(['+'], [~1], 1),
+			(['+'], [~2], 1),
+			(['^'], [0], ~2),
+			(['^'], [1], ~2),
+			(['^'], [2], ~2)
+		];
+		make.Clashs().Eq(eq);
+		make.alts[3].clash = 2;
+		make.Clashs().Eq(eq);
+	}
+
+	[TestMethod]
+	public void Clash3()
+	{
+		NewMake(new Gram()
+			.n("E")["E", '?', "E", ':', "E", '?', "E"].clashRight
+					["E", '+', "E"].clash
+					['a']['b']
+		);
+		make.Firsts(); make.Forms();
+		make.Clashs().Eq(
+			(['?', ':'], [0], ~0),
+			(['?'], [~1], 0),
+			(['+'], [0], ~1),
+			(['+'], [~1], 1)
+		);
+	}
+
+	[TestMethod]
 	public void ClashTigerF332()
 	{
 		NewMake(new Gram()
@@ -128,11 +191,13 @@ public class TestSerMaker : IDisposable
 	{
 		NewMake(new Gram()
 			.n("S")['i', ':', "A"]['i', ':', "B"]['i', ':', "C"]
-			.n("B")["B", '&', "B"]["B", '|', "B"]
-					["A", '=', "A"]['i']
-			.n("A")["A", '+', "A"]['i']
-			.n("C")['i']["D"]
-			.n("D")['i']
+			.n("B")["B", '|', "B"].clash["B", '&', "B"].clash
+					["A", '=', "A"]
+					['i'].clash
+			.n("A")["A", '^', "A"].clashRight
+					['i'].clash
+			.n("C")['i'].clash["D"]
+			.n("D")['i'].clash
 		);
 		make.Firsts(); make.Forms();
 		make.Clashs().Eq(
