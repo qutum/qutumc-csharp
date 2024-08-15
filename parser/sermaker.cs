@@ -96,11 +96,11 @@ public class SerMaker<K, N>
 	[System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2231:Overload operator equals")]
 	public struct Clash
 	{
+		public HashSet<short> redus; // alt index, no reduce: null
 		public short? shift; // alt index, no shift: null
-		public HashSet<short> redus; // alt index, no reduces: null
 		public override readonly int GetHashCode() => HashCode.Combine(shift, redus?.Count);
-		public override readonly bool Equals(object o) => o is Clash d && shift == d.shift
-				&& (redus?.SetEquals(d.redus) ?? d.redus == null);
+		public override readonly bool Equals(object o) => o is Clash c && shift == c.shift
+				&& (redus?.SetEquals(c.redus) ?? c.redus == null);
 	}
 	struct Form
 	{
@@ -231,7 +231,7 @@ public class SerMaker<K, N>
 				clashs.Remove(ok);
 		if (dump) {
 			using var env = EnvWriter.Begin();
-			env.WriteLine("-- clashes and solutions --");
+			env.WriteLine("clashes and solutions:");
 			using var _ = EnvWriter.Indent();
 			foreach (var ((c, (keys, mode)), cx) in clashs.Each(1)) {
 				env.Write(cx + (mode == -1 ? "  : " : " :: "));
@@ -260,7 +260,7 @@ public class SerMaker<K, N>
 		// names
 		SortedDictionary<ushort, N> ns = [];
 		foreach (var (p, px) in gram.prods.Each())
-			if (!ns.TryAdd(nameOrd(p.name), p.name)) throw new($"duplicate name {p.name}");
+			ns[nameOrd(p.name)] = p.name;
 		nameOs = [.. ns.Keys];
 		names = [.. ns.Values];
 		accept = Name(gram.prods[0].name);
@@ -268,14 +268,15 @@ public class SerMaker<K, N>
 		// prods
 		prods = new SynGram<K, N>.Prod[names.Length];
 		foreach (var p in gram.prods)
-			prods[Name(p.name)] = p;
+			prods[Name(p.name)] ??= p;
 		// alts
 		SortedDictionary<ushort, K> ks = new() { { keyOrd(default), default } };
-		alts = new SynGram<K, N>.Alt[prods.Sum(p => p.Count)];
+		alts = new SynGram<K, N>.Alt[gram.prods.Sum(p => p.Count)];
 		if (alts.Length is 0 or > 32767) throw new($"alterns size {alts.Length}");
 		Alts = new SynAlt<N>[alts.Length];
 		short alt = 0;
-		foreach (var p in gram.prods)
+		foreach (var p in gram.prods) {
+			var np = prods[Name(p.name)];
 			foreach (var (a, ax) in p.Each()) {
 				foreach (var c in a)
 					if (c is K k)
@@ -292,8 +293,10 @@ public class SerMaker<K, N>
 					dump = a.ToString,
 				};
 				a.alt = alt++;
+				if (np != p)
+					np.Add(a); // append alterns to same name production
 			}
-
+			}
 		// others
 		if (keyOrd(default) != 0) throw new($"default key ordinal {keyOrd(default)}");
 		if (nameOs[0] == 0) throw new($"name ordinal 0");
