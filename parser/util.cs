@@ -243,10 +243,10 @@ public class EnvWriter : StringWriter, IDisposable
 
 	protected override void Dispose(bool _)
 	{
-		if (env.indents.Count == 0)
+		if (indents.Count == 0)
 			return;
-		var ind = env.indents[^1];
-		env.indents.RemoveAt(env.indents.Count - 1);
+		var ind = indents[^1];
+		indents.RemoveAt(indents.Count - 1);
 		if (ind == null) {
 			Console.SetOut(output);
 			try {

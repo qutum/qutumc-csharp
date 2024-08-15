@@ -70,6 +70,7 @@ public class LexGram<K> where K : struct
 }
 
 // lexic parser
+// K for lexic key i.e lexeme
 public class Lexier<K> : LexerSeg<K, Lexi<K>> where K : struct
 {
 	// each unit is just before next byte or after the last byte of wad

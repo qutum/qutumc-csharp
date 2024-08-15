@@ -54,8 +54,12 @@ public class SynGram<K, N>
 }
 
 // syntax parser maker
+// K for lexical key i.e lexeme
+// N for syntax name i.e synteme
 public class SerMaker<K, N>
 {
+	public bool dump = true;
+
 	readonly Func<K, ushort> keyOrd; // ordinal from 1, default for eor: 0
 	readonly Func<N, ushort> nameOrd; // ordinal from 1
 	readonly ushort[] keyOs, nameOs; // { ordinal... }
@@ -70,13 +74,14 @@ public class SerMaker<K, N>
 	public readonly SynGram<K, N>.Alt[] alts;
 	readonly (bool empty, HashSet<K> first)[] firsts; // at name ordinal index
 
+	// phase 1: find possible first key of each name
 	public void Firsts()
 	{
 		if (firsts[0].first != null)
 			return;
 		for (bool loop = true; !(loop = !loop);)
-			foreach (var (p, px) in prods.Each()) {
-				var nf = firsts[px].first ??= [];
+			foreach (var (p, nx) in prods.Each()) {
+				var nf = firsts[nx].first ??= [];
 				foreach (var a in p) {
 					foreach (var c in a) {
 						var (cempty, cf) = c is K k ? (false, [k]) : First((N)c);
@@ -84,7 +89,7 @@ public class SerMaker<K, N>
 						if (!cempty)
 							goto A;
 					}
-					_ = firsts[px].empty || (loop = firsts[px].empty = true); A:;
+					_ = firsts[nx].empty || (loop = firsts[nx].empty = true); A:;
 				}
 			}
 	}
@@ -96,17 +101,20 @@ public class SerMaker<K, N>
 	[System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2231:Overload operator equals")]
 	public struct Clash
 	{
+		internal int shift; // shift to form index if shifts not null
 		public HashSet<short> redus; // alt index, no reduce: null
-		public short? shift; // alt index, no shift: null
-		public override readonly int GetHashCode() => HashCode.Combine(shift, redus?.Count);
-		public override readonly bool Equals(object o) => o is Clash c && shift == c.shift
-				&& (redus?.SetEquals(c.redus) ?? c.redus == null);
+		public HashSet<short> shifts; // alt index, no shift: null
+		public override readonly int GetHashCode() =>
+			HashCode.Combine(shifts?.Count == 1 ? shifts.First() : shifts?.Count,
+				redus?.Count == 1 ? redus.First() : redus.Count);
+		public override readonly bool Equals(object o) => o is Clash c
+			&& (redus?.SetEquals(c.redus) ?? c.redus == null)
+			&& (shifts?.SetEquals(c.shifts) ?? c.shifts == null);
 	}
 	struct Form
 	{
 		internal Items Is;
-		internal (int shift, Clash c)[] clashs; // shift: form index if c.shift not null
-												// reduce: c.redus otherwise, at key ordinal index
+		internal Clash[] clashs; // at key ordinal index
 		internal int?[] pushs; // push form index, at name ordinal index
 		internal short[] modes; // solved modes, at key ordinal index
 	}
@@ -132,13 +140,14 @@ public class SerMaker<K, N>
 				return x; No:;
 			}
 		forms.Add(new() {
-			Is = Is, clashs = new (int, Clash)[keys.Length], pushs = new int?[names.Length],
+			Is = Is, clashs = new Clash[keys.Length], pushs = new int?[names.Length],
 			modes = new short[keys.Length]
 		});
 		Array.Fill(forms[^1].modes, (short)-1);
 		return forms.Count - 1;
 	}
 
+	// make a whole items
 	Items Closure(Items Is)
 	{
 	Loop: foreach (var ((a, next), heads) in Is) {
@@ -155,32 +164,39 @@ public class SerMaker<K, N>
 		return Is;
 	}
 
-	void ShiftPush(Form f)
+	// make shifting or pushing between forms
+	void ShiftPush(Form f, Dictionary<object, int> tos)
 	{
 		foreach (var ((a, next), _) in f.Is) {
 			if (next >= a.Count)
 				continue;
-			Items js = [];
-			foreach (var ((A, Next), heads) in f.Is) {
-				if (Next < A.Count && A[Next].Equals(a[next]))
-					AddItem(js, A, Next + 1, heads);
+			if (!tos.TryGetValue(a[next], out var to)) {
+				Items js = [];
+				foreach (var ((A, Next), heads) in f.Is) {
+					if (Next < A.Count && A[Next].Equals(a[next]))
+						AddItem(js, A, Next + 1, heads);
+				}
+				tos.Add(a[next], to = AddForm(Closure(js)));
 			}
-			var to = AddForm(Closure(js));
-			if (a[next] is K k)
-				f.clashs[Key(k)] = (to, new() { shift = a.alt });
+			if (a[next] is K k) {
+				f.clashs[Key(k)].shift = to; (f.clashs[Key(k)].shifts ??= []).Add(a.alt);
+			}
 			else
 				f.pushs[Name((N)a[next])] = to;
 		}
+		tos.Clear();
 	}
 
+	// find alts could be reduced
 	void Reduce(Form f)
 	{
 		foreach (var ((a, next), heads) in f.Is)
 			if (next >= a.Count)
 				foreach (var head in heads.Append(default)) // lookaheads and eor
-					(f.clashs[Key(head)].c.redus ??= []).Add(a.alt);
+					(f.clashs[Key(head)].redus ??= []).Add(a.alt);
 	}
 
+	// phase2: make all forms
 	public void Forms()
 	{
 		if (forms.Count > 0)
@@ -189,73 +205,83 @@ public class SerMaker<K, N>
 		foreach (var a in prods[accept])
 			init[(a, 0)] = [];
 		AddForm(Closure(init));
+		Dictionary<object, int> tos = [];
 		for (var x = 0; x < forms.Count; x++) {
 			if (x >= 32767) throw new("too many forms");
-			ShiftPush(forms[x]);
+			ShiftPush(forms[x], tos);
 		}
 		foreach (var f in forms)
 			Reduce(f);
+		if (dump)
+			using (var env = EnvWriter.Use())
+				env.WriteLine($"forms: {forms.Count}");
 	}
 
+	// phase3: find clashes and solve them
 	// solve 1: shift or reduce the latest alt, rerduce the same alt (left associative)
 	// solve 2: shift or reduce the latest alt, shift the same alt (right associative)
-	public Dictionary<Clash, (HashSet<K> keys, short mode)> Clashs(bool detail = true, bool dump = true)
+	// all clashing alts should be clashable
+	public Dictionary<Clash, (HashSet<K> keys, short mode)> Clashs(bool detail = true)
 	{
 		Dictionary<Clash, (HashSet<K> keys, short mode)> clashs = [];
 		foreach (var f in forms)
-			foreach (var ((shift, c), kx) in f.clashs.Each())
-				if (c.redus?.Count > (c.shift != null ? 0 : 1)) {
-					if (clashs.TryGetValue(c, out var ok)) {
-						// already solved
-						f.modes[kx] = ok.mode;
-						ok.keys.Add(keys[kx]);
-					}
-					else { // solve
-						short mode = -1;
-						if (c.redus.All(r => alts[r].clash > 0)) {
-							var r = c.redus.Max();
-							if (c.shift is not short i)
+			foreach (var (c, kx) in f.clashs.Each())
+				if (c.redus == null)
+					f.modes[kx] = (short)c.shift; // shift without clash
+				else if (c.shifts == null && c.redus.Count == 1)
+					f.modes[kx] = SynForm.Reduce(c.redus.First()); // reduce without clash
+																   // clash
+				else if (clashs.TryGetValue(c, out var ok)) {
+					// already solved
+					f.modes[kx] = ok.mode;
+					ok.keys.Add(keys[kx]);
+				}
+				else { // solve
+					short mode = -1;
+					if (c.redus.All(r => alts[r].clash > 0)) {
+						var r = c.redus.Max();
+						if (c.shifts?.Max() is not short i)
+							mode = SynForm.Reduce(r); // reduce
+						else if (alts[i].clash > 0)
+							if (i > r || i == r && alts[i].clash > 1)
+								mode = (short)c.shift; // shift
+							else
 								mode = SynForm.Reduce(r); // reduce
-							else if (alts[i].clash > 0)
-								if (i > r || i == r && alts[i].clash > 1)
-									mode = (short)shift; // shift
-								else
-									mode = SynForm.Reduce(r); // reduce
-						}
-						f.modes[kx] = mode;
-						clashs[c] = ([keys[kx]], mode);
 					}
+					f.modes[kx] = mode;
+					clashs[c] = ([keys[kx]], mode);
 				}
 		if (!detail)
 			foreach (var (ok, _) in clashs.Where(c => c.Value.mode != -1))
 				clashs.Remove(ok);
 		if (dump) {
-			using var env = EnvWriter.Begin();
-			env.WriteLine("clashes and solutions:");
+			using var env = EnvWriter.Use();
+			env.WriteLine(detail ? "clashes and solutions:" : "unsolved clashes:");
 			foreach (var ((c, (keys, mode)), cx) in clashs.Each(1)) {
 				env.Write(cx + (mode == -1 ? "  : " : " :: "));
 				env.WriteLine(string.Join(' ', keys.Select(k => CharSet.Unesc(k))));
 				using var _ = EnvWriter.Indent("\t\t");
-				if (c.shift is short i)
-					env.WriteLine($"{(mode >= 0 ? "SHIFT" : "shift")} {i}  {Alts[i]}");
 				foreach (var r in c.redus)
 					env.WriteLine($"{(r == SynForm.Reduce(mode) ? "REDUCE" : "reduce")} {r}  {Alts[r]}");
+				foreach (var i in c.shifts ?? [])
+					env.WriteLine($"{(mode >= 0 ? "SHIFT" : "shift")} {i}  {Alts[i]}");
 			}
 		}
 		return clashs.Count > 0 ? clashs : null;
 	}
 
-	public void Make(bool dumpClash = true)
+	// phase final: make all data for synter
+	public void Make()
 	{
 		Firsts();
 		Forms();
-		Clashs(dumpClash);
+		Clashs();
 	}
 
 	public SerMaker(SynGram<K, N> gram, Func<K, ushort> keyOrd, Func<N, ushort> nameOrd,
-		Action<IEnumerable<K>> distinct)
+		Action<IEnumerable<K>> distinct, bool dump = true)
 	{
-		this.keyOrd = keyOrd; this.nameOrd = nameOrd;
+		this.dump = dump; this.keyOrd = keyOrd; this.nameOrd = nameOrd;
 		// names
 		SortedDictionary<ushort, N> ns = [];
 		foreach (var (p, px) in gram.prods.Each())
@@ -295,7 +321,7 @@ public class SerMaker<K, N>
 				if (np != p)
 					np.Add(a); // append alterns to same name production
 			}
-			}
+		}
 		// others
 		if (keyOrd(default) != 0) throw new($"default key ordinal {keyOrd(default)}");
 		if (nameOs[0] == 0) throw new($"name ordinal 0");

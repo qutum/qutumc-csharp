@@ -86,6 +86,8 @@ public class SynterStr : Synter<char, char, string, SyntStr, LerStr>
 }
 
 // syntax parser using LR algorithm
+// K for lexical key i.e lexeme, L for lexical token
+// N for syntax name i.e synteme, T for syntax tree
 public class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler : class, Lexer<K, L>
 {
 	readonly SynAlt<N>[] alts; // reduce [0].name by eor after forms[init]: accept
@@ -134,7 +136,7 @@ public class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler : cla
 			var alt = alts[SynForm.Reduce(mode)];
 			bool omit = alt.synt == 0 ? !tree : alt.synt < 0; // omit Synt of Alt
 			T t = omit ? null : new() { name = alt.name, to = ler.Loc(), err = alt.rec ? -2 : 0 };
-			int loc = 0; // lexic loc of head
+			int loc = 0; // lexic loc of Alt head
 			for (var i = alt.size - 1; i >= 0; i--) {
 				(_, loc, var with) = stack.Pop();
 				if (omit)
@@ -162,10 +164,12 @@ public class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler : cla
 		T e = new() { err = -1, info = info };
 		_ = err == null ? errs = e : err.Append(e);
 		err = e;
-		if (mode != init - 1)
-			goto Recover;
-		stack.Clear();
-		return errs; // no Alt for recovery now, reject
+		if (mode == init - 1) {
+			stack.Clear();
+			return errs; // no Alt for recovery now, reject
+		}
+		// TODO make error hint Synt
+		goto Recover;
 	}
 
 	public virtual bool Check()
