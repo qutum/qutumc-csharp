@@ -15,7 +15,11 @@ namespace qutum.parser;
 public class SynGram<K, N>
 {
 	public readonly List<Prod> prods = [];
-	public class Prod : List<Alt> { public N name; }
+	public class Prod : List<Alt>
+	{
+		public N name;
+		public string hint;
+	}
 	// { K or N ... }
 	public class Alt : List<object>
 	{
@@ -26,7 +30,7 @@ public class SynGram<K, N>
 		public sbyte synt; // as Synter.tree: 0, make Synt: 1, omit Synt: -1
 		public bool rec; // recover this alt when error found
 		public string hint;
-		internal short alt; // alt index of whole grammar
+		internal short index; // alt index of whole grammar
 
 		public override string ToString() => $"{name} = {string.Join(' ', this)}  {clash
 			switch { 0 => "", 1 => "<", > 1 => ">", _ => "^" }}{(rec ? "!!" : "")}{(
@@ -57,7 +61,8 @@ public class SynGram<K, N>
 	public SynGram<K, N> recover { get { prods[^1][^1].rec = true; return this; } }
 	public SynGram<K, N> synt { get { prods[^1][^1].synt = 1; return this; } }
 	public SynGram<K, N> syntOmit { get { prods[^1][^1].synt = -1; return this; } }
-	public SynGram<K, N> hint(string w) { prods[^1][^1].hint = w != "" ? w : null; return this; }
+	public SynGram<K, N> hint(string w)
+	{ _ = prods[^1].Count == 0 ? prods[^1].hint = w : prods[^1][^1].hint = w; return this; }
 }
 
 // syntax parser maker
@@ -77,7 +82,7 @@ public class SerMaker<K, N>
 	private int Key(K k) => Array.BinarySearch(keyOs, keyOrd(k));
 	private int Name(N n) => Array.BinarySearch(nameOs, nameOrd(n));
 
-	readonly int accept; // at name ordinal index
+	readonly int accept; // name ordinal index
 	readonly SynGram<K, N>.Prod[] prods; // at name ordinal index
 	readonly SynGram<K, N>.Alt[] alts;
 	readonly (bool empty, HashSet<K> first)[] firsts; // at name ordinal index
@@ -186,7 +191,7 @@ public class SerMaker<K, N>
 				tos.Add(a[wait], to = (short)AddForm(Closure(js)));
 			}
 			if (a[wait] is K k) {
-				f.clashs[Key(k)].shift = to; (f.clashs[Key(k)].shifts ??= []).Add(a.alt);
+				f.clashs[Key(k)].shift = to; (f.clashs[Key(k)].shifts ??= []).Add(a.index);
 			}
 			else
 				f.pushs[Name((N)a[wait])] = to;
@@ -212,7 +217,7 @@ public class SerMaker<K, N>
 			foreach (var ((a, wait), heads) in f.Is)
 				if (wait >= a.Count) // alt could be reduced
 					foreach (var head in heads.Append(default)) // lookaheads and eor
-						(f.clashs[Key(head)].redus ??= []).Add(a.alt);
+						(f.clashs[Key(head)].redus ??= []).Add(a.index);
 		if (dump)
 			using (var env = EnvWriter.Use())
 				env.WriteLine($"forms: {forms.Count}");
@@ -317,6 +322,10 @@ public class SerMaker<K, N>
 	{
 		// TODO recover error
 		F.rec = -1;
+		// for better error hint, form with any reduce will always reduce on error keys
+		if (F.modes.FirstOrDefault(m => m < -1, (short)-1) is short r and < -1)
+			foreach (var (m, x) in F.modes.Each())
+				if (m == -1) F.modes[x] = r;
 		// error hints
 		List<(int kind, int remain, int ax, object expect)> hints = [];
 		foreach (var ((a, wait), heads) in f.Is)
@@ -334,6 +343,7 @@ public class SerMaker<K, N>
 				+ (alts[h.ax].hint ?? alts[h.ax].name.ToString())));
 	}
 
+	// phase init: get grammar
 	public SerMaker(SynGram<K, N> gram, Func<K, ushort> keyOrd, Func<N, ushort> nameOrd,
 		Action<IEnumerable<K>> distinct, bool dump = true)
 	{
@@ -354,14 +364,18 @@ public class SerMaker<K, N>
 		// alts
 		SortedDictionary<ushort, K> ks = new() { { keyOrd(default), default } };
 		alts = new SynGram<K, N>.Alt[gram.prods.Sum(p => p.Count)];
-		if (alts.Length is 0 or > 32767) throw new($"alterns size {alts.Length}");
+		if (alts.Length is 0 or > 32767)
+			throw new($"total alterns {alts.Length}");
 		short alt = 0;
 		foreach (var p in gram.prods) {
 			var np = prods[Name(p.name)];
 			foreach (var (a, ax) in p.Each()) {
+				if (a.Count > 30)
+					throw new($"altern size {a.Count}");
 				foreach (var c in a)
 					if (c is K k)
-						ks[keyOrd(k)] = k;
+						ks[keyOrd(k)] = !k.Equals(default) ? k
+							: throw new($"end of read in {p.name}.{ax}");
 					else if (Name((N)c) < 0)
 						throw new($"name {c} in {p.name}.{ax} not found");
 				if (a.clash < 0)
@@ -373,7 +387,7 @@ public class SerMaker<K, N>
 					throw new($"{p.name}.{ax} lex {a[a.lex]} not lexic key");
 				if (a.rec && (a.lex < 0 || a.lex != a.Count - 1))
 					throw new($"{p.name}.{ax} recovery lex at {a.lex}");
-				alts[a.alt = alt++] = a;
+				alts[a.index = alt++] = a;
 				if (np != p)
 					np.Add(a); // append alterns to same name production
 			}

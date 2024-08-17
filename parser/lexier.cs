@@ -29,7 +29,10 @@ public struct Lexi<K> where K : struct
 public class LexGram<K> where K : struct
 {
 	public readonly List<Prod> prods = [];
-	public class Prod : List<Wad> { public K key; }
+	public class Prod : List<Wad>
+	{
+		public K key;
+	}
 	public class Wad : List<Alt>
 	{
 		// skip mismatched read then redo this wad

@@ -51,11 +51,11 @@ public sealed class SynAlt<N>
 public sealed class SynForm
 {
 	public short[] modes; // for each key: shift to: form index, reduce: -2-alt index, error: -1
-	public ushort[] keys; // compact modes: { others, key ordinals ... }, normal: null
+	public ushort[] keys; // compact modes: { for other keys, key ordinals ... }, normal: null
 	public short rec; // recover error: mode, no recovery: 0
 	public string err; // error hint, {0} filled with current key
 	public short[] pushs; // for each name: push: form index
-	public ushort[] names; // compact pushs: { others, name ordinals ... }, normal: null
+	public ushort[] names; // compact pushs: { for other names, name ordinals ... }, normal: null
 
 	public static short Reduce(int alt) => (short)(-2 - alt);
 
@@ -153,15 +153,17 @@ public class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler : cla
 			var name = nameOrd(alt.name);
 			if (form == forms[init] && name == accept && key == default) {
 				stack.Clear();
-				return t.Append(errs); // reduce alts[0] by eor after forms[init], accept
+				return t.Append(errs); // reduce alt of first name by eor after first form, accept
 			}
 			var push = SynForm.Get(name, form.pushs, form.names);
-			stack.Push((push, loc, t));
-			goto Loop;
+			if (push >= 0) {
+				stack.Push((push, loc, t));
+				goto Loop;
+			} // otherwise end or read expected
 		}
 		// error
+		info = mode < -1 ? "end of read expected" : form.err ?? "";
 		mode = form.rec;
-		info = string.Format(form.err ?? "", key == default ? "end of read" : ler.Lex());
 		T e = new() {
 			from = ler.Loc(), to = ler.Loc() + (key != default ? 1 : 0),
 			err = -1, info = info
@@ -186,7 +188,7 @@ public class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler : cla
 		var form = forms[stack.Peek().form];
 		var mode = SynForm.Get(key, form.modes, form.keys);
 		if (mode >= init) { // shift
-			stack.Push((mode, 0, null));
+			stack.Push((mode, -1, null));
 			goto Next;
 		}
 		else if (mode < -1) { // reduce
@@ -197,11 +199,13 @@ public class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler : cla
 			var name = nameOrd(alt.name);
 			if (form == forms[init] && name == accept && key == default) {
 				stack.Clear();
-				return true; // reduce alts[0] by eor after forms[init], accept
+				return true; // reduce alt of first name by eor after first form, accept
 			}
 			var push = SynForm.Get(nameOrd(alt.name), form.pushs, form.names);
-			stack.Push((push, 0, null));
-			goto Loop;
+			if (push >= 0) {
+				stack.Push((push, -1, null));
+				goto Loop;
+			} // otherwise end of read expected
 		}
 		stack.Clear();
 		return false;
