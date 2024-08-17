@@ -51,11 +51,11 @@ public sealed class SynAlt<N>
 public sealed class SynForm
 {
 	public short[] modes; // for each key: shift to: form index, reduce: -2-alt index, error: -1
-	public ushort[] keys; // compact modes: { 0 for others, key ordinals ... }, normal: null
+	public ushort[] keys; // compact modes: { others, key ordinals ... }, normal: null
 	public short rec; // recover error: mode, no recovery: 0
-	public string err; // error hint
+	public string err; // error hint, {0} filled with current key
 	public short[] pushs; // for each name: push: form index
-	public ushort[] names; // compact pushs: { 0 for others, name ordinals ... }, normal: null
+	public ushort[] names; // compact pushs: { others, name ordinals ... }, normal: null
 
 	public static short Reduce(int alt) => (short)(-2 - alt);
 
@@ -160,11 +160,12 @@ public class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler : cla
 			goto Loop;
 		}
 		// error
-		(mode, info) = (form.rec, form.err);
+		mode = form.rec;
+		info = string.Format(form.err ?? "", key == default ? "end of read" : ler.Lex());
 		T e = new() { err = -1, info = info };
 		_ = err == null ? errs = e : err.Append(e);
 		err = e;
-		if (mode == init - 1) {
+		if (mode == -1) {
 			stack.Clear();
 			return errs; // no Alt for recovery now, reject
 		}

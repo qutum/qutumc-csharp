@@ -76,23 +76,23 @@ public class TestSynter : IDisposable
 
 	public void Dispose() => env.Dispose();
 
-	SynterStr ser;
+	internal SynterStr ser;
 
 	public void NewSer(string Alts, char[] keys, ushort[] names, SynForm[] forms)
 	{
-		var alts = Alts.Split('\n', ' ').Select(alt => new SynAlt<string> {
-			name = alt[0..1],
-			size = (short)(alt.Length - 2),
-			lex = (short)(alt.IndexOfAny(keys, 2) - 2),
-			synt = alt[1] switch { '+' => 1, '-' => -1, _ => 0 },
+		var alts = Alts.Split('\n', ' ').Select(a => new SynAlt<string> {
+			name = a[0..1],
+			size = (short)(a.Length - 2),
+			lex = (short)(a.IndexOfAny(keys, 2) - 2),
+			synt = a[1] switch { '+' => 1, '-' => -1, _ => 0 },
 		}).ToArray();
 		var ks = keys.Select(k => (ushort)k).Prepend(default); // { other... }
-		foreach (var form in forms)
-			if (form != null) {
-				form.modes = form.modes.Prepend(default).ToArray();
-				Array.Sort(form.keys = ks.ToArray(), form.modes, 1, keys.Length);
-				if (form.pushs != null)
-					Array.Sort(form.names = names[0..], form.pushs);
+		foreach (var f in forms)
+			if (f != null) {
+				f.modes = f.modes.Prepend(default).ToArray();
+				Array.Sort(f.keys = ks.ToArray(), f.modes, 1, keys.Length);
+				if (f.pushs != null)
+					Array.Sort(f.names = names[0..], f.pushs);
 			}
 		ser = new(name => name[0], alts, forms) { dump = 3 };
 	}
@@ -115,6 +115,10 @@ public class TestSynter : IDisposable
 			new() { modes = [0, 0,R(3),R(3)],                },
 			new() { modes = [0, 0,   0,R(1)],                },
 		]);
+		DoTigerF325();
+	}
+	internal void DoTigerF325()
+	{
 		True("a"); True("b");
 		True("a+b"); True("a+b+a");
 		False(""); False("c"); False("+");
@@ -142,6 +146,10 @@ public class TestSynter : IDisposable
 			new() { modes = [0, 0, 0,   0,R(1)],                    },
 			new() { modes = [0, 0, 0,R(5),R(5)],                    },
 		]);
+		DoTigerT328();
+	}
+	internal void DoTigerT328()
+	{
 		True("a"); True("*b"); True("**a");
 		True("a=b"); True("a=*b"); True("b=**a");
 		True("*a=b"); True("*b=*a"); True("*a=**b");
@@ -167,6 +175,10 @@ public class TestSynter : IDisposable
 			new() { modes = [   3,   0,   2,   2,   0,   0], pushs = [9, 0] },
 			new() { modes = [R(4),R(4),R(4),R(4),R(4),R(4)],                },
 		]);
+		DoTigerT322();
+	}
+	internal void DoTigerT322()
+	{
 		True("a"); True("b");
 		True("(a)"); True("((a))");
 		True("(a,b)"); True("(a,((b)))"); True("(((a)),(b))");
@@ -204,6 +216,10 @@ public class TestSynter : IDisposable
 			new() { modes = [ 2,  -1,  3,  3,  3,  -1], pushs = [6] },
 			new() { modes = [-1,R(1), -1, -1, -1,R(1)],             },
 		]);
+		DoDragon2F451();
+	}
+	internal void DoDragon2F451()
+	{
 		True("b"); True("ia"); True("iaeb");
 		True("iia"); True("iiaeb"); True("iaeib");
 		True("iiaebec"); True("iaeibec");
@@ -246,6 +262,10 @@ public class TestSynter : IDisposable
 			new() { modes = [-1, -1,R(1),R(1), -1,R(1),R(1)],             },
 			new() { modes = [-1, -1,R(2),R(2), -1,R(2),R(2)],             },
 		]); // no E'->E
+		DoDragon2F449();
+	}
+	internal void DoDragon2F449()
+	{
 		True("a"); True("a+b"); True("a*b");
 		True("(b)"); True("(b*a)"); True("(b+a)"); True("(a)*b"); True("a+(b)");
 		True("a+b+a"); True("a*b*a"); True("a+b*a"); True("b*a+b");

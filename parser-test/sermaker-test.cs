@@ -4,7 +4,6 @@
 // Under the terms of the GNU General Public License version 3
 // http://qutum.com  http://qutum.cn
 //
-#pragma warning disable IDE0059 // Unnecessary assignment
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using qutum.parser;
 using System;
@@ -50,15 +49,22 @@ public class TestSerMaker : IDisposable
 
 	SerMaker<char, string> mer;
 
-	public void NewMake(Gram gram)
+	public void NewMer(Gram gram)
 	{
 		mer = new(gram, k => k, n => n[0], (_) => { });
+	}
+
+	public SynterStr NewSer()
+	{
+		var (a, f) = mer.Make(out var _);
+		AreNotEqual(null, a);
+		return new(n => n[0], a, f);
 	}
 
 	[TestMethod]
 	public void FirstTigerG312()
 	{
-		NewMake(new Gram().n("Z")['d']["X", "Y", "Z"].n("Y")[[]]['c'].n("X")["Y"]['a']);
+		NewMer(new Gram().n("Z")['d']["X", "Y", "Z"].n("Y")[[]]['c'].n("X")["Y"]['a']);
 		mer.Firsts();
 		mer.First("X").Eq(true, "a c");
 		mer.First("Y").Eq(true, "c");
@@ -68,7 +74,7 @@ public class TestSerMaker : IDisposable
 	[TestMethod]
 	public void FirstTigerT316()
 	{
-		NewMake(new Gram()
+		NewMer(new Gram()
 			.n("S")["E"]
 			.n("E")["T", "e"]
 			.n("e")['+', "T", "e"]['-', "T", "e"][[]]
@@ -88,18 +94,20 @@ public class TestSerMaker : IDisposable
 	[TestMethod]
 	public void Clash1()
 	{
-		NewMake(new Gram().n("E")['i']["E", "E"]['j']);
+		NewMer(new Gram().n("E")['i']["E", "E"]['j']);
 		mer.Firsts(); mer.Forms();
 		mer.Clashs().Eq(
 			(['i'], [1], [0]),
 			(['j'], [1], [2])
 		);
-		mer.alts[2].clash = 1;
+		NewMer(new Gram().n("E")['i']["E", "E"]['j'].clash);
+		mer.Firsts(); mer.Forms();
 		mer.Clashs().Eq(
 			(['i'], [1], [0]),
 			(['j'], [1], [2])
 		);
-		mer.alts[0].clash = mer.alts[1].clash = 1;
+		NewMer(new Gram().n("E")['i'].clash["E", "E"].clash['j'].clash);
+		mer.Firsts(); mer.Forms();
 		mer.Clashs().Eq(
 			(['i'], [~1], [0]),
 			(['j'], [1], [~2])
@@ -109,7 +117,7 @@ public class TestSerMaker : IDisposable
 	[TestMethod]
 	public void Clash2()
 	{
-		NewMake(new Gram()
+		NewMer(new Gram()
 			.n("E")["E", "E"].clash
 					["E", '+', "E"].clash
 					['x'].clash
@@ -121,7 +129,7 @@ public class TestSerMaker : IDisposable
 			(['x'], [0], [~2]),
 			(['x'], [1], [~2])
 		);
-		NewMake(new Gram()
+		NewMer(new Gram()
 			.n("E")['x'].clash
 					["E", "E"].clash
 					["E", '+', "E"].clash
@@ -138,7 +146,7 @@ public class TestSerMaker : IDisposable
 	[TestMethod]
 	public void Clash3()
 	{
-		NewMake(new Gram()
+		NewMer(new Gram()
 			.n("E")["E", ',', "E"].clash
 					["E", '+', "E"].clash
 					["E", '^', "E"].clashRight
@@ -156,7 +164,7 @@ public class TestSerMaker : IDisposable
 			(['^'], [1], [~2]),
 			(['^'], [2], [~2])
 		);
-		NewMake(new Gram()
+		NewMer(new Gram()
 			.n("E")["E", ",", "E"].clash
 					["E", '+', "E"].clash
 					["E", '^', "E"].clashRight
@@ -176,14 +184,12 @@ public class TestSerMaker : IDisposable
 			(['^'], [2], [~2])
 		];
 		mer.Clashs().Eq(eq);
-		mer.alts[3].clash = 2;
-		mer.Clashs().Eq(eq);
 	}
 
 	[TestMethod]
 	public void Clash4()
 	{
-		NewMake(new Gram()
+		NewMer(new Gram()
 			.n("E")["E", '?', "E", ':', "E", '?', "E"].clashRight
 					["E", '+', "E"].clash
 					["E", '$', "E"].clash
@@ -207,25 +213,23 @@ public class TestSerMaker : IDisposable
 	[TestMethod]
 	public void ClashTigerF332()
 	{
-		NewMake(new Gram()
+		NewMer(new Gram()
 			.n("P")["L"]
 			.n("S")['i', '=', 'i']
 					['*', 'i', ':', "S"]
 					['(', "S", ')']
-					['?', 'i', '&', "S"]
-					['?', 'i', '&', "S", '|', "S"]
+					['?', 'i', '&', "S"].clash
+					['?', 'i', '&', "S", '|', "S"].clash
 			.n("L")["S"]["L", ';', "S"]
 		);
 		mer.Firsts(); mer.Forms();
-		mer.Clashs().Eq((['|'], [4], [5]));
-		mer.alts[4].clash = mer.alts[5].clash = 1;
 		mer.Clashs().Eq((['|'], [4], [~5]));
 	}
 
 	[TestMethod]
 	public void ClashTigerF337()
 	{
-		NewMake(new Gram()
+		NewMer(new Gram()
 			.n("S")['i', ':', "A"]['i', ':', "B"]['i', ':', "C"]
 			.n("B")["B", '|', "B"].clash["B", '&', "B"].clash
 					["A", '=', "A"]
@@ -245,5 +249,62 @@ public class TestSerMaker : IDisposable
 			(['\0'], [6, ~8], null),
 			(['\0'], [6, 8, 9, ~11], null)
 		);
+	}
+
+	[TestMethod]
+	public void MakeTigerF325()
+	{
+		NewMer(new Gram()
+			.n("S")["E"]
+			.n("E")["T", '+', .., "E"]["T"]
+			.n("T")['a', ..]['b', ..]
+		);
+		new TestSynter { ser = NewSer() }.DoTigerF325();
+	}
+
+	[TestMethod]
+	public void MakeTigerT328()
+	{
+		NewMer(new Gram()
+			.n("Z")["S"]
+			.n("S")["V", '=', .., "E"]["E"].syntOmit
+			.n("E")["V"].syntOmit
+			.n("V")['a', ..]['b', ..]['*', .., "E"]
+		);
+		new TestSynter { ser = NewSer() }.DoTigerT328();
+	}
+
+	[TestMethod]
+	public void MakeTigerT322()
+	{
+		NewMer(new Gram()
+			.n("Z")["S"]
+			.n("S")['(', .., "L", ')']['a', ..]['b', ..]
+			.n("L")["S"].syntOmit["L", ',', .., "S"]
+		);
+		new TestSynter { ser = NewSer() }.DoTigerT322();
+	}
+
+	[TestMethod]
+	public void MakeDragon2F451()
+	{
+		NewMer(new Gram()
+			.n("Z")["S"]
+			.n("S")['i', .., "S"].clash['i', .., "S", 'e', "S"].clash
+					['a', ..]['b', ..]['c', ..]
+		);
+		new TestSynter { ser = NewSer() }.DoDragon2F451();
+	}
+
+	[TestMethod]
+	public void MakeDragon2F449()
+	{
+		NewMer(new Gram()
+			.n("E")["E", '+', .., "E"].clash
+					["E", '*', .., "E"].clash
+					['(', .., "E", ')'].syntOmit
+					['a', ..]['b', ..]
+		);
+		new TestSynter { ser = NewSer() }.DoDragon2F449();
 	}
 }

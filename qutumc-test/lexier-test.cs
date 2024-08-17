@@ -80,7 +80,7 @@ public class TestLexier : IDisposable
 		CheckSp("\ta\n\tb\n\t\t\tc\n\t\t\t\td\n\t\t\te\n\t\tf\ng\nh",
 			"IND=4 NAME=a EOL= NAME=b EOL= INDR=12 NAME=c EOL= IND=16 NAME=d EOL= DED=16 NAME=e EOL= DEDR=12 IND=8 NAME=f EOL= DED=8 DED=4 NAME=g EOL= NAME=h");
 		Check("          a\n      b\n  c",
-			"INDR=10 NAME=a EOL= INDR!indent same as upper lines expected NAME=b EOL= DEDR=10 IND=2 NAME=c DED=2");
+			"INDR=10 NAME=a EOL= INDR!indent expected same as upper lines NAME=b EOL= DEDR=10 IND=2 NAME=c DED=2");
 	}
 
 	[TestMethod]

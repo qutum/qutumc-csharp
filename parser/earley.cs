@@ -391,8 +391,8 @@ public class Earley<K, L, N, T, Ler> where T : Esyn<N, T>, new() where Ler : Lex
 		};
 		var errs = new bool[matchz];
 		for (int x = matchz - 1, y; (y = x) >= lexm[from]; x--) {
-		Prev: var m = matchs[y]; var s = m.a.s[m.step];
-			if (s.p == null || errs[y])
+		Prev: var m = matchs[y]; var c = m.a.s[m.step];
+			if (c.p == null || errs[y])
 				continue;
 			if (m.step == 0)
 				if ((y = m.prev) >= 0)
@@ -400,8 +400,8 @@ public class Earley<K, L, N, T, Ler> where T : Esyn<N, T>, new() where Ler : Lex
 				else
 					continue;
 			errs[y] = true;
-			if (m.a.errExpect || errExpect >= 3 || errExpect == 2 && ((int)s.q & 1) > 0) {
-				var exp = s.p is Prod p ? p.alts[0].hint ?? (object)p.name : s.p;
+			if (m.a.errExpect || errExpect >= 3 || errExpect == 2 && ((int)c.q & 1) > 0) {
+				var exp = c.p is Prod p ? p.alts[0].hint ?? (object)p.name : c.p;
 				var d = m.a.hint ?? m.a.name.ToString();
 				d = dump <= 0 ? d
 					: dump <= 2 ? $"{Esc(exp)} expected for {d}"

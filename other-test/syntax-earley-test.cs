@@ -5,7 +5,7 @@
 // http://qutum.com  http://qutum.cn
 //
 
-#pragma warning disable IDE0059
+#pragma warning disable IDE0059 // Unnecessary assignment
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using qutum.parser;
 using qutum.syntax;
@@ -335,7 +335,7 @@ public class TestSyntaxEarley : IDisposable
 	}
 
 	[TestMethod]
-	public void Parathn()
+	public void Parenth()
 	{
 		var t = Parse(@"(1)");
 		t = t/**/	.h(B).H(S.e0).D(L.INT, 1).uuU();

@@ -212,7 +212,7 @@ public sealed class Lexier : Lexier<K>, Lexer<K, Lexi<K>>
 						base.Lexi(inds[x] - inds[x - 1] < IndrLoc ? K.DED : K.DEDR,
 							indf, indf, inds[x]);
 					else { // still INDR
-						Error(K.INDR, indf, indt, "indent same as upper lines expected");
+						Error(K.INDR, indf, indt, "indent expected same as upper lines");
 						goto Done;
 					}
 			}
