@@ -21,14 +21,15 @@ public class SynGram<K, N>
 	{
 		public N name;
 		public int clash; // reject: 0, solve 1: 1, solve 2: 2
+						  // as same rule and index as previous one: ~actual alt index
 		public short lex = -1; // save lex at this index to Synt.info, no save: <0
 		public sbyte synt; // as Synter.tree: 0, make Synt: 1, omit Synt: -1
 		public bool rec; // recover this alt when error found
 		public string hint;
 		internal short alt; // alt index of whole grammar
 
-		public override string ToString() => $"{name} = {string.Join(' ', this)}  {(
-			clash == 0 ? "" : clash == 1 ? "<" : ">")}{(rec ? "!!" : "")}{(
+		public override string ToString() => $"{name} = {string.Join(' ', this)}  {clash
+			switch { 0 => "", 1 => "<", > 1 => ">", _ => "^" }}{(rec ? "!!" : "")}{(
 			synt > 0 ? "+" : synt < 0 ? "-" : "")}{(lex >= 0 ? "_" + lex : "")} {hint}";
 	}
 
@@ -52,6 +53,7 @@ public class SynGram<K, N>
 	}
 	public SynGram<K, N> clash { get { prods[^1][^1].clash = 1; return this; } }
 	public SynGram<K, N> clashRight { get { prods[^1][^1].clash = 2; return this; } }
+	public SynGram<K, N> clashPrev { get { prods[^1][^1].clash = -1; return this; } }
 	public SynGram<K, N> recover { get { prods[^1][^1].rec = true; return this; } }
 	public SynGram<K, N> synt { get { prods[^1][^1].synt = 1; return this; } }
 	public SynGram<K, N> syntOmit { get { prods[^1][^1].synt = -1; return this; } }
@@ -122,8 +124,8 @@ public class SerMaker<K, N>
 	{
 		internal Items Is;
 		internal Clash[] clashs; // at key ordinal index
-		internal short[] pushs; // push form index, at name ordinal index
-		internal short[] modes; // solved modes, at key ordinal index
+		internal short[] pushs; // push form index, at name ordinal index, no: -1
+		internal short[] modes; // solved modes, at key ordinal index, error: -1
 	}
 
 	static bool AddItem(Items Is, SynGram<K, N>.Alt alt, short wait, IEnumerable<K> heads)
@@ -192,15 +194,6 @@ public class SerMaker<K, N>
 		tos.Clear();
 	}
 
-	// find alts could be reduced
-	void Reduce(Form f)
-	{
-		foreach (var ((a, wait), heads) in f.Is)
-			if (wait >= a.Count)
-				foreach (var head in heads.Append(default)) // lookaheads and eor
-					(f.clashs[Key(head)].redus ??= []).Add(a.alt);
-	}
-
 	// phase 2: make all transition forms
 	public void Forms()
 	{
@@ -216,15 +209,18 @@ public class SerMaker<K, N>
 			ShiftPush(forms[x], tos);
 		}
 		foreach (var f in forms)
-			Reduce(f);
+			foreach (var ((a, wait), heads) in f.Is)
+				if (wait >= a.Count) // alt could be reduced
+					foreach (var head in heads.Append(default)) // lookaheads and eor
+						(f.clashs[Key(head)].redus ??= []).Add(a.alt);
 		if (dump)
 			using (var env = EnvWriter.Use())
 				env.WriteLine($"forms: {forms.Count}");
 	}
 
 	// phase 3: find clashes and solve them
-	// solve 1: shift or reduce the latest alt, rerduce the same alt (left associative)
-	// solve 2: shift or reduce the latest alt, shift the same alt (right associative)
+	// solve 1: shift or reduce the latest index alt, reduce the same index (left associative)
+	// solve 2: shift or reduce the latest index alt, shift the same index (right associative)
 	// all clashing alts should be clashable
 	public Dictionary<Clash, (HashSet<K> keys, short mode)> Clashs(bool detail = true)
 	{
@@ -243,15 +239,16 @@ public class SerMaker<K, N>
 				}
 				else { // solve
 					short mode = -1;
-					if (c.redus.All(r => alts[r].clash > 0)) {
-						var r = c.redus.Max();
-						if (c.shifts?.Max() is not short i)
+					if (c.redus.All(a => alts[a].clash != 0)) {
+						int X(int a) => alts[a].clash < 0 ? ~alts[a].clash : a;
+						int ra = c.redus.Max(), r = X(ra), i;
+						if (c.shifts == null)
 							mode = SynForm.Reduce(r); // reduce
-						else if (alts[i].clash > 0)
+						else if (alts[i = X(c.shifts.Max())].clash != 0)
 							if (i > r || i == r && alts[i].clash > 1)
-								mode = (short)c.shift; // shift
+								mode = c.shift; // shift
 							else
-								mode = SynForm.Reduce(r); // reduce
+								mode = SynForm.Reduce(ra); // reduce
 					}
 					f.modes[kx] = mode;
 					clashs[c] = ([keys[kx]], mode);
@@ -284,9 +281,8 @@ public class SerMaker<K, N>
 		clashs = Clashs(false);
 		if (clashs != null)
 			return (null, null);
-		var As = new SynAlt<N>[alts.Length];
-		var Fs = new SynForm[forms.Count];
 		// synter alts
+		var As = new SynAlt<N>[alts.Length];
 		foreach (var (a, ax) in alts.Each())
 			As[ax] = new() {
 				name = a.name, size = checked((short)a.Count), lex = a.lex,
@@ -295,6 +291,7 @@ public class SerMaker<K, N>
 				dump = a.ToString,
 			};
 		// synter forms
+		var Fs = new SynForm[forms.Count];
 		foreach (var (f, fx) in forms.Each()) {
 			void SS(ushort[] os, short[] fs, ref short[] Fs, ref ushort[] Fos)
 			{
@@ -308,28 +305,33 @@ public class SerMaker<K, N>
 							(Fs[X], Fos[X++]) = (fs[x], os[x]);
 				}
 			}
-			var F = new SynForm();
+			var F = Fs[fx] = new SynForm();
 			SS(keyOs, f.modes, ref F.modes, ref F.keys);
 			SS(nameOs, f.pushs, ref F.pushs, ref F.names);
-			// TODO recover error
-			F.rec = -1;
-			// error hints
-			List<(int kind, int remain, int ax, object expect)> hints = [];
-			foreach (var ((a, wait), heads) in f.Is)
-				if (wait < a.Count)
-					hints.Add((a[wait] is N ? 0 : 1, a.Count - wait, a.alt, a[wait])); // for next content
-				else
-					hints.Add((2, 0, a.alt, heads.Count == 1 ? heads.First() : null)); // to reduce
-			hints.Sort();
-			// make at most 2 hints
-			F.err = string.Join(", ", hints.TakeWhile((h, x) => x <= 2 && h.kind == hints[0].kind)
-				.Select((h, x) => x == 2 ? "..."
-					: (h.expect == null ? "{0} unexpected by "
-						: (default(K).Equals(h.expect) ? "end of read" : h.expect) + " expected by ")
-					+ (alts[h.ax].hint ?? alts[h.ax].name.ToString())));
-			Fs[fx] = F;
+			Error(f, F);
 		}
 		return (As, Fs);
+	}
+
+	void Error(Form f, SynForm F)
+	{
+		// TODO recover error
+		F.rec = -1;
+		// error hints
+		List<(int kind, int remain, int ax, object expect)> hints = [];
+		foreach (var ((a, wait), heads) in f.Is)
+			if (wait < a.Count)
+				hints.Add((a[wait] is N ? 0 : 1, a.Count - wait, a.alt, a[wait])); // for next content
+			else
+				hints.Add((2, 0, a.alt, // to reduce
+					heads.Count switch { 0 => default(K), 1 => heads.First(), _ => null }));
+		hints.Sort();
+		// make at most 2 hints
+		F.err = string.Join(", ", hints.TakeWhile((h, x) => x <= 2 && h.kind == hints[0].kind)
+			.Select((h, x) => x == 2 ? "..."
+				: (h.expect == null ? "{0} unexpected by "
+					: (default(K).Equals(h.expect) ? "end of read" : h.expect) + " expected by ")
+				+ (alts[h.ax].hint ?? alts[h.ax].name.ToString())));
 	}
 
 	public SerMaker(SynGram<K, N> gram, Func<K, ushort> keyOrd, Func<N, ushort> nameOrd,
@@ -362,6 +364,11 @@ public class SerMaker<K, N>
 						ks[keyOrd(k)] = k;
 					else if (Name((N)c) < 0)
 						throw new($"name {c} in {p.name}.{ax} not found");
+				if (a.clash < 0)
+					if (alt == 0 || alts[alt - 1].clash == 0)
+						throw new($"{p.name}.{ax} no previous clash");
+					else
+						a.clash = alts[alt - 1].clash < 0 ? alts[alt - 1].clash : ~(alt - 1);
 				if (a.lex >= 0 && a[a.lex] is not K)
 					throw new($"{p.name}.{ax} lex {a[a.lex]} not lexic key");
 				if (a.rec && (a.lex < 0 || a.lex != a.Count - 1))

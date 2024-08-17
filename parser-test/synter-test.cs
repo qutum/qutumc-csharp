@@ -15,7 +15,7 @@ namespace qutum.test.parser;
 
 using Ser = (SyntStr t, SynterStr s);
 
-file static class Extension
+static class Extension
 {
 	public static Ser Eq(this Ser s,
 		string name = null, int? from = null, int? to = null, object d = null, int err = 0)

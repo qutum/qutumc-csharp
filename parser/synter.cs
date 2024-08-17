@@ -162,7 +162,10 @@ public class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler : cla
 		// error
 		mode = form.rec;
 		info = string.Format(form.err ?? "", key == default ? "end of read" : ler.Lex());
-		T e = new() { err = -1, info = info };
+		T e = new() {
+			from = ler.Loc(), to = ler.Loc() + (key != default ? 1 : 0),
+			err = -1, info = info
+		};
 		_ = err == null ? errs = e : err.Append(e);
 		err = e;
 		if (mode == -1) {

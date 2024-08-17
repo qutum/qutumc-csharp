@@ -48,17 +48,18 @@ public class TestSerMaker : IDisposable
 	public void Dispose() => env.Dispose();
 
 	SerMaker<char, string> mer;
+	TestSynter ser;
 
 	public void NewMer(Gram gram)
 	{
 		mer = new(gram, k => k, n => n[0], (_) => { });
 	}
 
-	public SynterStr NewSer()
+	public void NewSer()
 	{
 		var (a, f) = mer.Make(out var _);
 		AreNotEqual(null, a);
-		return new(n => n[0], a, f);
+		ser = new TestSynter { ser = new(n => n[0], a, f) };
 	}
 
 	[TestMethod]
@@ -211,6 +212,47 @@ public class TestSerMaker : IDisposable
 	}
 
 	[TestMethod]
+	public void Clash5()
+	{
+		NewMer(new Gram()
+			.n("E")["E", '+', "E"].clash
+					["E", '-', "E"].clashPrev
+					["E", '|', "E"].clashPrev
+					["E", '*', "E"].clash
+					["E", '/', "E"].clashPrev
+					['a']
+		);
+		mer.Firsts(); mer.Forms();
+		mer.Clashs().Eq(
+			(['+'], [~0], [0]),
+			(['+'], [~1], [0]),
+			(['+'], [~2], [0]),
+			(['+'], [~3], [0]),
+			(['+'], [~4], [0]),
+			(['-'], [~0], [1]),
+			(['-'], [~1], [1]),
+			(['-'], [~2], [1]),
+			(['-'], [~3], [1]),
+			(['-'], [~4], [1]),
+			(['|'], [~0], [2]),
+			(['|'], [~1], [2]),
+			(['|'], [~2], [2]),
+			(['|'], [~3], [2]),
+			(['|'], [~4], [2]),
+			(['*'], [0], [~3]),
+			(['*'], [1], [~3]),
+			(['*'], [2], [~3]),
+			(['*'], [~3], [3]),
+			(['*'], [~4], [3]),
+			(['/'], [0], [~4]),
+			(['/'], [1], [~4]),
+			(['/'], [2], [~4]),
+			(['/'], [~3], [4]),
+			(['/'], [~4], [4])
+		);
+	}
+
+	[TestMethod]
 	public void ClashTigerF332()
 	{
 		NewMer(new Gram()
@@ -259,7 +301,8 @@ public class TestSerMaker : IDisposable
 			.n("E")["T", '+', .., "E"]["T"]
 			.n("T")['a', ..]['b', ..]
 		);
-		new TestSynter { ser = NewSer() }.DoTigerF325();
+		NewSer();
+		ser.DoTigerF325();
 	}
 
 	[TestMethod]
@@ -271,7 +314,8 @@ public class TestSerMaker : IDisposable
 			.n("E")["V"].syntOmit
 			.n("V")['a', ..]['b', ..]['*', .., "E"]
 		);
-		new TestSynter { ser = NewSer() }.DoTigerT328();
+		NewSer();
+		ser.DoTigerT328();
 	}
 
 	[TestMethod]
@@ -282,7 +326,8 @@ public class TestSerMaker : IDisposable
 			.n("S")['(', .., "L", ')']['a', ..]['b', ..]
 			.n("L")["S"].syntOmit["L", ',', .., "S"]
 		);
-		new TestSynter { ser = NewSer() }.DoTigerT322();
+		NewSer();
+		ser.DoTigerT322();
 	}
 
 	[TestMethod]
@@ -293,7 +338,8 @@ public class TestSerMaker : IDisposable
 			.n("S")['i', .., "S"].clash['i', .., "S", 'e', "S"].clash
 					['a', ..]['b', ..]['c', ..]
 		);
-		new TestSynter { ser = NewSer() }.DoDragon2F451();
+		NewSer();
+		ser.DoDragon2F451();
 	}
 
 	[TestMethod]
@@ -305,6 +351,7 @@ public class TestSerMaker : IDisposable
 					['(', .., "E", ')'].syntOmit
 					['a', ..]['b', ..]
 		);
-		new TestSynter { ser = NewSer() }.DoDragon2F449();
+		NewSer();
+		ser.DoDragon2F449();
 	}
 }
