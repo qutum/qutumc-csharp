@@ -17,6 +17,7 @@ using Ser = (SyntStr t, SynterStr s);
 
 static class Extension
 {
+	[System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE0305:Simplify collection initialization")]
 	public static Ser Eq(this Ser s,
 		string name = null, int? from = null, int? to = null, object d = null, int err = 0)
 	{
@@ -25,7 +26,14 @@ static class Extension
 		if (name != null) AreEqual(name, s.t.name);
 		if (from != null) AreEqual(from, s.t.from);
 		if (to != null) AreEqual(to, s.t.to);
-		if (d != null) AreEqual(d,
+		if (err < 0 && d is string eq && s.t.info is string actu) {
+			var As = actu.Split(SerMaker<char, string>.ErrMore);
+			var es = eq.Split("  ");
+			if (As.Length != es.Length || es.Zip(As).Any(ea
+				=> !ea.First.Split(' ').ToHashSet().IsSubsetOf(ea.Second.Split(' ').ToHashSet())))
+				Fail($"Expected Err <{eq}> Actual <{actu.Replace("\n", "  ")}>");
+		}
+		else if (d != null) AreEqual(d,
 			d is string && s.t.err == 0 ? s.s.ler.Lexs(s.t.from, s.t.to) : s.t.info);
 		return s;
 	}

@@ -48,9 +48,9 @@ public class TestLexier : IDisposable
 		catch (Exception e) {
 			if (new Regex(reg).IsMatch(e.Message))
 				return;
-			Fail($"Expected Regex: {reg}, Actual: {e.Message}");
+			Fail($"Expected Regex <{reg}> Actual <{e.Message}>");
 		}
-		Fail($"Expected Regex: {reg}, Actually No Excpetion");
+		Fail($"Expected Regex <{reg}> Actually No Excpetion");
 	}
 
 	[TestMethod]

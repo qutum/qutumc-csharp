@@ -15,7 +15,7 @@ public class Synt<N, T> : LinkTree<T> where T : Synt<N, T>
 	public N name;
 	public int from, to; // lexs from loc to loc excluded, for error may < 0
 	public int err; // no error: 0, error: -1, recovery: -2
-	public object info; // no error: maybe lex, error: lex, expected/recovered Alt hint/name or K
+	public object info; // no error: maybe lex, error: lex or error or recovery info
 	public string dump;
 
 	public override string ToString() => $"{from}:{to}{(err == 0 ? info != null ? " " + info : ""
@@ -42,18 +42,18 @@ public sealed class SynAlt<N>
 	public short lex; // save lex at this index to Synt.info, no save: <0
 	public sbyte synt; // as Synter.tree: 0, make Synt: 1, omit Synt: -1
 	public bool rec; // is this for error recovery
-	public string hint;
+	public string label;
 	public object dump;
 
 	public override string ToString() => dump as string ??
-		(string)(dump = (dump as Func<string>)?.Invoke() ?? hint ?? $"{name} alt");
+		(string)(dump = (dump as Func<string>)?.Invoke() ?? label ?? $"{name} alt");
 }
 public sealed class SynForm
 {
 	public short[] modes; // for each key: shift to: form index, reduce: -2-alt index, error: -1
 	public ushort[] keys; // compact modes: { for other keys, key ordinals ... }, normal: null
 	public short rec; // recover error: mode, no recovery: 0
-	public string err; // error hint, {0} filled with current key
+	public string err; // error info
 	public short[] pushs; // for each name: push: form index
 	public ushort[] names; // compact pushs: { for other names, name ordinals ... }, normal: null
 
@@ -93,7 +93,7 @@ public class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler : cla
 	readonly SynAlt<N>[] alts; // reduce [0].name by eor after forms[init]: accept
 	readonly SynForm[] forms;
 	readonly Stack<(short form, int loc, object with)> stack
-		= new(); // (form index, lex loc or Synt.from, null for lex or Synt or recovery hint)
+		= new(); // (form index, lex loc or Synt.from, null for lex or Synt or recovery info)
 	protected short init; // first form index
 
 	protected Func<Ler, ushort> keyOrd; // ordinal from 1, default for eor: 0
@@ -162,7 +162,7 @@ public class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler : cla
 			} // otherwise end or read expected
 		}
 		// error
-		info = mode < -1 ? "end of read expected" : form.err ?? "";
+		info = mode < -1 ? "want end of read" : form.err ?? "";
 		mode = form.rec;
 		T e = new() {
 			from = ler.Loc(), to = ler.Loc() + (key != default ? 1 : 0),
@@ -174,7 +174,7 @@ public class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler : cla
 			stack.Clear();
 			return errs; // no Alt for recovery now, reject
 		}
-		// TODO make error hint Synt
+		// TODO
 		goto Recover;
 	}
 

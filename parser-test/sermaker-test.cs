@@ -24,12 +24,12 @@ file static class Extension
 		AreEqual(first, string.Join(" ", eq.first.Order()));
 	}
 
-	public static void Eq(this Dictionary<SerMaker<char, string>.Clash, (HashSet<char> ks, short m)> eqs,
-		params ClashEq s)
+	public static void Eq(this Dictionary<SerMaker<char, string>.Clash, (HashSet<char> ks, short m)> actus,
+		params ClashEq eqs)
 	{
-		AreEqual(eqs.Count, s.Length);
-		foreach (var (ks, redus, shifts) in s) {
-			IsTrue(eqs.TryGetValue(new() {
+		AreEqual(actus.Count, eqs.Length);
+		foreach (var (ks, redus, shifts) in eqs) {
+			IsTrue(actus.TryGetValue(new() {
 				redus = redus.Select(a => (short)(a ^ a >> 15)).ToHashSet(),
 				shifts = shifts?.Select(a => (short)(a ^ a >> 15)).ToHashSet()
 			}, out var eq));
@@ -353,5 +353,52 @@ public class TestSerMaker : IDisposable
 		);
 		NewSer();
 		ser.DoDragon2F449();
+	}
+
+	[TestMethod]
+	public void ErrorHint1()
+	{
+		NewMer(new Gram().n("S")['a']);
+		NewSer();
+		ser.Parse("").Eq(null, 0, 0, "S a", -1);
+		ser.Parse("b").Eq(null, 0, 1, "S a", -1);
+		NewMer(new Gram().n("S")['a']['b']);
+		NewSer();
+		ser.Parse("").Eq(null, 0, 0, "S a  S b", -1);
+		ser.Parse("c").Eq(null, 0, 1, "S a  S b", -1);
+		ser.Parse("aa").Eq(null, 1, 2, "end of", -1);
+		NewMer(new Gram().n("S")['a']['b']['c']);
+		NewSer();
+		ser.Parse("d").Eq(null, 0, 1, "S a  S b", -1);
+	}
+
+	[TestMethod]
+	public void ErrorHint2()
+	{
+		NewMer(new Gram()
+			.n("S", "sentence")
+					["E"]["S", ';', "E"]
+			.n("E", "expression")
+					["A"].labelLow["B"].labelLow
+					['(', .., "E", ')'].label("parenth")
+					['a']
+			.n("A")["E", '+', .., "E"].clash.label("addition")
+			.n("B")["E", '-', .., "E"].clash.label("subtraction")
+		);
+		NewSer();
+		ser.Parse("aa").Eq(null, 1, 2, "sentence ;", -1);
+		ser.Parse("-a").Eq(null, 0, 1, "sentence expression  expression a", -1);
+		ser.Parse("a+").Eq(null, 2, 2, "addition expression  expression a", -1);
+		ser.Parse("a++a").Eq(null, 2, 3, "addition expression  expression a", -1);
+		ser.Parse("a+a--a").Eq(null, 4, 5, "subtraction expression  expression a", -1);
+		ser.Parse(")").Eq(null, 0, 1, "sentence expression  expression a", -1);
+		ser.Parse("a)").Eq(null, 1, 2, "sentence ;", -1);
+		ser.Parse("(a))").Eq(null, 3, 4, "sentence ;", -1);
+		ser.Parse("(").Eq(null, 1, 1, "parenth expression  expression a", -1);
+		ser.Parse("(a").Eq(null, 2, 2, "parenth )", -1);
+		ser.Parse("(a;").Eq(null, 2, 3, "parenth )", -1);
+		ser.Parse(";a").Eq(null, 0, 1, "sentence expression  expression a", -1);
+		ser.Parse("a;;").Eq(null, 2, 3, "sentence expression  expression a", -1);
+		ser.Parse("(a;a)").Eq(null, 2, 3, "parenth )", -1);
 	}
 }

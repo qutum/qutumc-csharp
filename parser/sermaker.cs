@@ -15,10 +15,10 @@ namespace qutum.parser;
 public class SynGram<K, N>
 {
 	public readonly List<Prod> prods = [];
-	public class Prod : List<Alt>
+	public class Prod(N name, string label) : List<Alt>
 	{
-		public N name;
-		public string hint;
+		public N name = name;
+		public string label = label;
 	}
 	// { K or N ... }
 	public class Alt : List<object>
@@ -29,20 +29,20 @@ public class SynGram<K, N>
 		public short lex = -1; // save lex at this index to Synt.info, no save: <0
 		public sbyte synt; // as Synter.tree: 0, make Synt: 1, omit Synt: -1
 		public bool rec; // recover this alt when error found
-		public string hint;
+		public string label;
 		internal short index; // alt index of whole grammar
 
 		public override string ToString() => $"{name} = {string.Join(' ', this)}  {clash
 			switch { 0 => "", 1 => "<", > 1 => ">", _ => "^" }}{(rec ? "!!" : "")}{(
-			synt > 0 ? "+" : synt < 0 ? "-" : "")}{(lex >= 0 ? "_" + lex : "")} {hint}";
+			synt > 0 ? "+" : synt < 0 ? "-" : "")}{(lex >= 0 ? "_" + lex : "")} {label}";
 	}
 
-	public SynGram<K, N> n(N name) { prods.Add(new() { name = name }); return this; }
+	public SynGram<K, N> n(N name, string label = null) { prods.Add(new(name, label)); return this; }
+
 	// K : lexic key, N : syntax name, .. : save last lex
 	public SynGram<K, N> this[params object[] cons] {
 		get {
-			Alt a = [];
-			a.name = prods[^1].name;
+			Alt a = new() { name = prods[^1].name, label = prods[^1].label };
 			prods[^1].Add(a);
 			foreach (var c in cons)
 				if (c is Range)
@@ -61,8 +61,8 @@ public class SynGram<K, N>
 	public SynGram<K, N> recover { get { prods[^1][^1].rec = true; return this; } }
 	public SynGram<K, N> synt { get { prods[^1][^1].synt = 1; return this; } }
 	public SynGram<K, N> syntOmit { get { prods[^1][^1].synt = -1; return this; } }
-	public SynGram<K, N> hint(string w)
-	{ _ = prods[^1].Count == 0 ? prods[^1].hint = w : prods[^1][^1].hint = w; return this; }
+	public SynGram<K, N> label(string w) { prods[^1][^1].label = w.ToString(); return this; }
+	public SynGram<K, N> labelLow { get { prods[^1][^1].label = null; return this; } }
 }
 
 // syntax parser maker
@@ -109,7 +109,7 @@ public class SerMaker<K, N>
 	}
 	public (bool empty, IEnumerable<K> first) First(N name) => firsts[Name(name)];
 
-	class Items : Dictionary<(SynGram<K, N>.Alt alt, short wait),
+	class Items : Dictionary<(SynGram<K, N>.Alt alt, short want),
 		HashSet<K>> // lookaheads, eor excluded
 	{ }
 	[System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2231:Overload operator equals")]
@@ -133,11 +133,11 @@ public class SerMaker<K, N>
 		internal short[] modes; // solved modes, at key ordinal index, error: -1
 	}
 
-	static bool AddItem(Items Is, SynGram<K, N>.Alt alt, short wait, IEnumerable<K> heads)
+	static bool AddItem(Items Is, SynGram<K, N>.Alt alt, short want, IEnumerable<K> heads)
 	{
-		if (Is.TryGetValue((alt, wait), out var hs))
+		if (Is.TryGetValue((alt, want), out var hs))
 			return hs.Adds(heads);
-		Is[(alt, wait)] = [.. heads];
+		Is[(alt, want)] = [.. heads];
 		return true;
 	}
 	int AddForm(Items Is)
@@ -162,11 +162,11 @@ public class SerMaker<K, N>
 	// make a whole items
 	Items Closure(Items Is)
 	{
-	Loop: foreach (var ((a, wait), heads) in Is) {
-			if (wait >= a.Count || a[wait] is not N name)
+	Loop: foreach (var ((a, want), heads) in Is) {
+			if (want >= a.Count || a[want] is not N name)
 				continue;
-			var (e, f) = wait + 1 >= a.Count ? (false, heads)
-						: a[wait + 1] is K k ? (false, [k]) : First((N)a[wait + 1]);
+			var (e, f) = want + 1 >= a.Count ? (false, heads)
+						: a[want + 1] is K k ? (false, [k]) : First((N)a[want + 1]);
 			var loop = false;
 			foreach (var A in prods[Name(name)])
 				loop |= AddItem(Is, A, 0, e && heads.Count > 0 ? [.. f, .. heads] : f);
@@ -179,22 +179,22 @@ public class SerMaker<K, N>
 	// make shifting or pushing between forms
 	void ShiftPush(Form f, Dictionary<object, short> tos)
 	{
-		foreach (var ((a, wait), _) in f.Is) {
-			if (wait >= a.Count)
+		foreach (var ((a, want), _) in f.Is) {
+			if (want >= a.Count)
 				continue;
-			if (!tos.TryGetValue(a[wait], out var to)) {
+			if (!tos.TryGetValue(a[want], out var to)) {
 				Items js = [];
 				foreach (var ((A, W), heads) in f.Is) {
-					if (W < A.Count && A[W].Equals(a[wait]))
+					if (W < A.Count && A[W].Equals(a[want]))
 						AddItem(js, A, (short)(W + 1), heads);
 				}
-				tos.Add(a[wait], to = (short)AddForm(Closure(js)));
+				tos.Add(a[want], to = (short)AddForm(Closure(js)));
 			}
-			if (a[wait] is K k) {
+			if (a[want] is K k) {
 				f.clashs[Key(k)].shift = to; (f.clashs[Key(k)].shifts ??= []).Add(a.index);
 			}
 			else
-				f.pushs[Name((N)a[wait])] = to;
+				f.pushs[Name((N)a[want])] = to;
 		}
 		tos.Clear();
 	}
@@ -214,8 +214,8 @@ public class SerMaker<K, N>
 			ShiftPush(forms[x], tos);
 		}
 		foreach (var f in forms)
-			foreach (var ((a, wait), heads) in f.Is)
-				if (wait >= a.Count) // alt could be reduced
+			foreach (var ((a, want), heads) in f.Is)
+				if (want >= a.Count) // alt could be reduced
 					foreach (var head in heads.Append(default)) // lookaheads and eor
 						(f.clashs[Key(head)].redus ??= []).Add(a.index);
 		if (dump)
@@ -291,7 +291,7 @@ public class SerMaker<K, N>
 		foreach (var (a, ax) in alts.Each())
 			As[ax] = new() {
 				name = a.name, size = checked((short)a.Count), lex = a.lex,
-				synt = a.synt, rec = a.rec, hint = a.hint,
+				synt = a.synt, rec = a.rec, label = a.label,
 #pragma warning disable CS8974 // Converting method group to non-delegate type
 				dump = a.ToString,
 			};
@@ -318,29 +318,36 @@ public class SerMaker<K, N>
 		return (As, Fs);
 	}
 
+	public const int ErrZ = 2;
+	public const string Err = "{0}{1} wants {2}", ErrMore = " \nand ", ErrEtc = " ...";
+
+	// make error recovery and info
+	[System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2241:correct arguments to formatting")]
 	void Error(Form f, SynForm F)
 	{
 		// TODO recover error
 		F.rec = -1;
-		// for better error hint, form with any reduce will always reduce on error keys
+		// for better error info, form with any reduce will always reduce on error keys
 		if (F.modes.FirstOrDefault(m => m < -1, (short)-1) is short r and < -1)
 			foreach (var (m, x) in F.modes.Each())
 				if (m == -1) F.modes[x] = r;
-		// error hints
-		List<(int kind, int remain, int ax, object expect)> hints = [];
-		foreach (var ((a, wait), heads) in f.Is)
-			if (wait < a.Count)
-				hints.Add((a[wait] is N ? 0 : 1, a.Count - wait, a.alt, a[wait])); // for next content
-			else
-				hints.Add((2, 0, a.alt, // to reduce
-					heads.Count switch { 0 => default(K), 1 => heads.First(), _ => null }));
-		hints.Sort();
-		// make at most 2 hints
-		F.err = string.Join(", ", hints.TakeWhile((h, x) => x <= 2 && h.kind == hints[0].kind)
-			.Select((h, x) => x == 2 ? "..."
-				: (h.expect == null ? "{0} unexpected by "
-					: (default(K).Equals(h.expect) ? "end of read" : h.expect) + " expected by ")
-				+ (alts[h.ax].hint ?? alts[h.ax].name.ToString())));
+		// error infos
+		List<(bool low, int want, int ax, object expect)> errNs = [], errKs = [], errs = [];
+		foreach (var ((a, want), _) in f.Is)
+			if (want < a.Count && want != a.lex) // next content except the saving lex
+				(a[want] is N ? errNs : errKs).Add(
+					(a.label == null, a.Count - want - want, a.index, a[want]));
+		errNs.Sort(); errKs.Sort();
+		// only few infos
+		for (var x = 0; errs.Count <= ErrZ && (x < errNs.Count || x < errKs.Count); x++) {
+			if (errs.Count <= ErrZ && x < errNs.Count) errs.Add(errNs[x]);
+			if (errs.Count <= ErrZ && x < errKs.Count) errs.Add(errKs[x]);
+		}
+		F.err = errs.Count < 1 ? null : string.Join("", errs.Select((e, x) => x == ErrZ ? ErrEtc
+			: string.Format(Err, x == 0 ? "" : ErrMore,
+				alts[e.ax].label ?? prods[Name(alts[e.ax].name)].label ?? alts[e.ax].name.ToString(),
+				e.expect is N n ? prods[Name(n)].label ?? n.ToString() : e.expect,
+				e)));
 	}
 
 	// phase init: get grammar
