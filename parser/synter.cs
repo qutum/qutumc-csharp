@@ -62,8 +62,9 @@ public sealed class SynForm
 
 	public static short Get(ushort o, short[] s, ushort[] x)
 	{
-		if (x == null) return s[o];
+		if (x == null) return o < s.Length ? s[o] : (short)-1;
 		switch (x.Length) {
+		case 1: return s[0];
 		case 2: return x[1] == o ? s[1] : s[0];
 		case 3: return x[1] == o ? s[1] : x[2] == o ? s[2] : s[0];
 		case 4: return x[1] == o ? s[1] : x[2] == o ? s[2] : x[3] == o ? s[3] : s[0];

@@ -17,9 +17,6 @@ namespace qutum;
 
 public static class Extension
 {
-	public static IEnumerable<(T d, int x)> Each<T>(this IEnumerable<T> s, int offset = 0)
-		=> s.Select((d, x) => (d, x + offset));
-
 	public static ArraySegment<T> Seg<T>(this T[] s) => new(s);
 
 	public static ArraySegment<T> Seg<T>(this T[] s, int from, int to) => new(s, from, to - from);
@@ -34,6 +31,15 @@ public static class Extension
 	{
 		if (add == null) return false;
 		var z = s.Count; s.UnionWith(add); return s.Count > z;
+	}
+
+	public static IEnumerable<(T d, int x)> Each<T>(this IEnumerable<T> s, int offset = 0)
+		=> s.Select((d, x) => (d, x + offset));
+
+	public static T? FirstOrNull<T>(this IEnumerable<T> s, Func<T, bool> If) where T : struct
+	{
+		foreach (var d in s) if (If(d)) return d;
+		return null;
 	}
 }
 

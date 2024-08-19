@@ -30,7 +30,7 @@ public class SynGram<K, N>
 		public sbyte synt; // as Synter.tree: 0, make Synt: 1, omit Synt: -1
 		public bool rec; // recover this alt when error found
 		public string label;
-		internal short index; // alt index of whole grammar
+		internal ushort index; // alt index of whole grammar
 
 		public override string ToString() => $"{name} = {string.Join(' ', this)}  {clash
 			switch { 0 => "", 1 => "<", > 1 => ">", _ => "^" }}{(rec ? "!!" : "")}{(
@@ -71,7 +71,7 @@ public class SynGram<K, N>
 public class SerMaker<K, N>
 {
 	public bool dump = true;
-	public int compact = 10;
+	public int compact = 50;
 
 	readonly Func<K, ushort> keyOrd; // ordinal from 1, default for eor: 0
 	readonly Func<N, ushort> nameOrd; // ordinal from 1
@@ -82,7 +82,6 @@ public class SerMaker<K, N>
 	private int Key(K k) => Array.BinarySearch(keyOs, keyOrd(k));
 	private int Name(N n) => Array.BinarySearch(nameOs, nameOrd(n));
 
-	readonly int accept; // name ordinal index
 	readonly SynGram<K, N>.Prod[] prods; // at name ordinal index
 	readonly SynGram<K, N>.Alt[] alts;
 	readonly (bool empty, HashSet<K> first)[] firsts; // at name ordinal index
@@ -116,8 +115,8 @@ public class SerMaker<K, N>
 	public struct Clash
 	{
 		internal short shift; // shift to form index if shifts not null
-		public HashSet<short> redus; // alt index, no reduce: null
-		public HashSet<short> shifts; // alt index, no shift: null
+		public HashSet<ushort> redus; // alt index, no reduce: null
+		public HashSet<ushort> shifts; // alt index, no shift: null
 		public override readonly int GetHashCode() =>
 			HashCode.Combine(shifts?.Count == 1 ? shifts.First() : shifts?.Count,
 				redus?.Count == 1 ? redus.First() : redus.Count);
@@ -142,13 +141,12 @@ public class SerMaker<K, N>
 	}
 	int AddForm(Items Is)
 	{
-		Debug.Assert(Is.Count > 0);
-		foreach (var (f, x) in forms.Each())
+		foreach (var (f, fx) in forms.Each())
 			if (f.Is.Count == Is.Count) {
 				foreach (var (i, h) in Is)
 					if (!f.Is.TryGetValue(i, out var fh) || !fh.SetEquals(h))
 						goto No;
-				return x; No:;
+				return fx; No:;
 			}
 		forms.Add(new() {
 			Is = Is, clashs = new Clash[keys.Length], pushs = new short[names.Length],
@@ -177,8 +175,9 @@ public class SerMaker<K, N>
 	}
 
 	// make shifting or pushing between forms
-	void ShiftPush(Form f, Dictionary<object, short> tos)
+	void ShiftPush(Form f)
 	{
+		Dictionary<object, short> tos = [];
 		foreach (var ((a, want), _) in f.Is) {
 			if (want >= a.Count)
 				continue;
@@ -196,7 +195,6 @@ public class SerMaker<K, N>
 			else
 				f.pushs[Name((N)a[want])] = to;
 		}
-		tos.Clear();
 	}
 
 	// phase 2: make all transition forms
@@ -204,19 +202,16 @@ public class SerMaker<K, N>
 	{
 		if (forms.Count > 0)
 			return;
-		Items init = [];
-		foreach (var a in prods[accept])
-			init[(a, 0)] = [];
+		Items init = new() { { (alts[0], 0), [default] } };
 		AddForm(Closure(init));
-		Dictionary<object, short> tos = [];
 		for (var x = 0; x < forms.Count; x++) {
 			if (x >= 32767) throw new("too many forms");
-			ShiftPush(forms[x], tos);
+			ShiftPush(forms[x]);
 		}
 		foreach (var f in forms)
 			foreach (var ((a, want), heads) in f.Is)
 				if (want >= a.Count) // alt could be reduced
-					foreach (var head in heads.Append(default)) // lookaheads and eor
+					foreach (var head in heads)
 						(f.clashs[Key(head)].redus ??= []).Add(a.index);
 		if (dump)
 			using (var env = EnvWriter.Use())
@@ -362,7 +357,7 @@ public class SerMaker<K, N>
 				throw new($"duplicate ordinal of {ns[nameOrd(p.name)]} and {p.name}");
 		nameOs = [.. ns.Keys];
 		names = [.. ns.Values];
-		accept = Name(gram.prods[0].name);
+		var accept = gram.prods[0].name;
 
 		// prods
 		prods = new SynGram<K, N>.Prod[names.Length];
@@ -373,34 +368,39 @@ public class SerMaker<K, N>
 		alts = new SynGram<K, N>.Alt[gram.prods.Sum(p => p.Count)];
 		if (alts.Length is 0 or > 32767)
 			throw new($"total alterns {alts.Length}");
-		short alt = 0;
+		ushort ax = 0;
 		foreach (var p in gram.prods) {
 			var np = prods[Name(p.name)];
-			foreach (var (a, ax) in p.Each()) {
+			foreach (var (a, pax) in p.Each()) {
 				if (a.Count > 30)
 					throw new($"altern size {a.Count}");
 				foreach (var c in a)
 					if (c is K k)
 						ks[keyOrd(k)] = !k.Equals(default) ? k
-							: throw new($"end of read in {p.name}.{ax}");
+							: throw new($"end of read in {p.name}.{pax}");
+					else if (accept.Equals(c))
+						throw new($"initial name {accept} in {p.name}.{pax} ");
 					else if (Name((N)c) < 0)
-						throw new($"name {c} in {p.name}.{ax} not found");
+						throw new($"name {c} in {p.name}.{pax} not found");
+				if (a.clash != 0 && a.Count == 0)
+					throw new($"{p.name}.{pax} clash but empty");
 				if (a.clash < 0)
-					if (alt == 0 || alts[alt - 1].clash == 0)
-						throw new($"{p.name}.{ax} no previous clash");
-					else
-						a.clash = alts[alt - 1].clash < 0 ? alts[alt - 1].clash : ~(alt - 1);
+					a.clash = alts[ax - 1].clash == 0 ? throw new($"{p.name}.{pax} no previous clash")
+							: alts[ax - 1].clash < 0 ? alts[ax - 1].clash : ~(ax - 1);
 				if (a.lex >= 0 && a[a.lex] is not K)
-					throw new($"{p.name}.{ax} lex {a[a.lex]} not lexic key");
+					throw new($"{p.name}.{pax} content {a[a.lex]} not lexic key");
 				if (a.rec && (a.lex < 0 || a.lex != a.Count - 1))
 					throw new($"{p.name}.{ax} recovery lex at {a.lex}");
-				alts[a.index = alt++] = a;
+				alts[a.index = ax++] = a;
 				if (np != p)
 					np.Add(a); // append alterns to same name production
 			}
 		}
+		if (prods[Name(accept)].Count > 1)
+			throw new($"multiple alterns of initial name {accept}");
+
 		// others
-		if (keyOrd(default) != 0) throw new($"default key ordinal {keyOrd(default)}");
+		if (keyOrd(default) != default) throw new($"default key ordinal {keyOrd(default)}");
 		if (nameOs[0] == 0) throw new($"name ordinal 0");
 		keyOs = [.. ks.Keys];
 		keys = [.. ks.Values];
