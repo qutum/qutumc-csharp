@@ -94,13 +94,12 @@ public class TestSynter : IDisposable
 			lex = (short)(a.IndexOfAny(keys, 2) - 2),
 			synt = a[1] switch { '+' => 1, '-' => -1, _ => 0 },
 		}).ToArray();
-		var ks = keys.Select(k => (ushort)k).Prepend(default); // { other... }
+		ushort[] ks = [0, .. keys]; // { other... }
 		foreach (var f in forms)
 			if (f != null) {
-				f.modes = f.modes.Prepend(default).ToArray();
-				Array.Sort(f.keys = ks.ToArray(), f.modes, 1, keys.Length);
+				Array.Sort(f.keys = ks[..], f.modes = [-1, .. f.modes], 1, keys.Length);
 				if (f.pushs != null)
-					Array.Sort(f.names = names[0..], f.pushs);
+					Array.Sort(f.names = [0, .. names], f.pushs = [-1, .. f.pushs]);
 			}
 		ser = new(name => name[0], alts, forms) { dump = 3 };
 	}
@@ -258,17 +257,17 @@ public class TestSynter : IDisposable
 	[TestMethod]
 	public void Dragon2F449()
 	{
-		NewSer("E=E+E E=E*E E-(E) E=a", ['a', 'b', '+', '*', '(', ')', '\0'], ['E'], [
+		NewSer("Z-E E=E+E E=E*E E-(E) E=a", ['a', 'b', '+', '*', '(', ')', '\0'], ['E'], [
 			new() { modes = [ 3,  3,  -1,  -1,  2,  -1,  -1], pushs = [1] },
-			new() { modes = [-1, -1,   4,   5, -1,  -1,  -1],             },
+			new() { modes = [-1, -1,   4,   5, -1,  -1,R(0)],             },
 			new() { modes = [ 3,  3,  -1,  -1,  2,  -1,  -1], pushs = [6] },
-			new() { modes = [-1, -1,R(3),R(3), -1,R(3),R(3)],             },
+			new() { modes = [-1, -1,R(4),R(4), -1,R(4),R(4)],             },
 			new() { modes = [ 3,  3,  -1,  -1,  2,  -1,  -1], pushs = [7] },
 			new() { modes = [ 3,  3,  -1,  -1,  2,  -1,  -1], pushs = [8] },
 			new() { modes = [-1, -1,   4,   5, -1,   9,  -1],             },
-			new() { modes = [-1, -1,R(0),   5, -1,R(0),R(0)],             },
-			new() { modes = [-1, -1,R(1),R(1), -1,R(1),R(1)],             },
+			new() { modes = [-1, -1,R(1),   5, -1,R(1),R(1)],             },
 			new() { modes = [-1, -1,R(2),R(2), -1,R(2),R(2)],             },
+			new() { modes = [-1, -1,R(3),R(3), -1,R(3),R(3)],             },
 		]); // no E'->E
 		DoDragon2F449();
 	}

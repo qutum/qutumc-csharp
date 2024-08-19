@@ -6,6 +6,7 @@
 //
 using System;
 using System.Collections.Generic;
+using System.Xml.Linq;
 
 namespace qutum.parser;
 
@@ -90,11 +91,9 @@ public class SynterStr : Synter<char, char, string, SyntStr, LerStr>
 // N for syntax name i.e synteme, T for syntax tree
 public class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler : class, Lexer<K, L>
 {
-	readonly SynAlt<N>[] alts; // reduce [0].name by eor after forms[init]: accept
+	readonly SynAlt<N>[] alts; // reduce [0] by eor: accept
 	readonly SynForm[] forms;
-	readonly Stack<(short form, int loc, object with)> stack
-		= new(); // (form index, lex loc or Synt.from, null for lex or Synt or recovery info)
-	protected short init; // first form index
+	readonly short init; // first form index
 
 	protected Func<Ler, ushort> keyOrd; // ordinal from 1, default for eor: 0
 	protected Func<N, ushort> nameOrd; // ordinal from 1
@@ -115,21 +114,23 @@ public class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler : cla
 
 	public Synter<K, L, N, T, Ler> Begin(Ler ler) { this.ler = ler; return this; }
 
+	// (form index, lex loc or Synt.from, null for lex or Synt)
+	readonly List<(short form, int loc, object with)> stack = [];
+
 	// make Synt tree followed by errors
 	public virtual T Parse()
 	{
-		stack.Push((init, -1, null));
 		T err = null, errs = null;
-		var accept = nameOrd(alts[0].name);
+		stack.Add((init, -1, null));
 	Next:
+		var loop = 0;
 		var key = ler.Next() ? keyOrd(ler) : default;
 	Loop:
-		object info = null;
-		var form = forms[stack.Peek().form];
+		var form = forms[stack[^1].form];
 		var mode = SynForm.Get(key, form.modes, form.keys);
 	Recover:
 		if (mode >= init) { // shift
-			stack.Push((mode, ler.Loc(), info));
+			stack.Add((mode, ler.Loc(), null));
 			goto Next;
 		}
 		if (mode < -1) { // reduce
@@ -138,7 +139,7 @@ public class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler : cla
 			T t = omit ? null : new() { name = alt.name, to = ler.Loc(), err = alt.rec ? -2 : 0 };
 			int loc = 0; // lexic loc of Alt head
 			for (var i = alt.size - 1; i >= 0; i--) {
-				(_, loc, var with) = stack.Pop();
+				(_, loc, var with) = stack[^(alt.size - i)];
 				if (omit)
 					t = (with as T)?.Append(t) ?? t; // flatten Synts inside Alt
 				else {
@@ -149,17 +150,22 @@ public class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler : cla
 						t.info = i == alt.lex ? ler.Lex(loc) : with;
 				}
 			}
-			form = forms[stack.Peek().form];
-			var name = nameOrd(alt.name);
-			if (form == forms[init] && name == accept && key == default) {
+			stack.RemoveRange(stack.Count - alt.size, alt.size);
+			if (alt.size == 1 && ++loop > 100) {
 				stack.Clear();
-				return t.Append(errs); // reduce alt of first name by eor after first form, accept
+				t.err = -1; t.info = "maybe infinite loop due to cyclic grammar";
+				return t;
 			}
-			var push = SynForm.Get(name, form.pushs, form.names);
+			form = forms[stack[^1].form];
+			var push = SynForm.Get(nameOrd(alt.name), form.pushs, form.names);
 			if (push >= 0) {
-				stack.Push((push, loc, t));
+				stack.Add((push, loc, t));
 				goto Loop;
-			} // otherwise end or read expected
+			}
+			else if (key == default) {
+				stack.Clear();
+				return t.Append(errs); // reduce alts[0] by eor, accept
+			} // otherwise reject
 		}
 		// error
 		info = mode < -1 ? "want end of read" : form.err ?? "";
@@ -180,33 +186,35 @@ public class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler : cla
 
 	public virtual bool Check()
 	{
-		stack.Push((init, -1, null));
-		var accept = nameOrd(alts[0].name);
+		stack.Add((init, -1, null));
 	Next:
+		var loop = 0;
 		var key = ler.Next() ? keyOrd(ler) : default;
 	Loop:
-		var form = forms[stack.Peek().form];
+		var form = forms[stack[^1].form];
 		var mode = SynForm.Get(key, form.modes, form.keys);
 		if (mode >= init) { // shift
-			stack.Push((mode, -1, null));
+			stack.Add((mode, -1, null));
 			goto Next;
 		}
 		else if (mode < -1) { // reduce
 			var alt = alts[SynForm.Reduce(mode)];
-			for (var i = 0; i < alt.size; i++)
-				stack.Pop();
-			form = forms[stack.Peek().form];
-			var name = nameOrd(alt.name);
-			if (form == forms[init] && name == accept && key == default) {
+			stack.RemoveRange(stack.Count - alt.size, alt.size);
+			if (alt.size == 1 && ++loop > 100) {
 				stack.Clear();
-				return true; // reduce alt of first name by eor after first form, accept
+				return false; // maybe infinite loop due to cyclic grammar
 			}
+			form = forms[stack[^1].form];
 			var push = SynForm.Get(nameOrd(alt.name), form.pushs, form.names);
 			if (push >= 0) {
-				stack.Push((push, -1, null));
+				stack.Add((push, -1, null));
 				goto Loop;
-			} // otherwise end of read expected
 		}
+			else if (key == default) {
+				stack.Clear();
+				return true; // reduce alts[0] by eor, accept
+			} // otherwise reject
+		} // error
 		stack.Clear();
 		return false;
 	}

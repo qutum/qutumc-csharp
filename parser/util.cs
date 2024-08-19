@@ -121,7 +121,7 @@ public class LinkTree<T> : IEnumerable<T> where T : LinkTree<T>
 		return Add(x);
 	}
 
-	// after last this.next append next and all next.next 
+	// after last this.next append next and all next.next
 	public T Append(T next)
 	{
 		if (next == null)
