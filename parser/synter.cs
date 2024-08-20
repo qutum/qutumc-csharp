@@ -6,7 +6,6 @@
 //
 using System;
 using System.Collections.Generic;
-using System.Xml.Linq;
 
 namespace qutum.parser;
 
@@ -47,8 +46,8 @@ public sealed class SynAlt<N>
 	public object dump;
 
 	public override string ToString() => dump as string ?? (string)
-		(dump = (dump as Func<string>)?.Invoke() ?? (dump as Func<object, string>)?.Invoke(this)
-			?? dump?.ToString() ?? label ?? "alt " + name);
+		(dump is Func<string> d ? dump = d() : dump is Func<object, string> dd ? dump = dd(this)
+		: dump?.ToString() ?? label ?? "alt " + name);
 }
 public sealed class SynForm
 {
@@ -68,6 +67,15 @@ public sealed class SynForm
 				};
 		}
 
+		public readonly IEnumerable<(short d, ushort x, bool other)> Enum(bool all = false)
+		{
+			for (var y = 0; y < s.Length; y++)
+				if (all || s[y] != -1)
+					yield return (s[y], x?[y] ?? (ushort)y, x != null && y == 0);
+		}
+	}
+
+	public short index;
 	public S modes; // for each key: shift to: form index, reduce: -2-alt index, error: -1
 	public S pushs; // for each name: push: form index
 		if (x == null) return o < s.Length ? s[o] : (short)-1;
@@ -77,10 +85,8 @@ public sealed class SynForm
 	public static short Reduce(int alt) => (short)(-2 - alt);
 
 	public override string ToString() => dump as string ?? (string)
-		(dump = (dump as Func<string>)?.Invoke() ?? (dump as Func<object, string>)?.Invoke(this)
-			?? dump?.ToString() ?? base.ToString());
-		}
-	}
+		(dump is Func<string> d ? dump = d() : dump is Func<object, string> dd ? dump = dd(this)
+		: dump?.ToString() ?? base.ToString());
 }
 
 // syntax parser
@@ -104,7 +110,7 @@ public class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler : cla
 {
 	readonly SynAlt<N>[] alts; // reduce [0] by eor: accept
 	readonly SynForm[] forms;
-	readonly short init; // first form index
+	readonly SynForm init;
 
 	protected Func<Ler, ushort> keyOrd; // ordinal from 1, default for eor: 0
 	protected Func<N, ushort> nameOrd; // ordinal from 1
@@ -121,15 +127,18 @@ public class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler : cla
 			throw new($"{nameof(forms)} size {forms.Length}");
 		this.keyOrd = keyOrd; this.nameOrd = nameOrd; this.alts = alts; this.forms = forms;
 		init = (short)(forms[0] != null ? 0 : 1);
+		init = forms[0] ?? forms[1];
 		dumper = DumpJot;
-		foreach (var f in forms)
-			if (f != null) f.dump ??= dumper;
+		foreach (var (f, fx) in forms.Each())
+			if (f != null) {
+				f.index = (short)fx;
+				f.dump ??= (Func<object, string>)DumpJot;
 	}
 
 	public Synter<K, L, N, T, Ler> Begin(Ler ler) { this.ler = ler; return this; }
 
-	// (form index, lex loc or Synt.from, null for lex or Synt)
-	readonly List<(short form, int loc, object with)> stack = [];
+	// (form, lex loc i.e Synt.from, null for lex or Synt)
+	readonly List<(SynForm form, int loc, object synt)> stack = [];
 
 	// make Synt tree followed by errors
 	public virtual T Parse()
@@ -140,11 +149,13 @@ public class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler : cla
 		var loop = 0;
 		var key = ler.Next() ? keyOrd(ler) : default;
 	Loop:
-		var form = forms[stack[^1].form];
+		var form = stack[^1].form;
 		var mode = form.modes[key];
 	Recover:
 		if (mode >= init) { // shift
 			stack.Add((mode, ler.Loc(), null));
+		if (mode >= 0) { // shift
+			stack.Add((forms[mode], ler.Loc(), null));
 			goto Next;
 		}
 		if (mode < -1) { // reduce
@@ -153,15 +164,15 @@ public class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler : cla
 			T t = omit ? null : new() { name = alt.name, to = ler.Loc(), err = alt.rec ? -2 : 0 };
 			int loc = 0; // lexic loc of Alt head
 			for (var i = alt.size - 1; i >= 0; i--) {
-				(_, loc, var with) = stack[^(alt.size - i)];
+				(_, loc, var synt) = stack[^(alt.size - i)];
 				if (omit)
-					t = (with as T)?.Append(t) ?? t; // flatten Synts inside Alt
+					t = (synt as T)?.Append(t) ?? t; // flatten Synts inside Alt
 				else {
 					t.from = loc;
-					if (with is T head)
+					if (synt is T head)
 						t.AddHead(head);
-					else
-						t.info = i == alt.lex ? ler.Lex(loc) : with;
+					else if (i == alt.lex)
+						t.info = ler.Lex(loc);
 				}
 			}
 			stack.RemoveRange(stack.Count - alt.size, alt.size);
@@ -170,11 +181,11 @@ public class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler : cla
 				t.err = -1; t.info = "maybe infinite loop due to cyclic grammar";
 				return t;
 			}
-			form = forms[stack[^1].form];
+			form = stack[^1].form;
 			var push = SynForm.Get(nameOrd(alt.name), form.pushs, form.names);
 			var push = form.pushs[name];
 			if (push >= 0) {
-				stack.Add((push, loc, t));
+				stack.Add((forms[push], loc, t));
 				goto Loop;
 			}
 			else if (key == default) {
@@ -206,10 +217,10 @@ public class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler : cla
 		var loop = 0;
 		var key = ler.Next() ? keyOrd(ler) : default;
 	Loop:
-		var form = forms[stack[^1].form];
+		var form = stack[^1].form;
 		var mode = form.modes[key];
-		if (mode >= init) { // shift
-			stack.Add((mode, -1, null));
+		if (mode >= 0) { // shift
+			stack.Add((forms[mode], -1, null));
 			goto Next;
 		}
 		else if (mode < -1) { // reduce
@@ -219,10 +230,10 @@ public class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler : cla
 				stack.Clear();
 				return false; // maybe infinite loop due to cyclic grammar
 			}
-			form = forms[stack[^1].form];
+			form = stack[^1].form;
 			var push = form.pushs[nameOrd(alt.name)];
 			if (push >= 0) {
-				stack.Add((push, -1, null));
+				stack.Add((forms[push], -1, null));
 				goto Loop;
 		}
 			else if (key == default) {
@@ -234,12 +245,20 @@ public class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler : cla
 		return false;
 	}
 
+	public string DumpJot(object d) => DumpJot(d, typeof(object));
+
 	public string DumpJot(object d, Type ty)
 	{
 		if (d is ushort ord && (ty == typeof(char) || ty == typeof(string)))
 			return CharSet.Unesc((char)ord);
 		if (d is SynForm f) {
-
+			StrMaker s = new();
+			foreach (var (m, k, other) in f.modes.Enum())
+				_ = s.Join('\n') + (other ? " " : dumper(k, typeof(K)))
+					+ (m >= 0 ? s + " shift " + m : s + " reduce " + alts[SynForm.Reduce(m)]);
+			foreach (var (p, k, other) in f.pushs.Enum())
+				_ = s.Join('\n') + (other ? " " : dumper(k, typeof(N))) + " push " + p;
+			return s.ToString();
 		}
 		return d.ToString();
 	}

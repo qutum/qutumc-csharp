@@ -23,6 +23,7 @@ public class SynGram<K, N>
 	// { K or N ... }
 	public class Alt : List<object>
 	{
+		internal short index; // index of whole grammar alts
 		public N name;
 		public short clash; // reject: 0, solve 1: 1, solve 2: 2
 						  // as same rule and index as previous one: ~actual alt index
@@ -30,7 +31,6 @@ public class SynGram<K, N>
 		public sbyte synt; // as Synter.tree: 0, make Synt: 1, omit Synt: -1
 		public bool rec; // recover this alt when error found
 		public string label;
-		internal short index; // alt index of whole grammar
 
 		public override string ToString() => $"{name} = {string.Join(' ', this)}  {clash
 			switch { 0 => "", 1 => "<", > 1 => ">", _ => "^" }}{(rec ? "!!" : "")}{(
@@ -126,6 +126,7 @@ public class SerMaker<K, N>
 	}
 	struct Form
 	{
+		internal short index;
 		internal Items Is;
 		internal Clash[] clashs; // at key ordinal index
 		internal short[] pushs; // push form index, at name ordinal index, no: -1
@@ -139,22 +140,23 @@ public class SerMaker<K, N>
 		Is[(alt, want)] = [.. heads];
 		return true;
 	}
-	int AddForm(Items Is)
+	short AddForm(Items Is)
 	{
-		foreach (var (f, fx) in forms.Each())
+		foreach (var f in forms)
 			if (f.Is.Count == Is.Count) {
 				foreach (var (i, h) in Is)
 					if (!f.Is.TryGetValue(i, out var fh) || !fh.SetEquals(h))
 						goto No;
-				return fx; No:;
+				return f.index; No:;
 			}
-		forms.Add(new() {
-			Is = Is, clashs = new Clash[keys.Length], pushs = new short[names.Length],
-			modes = new short[keys.Length]
-		});
-		Array.Fill(forms[^1].modes, (short)-1);
-		Array.Fill(forms[^1].pushs, (short)-1);
-		return forms.Count - 1;
+		var F = new Form {
+			index = (short)forms.Count, Is = Is, clashs = new Clash[keys.Length],
+			pushs = new short[names.Length], modes = new short[keys.Length],
+		};
+		forms.Add(F);
+		Array.Fill(F.modes, (short)-1);
+		Array.Fill(F.pushs, (short)-1);
+		return F.index;
 	}
 
 	// make a whole items
@@ -187,7 +189,7 @@ public class SerMaker<K, N>
 					if (W < A.Count && A[W].Equals(a[want]))
 						AddItem(js, A, (short)(W + 1), heads);
 				}
-				tos.Add(a[want], to = (short)AddForm(Closure(js)));
+				tos.Add(a[want], to = AddForm(Closure(js)));
 			}
 			if (a[want] is K k) {
 				f.clashs[Key(k)].shift = to; (f.clashs[Key(k)].shifts ??= []).Add(a.index);
@@ -292,7 +294,7 @@ public class SerMaker<K, N>
 			};
 		// synter forms
 		var Fs = new SynForm[forms.Count];
-		foreach (var (f, fx) in forms.Each()) {
+		foreach (var f in forms) {
 			void Compact(ushort[] os, short[] fs, ref SynForm.S Fs)
 			{ // TODO better compact
 				int z;
@@ -305,7 +307,7 @@ public class SerMaker<K, N>
 							(Fs.s[X], Fs.x[X++]) = (fs[x], os[x]);
 				}
 			}
-			var F = Fs[fx] = new SynForm();
+			var F = Fs[f.index] = new SynForm();
 			Compact(keyOs, f.modes, ref F.modes);
 			Compact(nameOs, f.pushs, ref F.pushs);
 			Error(f, F);
@@ -368,7 +370,7 @@ public class SerMaker<K, N>
 		alts = new SynGram<K, N>.Alt[gram.prods.Sum(p => p.Count)];
 		if (alts.Length is 0 or > 32767)
 			throw new($"total alterns {alts.Length}");
-		ushort ax = 0;
+		short ax = 0;
 		foreach (var p in gram.prods) {
 			var np = prods[Name(p.name)];
 			foreach (var (a, pax) in p.Each()) {

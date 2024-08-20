@@ -108,7 +108,9 @@ public class TestSynter : IDisposable
 			}
 		ser = new(name => name[0], alts, Fs) { dump = 3 };
 	}
-
+	public static short _ = -1;
+	public static short r0 = R(0), r1 = R(1), r2 = R(2), r3 = R(3), r4 = R(4),
+						r5 = R(5), r6 = R(6), r7 = R(7), r8 = R(8), r9 = R(9);
 	public static short R(int alt) => SynForm.Reduce(alt);
 
 	public void True(string read) => IsTrue(ser.Begin(new LerStr(read)).Check());
@@ -119,13 +121,14 @@ public class TestSynter : IDisposable
 	[TestMethod]
 	public void TigerF325()
 	{
-		NewSer("S=E E=T+E E=T T=a", ['a', 'b', '+', '\0'], ['E', 'T'], [ (null, null),
-			( [5, 5,   0,   0], [2, 3] ),
-			( [0, 0,   0,R(0)],   null ),
-			( [0, 0,   4,R(2)],   null ),
-			( [5, 5,   0,   0], [6, 3] ),
-			( [0, 0,R(3),R(3)],   null ),
-			( [0, 0,   0,R(1)],   null ),
+		NewSer("S=E E=T+E E=T T=a",
+			['a', 'b', '+', '\0'], ['E', 'T'], [ (null, null),
+			( [ 5, 5,  _,  _ ], [ 2, 3 ] ),
+			( [ _, _,  _, r0 ],     null ),
+			( [ _, _,  4, r2 ],     null ),
+			( [ 5, 5,  _,  _ ], [ 6, 3 ] ),
+			( [ _, _, r3, r3 ],     null ),
+			( [ _, _,  _, r1 ],     null ),
 		]);
 		DoTigerF325();
 	}
@@ -146,17 +149,18 @@ public class TestSynter : IDisposable
 	[TestMethod]
 	public void TigerT328()
 	{
-		NewSer("Z=S S=V=E S-E E-V V=a V=*E", ['a', 'b', '*', '=', '\0'], ['S', 'E', 'V'], [ (null, null),
-			( [8, 8, 6,   0,   0], [2,  5, 3] ),
-			( [0, 0, 0,   0,R(0)],       null ),
-			( [0, 0, 0,   4,R(3)],       null ),
-			( [8, 8, 6,   0,   0], [0,  9, 7] ),
-			( [0, 0, 0,   0,R(2)],       null ),
-			( [8, 8, 6,   0,   0], [0, 10, 7] ),
-			( [0, 0, 0,R(3),R(3)],       null ),
-			( [0, 0, 0,R(4),R(4)],       null ),
-			( [0, 0, 0,   0,R(1)],       null ),
-			( [0, 0, 0,R(5),R(5)],       null ),
+		NewSer("Z=S S=V=E S-E E-V V=a V=*E",
+			['a', 'b', '*', '=', '\0'], ['S', 'E', 'V'], [ (null, null),
+			( [ 8, 8, 6,  _,  _ ], [ 2, 5, 3 ] ),
+			( [ _, _, _,  _, r0 ],        null ),
+			( [ _, _, _,  4, r3 ],        null ),
+			( [ 8, 8, 6,  _,  _ ], [ _, 9, 7 ] ),
+			( [ _, _, _,  _, r2 ],        null ),
+			( [ 8, 8, 6,  _,  _ ], [ _,10, 7 ] ),
+			( [ _, _, _, r3, r3 ],        null ),
+			( [ _, _, _, r4, r4 ],        null ),
+			( [ _, _, _,  _, r1 ],        null ),
+			( [ _, _, _, r5, r5 ],        null ),
 		]);
 		DoTigerT328();
 	}
@@ -166,6 +170,11 @@ public class TestSynter : IDisposable
 		True("a=b"); True("a=*b"); True("b=**a");
 		True("*a=b"); True("*b=*a"); True("*a=**b");
 		True("**a=b"); True("**a=*b"); True("**b=**a");
+		False("*"); False("a*"); False("*a*");
+		False("a="); False("=b"); False("*="); False("=*");
+		False("*a="); False("a*="); False("=*b"); False("=b*");
+		False("a*=*b"); False("*b=a*"); False("*a*=b");
+		False("a==b"); False("*a==*b");
 		var t = Parse("**a");
 		t = t/**/.Eq("Z", 0, 3).h("V", d: '*').h("V", d: '*').H("V", d: 'a').uuuU();
 		t = Parse("**b=***a").Eq("Z", 0, 8);
@@ -176,16 +185,17 @@ public class TestSynter : IDisposable
 	[TestMethod]
 	public void TigerT322()
 	{
-		NewSer("Z=S S=(L) S=a L-S L=L,S", ['(', ')', 'a', 'b', ',', '\0'], ['S', 'L'], [ (null, null),
-			( [   3,   0,   2,   2,   0,   0], [4, 0] ),
-			( [R(2),R(2),R(2),R(2),R(2),R(2)],   null ),
-			( [   3,   0,   2,   2,   0,   0], [7, 5] ),
-			( [   0,   0,   0,   0,   0,R(0)],   null ),
-			( [   0,   6,   0,   0,   8,   0],   null ),
-			( [R(1),R(1),R(1),R(1),R(1),R(1)],   null ),
-			( [R(3),R(3),R(3),R(3),R(3),R(3)],   null ),
-			( [   3,   0,   2,   2,   0,   0], [9, 0] ),
-			( [R(4),R(4),R(4),R(4),R(4),R(4)],   null ),
+		NewSer("Z=S S=(L) S=a L-S L=L,S",
+			['(', ')', 'a', 'b', ',', '\0'], ['S', 'L'], [ (null, null),
+			( [  3,  _,  2,  2,  _,  _ ], [ 4, _ ] ),
+			( [ r2, r2, r2, r2, r2, r2 ],     null ),
+			( [  3,  _,  2,  2,  _,  _ ], [ 7, 5 ] ),
+			( [  _,  _,  _,  _,  _, r0 ],     null ),
+			( [  _,  6,  _,  _,  8,  _ ],     null ),
+			( [ r1, r1, r1, r1, r1, r1 ],     null ),
+			( [ r3, r3, r3, r3, r3, r3 ],     null ),
+			( [  3,  _,  2,  2,  _,  _ ], [ 9, _ ] ),
+			( [ r4, r4, r4, r4, r4, r4 ],     null ),
 		]);
 		DoTigerT322();
 	}
@@ -219,14 +229,15 @@ public class TestSynter : IDisposable
 	[TestMethod]
 	public void Dragon2F451()
 	{
-		NewSer("Z=S S=iSeS S=iS S=a", ['i', 'e', 'a', 'b', 'c', '\0'], ['S'], [
-			( [ 2,  -1,  3,  3,  3,  -1],  [1] ),
-			( [-1,  -1, -1, -1, -1,R(0)], null ),
-			( [ 2,  -1,  3,  3,  3,  -1],  [4] ),
-			( [-1,R(3), -1, -1, -1,R(3)], null ),
-			( [-1,   5, -1, -1, -1,R(2)], null ),
-			( [ 2,  -1,  3,  3,  3,  -1],  [6] ),
-			( [-1,R(1), -1, -1, -1,R(1)], null ),
+		NewSer("Z=S S=iSeS S=iS S=a",
+			['i', 'e', 'a', 'b', 'c', '\0'], ['S'], [
+			( [ 2,  _, 3, 3, 3,  _ ], [ 1 ] ),
+			( [ _,  _, _, _, _, r0 ],  null ),
+			( [ 2,  _, 3, 3, 3,  _ ], [ 4 ] ),
+			( [ _, r3, _, _, _, r3 ],  null ),
+			( [ _,  5, _, _, _, r2 ],  null ),
+			( [ 2,  _, 3, 3, 3,  _ ], [ 6 ] ),
+			( [ _, r1, _, _, _, r1 ],  null ),
 		]);
 		DoDragon2F451();
 	}
@@ -262,17 +273,18 @@ public class TestSynter : IDisposable
 	[TestMethod]
 	public void Dragon2F449()
 	{
-		NewSer("Z-E E=E+E E=E*E E-(E) E=a", ['a', 'b', '+', '*', '(', ')', '\0'], ['E'], [
-			( [ 3,  3,  -1,  -1,  2,  -1,  -1],  [1] ),
-			( [-1, -1,   4,   5, -1,  -1,R(0)], null ),
-			( [ 3,  3,  -1,  -1,  2,  -1,  -1],  [6] ),
-			( [-1, -1,R(4),R(4), -1,R(4),R(4)], null ),
-			( [ 3,  3,  -1,  -1,  2,  -1,  -1],  [7] ),
-			( [ 3,  3,  -1,  -1,  2,  -1,  -1],  [8] ),
-			( [-1, -1,   4,   5, -1,   9,  -1], null ),
-			( [-1, -1,R(1),   5, -1,R(1),R(1)], null ),
-			( [-1, -1,R(2),R(2), -1,R(2),R(2)], null ),
-			( [-1, -1,R(3),R(3), -1,R(3),R(3)], null ),
+		NewSer("Z-E E=E+E E=E*E E-(E) E=a",
+			['a', 'b', '+', '*', '(', ')', '\0'], ['E'], [
+			( [ 3, 3,  _,  _, 2,  _,  _ ], [ 1 ] ),
+			( [ _, _,  4,  5, _,  _, r0 ],  null ),
+			( [ 3, 3,  _,  _, 2,  _,  _ ], [ 6 ] ),
+			( [ _, _, r4, r4, _, r4, r4 ],  null ),
+			( [ 3, 3,  _,  _, 2,  _,  _ ], [ 7 ] ),
+			( [ 3, 3,  _,  _, 2,  _,  _ ], [ 8 ] ),
+			( [ _, _,  4,  5, _,  9,  _ ],  null ),
+			( [ _, _, r1,  5, _, r1, r1 ],  null ),
+			( [ _, _, r2, r2, _, r2, r2 ],  null ),
+			( [ _, _, r3, r3, _, r3, r3 ],  null ),
 		]); // no E'->E
 		DoDragon2F449();
 	}

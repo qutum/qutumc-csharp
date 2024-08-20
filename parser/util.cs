@@ -9,7 +9,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -43,6 +42,21 @@ public static class Extension
 		foreach (var d in s) if (If(d)) return d;
 		return null;
 	}
+}
+
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE0250:Make struct 'readonly'")]
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE0251:Make member 'readonly'")]
+public struct StrMaker
+{
+	readonly StringBuilder s = new();
+	public StrMaker() { }
+	public static explicit operator StrMaker(string s) => new StrMaker() + s;
+	public static explicit operator string(StrMaker s) => s.ToString();
+	public override string ToString() => s.ToString();
+
+	public static StrMaker operator +(StrMaker s, object d)
+	{ if (d is not StrMaker m || m.s != s.s) s.s.Append(d); return s; }
+	public StrMaker Join(object d) => s.Length > 0 ? this + d : this;
 }
 
 public readonly struct MemoryEnum<T>(ReadOnlyMemory<T> mem) : IEnumerable<T>
