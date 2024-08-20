@@ -235,7 +235,6 @@ public class Lexier<K> : LexerSeg<K, Lexi<K>> where K : struct
 	public bool Is(int loc, K aim) => Is(Lex(loc).key, aim);
 	public virtual bool Is(K key, K aim) => Eq.Equals(key, aim);
 
-	[System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2211")]
 	protected static EqualityComparer<K> Eq = EqualityComparer<K>.Default;
 
 	public Span<Lexi<K>> Lexs(int from, int to, Span<Lexi<K>> s)

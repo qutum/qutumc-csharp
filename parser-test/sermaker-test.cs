@@ -30,8 +30,8 @@ file static class Extension
 		AreEqual(actus.Count, eqs.Length);
 		foreach (var (ks, redus, shifts) in eqs) {
 			IsTrue(actus.TryGetValue(new() {
-				redus = redus.Select(a => (ushort)(a ^ a >> 15)).ToHashSet(),
-				shifts = shifts?.Select(a => (ushort)(a ^ a >> 15)).ToHashSet()
+				redus = redus.Select(a => (short)(a ^ a >> 15)).ToHashSet(),
+				shifts = shifts?.Select(a => (short)(a ^ a >> 15)).ToHashSet()
 			}, out var eq));
 			IsTrue(eq.ks.SetEquals(ks));
 			AreEqual(Math.Min((int)eq.m, 0),

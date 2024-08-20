@@ -415,7 +415,6 @@ public class Earley<K, L, N, T, Ler> where T : Esyn<N, T>, new() where Ler : Lex
 		return t;
 	}
 
-	[System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2211")]
 	protected static EqualityComparer<N> Eq = EqualityComparer<N>.Default;
 
 	protected virtual N Name(string name) => (N)(object)name;

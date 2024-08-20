@@ -29,8 +29,9 @@ static class Extension
 		if (err < 0 && d is string eq && s.t.info is string actu) {
 			var As = actu.Split(SerMaker<char, string>.ErrMore);
 			var es = eq.Split("  ");
-			if (As.Length != es.Length || es.Zip(As).Any(ea
-				=> !ea.First.Split(' ').ToHashSet().IsSubsetOf(ea.Second.Split(' ').ToHashSet())))
+			if ((es.Length < 2 ? As.Length != es.Length : As.Length < es.Length)
+				|| es.Zip(As).Any(ea =>
+					!ea.First.Split(' ').ToHashSet().IsSubsetOf(ea.Second.Split(' ').ToHashSet())))
 				Fail($"Expected Err <{eq}> Actual <{actu.Replace("\n", "  ")}>");
 		}
 		else if (d != null) AreEqual(d,
@@ -86,7 +87,7 @@ public class TestSynter : IDisposable
 
 	internal SynterStr ser;
 
-	public void NewSer(string Alts, char[] keys, ushort[] names, SynForm[] forms)
+	public void NewSer(string Alts, char[] keys, ushort[] names, (short[] modes, short[] pushs)[] forms)
 	{
 		var alts = Alts.Split('\n', ' ').Select(a => new SynAlt<string> {
 			name = a[0..1],
@@ -94,14 +95,18 @@ public class TestSynter : IDisposable
 			lex = (short)(a.IndexOfAny(keys, 2) - 2),
 			synt = a[1] switch { '+' => 1, '-' => -1, _ => 0 },
 		}).ToArray();
-		ushort[] ks = [0, .. keys]; // { other... }
-		foreach (var f in forms)
-			if (f != null) {
-				Array.Sort(f.keys = ks[..], f.modes = [-1, .. f.modes], 1, keys.Length);
+		ushort[] ks = [0, .. keys];
+		ushort[] ns = [0, .. names];
+		var Fs = new SynForm[forms.Length];
+		foreach (var (f, fx) in forms.Each())
+			if (f.modes != null) {
+				var F = Fs[fx] = new();
+				F.pushs.s = [];
+				Array.Sort(F.modes.x = ks[..], F.modes.s = [-1, .. f.modes], 1, keys.Length);
 				if (f.pushs != null)
-					Array.Sort(f.names = [0, .. names], f.pushs = [-1, .. f.pushs]);
+					Array.Sort(F.pushs.x = ns[..], F.pushs.s = [-1, .. f.pushs]);
 			}
-		ser = new(name => name[0], alts, forms) { dump = 3 };
+		ser = new(name => name[0], alts, Fs) { dump = 3 };
 	}
 
 	public static short R(int alt) => SynForm.Reduce(alt);
@@ -114,13 +119,13 @@ public class TestSynter : IDisposable
 	[TestMethod]
 	public void TigerF325()
 	{
-		NewSer("S=E E=T+E E=T T=a", ['a', 'b', '+', '\0'], ['E', 'T'], [ null,
-			new() { modes = [5, 5,   0,   0], pushs = [2, 3] },
-			new() { modes = [0, 0,   0,R(0)],                },
-			new() { modes = [0, 0,   4,R(2)],                },
-			new() { modes = [5, 5,   0,   0], pushs = [6, 3] },
-			new() { modes = [0, 0,R(3),R(3)],                },
-			new() { modes = [0, 0,   0,R(1)],                },
+		NewSer("S=E E=T+E E=T T=a", ['a', 'b', '+', '\0'], ['E', 'T'], [ (null, null),
+			( [5, 5,   0,   0], [2, 3] ),
+			( [0, 0,   0,R(0)],   null ),
+			( [0, 0,   4,R(2)],   null ),
+			( [5, 5,   0,   0], [6, 3] ),
+			( [0, 0,R(3),R(3)],   null ),
+			( [0, 0,   0,R(1)],   null ),
 		]);
 		DoTigerF325();
 	}
@@ -141,17 +146,17 @@ public class TestSynter : IDisposable
 	[TestMethod]
 	public void TigerT328()
 	{
-		NewSer("Z=S S=V=E S-E E-V V=a V=*E", ['a', 'b', '*', '=', '\0'], ['S', 'E', 'V'], [ null,
-			new() { modes = [8, 8, 6,   0,   0], pushs = [2,  5, 3] },
-			new() { modes = [0, 0, 0,   0,R(0)],                    },
-			new() { modes = [0, 0, 0,   4,R(3)],                    },
-			new() { modes = [8, 8, 6,   0,   0], pushs = [0,  9, 7] },
-			new() { modes = [0, 0, 0,   0,R(2)],                    },
-			new() { modes = [8, 8, 6,   0,   0], pushs = [0, 10, 7] },
-			new() { modes = [0, 0, 0,R(3),R(3)],                    },
-			new() { modes = [0, 0, 0,R(4),R(4)],                    },
-			new() { modes = [0, 0, 0,   0,R(1)],                    },
-			new() { modes = [0, 0, 0,R(5),R(5)],                    },
+		NewSer("Z=S S=V=E S-E E-V V=a V=*E", ['a', 'b', '*', '=', '\0'], ['S', 'E', 'V'], [ (null, null),
+			( [8, 8, 6,   0,   0], [2,  5, 3] ),
+			( [0, 0, 0,   0,R(0)],       null ),
+			( [0, 0, 0,   4,R(3)],       null ),
+			( [8, 8, 6,   0,   0], [0,  9, 7] ),
+			( [0, 0, 0,   0,R(2)],       null ),
+			( [8, 8, 6,   0,   0], [0, 10, 7] ),
+			( [0, 0, 0,R(3),R(3)],       null ),
+			( [0, 0, 0,R(4),R(4)],       null ),
+			( [0, 0, 0,   0,R(1)],       null ),
+			( [0, 0, 0,R(5),R(5)],       null ),
 		]);
 		DoTigerT328();
 	}
@@ -171,16 +176,16 @@ public class TestSynter : IDisposable
 	[TestMethod]
 	public void TigerT322()
 	{
-		NewSer("Z=S S=(L) S=a L-S L=L,S", ['(', ')', 'a', 'b', ',', '\0'], ['S', 'L'], [ null,
-			new() { modes = [   3,   0,   2,   2,   0,   0], pushs = [4, 0] },
-			new() { modes = [R(2),R(2),R(2),R(2),R(2),R(2)],                },
-			new() { modes = [   3,   0,   2,   2,   0,   0], pushs = [7, 5] },
-			new() { modes = [   0,   0,   0,   0,   0,R(0)],                },
-			new() { modes = [   0,   6,   0,   0,   8,   0],                },
-			new() { modes = [R(1),R(1),R(1),R(1),R(1),R(1)],                },
-			new() { modes = [R(3),R(3),R(3),R(3),R(3),R(3)],                },
-			new() { modes = [   3,   0,   2,   2,   0,   0], pushs = [9, 0] },
-			new() { modes = [R(4),R(4),R(4),R(4),R(4),R(4)],                },
+		NewSer("Z=S S=(L) S=a L-S L=L,S", ['(', ')', 'a', 'b', ',', '\0'], ['S', 'L'], [ (null, null),
+			( [   3,   0,   2,   2,   0,   0], [4, 0] ),
+			( [R(2),R(2),R(2),R(2),R(2),R(2)],   null ),
+			( [   3,   0,   2,   2,   0,   0], [7, 5] ),
+			( [   0,   0,   0,   0,   0,R(0)],   null ),
+			( [   0,   6,   0,   0,   8,   0],   null ),
+			( [R(1),R(1),R(1),R(1),R(1),R(1)],   null ),
+			( [R(3),R(3),R(3),R(3),R(3),R(3)],   null ),
+			( [   3,   0,   2,   2,   0,   0], [9, 0] ),
+			( [R(4),R(4),R(4),R(4),R(4),R(4)],   null ),
 		]);
 		DoTigerT322();
 	}
@@ -215,13 +220,13 @@ public class TestSynter : IDisposable
 	public void Dragon2F451()
 	{
 		NewSer("Z=S S=iSeS S=iS S=a", ['i', 'e', 'a', 'b', 'c', '\0'], ['S'], [
-			new() { modes = [ 2,  -1,  3,  3,  3,  -1], pushs = [1] },
-			new() { modes = [-1,  -1, -1, -1, -1,R(0)],             },
-			new() { modes = [ 2,  -1,  3,  3,  3,  -1], pushs = [4] },
-			new() { modes = [-1,R(3), -1, -1, -1,R(3)],             },
-			new() { modes = [-1,   5, -1, -1, -1,R(2)],             },
-			new() { modes = [ 2,  -1,  3,  3,  3,  -1], pushs = [6] },
-			new() { modes = [-1,R(1), -1, -1, -1,R(1)],             },
+			( [ 2,  -1,  3,  3,  3,  -1],  [1] ),
+			( [-1,  -1, -1, -1, -1,R(0)], null ),
+			( [ 2,  -1,  3,  3,  3,  -1],  [4] ),
+			( [-1,R(3), -1, -1, -1,R(3)], null ),
+			( [-1,   5, -1, -1, -1,R(2)], null ),
+			( [ 2,  -1,  3,  3,  3,  -1],  [6] ),
+			( [-1,R(1), -1, -1, -1,R(1)], null ),
 		]);
 		DoDragon2F451();
 	}
@@ -258,16 +263,16 @@ public class TestSynter : IDisposable
 	public void Dragon2F449()
 	{
 		NewSer("Z-E E=E+E E=E*E E-(E) E=a", ['a', 'b', '+', '*', '(', ')', '\0'], ['E'], [
-			new() { modes = [ 3,  3,  -1,  -1,  2,  -1,  -1], pushs = [1] },
-			new() { modes = [-1, -1,   4,   5, -1,  -1,R(0)],             },
-			new() { modes = [ 3,  3,  -1,  -1,  2,  -1,  -1], pushs = [6] },
-			new() { modes = [-1, -1,R(4),R(4), -1,R(4),R(4)],             },
-			new() { modes = [ 3,  3,  -1,  -1,  2,  -1,  -1], pushs = [7] },
-			new() { modes = [ 3,  3,  -1,  -1,  2,  -1,  -1], pushs = [8] },
-			new() { modes = [-1, -1,   4,   5, -1,   9,  -1],             },
-			new() { modes = [-1, -1,R(1),   5, -1,R(1),R(1)],             },
-			new() { modes = [-1, -1,R(2),R(2), -1,R(2),R(2)],             },
-			new() { modes = [-1, -1,R(3),R(3), -1,R(3),R(3)],             },
+			( [ 3,  3,  -1,  -1,  2,  -1,  -1],  [1] ),
+			( [-1, -1,   4,   5, -1,  -1,R(0)], null ),
+			( [ 3,  3,  -1,  -1,  2,  -1,  -1],  [6] ),
+			( [-1, -1,R(4),R(4), -1,R(4),R(4)], null ),
+			( [ 3,  3,  -1,  -1,  2,  -1,  -1],  [7] ),
+			( [ 3,  3,  -1,  -1,  2,  -1,  -1],  [8] ),
+			( [-1, -1,   4,   5, -1,   9,  -1], null ),
+			( [-1, -1,R(1),   5, -1,R(1),R(1)], null ),
+			( [-1, -1,R(2),R(2), -1,R(2),R(2)], null ),
+			( [-1, -1,R(3),R(3), -1,R(3),R(3)], null ),
 		]); // no E'->E
 		DoDragon2F449();
 	}

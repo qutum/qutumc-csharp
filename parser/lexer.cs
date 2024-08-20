@@ -207,8 +207,7 @@ public static class CharSet
 		if (k is char c || k is byte b && (c = (char)b) == c)
 			return c is > ' ' and < (char)127 ? c.ToString()
 				: c == ' ' ? "\\s" : c == '\t' ? "\\t" : c == '\n' ? "\\n" : c == '\r' ? "\\r"
-				: c >= 128 ? $"\\U{c:x04}" : c == 0 ? "\\0"
-				: $"\\x{c:x02}";
+				: c >= 128 ? $"\\U{c:x04}" : c == 0 ? "\\0" : $"\\x{c:x02}";
 		return k.ToString();
 	}
 }

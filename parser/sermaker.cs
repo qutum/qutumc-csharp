@@ -24,13 +24,13 @@ public class SynGram<K, N>
 	public class Alt : List<object>
 	{
 		public N name;
-		public int clash; // reject: 0, solve 1: 1, solve 2: 2
+		public short clash; // reject: 0, solve 1: 1, solve 2: 2
 						  // as same rule and index as previous one: ~actual alt index
 		public short lex = -1; // save lex at this index to Synt.info, no save: <0
 		public sbyte synt; // as Synter.tree: 0, make Synt: 1, omit Synt: -1
 		public bool rec; // recover this alt when error found
 		public string label;
-		internal ushort index; // alt index of whole grammar
+		internal short index; // alt index of whole grammar
 
 		public override string ToString() => $"{name} = {string.Join(' ', this)}  {clash
 			switch { 0 => "", 1 => "<", > 1 => ">", _ => "^" }}{(rec ? "!!" : "")}{(
@@ -115,8 +115,8 @@ public class SerMaker<K, N>
 	public struct Clash
 	{
 		internal short shift; // shift to form index if shifts not null
-		public HashSet<ushort> redus; // alt index, no reduce: null
-		public HashSet<ushort> shifts; // alt index, no shift: null
+		public HashSet<short> redus; // alt index, no reduce: null
+		public HashSet<short> shifts; // alt index, no shift: null
 		public override readonly int GetHashCode() =>
 			HashCode.Combine(shifts?.Count == 1 ? shifts.First() : shifts?.Count,
 				redus?.Count == 1 ? redus.First() : redus.Count);
@@ -293,21 +293,21 @@ public class SerMaker<K, N>
 		// synter forms
 		var Fs = new SynForm[forms.Count];
 		foreach (var (f, fx) in forms.Each()) {
-			void SS(ushort[] os, short[] fs, ref short[] Fs, ref ushort[] Fos)
-			{
+			void Compact(ushort[] os, short[] fs, ref SynForm.S Fs)
+			{ // TODO better compact
 				int z;
 				if (os[^1] < compact || (z = fs.Count(m => m != -1)) >= os[^1] >>> 3)
-					Fs = fs;
+					Fs.s = fs;
 				else {
-					Fs = new short[z + 1]; Fos = new ushort[z + 1]; Fs[0] = -1;
+					(Fs.s, Fs.x) = (new short[z + 1], new ushort[z + 1]); Fs.s[0] = -1;
 					for (int X = 1, x = 0; x < os.Length; x++)
 						if (fs[x] != -1)
-							(Fs[X], Fos[X++]) = (fs[x], os[x]);
+							(Fs.s[X], Fs.x[X++]) = (fs[x], os[x]);
 				}
 			}
 			var F = Fs[fx] = new SynForm();
-			SS(keyOs, f.modes, ref F.modes, ref F.keys);
-			SS(nameOs, f.pushs, ref F.pushs, ref F.names);
+			Compact(keyOs, f.modes, ref F.modes);
+			Compact(nameOs, f.pushs, ref F.pushs);
 			Error(f, F);
 		}
 		return (As, Fs);
@@ -384,9 +384,10 @@ public class SerMaker<K, N>
 						throw new($"name {c} in {p.name}.{pax} not found");
 				if (a.clash != 0 && a.Count == 0)
 					throw new($"{p.name}.{pax} clash but empty");
+				if (a.clash < 0 && (ax == 0 || alts[ax - 1].clash == 0))
+					throw new($"{p.name}.{pax} no previous clash");
 				if (a.clash < 0)
-					a.clash = alts[ax - 1].clash == 0 ? throw new($"{p.name}.{pax} no previous clash")
-							: alts[ax - 1].clash < 0 ? alts[ax - 1].clash : ~(ax - 1);
+					a.clash = alts[ax - 1].clash < 0 ? alts[ax - 1].clash : (short)~(ax - 1);
 				if (a.lex >= 0 && a[a.lex] is not K)
 					throw new($"{p.name}.{pax} content {a[a.lex]} not lexic key");
 				if (a.rec && (a.lex < 0 || a.lex != a.Count - 1))

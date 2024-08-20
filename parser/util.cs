@@ -34,7 +34,9 @@ public static class Extension
 	}
 
 	public static IEnumerable<(T d, int x)> Each<T>(this IEnumerable<T> s, int offset = 0)
-		=> s.Select((d, x) => (d, x + offset));
+	{
+		foreach (var d in s) yield return (d, offset++);
+	}
 
 	public static T? FirstOrNull<T>(this IEnumerable<T> s, Func<T, bool> If) where T : struct
 	{
@@ -203,19 +205,11 @@ public class LinkTree<T> : IEnumerable<T> where T : LinkTree<T>
 	}
 	IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
-	struct Backwarder : IEnumerable<T>
+	public IEnumerable<T> Backward()
 	{
-		internal T tail;
-
-		public readonly IEnumerator<T> GetEnumerator()
-		{
-			for (var x = tail; x != null; x = x.prev)
-				yield return x;
-		}
-		readonly IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+		for (var x = tail; x != null; x = x.prev)
+			yield return x;
 	}
-
-	public IEnumerable<T> Backward() => new Backwarder { tail = tail };
 }
 
 public class EnvWriter : StringWriter, IDisposable
