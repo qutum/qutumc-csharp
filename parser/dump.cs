@@ -51,9 +51,9 @@ public static class Dumpers
 	public struct Stack((SynForm form, int loc, object synt) d)
 	{
 		[DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
-		public SynForm zform = d.form;
-		public int loc = d.loc;
+		public SynForm form = d.form;
 		public object synt = d.synt;
-		public override readonly string ToString() => $"@{loc} {zform}"; // no effect
+
+		public override readonly string ToString() => $"@{d.loc} {form}"; // no effect
 	}
 }

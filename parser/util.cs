@@ -44,21 +44,6 @@ public static class Extension
 	}
 }
 
-[System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE0250:Make struct 'readonly'")]
-[System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE0251:Make member 'readonly'")]
-public struct StrMaker
-{
-	readonly StringBuilder s = new();
-	public StrMaker() { }
-	public static explicit operator StrMaker(string s) => new StrMaker() + s;
-	public static explicit operator string(StrMaker s) => s.ToString();
-	public override string ToString() => s.ToString();
-
-	public static StrMaker operator +(StrMaker s, object d)
-	{ if (d is not StrMaker m || m.s != s.s) s.s.Append(d); return s; }
-	public StrMaker Join(object d) => s.Length > 0 ? this + d : this;
-}
-
 public readonly struct MemoryEnum<T>(ReadOnlyMemory<T> mem) : IEnumerable<T>
 {
 	public IEnumerator<T> GetEnumerator() => new Enum { mem = mem };
@@ -224,6 +209,24 @@ public class LinkTree<T> : IEnumerable<T> where T : LinkTree<T>
 		for (var x = tail; x != null; x = x.prev)
 			yield return x;
 	}
+}
+
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE0250:Make struct 'readonly'")]
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE0251:Make member 'readonly'")]
+public struct StrMaker
+{
+	readonly StringBuilder s = new();
+
+	public StrMaker() { }
+	public static implicit operator StrMaker(string s) => new StrMaker() + s;
+	public static implicit operator string(StrMaker s) => s.ToString();
+
+	public static StrMaker operator +(StrMaker s, object d)
+	{ if (d is not StrMaker m || m.s != s.s) s.s.Append(d); return s; }
+	public StrMaker Join(object d) => s.Length > 0 ? this + d : this;
+
+	public int Size => s.Length;
+	public override string ToString() => s.ToString();
 }
 
 public class EnvWriter : StringWriter, IDisposable

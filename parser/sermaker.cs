@@ -192,7 +192,8 @@ public class SerMaker<K, N>
 				tos.Add(a[want], to = AddForm(Closure(js)));
 			}
 			if (a[want] is K k) {
-				f.clashs[Key(k)].shift = to; (f.clashs[Key(k)].shifts ??= []).Add(a.index);
+				f.clashs[Key(k)].shift = to;
+				(f.clashs[Key(k)].shifts ??= []).Add(a.index);
 			}
 			else
 				f.pushs[Name((N)a[want])] = to;
@@ -229,38 +230,48 @@ public class SerMaker<K, N>
 		Dictionary<Clash, (HashSet<K> keys, short mode)> clashs = [];
 		foreach (var f in forms)
 			foreach (var (c, kx) in f.clashs.Each())
+				// shift without clash
 				if (c.redus == null)
 					f.modes[kx] = (short)(c.shifts == null ? -1 // error
-										: c.shift); // shift without clash
+										: c.shift);
+				// reduce without clash
 				else if (c.shifts == null && c.redus.Count == 1)
-					f.modes[kx] = SynForm.Reduce(c.redus.First()); // reduce without clash
-				else if (clashs.TryGetValue(c, out var ok)) {
+					f.modes[kx] = SynForm.Reduce(c.redus.First());
 					// already solved
+				else if (clashs.TryGetValue(c, out var ok)) {
 					f.modes[kx] = ok.mode;
 					ok.keys.Add(keys[kx]);
 				}
-				else { // solve
+				// solve
+				else {
 					short mode = -1;
 					if (c.redus.All(a => alts[a].clash != 0)) {
-						int X(int a) => alts[a].clash < 0 ? ~alts[a].clash : a;
-						int ra = c.redus.Max(), r = X(ra), i;
+						int A(int a) => alts[a].clash < 0 ? ~alts[a].clash : a;
+						int r = c.redus.Max(), ra = A(r);
 						if (c.shifts == null)
 							mode = SynForm.Reduce(r); // reduce
-						else if (alts[i = X(c.shifts.Max())].clash != 0)
-							if (i > r || i == r && alts[i].clash > 1)
+						else {
+							int ia = A(c.shifts.Max()), ic = alts[ia].clash;
+							if (ic != 0)
+								if (ia > ra || ia == ra && ic > 1)
 								mode = c.shift; // shift
 							else
-								mode = SynForm.Reduce(ra); // reduce
+									mode = SynForm.Reduce(r); // reduce
+					}
 					}
 					f.modes[kx] = mode;
 					clashs[c] = ([keys[kx]], mode);
 				}
+		// solved
+		var solvez = 0;
 		if (!detail)
-			foreach (var (ok, _) in clashs.Where(c => c.Value.mode != -1))
-				clashs.Remove(ok);
+			foreach (var (c, (_, mode)) in clashs)
+				if (mode != -1 && clashs.Remove(c))
+					solvez++;
 		if (dump) {
 			using var env = EnvWriter.Use();
-			env.WriteLine(detail ? "clashes and solutions:" : "unsolved clashes:");
+			env.WriteLine(detail ? $"clashes: {clashs.Count} ({solvez} solved)"
+				: $"unsolved clashes: {clashs.Count} (besides {solvez} solved)");
 			foreach (var ((c, (keys, mode)), cx) in clashs.Each(1)) {
 				env.Write(cx + (mode == -1 ? "  : " : " :: "));
 				env.WriteLine(string.Join(' ', keys.Select(k => CharSet.Unesc(k))));
@@ -315,23 +326,25 @@ public class SerMaker<K, N>
 		return (As, Fs);
 	}
 
-	public const int ErrZ = 2;
-	public const string Err = "{0}{1} wants {2}", ErrMore = " \nand ", ErrEtc = " ...";
+	public static int ErrZ = 2;
+	public static string Err = "{0} wants {1} {2}", ErrMore = " \nand ", ErrEtc = " ...";
+	public static string ErrEor = "want end of read";
 
-	// make error recovery and info
-	[System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2241:correct arguments to formatting")]
+	// make error info and recovery
 	void Error(Form f, SynForm F)
 	{
-		// TODO recover error
-		F.rec = -1;
-		// for better error info, form with any reduce will always reduce on error keys
-		if (F.modes.FirstOrDefault(m => m < -1, (short)-1) is short r and < -1)
-			foreach (var (m, x) in F.modes.Each())
-				if (m == -1) F.modes[x] = r;
+		bool accept = false;
+		if (F.modes.MayRedu().Max()?.r is short other)
+			if (other == SynForm.Reduce(0))
+				accept = true;
+			else // for better error info, form with any reduce will always reduce on error keys
+				foreach (var (m, kx) in F.modes.s.Each())
+					if (m == -1) F.modes.s[kx] = other;
+
 		// error infos
 		List<(bool low, int want, int ax, object expect)> errNs = [], errKs = [], errs = [];
 		foreach (var ((a, want), _) in f.Is)
-			if (want < a.Count && want != a.lex) // next content except the saving lex
+			if (want < a.Count && want != a.lex) // saved lex is usually for distinct alts of same name
 				(a[want] is N ? errNs : errKs).Add(
 					(a.label == null, a.Count - want - want, a.index, a[want]));
 		errNs.Sort(); errKs.Sort();
@@ -340,11 +353,17 @@ public class SerMaker<K, N>
 			if (errs.Count <= ErrZ && x < errNs.Count) errs.Add(errNs[x]);
 			if (errs.Count <= ErrZ && x < errKs.Count) errs.Add(errKs[x]);
 		}
-		F.err = errs.Count < 1 ? null : string.Join("", errs.Select((e, x) => x == ErrZ ? ErrEtc
-			: string.Format(Err, x == 0 ? "" : ErrMore,
-				alts[e.ax].label ?? prods[Name(alts[e.ax].name)].label ?? alts[e.ax].name.ToString(),
-				e.expect is N n ? prods[Name(n)].label ?? n.ToString() : e.expect,
-				e)));
+		StrMaker e = new();
+		foreach (var ((low, want, ax, expect), x) in errs.Each())
+			e += x == ErrZ ? ErrEtc :
+				e.Join(ErrMore) + string.Format(Err, // label or name wants name or key
+				alts[ax].label ?? prods[Name(alts[ax].name)].label ?? alts[ax].name.ToString(),
+				expect is N n ? prods[Name(n)].label ?? n.ToString() : CharSet.Unesc(expect),
+				(low ? "L" : "", want, ax));
+		if (e.Size > 0)
+			F.err = e;
+		else if (accept)
+			F.err = ErrEor;
 	}
 
 	// phase init: get grammar

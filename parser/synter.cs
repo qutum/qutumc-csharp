@@ -56,30 +56,22 @@ public sealed class SynForm
 		public short[] s; // at ordinal or ordinal index
 		public ushort[] x; // compact: { for others, ordinals ... }, normal: null
 
-		public readonly short this[ushort o] {
-			get => x == null ? o < s.Length ? s[o] : (short)-1
+		public readonly short this[ushort ord] {
+			get => x == null ? ord < s.Length ? s[ord] : (short)-1
 				: x.Length switch {
 					1 => s[0],
-					2 => x[1] == o ? s[1] : s[0],
-					3 => x[1] == o ? s[1] : x[2] == o ? s[2] : s[0],
-					4 => x[1] == o ? s[1] : x[2] == o ? s[2] : x[3] == o ? s[3] : s[0],
-					_ => s[Math.Max(Array.BinarySearch(x, 1, x.Length - 1, o), 0)]
+					2 => x[1] == ord ? s[1] : s[0],
+					3 => x[1] == ord ? s[1] : x[2] == ord ? s[2] : s[0],
+					4 => x[1] == ord ? s[1] : x[2] == ord ? s[2] : x[3] == ord ? s[3] : s[0],
+					_ => s[Math.Max(Array.BinarySearch(x, 1, x.Length - 1, ord), 0)]
 				};
 		}
-
-		public readonly IEnumerable<(short d, ushort x, bool other)> Enum(bool all = false)
-		{
-			for (var y = 0; y < s.Length; y++)
-				if (all || s[y] != -1)
-					yield return (s[y], x?[y] ?? (ushort)y, x != null && y == 0);
-		}
 	}
-
 	public short index;
 	public S modes; // for each key: shift to: form index, reduce: -2-alt index, error: -1
 	public S pushs; // for each name: push: form index
-		if (x == null) return o < s.Length ? s[o] : (short)-1;
-		switch (x.Length) {
+	public string err; // error info
+	public IEnumerable<short> recs; // recovery alt indexes for pushing
 	public object dump;
 
 	public static short Reduce(int alt) => (short)(-2 - alt);
@@ -133,6 +125,7 @@ public class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler : cla
 			if (f != null) {
 				f.index = (short)fx;
 				f.dump ??= (Func<object, string>)DumpJot;
+	}
 	}
 
 	public Synter<K, L, N, T, Ler> Begin(Ler ler) { this.ler = ler; return this; }
@@ -198,7 +191,7 @@ public class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler : cla
 		mode = form.rec;
 		T e = new() {
 			from = ler.Loc(), to = ler.Loc() + (key != default ? 1 : 0),
-			err = -1, info = info
+			err = -1, info = form.err ?? (mode < -1 ? SerMaker<K, N>.ErrEor : "error"),
 		};
 		_ = err == null ? errs = e : err.Append(e);
 		err = e;
@@ -252,14 +245,57 @@ public class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler : cla
 		if (d is ushort ord && (ty == typeof(char) || ty == typeof(string)))
 			return CharSet.Unesc((char)ord);
 		if (d is SynForm f) {
-			StrMaker s = new();
-			foreach (var (m, k, other) in f.modes.Enum())
-				_ = s.Join('\n') + (other ? " " : dumper(k, typeof(K)))
-					+ (m >= 0 ? s + " shift " + m : s + " reduce " + alts[SynForm.Reduce(m)]);
-			foreach (var (p, k, other) in f.pushs.Enum())
-				_ = s.Join('\n') + (other ? " " : dumper(k, typeof(N))) + " push " + p;
+			StrMaker s = new(); short r;
+			foreach (var (m, k, other) in f.modes.Ok())
+				_ = s.Join('\n') + (other ? " " : dumper(k, typeof(K))) +
+				(m >= 0 ? s + " shift " + m : s + " redu " + (r = SynForm.Reduce(m)) + ' ' + alts[r]);
+			foreach (var (p, n, other) in f.pushs.Ok())
+				_ = s.Join('\n') + (other ? " " : dumper(n, typeof(N))) + " push " + p;
 			return s.ToString();
 		}
 		return d.ToString();
 	}
+}
+
+public static class Extension
+{
+	public static IEnumerable<(short d, ushort ord, bool other)> Full(this SynForm.S s)
+	{
+		for (var y = 0; y < s.s.Length; y++)
+			yield return (s.s[y], s.x?[y] ?? (ushort)y, s.x != null && y == 0);
+	}
+	public static IEnumerable<(short d, ushort ord, bool other)> Ok(this SynForm.S s)
+	{
+		for (var y = 0; y < s.s.Length; y++)
+			if (s.s[y] != -1)
+				yield return (s.s[y], s.x?[y] ?? (ushort)y, s.x != null && y == 0);
+	}
+	public static IEnumerable<(short f, ushort ord, bool other)> Form(this SynForm.S s)
+	{
+		for (var y = 0; y < s.s.Length; y++)
+			if (s.s[y] >= 0)
+				yield return (s.s[y], s.x?[y] ?? (ushort)y, s.x != null && y == 0);
+	}
+	public static IEnumerable<(short r, ushort ord, bool other)> Redu(this SynForm.S s)
+	{
+		for (var y = 0; y < s.s.Length; y++)
+			if (s.s[y] < -1)
+				yield return (s.s[y], s.x?[y] ?? (ushort)y, s.x != null && y == 0);
+	}
+	public static IEnumerable<(short a, ushort ord, bool other)> Alt(this SynForm.S s)
+	{
+		for (var y = 0; y < s.s.Length; y++)
+			if (s.s[y] < -1)
+				yield return (SynForm.Reduce(s.s[y]), s.x?[y] ?? (ushort)y, s.x != null && y == 0);
+	}
+	public static IEnumerable<(short d, ushort ord, bool other)?> MayFull(this SynForm.S s)
+	{ if (s.s.Length == 0) yield return null; else foreach (var d in Full(s)) yield return d; }
+	public static IEnumerable<(short d, ushort ord, bool other)?> MayOk(this SynForm.S s)
+	{ if (s.s.Length == 0) yield return null; else foreach (var d in Ok(s)) yield return d; }
+	public static IEnumerable<(short f, ushort ord, bool other)?> MayForm(this SynForm.S s)
+	{ if (s.s.Length == 0) yield return null; else foreach (var d in Form(s)) yield return d; }
+	public static IEnumerable<(short r, ushort ord, bool other)?> MayRedu(this SynForm.S s)
+	{ if (s.s.Length == 0) yield return null; else foreach (var d in Redu(s)) yield return d; }
+	public static IEnumerable<(short a, ushort ord, bool other)?> MayAlt(this SynForm.S s)
+	{ if (s.s.Length == 0) yield return null; else foreach (var d in Alt(s)) yield return d; }
 }

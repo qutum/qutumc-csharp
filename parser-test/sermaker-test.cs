@@ -307,7 +307,7 @@ public class TestSerMaker : IDisposable
 			.n("S")['a', ..]["S"].clash
 		);
 		NewSer();
-		ser.Parse("a").Eq("S", 0, 1, "loop grammar", err: -1);
+		ser.Parse("aa").Eq("S", 0, 1, "loop grammar", -1);
 	}
 
 	[TestMethod]
