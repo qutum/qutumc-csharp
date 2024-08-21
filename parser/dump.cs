@@ -60,10 +60,10 @@ public partial class Lexier<K> : LexerSeg<K, Lexi<K>>
 
 public partial class Synt<N, T>
 {
-	public string dump;
+	public object dump;
 
-	public override string ToString() => $"{from}:{to}{(err == 0 ? info != null ? " " + info : ""
-		: err < -1 ? "!!" : "!")} {dump ?? (err == 0 ? null : info) ?? name}";
+	public override string ToString() => $"{from}:{to}{(err == 0 ? "" : err > 0 ? "!!" : "!"
+		)} {info} {dump ?? name}";
 
 	public override string ToString(object extra)
 	{

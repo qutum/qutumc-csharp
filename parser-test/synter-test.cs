@@ -26,13 +26,13 @@ static class Extension
 		if (name != null) AreEqual(name, s.t.name);
 		if (from != null) AreEqual(from, s.t.from);
 		if (to != null) AreEqual(to, s.t.to);
-		if (err < 0 && d is string eq && s.t.info is string actu) {
-			var As = actu.Split(SerMaker<char, string>.ErrMore);
-			var es = eq.Split("  ");
-			if ((es.Length < 2 ? As.Length != es.Length : As.Length < es.Length)
-				|| es.Zip(As).Any(ea =>
+		if (err < 0 && d is string aim && s.t.info is string test) {
+			var ts = test.Split(SerMaker<char, string>.ErrMore);
+			var As = aim.Split("  ");
+			if ((As.Length < 2 ? ts.Length != As.Length : ts.Length < As.Length)
+				|| As.Zip(ts).Any(ea =>
 					!ea.First.Split(' ').ToHashSet().IsSubsetOf(ea.Second.Split(' ').ToHashSet())))
-				Fail($"Expected Err <{eq}> Actual <{actu.Replace("\n", "  ")}>");
+				Fail($"Expected Err <{aim}> Actual <{test.Replace("\n", "  ")}>");
 		}
 		else if (d != null) AreEqual(d,
 			d is string && s.t.err == 0 ? s.s.ler.Lexs(s.t.from, s.t.to) : s.t.info);

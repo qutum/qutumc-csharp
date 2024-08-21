@@ -26,10 +26,10 @@ public class SynGram<K, N>
 		internal short index; // index of whole grammar alts
 		public N name;
 		public short clash; // reject: 0, solve 1: 1, solve 2: 2
-						  // as same rule and index as previous one: ~actual alt index
+							// as same rule and index as previous one: ~actual alt index
 		public short lex = -1; // save lex at this index to Synt.info, no save: <0
 		public sbyte synt; // as Synter.tree: 0, make Synt: 1, omit Synt: -1
-		public bool rec; // recover this alt when error found
+		public bool rec; // whether recover this alt for error
 		public string label;
 
 		public override string ToString() => $"{name} = {string.Join(' ', this)}  {clash
@@ -58,9 +58,9 @@ public class SynGram<K, N>
 	public SynGram<K, N> clash { get { prods[^1][^1].clash = 1; return this; } }
 	public SynGram<K, N> clashRight { get { prods[^1][^1].clash = 2; return this; } }
 	public SynGram<K, N> clashPrev { get { prods[^1][^1].clash = -1; return this; } }
-	public SynGram<K, N> recover { get { prods[^1][^1].rec = true; return this; } }
 	public SynGram<K, N> synt { get { prods[^1][^1].synt = 1; return this; } }
 	public SynGram<K, N> syntOmit { get { prods[^1][^1].synt = -1; return this; } }
+	public SynGram<K, N> recover { get { prods[^1][^1].rec = true; return this; } }
 	public SynGram<K, N> label(string w) { prods[^1][^1].label = w.ToString(); return this; }
 	public SynGram<K, N> labelLow { get { prods[^1][^1].label = null; return this; } }
 }
@@ -109,7 +109,7 @@ public class SerMaker<K, N>
 	public (bool empty, IEnumerable<K> first) First(N name) => firsts[Name(name)];
 
 	class Items : Dictionary<(SynGram<K, N>.Alt alt, short want),
-		HashSet<K>> // lookaheads, eor excluded
+		HashSet<K>> // lookaheads including eor
 	{ }
 	[System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2231:Overload operator equals")]
 	public struct Clash
@@ -237,7 +237,7 @@ public class SerMaker<K, N>
 				// reduce without clash
 				else if (c.shifts == null && c.redus.Count == 1)
 					f.modes[kx] = SynForm.Reduce(c.redus.First());
-					// already solved
+				// already solved
 				else if (clashs.TryGetValue(c, out var ok)) {
 					f.modes[kx] = ok.mode;
 					ok.keys.Add(keys[kx]);
@@ -254,10 +254,10 @@ public class SerMaker<K, N>
 							int ia = A(c.shifts.Max()), ic = alts[ia].clash;
 							if (ic != 0)
 								if (ia > ra || ia == ra && ic > 1)
-								mode = c.shift; // shift
-							else
+									mode = c.shift; // shift
+								else
 									mode = SynForm.Reduce(r); // reduce
-					}
+						}
 					}
 					f.modes[kx] = mode;
 					clashs[c] = ([keys[kx]], mode);
@@ -286,22 +286,29 @@ public class SerMaker<K, N>
 	}
 
 	// phase all and final: make all data for synter
-	public (SynAlt<N>[] alts, SynForm[] forms)
+	public (SynAlt<N>[] alts, SynForm[] forms, ushort[] recKs)
 		Make(out Dictionary<Clash, (HashSet<K> keys, short mode)> clashs)
 	{
 		Firsts();
 		Forms();
 		clashs = Clashs(false);
 		if (clashs != null)
-			return (null, null);
+			return (null, null, null);
+		// recovery key ordinals
+		var recKs = alts.Where(a => a.rec).Select(a => keyOrd((K)a[^1]))
+			.Distinct().Prepend(default).ToArray();
+		if (recKs.Length > 100)
+			throw new($"recovery keys size {recKs.Length}");
+		Array.Sort(recKs);
 		// synter alts
 		var As = new SynAlt<N>[alts.Length];
 		foreach (var (a, ax) in alts.Each())
 			As[ax] = new() {
 				name = a.name, size = checked((short)a.Count), lex = a.lex,
-				synt = a.synt, rec = a.rec, label = a.label,
 #pragma warning disable CS8974 // Converting method group to non-delegate type
-				dump = a.ToString,
+				synt = a.synt, label = a.label, dump = a.ToString,
+				// final key index in recovery keys
+				rec = (sbyte)(a.rec ? Array.IndexOf(recKs, keyOrd((K)a[^1])) : 0),
 			};
 		// synter forms
 		var Fs = new SynForm[forms.Count];
@@ -323,7 +330,7 @@ public class SerMaker<K, N>
 			Compact(nameOs, f.pushs, ref F.pushs);
 			Error(f, F);
 		}
-		return (As, Fs);
+		return (As, Fs, recKs);
 	}
 
 	public static int ErrZ = 2;
@@ -364,6 +371,15 @@ public class SerMaker<K, N>
 			F.err = e;
 		else if (accept)
 			F.err = ErrEor;
+
+		// recover alts
+		List<short> recs = [];
+		foreach (var ((a, want), _) in f.Is)
+			if (a.rec && want == 1 && want < a.Count) // so never initial form
+				recs.Add(a.index);
+		recs.Sort(); recs.Reverse(); // reduce the latest alt of same recovery key
+		if (recs.Count > 0)
+			F.recs = [.. recs];
 	}
 
 	// phase init: get grammar
@@ -388,13 +404,13 @@ public class SerMaker<K, N>
 		SortedDictionary<ushort, K> ks = new() { { keyOrd(default), default } };
 		alts = new SynGram<K, N>.Alt[gram.prods.Sum(p => p.Count)];
 		if (alts.Length is 0 or > 32767)
-			throw new($"total alterns {alts.Length}");
+			throw new($"total {alts.Length} alterns");
 		short ax = 0;
 		foreach (var p in gram.prods) {
 			var np = prods[Name(p.name)];
 			foreach (var (a, pax) in p.Each()) {
 				if (a.Count > 30)
-					throw new($"altern size {a.Count}");
+					throw new($"{p.name}.{pax} size {a.Count}");
 				foreach (var c in a)
 					if (c is K k)
 						ks[keyOrd(k)] = !k.Equals(default) ? k
@@ -411,8 +427,10 @@ public class SerMaker<K, N>
 					a.clash = alts[ax - 1].clash < 0 ? alts[ax - 1].clash : (short)~(ax - 1);
 				if (a.lex >= 0 && a[a.lex] is not K)
 					throw new($"{p.name}.{pax} content {a[a.lex]} not lexic key");
-				if (a.rec && (a.lex < 0 || a.lex != a.Count - 1))
-					throw new($"{p.name}.{ax} recovery lex at {a.lex}");
+				if (a.rec && a.Count < 2)
+					throw new($"{p.name}.{pax} size {a.Count}");
+				if (a.rec && a[^1] is not K)
+					throw new($"{p.name}.{pax} no final lexic key");
 				alts[a.index = ax++] = a;
 				if (np != p)
 					np.Add(a); // append alterns to same name production

@@ -18,24 +18,24 @@ using ClashEq = (HashSet<char>, short[] redus, short[] shifts)[];
 
 file static class Extension
 {
-	public static void Eq(this (bool empty, IEnumerable<char> first) eq, bool empty, string first)
+	public static void Eq(this (bool empty, IEnumerable<char> first) test, bool empty, string first)
 	{
-		AreEqual(empty, eq.empty);
-		AreEqual(first, string.Join(" ", eq.first.Order()));
+		AreEqual(empty, test.empty);
+		AreEqual(first, string.Join(" ", test.first.Order()));
 	}
 
-	public static void Eq(this Dictionary<SerMaker<char, string>.Clash, (HashSet<char> ks, short m)> eqs,
+	public static void Eq(this Dictionary<SerMaker<char, string>.Clash, (HashSet<char> ks, short m)> tests,
 		params ClashEq aims)
 	{
-		AreEqual(eqs.Count, aims.Length);
+		AreEqual(tests.Count, aims.Length);
 		foreach (var (ks, redus, shifts) in aims) {
-			IsTrue(eqs.TryGetValue(new() {
+			IsTrue(tests.TryGetValue(new() {
 				redus = redus.Select(a => (short)(a ^ a >> 15)).ToHashSet(),
 				shifts = shifts?.Select(a => (short)(a ^ a >> 15)).ToHashSet()
-			}, out var eq));
-			IsTrue(ks.SetEquals(eq.ks));
+			}, out var t));
+			IsTrue(ks.SetEquals(t.ks));
 			AreEqual(shifts?.Min() < 0 ? 0 : redus.Min() < 0 ? SynForm.Reduce(~redus.Min()) : -1,
-				Math.Min((int)eq.m, 0));
+				Math.Min((int)t.m, 0));
 		}
 	}
 }
@@ -301,13 +301,13 @@ public class TestSerMaker : IDisposable
 	{
 		NewMer(new Gram().n("S")[[]]);
 		NewSer();
-		ser.Parse("").Eq("S"); ser.Parse("a").Eq(err: -1);
+		ser.Parse("").Eq("S").U(); ser.Parse("a").Eq(err: -1).H(null, 0, 1, "end of", -1).uU();
 		NewMer(new Gram()
 			.n("Z")["S", 'a'].clash.syntOmit
 			.n("S")['a', ..]["S"].clash
 		);
 		NewSer();
-		ser.Parse("aa").Eq("S", 0, 1, "loop grammar", -1);
+		ser.Parse("aa").Eq(err: -1).h(null, 0, 1, "loop grammar", -2).uU();
 	}
 
 	[TestMethod]
@@ -377,13 +377,13 @@ public class TestSerMaker : IDisposable
 	{
 		NewMer(new Gram().n("S")['a']);
 		NewSer();
-		ser.Parse("").Eq(null, 0, 0, "S a", -1);
-		ser.Parse("b").Eq(null, 0, 1, "S a", -1);
+		ser.Parse("").H(null, 0, 0, "S a", -1).uU();
+		ser.Parse("b").H(null, 0, 1, "S a", -1).uU();
 		NewMer(new Gram().n("Z")["S"].n("S")['a']['b']);
 		NewSer();
-		ser.Parse("").Eq(null, 0, 0, "Z S  S a", -1);
-		ser.Parse("c").Eq(null, 0, 1, "Z S  S a", -1);
-		ser.Parse("aa").Eq(null, 1, 2, "end of", -1);
+		ser.Parse("").H(null, 0, 0, "Z S  S a", -1).uU();
+		ser.Parse("c").H(null, 0, 1, "Z S  S a", -1).uU();
+		ser.Parse("aa").H(null, 1, 2, "end of", -1).uU();
 	}
 
 	[TestMethod]
@@ -400,19 +400,19 @@ public class TestSerMaker : IDisposable
 			.n("B")["E", '-', .., "E"].clash.label("subtraction")
 		);
 		NewSer();
-		ser.Parse("aa").Eq(null, 1, 2, "sentence ;", -1);
-		ser.Parse("-a").Eq(null, 0, 1, "sentence expression  expression a", -1);
-		ser.Parse("a+").Eq(null, 2, 2, "addition expression  expression a", -1);
-		ser.Parse("a++a").Eq(null, 2, 3, "addition expression  expression a", -1);
-		ser.Parse("a+a--a").Eq(null, 4, 5, "subtraction expression  expression a", -1);
-		ser.Parse(")").Eq(null, 0, 1, "sentence expression  expression a", -1);
-		ser.Parse("a)").Eq(null, 1, 2, "sentence ;", -1);
-		ser.Parse("(a))").Eq(null, 3, 4, "sentence ;", -1);
-		ser.Parse("(").Eq(null, 1, 1, "parenth expression  expression a", -1);
-		ser.Parse("(a").Eq(null, 2, 2, "parenth )", -1);
-		ser.Parse("(a;").Eq(null, 2, 3, "parenth )", -1);
-		ser.Parse(";a").Eq(null, 0, 1, "sentence expression  expression a", -1);
-		ser.Parse("a;;").Eq(null, 2, 3, "sentence expression  expression a", -1);
-		ser.Parse("(a;a)").Eq(null, 2, 3, "parenth )", -1);
+		ser.Parse("aa").H(null, 1, 2, "sentence ;", -1).uU();
+		ser.Parse("-a").H(null, 0, 1, "sentence expression  expression a", -1).uU();
+		ser.Parse("a+").H(null, 2, 2, "addition expression  expression a", -1).uU();
+		ser.Parse("a++a").H(null, 2, 3, "addition expression  expression a", -1).uU();
+		ser.Parse("a+a--a").H(null, 4, 5, "subtraction expression  expression a", -1).uU();
+		ser.Parse(")").H(null, 0, 1, "sentence expression  expression a", -1).uU();
+		ser.Parse("a)").H(null, 1, 2, "sentence ;", -1).uU();
+		ser.Parse("(a))").H(null, 3, 4, "sentence ;", -1).uU();
+		ser.Parse("(").H(null, 1, 1, "parenth expression  expression a", -1).uU();
+		ser.Parse("(a").H(null, 2, 2, "parenth )", -1).uU();
+		ser.Parse("(a;").H(null, 2, 3, "parenth )", -1).uU();
+		ser.Parse(";a").H(null, 0, 1, "sentence expression  expression a", -1).uU();
+		ser.Parse("a;;").H(null, 2, 3, "sentence expression  expression a", -1).uU();
+		ser.Parse("(a;a)").H(null, 2, 3, "parenth )", -1).uU();
 	}
 }
