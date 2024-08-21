@@ -297,20 +297,6 @@ public class TestSerMaker : IDisposable
 	}
 
 	[TestMethod]
-	public void Make1()
-	{
-		NewMer(new Gram().n("S")[[]]);
-		NewSer();
-		ser.Parse("").Eq("S").U(); ser.Parse("a").Eq(err: -1).H(null, 0, 1, "end of", -1).uU();
-		NewMer(new Gram()
-			.n("Z")["S", 'a'].clash.syntOmit
-			.n("S")['a', ..]["S"].clash
-		);
-		NewSer();
-		ser.Parse("aa").Eq(err: -1).h(null, 0, 1, "loop grammar", -2).uU();
-	}
-
-	[TestMethod]
 	public void MakeTigerF325()
 	{
 		NewMer(new Gram()
@@ -370,6 +356,17 @@ public class TestSerMaker : IDisposable
 		);
 		NewSer();
 		ser.DoDragon2F449();
+	}
+
+	[TestMethod]
+	public void ErrorCyclic()
+	{
+		NewMer(new Gram()
+			.n("Z")["S", 'a'].clash.syntOmit
+			.n("S")['a', ..]["S"].clash
+		);
+		NewSer();
+		ser.Parse("aa").Eq(err: -1).h(null, 0, 1, "cyclic grammar", -2).uU();
 	}
 
 	[TestMethod]

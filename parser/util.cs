@@ -17,13 +17,14 @@ namespace qutum;
 public static class Extension
 {
 	public static ArraySegment<T> Seg<T>(this T[] s) => new(s);
-
 	public static ArraySegment<T> Seg<T>(this T[] s, int from, int to) => new(s, from, to - from);
 
-	public static MemoryEnum<T> Enum<T>(this ReadOnlyMemory<T> s) => new(s);
+	public static IEnumerable<T> Enum<T>(this ReadOnlyMemory<T> s)
+	{
+		for (var x = 0; x < s.Length; x++) yield return s.Span[x];
+	}
 
 	public static ReadOnlyMemory<char> Mem(this string s) => s.AsMemory();
-
 	public static ReadOnlyMemory<char> Mem(this string s, int from, int to) => s.AsMemory(from, to - from);
 
 	public static bool Adds<T>(this ISet<T> s, IEnumerable<T> add)
@@ -37,29 +38,17 @@ public static class Extension
 		foreach (var d in s) yield return (d, offset++);
 	}
 
+	public static IEnumerable<T?> May<T>(this IEnumerable<T> s) where T : struct
+	{
+		bool no = true;
+		foreach (var d in s) { no = false; yield return d; }
+		if (no) yield return null;
+	}
+
 	public static T? FirstOrNull<T>(this IEnumerable<T> s, Func<T, bool> If) where T : struct
 	{
 		foreach (var d in s) if (If(d)) return d;
 		return null;
-	}
-}
-
-public readonly struct MemoryEnum<T>(ReadOnlyMemory<T> mem) : IEnumerable<T>
-{
-	public IEnumerator<T> GetEnumerator() => new Enum { mem = mem };
-
-	IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
-
-	struct Enum : IEnumerator<T>
-	{
-		internal ReadOnlyMemory<T> mem;
-		int x = -1;
-		public Enum() { }
-		public readonly T Current => mem.Span[x];
-		readonly object IEnumerator.Current => Current;
-		public bool MoveNext() => ++x < mem.Length;
-		public void Reset() => x = -1;
-		public readonly void Dispose() { }
 	}
 }
 

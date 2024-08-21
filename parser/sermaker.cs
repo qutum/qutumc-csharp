@@ -6,13 +6,16 @@
 //
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
+using System.Numerics;
 
 namespace qutum.parser;
 
+using Kord = char;
+using Nord = ushort;
+
 // syntax grammar
-public class SynGram<K, N>
+public partial class SynGram<K, N>
 {
 	public readonly List<Prod> prods = [];
 	public class Prod(N name, string label) : List<Alt>
@@ -21,7 +24,7 @@ public class SynGram<K, N>
 		public string label = label;
 	}
 	// { K or N ... }
-	public class Alt : List<object>
+	public partial class Alt : List<object>
 	{
 		internal short index; // index of whole grammar alts
 		public N name;
@@ -31,10 +34,6 @@ public class SynGram<K, N>
 		public sbyte synt; // as Synter.tree: 0, make Synt: 1, omit Synt: -1
 		public bool rec; // whether recover this alt for error
 		public string label;
-
-		public override string ToString() => $"{name} = {string.Join(' ', this)}  {clash
-			switch { 0 => "", 1 => "<", > 1 => ">", _ => "^" }}{(rec ? "!!" : "")}{(
-			synt > 0 ? "+" : synt < 0 ? "-" : "")}{(lex >= 0 ? "_" + lex : "")} {label}";
 	}
 
 	public SynGram<K, N> n(N name, string label = null) { prods.Add(new(name, label)); return this; }
@@ -73,9 +72,10 @@ public class SerMaker<K, N>
 	public bool dump = true;
 	public int compact = 50;
 
-	readonly Func<K, ushort> keyOrd; // ordinal from 1, default for eor: 0
-	readonly Func<N, ushort> nameOrd; // ordinal from 1
-	readonly ushort[] keyOs, nameOs; // { ordinal... }
+	readonly Func<K, Kord> keyOrd; // ordinal from 1, default for eor: 0
+	readonly Func<N, Nord> nameOrd; // ordinal from 1
+	readonly Kord[] keyOs; // { key ordinal... }
+	readonly Nord[] nameOs; // { name ordinal... }
 	readonly K[] keys; // at key ordinal index
 	readonly N[] names; // at name ordinal index
 
@@ -286,7 +286,7 @@ public class SerMaker<K, N>
 	}
 
 	// phase all and final: make all data for synter
-	public (SynAlt<N>[] alts, SynForm[] forms, ushort[] recKs)
+	public (SynAlt<N>[] alts, SynForm[] forms, Kord[] recKs)
 		Make(out Dictionary<Clash, (HashSet<K> keys, short mode)> clashs)
 	{
 		Firsts();
@@ -313,13 +313,14 @@ public class SerMaker<K, N>
 		// synter forms
 		var Fs = new SynForm[forms.Count];
 		foreach (var f in forms) {
-			void Compact(ushort[] os, short[] fs, ref SynForm.S Fs)
+			void Compact<O>(O[] os, short[] fs, ref SynForm.S<O> Fs) where O : IBinaryInteger<O>
 			{ // TODO better compact
 				int z;
-				if (os[^1] < compact || (z = fs.Count(m => m != -1)) >= os[^1] >>> 3)
+				if (int.CreateTruncating(os[^1]) < compact
+					|| (z = fs.Count(m => m != -1)) >= int.CreateTruncating(os[^1]) >>> 3)
 					Fs.s = fs;
 				else {
-					(Fs.s, Fs.x) = (new short[z + 1], new ushort[z + 1]); Fs.s[0] = -1;
+					(Fs.s, Fs.x) = (new short[z + 1], new O[z + 1]); Fs.s[0] = -1;
 					for (int X = 1, x = 0; x < os.Length; x++)
 						if (fs[x] != -1)
 							(Fs.s[X], Fs.x[X++]) = (fs[x], os[x]);
@@ -341,7 +342,7 @@ public class SerMaker<K, N>
 	void Error(Form f, SynForm F)
 	{
 		bool accept = false;
-		if (F.modes.MayRedu().Max()?.r is short other)
+		if (F.modes.Redu().May().Max()?.d is short other)
 			if (other == SynForm.Reduce(0))
 				accept = true;
 			else // for better error info, form with any reduce will always reduce on error keys
@@ -383,12 +384,12 @@ public class SerMaker<K, N>
 	}
 
 	// phase init: get grammar
-	public SerMaker(SynGram<K, N> gram, Func<K, ushort> keyOrd, Func<N, ushort> nameOrd,
+	public SerMaker(SynGram<K, N> gram, Func<K, Kord> keyOrd, Func<N, Nord> nameOrd,
 		Action<IEnumerable<K>> distinct, bool dump = true)
 	{
 		this.dump = dump; this.keyOrd = keyOrd; this.nameOrd = nameOrd;
 		// names
-		SortedDictionary<ushort, N> ns = [];
+		SortedDictionary<Nord, N> ns = [];
 		foreach (var (p, px) in gram.prods.Each())
 			if (!ns.TryAdd(nameOrd(p.name), p.name) && !ns[nameOrd(p.name)].Equals(p.name))
 				throw new($"duplicate ordinal of {ns[nameOrd(p.name)]} and {p.name}");
@@ -401,7 +402,7 @@ public class SerMaker<K, N>
 		foreach (var p in gram.prods)
 			prods[Name(p.name)] ??= p;
 		// alts
-		SortedDictionary<ushort, K> ks = new() { { keyOrd(default), default } };
+		SortedDictionary<Kord, K> ks = new() { { keyOrd(default), default } };
 		alts = new SynGram<K, N>.Alt[gram.prods.Sum(p => p.Count)];
 		if (alts.Length is 0 or > 32767)
 			throw new($"total {alts.Length} alterns");

@@ -13,6 +13,8 @@ using static Microsoft.VisualStudio.TestTools.UnitTesting.Assert;
 
 namespace qutum.test.parser;
 
+using Kord = char;
+using Nord = ushort;
 using Ser = (SyntStr t, SynterStr s);
 
 static class Extension
@@ -87,7 +89,7 @@ public class TestSynter : IDisposable
 
 	internal SynterStr ser;
 
-	public void NewSer(string Alts, char[] keys, ushort[] names, (short[] modes, short[] pushs)[] forms)
+	public void NewSer(string Alts, Kord[] keys, Nord[] names, (short[] modes, short[] pushs)[] forms)
 	{
 		var alts = Alts.Split('\n', ' ').Select(a => new SynAlt<string> {
 			name = a[0..1],
@@ -95,8 +97,8 @@ public class TestSynter : IDisposable
 			lex = (short)(a.IndexOfAny(keys, 2) - 2),
 			synt = a[1] switch { '+' => 1, '-' => -1, _ => 0 },
 		}).ToArray();
-		ushort[] ks = [0, .. keys];
-		ushort[] ns = [0, .. names];
+		Kord[] ks = [default, .. keys];
+		Nord[] ns = [default, .. names];
 		var Fs = new SynForm[forms.Length];
 		foreach (var (f, fx) in forms.Each())
 			if (f.modes != null) {

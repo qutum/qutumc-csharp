@@ -15,6 +15,9 @@ using System.Linq;
 
 namespace qutum.parser;
 
+using Kord = char;
+using Nord = ushort;
+
 public partial struct Lexi<K>
 {
 	public override readonly string ToString() => $"{key}{(err < 0 ? "!" : "=")}{value}";
@@ -75,6 +78,16 @@ public partial class Synt<N, T>
 	}
 }
 
+public partial class SynGram<K, N>
+{
+	public partial class Alt
+	{
+		public override string ToString() => $"{name} = {string.Join(' ', this)}  {clash
+			switch { 0 => "", 1 => "<", > 1 => ">", _ => "^" }}{(rec ? "!!" : "")}{(
+			synt > 0 ? "+" : synt < 0 ? "-" : "")}{(lex >= 0 ? "_" + lex : "")} {label}";
+	}
+}
+
 public partial class SynAlt<N>
 {
 	public object dump;
@@ -96,7 +109,7 @@ public partial class SynForm
 public partial class Synter<K, L, N, T, Ler>
 {
 	public int dump = 0; // no: 0, lexs only for tree leaf: 1, lexs: 2, lexs and Alts: 3
-	public Func<object, Type, string> dumper;
+	public Func<object, string> dumper;
 
 	void InitDump()
 	{
@@ -106,19 +119,17 @@ public partial class Synter<K, L, N, T, Ler>
 				f.dump ??= (Func<object, string>)Dumper;
 	}
 
-	public string Dumper(object d) => Dumper(d, typeof(object));
-
-	public string Dumper(object d, Type ty)
+	public string Dumper(object d)
 	{
-		if (d is ushort ord && (ty == typeof(char) || ty == typeof(string)))
-			return CharSet.Unesc((char)ord);
+		if (d is Kord key) return CharSet.Unesc(key);
+		if (d is Nord name) return CharSet.Unesc((char)name);
 		if (d is SynForm f) {
 			StrMaker s = new(); short r;
-			foreach (var (m, k, other) in f.modes.Ok())
-				_ = s.Join('\n') + (other ? " " : dumper(k, typeof(K))) +
+			foreach (var (m, k, other) in f.modes.Yes())
+				_ = s.Join('\n') + (other ? " " : dumper(k)) +
 				(m >= 0 ? s + " shift " + m : s + " redu " + (r = SynForm.Reduce(m)) + " " + alts[r]);
-			foreach (var (p, n, other) in f.pushs.Ok())
-				_ = s.Join('\n') + (other ? " " : dumper(n, typeof(N))) + " push " + p;
+			foreach (var (p, n, other) in f.pushs.Yes())
+				_ = s.Join('\n') + (other ? " " : dumper(n)) + " push " + p;
 			foreach (var a in f.recs)
 				_ = s.Join('\n') + "recover " + a + " " + alts[a];
 			return s.ToString();

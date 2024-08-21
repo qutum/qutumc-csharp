@@ -6,8 +6,12 @@
 //
 using System;
 using System.Collections.Generic;
+using System.Numerics;
 
 namespace qutum.parser;
+
+using Kord = char;
+using Nord = ushort;
 
 // syntax tree
 public partial class Synt<N, T> : LinkTree<T> where T : Synt<N, T>
@@ -33,13 +37,13 @@ public sealed partial class SynAlt<N>
 }
 public sealed partial class SynForm
 {
-	public partial struct S
+	public struct S<O> where O : IBinaryInteger<O>
 	{
 		public short[] s; // at ordinal or ordinal index
-		public ushort[] x; // compact: { for others, ordinals ... }, normal: null
+		public O[] x; // compact: { for others, ordinals ... }, normal: null
 
-		public readonly short this[ushort ord] {
-			get => x == null ? ord < s.Length ? s[ord] : (short)-1
+		public readonly short this[O ord] {
+			get => x == null ? s[int.CreateTruncating(ord)]
 				: x.Length switch {
 					1 => s[0],
 					2 => x[1] == ord ? s[1] : s[0],
@@ -50,8 +54,8 @@ public sealed partial class SynForm
 		}
 	}
 	public short index;
-	public S modes; // for each key: shift to: form index, reduce: -2-alt index, error: -1
-	public S pushs; // for each name: push: form index
+	public S<Kord> modes; // for each key: shift to: form index, reduce: -2-alt index, error: -1
+	public S<Nord> pushs; // for each name: push: form index
 	public string err; // error info
 	public short[] recs; // recovery alts indexes wanting their second contents
 
@@ -62,15 +66,15 @@ public sealed partial class SynForm
 public class Synter<K, N, T, Ler> : Synter<K, Lexi<K>, N, T, Ler>
 	where K : struct where T : Synt<N, T>, new() where Ler : class, LexerSeg<K, Lexi<K>>
 {
-	public Synter(Func<Ler, ushort> keyOrd, Func<N, ushort> nameOrd,
-		SynAlt<N>[] alts, SynForm[] forms, ushort[] recKs = null)
+	public Synter(Func<Ler, Kord> keyOrd, Func<N, Nord> nameOrd,
+		SynAlt<N>[] alts, SynForm[] forms, Kord[] recKs = null)
 		: base(keyOrd, nameOrd, alts, forms, recKs) { }
 }
 
 public class SynterStr : Synter<char, char, string, SyntStr, LerStr>
 {
-	public SynterStr(Func<string, ushort> nameOrd,
-		SynAlt<string>[] alts, SynForm[] forms, ushort[] recKs = null)
+	public SynterStr(Func<string, Nord> nameOrd,
+		SynAlt<string>[] alts, SynForm[] forms, Kord[] recKs = null)
 		: base(ler => ler.Lex(), nameOrd, alts, forms, recKs) { }
 }
 
@@ -82,17 +86,17 @@ public partial class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where L
 	readonly SynAlt<N>[] alts; // reduce [0] by eor: accept
 	readonly SynForm[] forms;
 	readonly SynForm init;
-	readonly ushort[] recKs; // { recovery key ordinal ... }
+	readonly Kord[] recKs; // { recovery key ordinal ... }
 
-	protected Func<Ler, ushort> keyOrd; // ordinal from 1, default for eor: 0
-	protected Func<N, ushort> nameOrd; // ordinal from 1
+	protected Func<Ler, Kord> keyOrd; // ordinal from 1, default for eor: 0
+	protected Func<N, Nord> nameOrd; // ordinal from 1
 
 	public Ler ler;
 	public bool recover = false; // whether recover errors
 	public bool synt = true; // make Synt tree by default
 
-	public Synter(Func<Ler, ushort> keyOrd, Func<N, ushort> nameOrd,
-		SynAlt<N>[] alts, SynForm[] forms, ushort[] recKs = null)
+	public Synter(Func<Ler, Kord> keyOrd, Func<N, Nord> nameOrd,
+		SynAlt<N>[] alts, SynForm[] forms, Kord[] recKs = null)
 	{
 		if (alts.Length is 0 or > 32767)
 			throw new($"{nameof(alts)} size {alts.Length}");
@@ -123,7 +127,7 @@ public partial class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where L
 	Loop:
 		var form = stack[^1].form;
 		var mode = form.modes[key];
-		ushort name = 0; // reduced alt name
+		Nord name = 0; // reduced alt name
 		int loc = 0; // reduced head lexic loc
 		T t = null; // reduced synt
 		if (mode >= 0) { // shift
@@ -180,7 +184,7 @@ public partial class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where L
 		return (errs ??= new() { err = -1 }).Add(t);
 	}
 
-	bool Error(ushort key, ref SynForm form, ref short mode, ref ushort name, ref int loc,
+	bool Error(Kord key, ref SynForm form, ref short mode, ref Nord name, ref int loc,
 		ref T t, ref T errs)
 	{
 		T e = new() {
@@ -262,48 +266,40 @@ public partial class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where L
 	}
 }
 
-public partial class SynForm
+public static partial class Extension
 {
-	public partial struct S
+	public static IEnumerable<(short d, Kord ord, bool other)> Full(this SynForm.S<Kord> s)
 	{
-		public readonly IEnumerable<(short d, ushort ord, bool other)> Full()
-		{
-			for (var y = 0; y < s.Length; y++)
-				yield return (s[y], x?[y] ?? (ushort)y, x != null && y == 0);
-		}
-		public readonly IEnumerable<(short d, ushort ord, bool other)> Ok()
-		{
-			for (var y = 0; y < s.Length; y++)
-				if (s[y] != -1)
-					yield return (s[y], x?[y] ?? (ushort)y, x != null && y == 0);
-		}
-		public readonly IEnumerable<(short f, ushort ord, bool other)> Form()
-		{
-			for (var y = 0; y < s.Length; y++)
-				if (s[y] >= 0)
-					yield return (s[y], x?[y] ?? (ushort)y, x != null && y == 0);
-		}
-		public readonly IEnumerable<(short r, ushort ord, bool other)> Redu()
-		{
-			for (var y = 0; y < s.Length; y++)
-				if (s[y] < -1)
-					yield return (s[y], x?[y] ?? (ushort)y, x != null && y == 0);
-		}
-		public readonly IEnumerable<(short a, ushort ord, bool other)> Alt()
-		{
-			for (var y = 0; y < s.Length; y++)
-				if (s[y] < -1)
-					yield return (SynForm.Reduce(s[y]), x?[y] ?? (ushort)y, x != null && y == 0);
-		}
-		public readonly IEnumerable<(short d, ushort ord, bool other)?> MayFull()
-		{ if (s.Length == 0) yield return null; else foreach (var d in Full()) yield return d; }
-		public readonly IEnumerable<(short d, ushort ord, bool other)?> MayOk()
-		{ if (s.Length == 0) yield return null; else foreach (var d in Ok()) yield return d; }
-		public readonly IEnumerable<(short f, ushort ord, bool other)?> MayForm()
-		{ if (s.Length == 0) yield return null; else foreach (var d in Form()) yield return d; }
-		public readonly IEnumerable<(short r, ushort ord, bool other)?> MayRedu()
-		{ if (s.Length == 0) yield return null; else foreach (var d in Redu()) yield return d; }
-		public readonly IEnumerable<(short a, ushort ord, bool other)?> MayAlt()
-		{ if (s.Length == 0) yield return null; else foreach (var d in Alt()) yield return d; }
+		for (var y = 0; y < s.s.Length; y++)
+			yield return (s.s[y], s.x?[y] ?? (Kord)y, s.x != null && y == 0);
+	}
+	public static IEnumerable<(short d, Nord ord, bool other)> Full(this SynForm.S<Nord> s)
+	{
+		for (var y = 0; y < s.s.Length; y++)
+			yield return (s.s[y], s.x?[y] ?? (Nord)y, s.x != null && y == 0);
+	}
+	public static IEnumerable<(short d, Kord ord, bool other)> Yes(this SynForm.S<Kord> s)
+	{
+		foreach (var d in s.Full()) if (d.d != -1) yield return d;
+	}
+	public static IEnumerable<(short d, Nord ord, bool other)> Yes(this SynForm.S<Nord> s)
+	{
+		foreach (var d in s.Full()) if (d.d != -1) yield return d;
+	}
+	public static IEnumerable<(short d, Kord ord, bool other)> Form(this SynForm.S<Kord> s)
+	{
+		foreach (var d in s.Full()) if (d.d >= 0) yield return d;
+	}
+	public static IEnumerable<(short d, Nord ord, bool other)> Form(this SynForm.S<Nord> s)
+	{
+		foreach (var d in s.Full()) if (d.d >= 0) yield return d;
+	}
+	public static IEnumerable<(short d, Kord ord, bool other)> Redu(this SynForm.S<Kord> s)
+	{
+		foreach (var d in s.Full()) if (d.d < -1) yield return d;
+	}
+	public static IEnumerable<(short d, Kord ord, bool other)> Alt(this SynForm.S<Kord> s)
+	{
+		foreach (var d in s.Full()) if (d.d < -1) yield return (SynForm.Reduce(d.d), d.ord, d.other);
 	}
 }
