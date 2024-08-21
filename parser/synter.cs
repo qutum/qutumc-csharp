@@ -10,24 +10,12 @@ using System.Collections.Generic;
 namespace qutum.parser;
 
 // syntax tree
-public class Synt<N, T> : LinkTree<T> where T : Synt<N, T>
+public partial class Synt<N, T> : LinkTree<T> where T : Synt<N, T>
 {
 	public N name;
 	public int from, to; // lexs from loc to loc excluded, for error may < 0
 	public int err; // no error: 0, error: -1, recovery: -2
 	public object info; // no error: maybe lex, error: lex or error or recovery info
-	public string dump;
-
-	public override string ToString() => $"{from}:{to}{(err == 0 ? info != null ? " " + info : ""
-		: err < -1 ? "!!" : "!")} {dump ?? (err == 0 ? null : info) ?? name}";
-
-	public override string ToString(object extra)
-	{
-		if (extra is not Func<int, int, (int, int, int, int)> loc)
-			return ToString();
-		var (fl, fc, tl, tc) = loc(from, to);
-		return $"{fl}.{fc}:{tl}.{tc}{(err == 0 ? info != null ? " " + info : ""
-			: err < -1 ? "!!" : "!")} {dump ?? (err == 0 ? null : info) ?? name}";
 	}
 }
 
@@ -35,7 +23,7 @@ public class SyntStr : Synt<string, SyntStr>
 {
 }
 
-public sealed class SynAlt<N>
+public sealed partial class SynAlt<N>
 {
 	public N name;
 	public short size;
@@ -43,15 +31,10 @@ public sealed class SynAlt<N>
 	public sbyte synt; // as Synter.tree: 0, make Synt: 1, omit Synt: -1
 	public bool rec; // is this for error recovery
 	public string label;
-	public object dump;
-
-	public override string ToString() => dump as string ?? (string)
-		(dump is Func<string> d ? dump = d() : dump is Func<object, string> dd ? dump = dd(this)
-		: dump?.ToString() ?? label ?? "alt " + name);
 }
-public sealed class SynForm
+public sealed partial class SynForm
 {
-	public struct S
+	public partial struct S
 	{
 		public short[] s; // at ordinal or ordinal index
 		public ushort[] x; // compact: { for others, ordinals ... }, normal: null
@@ -72,13 +55,8 @@ public sealed class SynForm
 	public S pushs; // for each name: push: form index
 	public string err; // error info
 	public IEnumerable<short> recs; // recovery alt indexes for pushing
-	public object dump;
 
 	public static short Reduce(int alt) => (short)(-2 - alt);
-
-	public override string ToString() => dump as string ?? (string)
-		(dump is Func<string> d ? dump = d() : dump is Func<object, string> dd ? dump = dd(this)
-		: dump?.ToString() ?? base.ToString());
 }
 
 // syntax parser
@@ -98,7 +76,7 @@ public class SynterStr : Synter<char, char, string, SyntStr, LerStr>
 // syntax parser using LR algorithm
 // K for lexical key i.e lexeme, L for lexical token
 // N for syntax name i.e synteme, T for syntax tree
-public class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler : class, Lexer<K, L>
+public partial class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler : class, Lexer<K, L>
 {
 	readonly SynAlt<N>[] alts; // reduce [0] by eor: accept
 	readonly SynForm[] forms;
@@ -120,12 +98,10 @@ public class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler : cla
 		this.keyOrd = keyOrd; this.nameOrd = nameOrd; this.alts = alts; this.forms = forms;
 		init = (short)(forms[0] != null ? 0 : 1);
 		init = forms[0] ?? forms[1];
-		dumper = DumpJot;
 		foreach (var (f, fx) in forms.Each())
-			if (f != null) {
+			if (f != null)
 				f.index = (short)fx;
-				f.dump ??= (Func<object, string>)DumpJot;
-	}
+		InitDump();
 	}
 
 	public Synter<K, L, N, T, Ler> Begin(Ler ler) { this.ler = ler; return this; }
@@ -237,65 +213,50 @@ public class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler : cla
 		stack.Clear();
 		return false;
 	}
-
-	public string DumpJot(object d) => DumpJot(d, typeof(object));
-
-	public string DumpJot(object d, Type ty)
-	{
-		if (d is ushort ord && (ty == typeof(char) || ty == typeof(string)))
-			return CharSet.Unesc((char)ord);
-		if (d is SynForm f) {
-			StrMaker s = new(); short r;
-			foreach (var (m, k, other) in f.modes.Ok())
-				_ = s.Join('\n') + (other ? " " : dumper(k, typeof(K))) +
-				(m >= 0 ? s + " shift " + m : s + " redu " + (r = SynForm.Reduce(m)) + ' ' + alts[r]);
-			foreach (var (p, n, other) in f.pushs.Ok())
-				_ = s.Join('\n') + (other ? " " : dumper(n, typeof(N))) + " push " + p;
-			return s.ToString();
-		}
-		return d.ToString();
-	}
 }
 
-public static class Extension
+public partial class SynForm
+	{
+	public partial struct S
 {
-	public static IEnumerable<(short d, ushort ord, bool other)> Full(this SynForm.S s)
+		public readonly IEnumerable<(short d, ushort ord, bool other)> Full()
 	{
-		for (var y = 0; y < s.s.Length; y++)
-			yield return (s.s[y], s.x?[y] ?? (ushort)y, s.x != null && y == 0);
+			for (var y = 0; y < s.Length; y++)
+				yield return (s[y], x?[y] ?? (ushort)y, x != null && y == 0);
 	}
-	public static IEnumerable<(short d, ushort ord, bool other)> Ok(this SynForm.S s)
+		public readonly IEnumerable<(short d, ushort ord, bool other)> Ok()
 	{
-		for (var y = 0; y < s.s.Length; y++)
-			if (s.s[y] != -1)
-				yield return (s.s[y], s.x?[y] ?? (ushort)y, s.x != null && y == 0);
+			for (var y = 0; y < s.Length; y++)
+				if (s[y] != -1)
+					yield return (s[y], x?[y] ?? (ushort)y, x != null && y == 0);
 	}
-	public static IEnumerable<(short f, ushort ord, bool other)> Form(this SynForm.S s)
+		public readonly IEnumerable<(short f, ushort ord, bool other)> Form()
 	{
-		for (var y = 0; y < s.s.Length; y++)
-			if (s.s[y] >= 0)
-				yield return (s.s[y], s.x?[y] ?? (ushort)y, s.x != null && y == 0);
+			for (var y = 0; y < s.Length; y++)
+				if (s[y] >= 0)
+					yield return (s[y], x?[y] ?? (ushort)y, x != null && y == 0);
 	}
-	public static IEnumerable<(short r, ushort ord, bool other)> Redu(this SynForm.S s)
+		public readonly IEnumerable<(short r, ushort ord, bool other)> Redu()
 	{
-		for (var y = 0; y < s.s.Length; y++)
-			if (s.s[y] < -1)
-				yield return (s.s[y], s.x?[y] ?? (ushort)y, s.x != null && y == 0);
+			for (var y = 0; y < s.Length; y++)
+				if (s[y] < -1)
+					yield return (s[y], x?[y] ?? (ushort)y, x != null && y == 0);
 	}
-	public static IEnumerable<(short a, ushort ord, bool other)> Alt(this SynForm.S s)
+		public readonly IEnumerable<(short a, ushort ord, bool other)> Alt()
 	{
-		for (var y = 0; y < s.s.Length; y++)
-			if (s.s[y] < -1)
-				yield return (SynForm.Reduce(s.s[y]), s.x?[y] ?? (ushort)y, s.x != null && y == 0);
+			for (var y = 0; y < s.Length; y++)
+				if (s[y] < -1)
+					yield return (SynForm.Reduce(s[y]), x?[y] ?? (ushort)y, x != null && y == 0);
+		}
+		public readonly IEnumerable<(short d, ushort ord, bool other)?> MayFull()
+		{ if (s.Length == 0) yield return null; else foreach (var d in Full()) yield return d; }
+		public readonly IEnumerable<(short d, ushort ord, bool other)?> MayOk()
+		{ if (s.Length == 0) yield return null; else foreach (var d in Ok()) yield return d; }
+		public readonly IEnumerable<(short f, ushort ord, bool other)?> MayForm()
+		{ if (s.Length == 0) yield return null; else foreach (var d in Form()) yield return d; }
+		public readonly IEnumerable<(short r, ushort ord, bool other)?> MayRedu()
+		{ if (s.Length == 0) yield return null; else foreach (var d in Redu()) yield return d; }
+		public readonly IEnumerable<(short a, ushort ord, bool other)?> MayAlt()
+		{ if (s.Length == 0) yield return null; else foreach (var d in Alt()) yield return d; }
 	}
-	public static IEnumerable<(short d, ushort ord, bool other)?> MayFull(this SynForm.S s)
-	{ if (s.s.Length == 0) yield return null; else foreach (var d in Full(s)) yield return d; }
-	public static IEnumerable<(short d, ushort ord, bool other)?> MayOk(this SynForm.S s)
-	{ if (s.s.Length == 0) yield return null; else foreach (var d in Ok(s)) yield return d; }
-	public static IEnumerable<(short f, ushort ord, bool other)?> MayForm(this SynForm.S s)
-	{ if (s.s.Length == 0) yield return null; else foreach (var d in Form(s)) yield return d; }
-	public static IEnumerable<(short r, ushort ord, bool other)?> MayRedu(this SynForm.S s)
-	{ if (s.s.Length == 0) yield return null; else foreach (var d in Redu(s)) yield return d; }
-	public static IEnumerable<(short a, ushort ord, bool other)?> MayAlt(this SynForm.S s)
-	{ if (s.s.Length == 0) yield return null; else foreach (var d in Alt(s)) yield return d; }
 }

@@ -24,18 +24,18 @@ file static class Extension
 		AreEqual(first, string.Join(" ", eq.first.Order()));
 	}
 
-	public static void Eq(this Dictionary<SerMaker<char, string>.Clash, (HashSet<char> ks, short m)> actus,
-		params ClashEq eqs)
+	public static void Eq(this Dictionary<SerMaker<char, string>.Clash, (HashSet<char> ks, short m)> eqs,
+		params ClashEq aims)
 	{
-		AreEqual(actus.Count, eqs.Length);
-		foreach (var (ks, redus, shifts) in eqs) {
-			IsTrue(actus.TryGetValue(new() {
+		AreEqual(eqs.Count, aims.Length);
+		foreach (var (ks, redus, shifts) in aims) {
+			IsTrue(eqs.TryGetValue(new() {
 				redus = redus.Select(a => (short)(a ^ a >> 15)).ToHashSet(),
 				shifts = shifts?.Select(a => (short)(a ^ a >> 15)).ToHashSet()
 			}, out var eq));
-			IsTrue(eq.ks.SetEquals(ks));
-			AreEqual(Math.Min((int)eq.m, 0),
-				shifts?.Min() < 0 ? 0 : redus.Min() < 0 ? SynForm.Reduce(~redus.Min()) : -1);
+			IsTrue(ks.SetEquals(eq.ks));
+			AreEqual(shifts?.Min() < 0 ? 0 : redus.Min() < 0 ? SynForm.Reduce(~redus.Min()) : -1,
+				Math.Min((int)eq.m, 0));
 		}
 	}
 }

@@ -12,17 +12,12 @@ using System.Text;
 namespace qutum.parser;
 
 // lexic token
-public struct Lexi<K> where K : struct
+public partial struct Lexi<K> where K : struct
 {
 	public K key;
 	public int from, to; // read from loc to excluded loc
 	public int err; // lexis ~loc before this error found
 	public object value;
-
-	public override readonly string ToString() => $"{key}{(err < 0 ? "!" : "=")}{value}";
-
-	public readonly string ToString(Func<object, string> dumper)
-		=> $"{key}{(err < 0 ? "!" : "=")}{dumper(value)}";
 }
 
 // lexic grammar
@@ -74,7 +69,7 @@ public class LexGram<K> where K : struct
 
 // lexic parser
 // K for lexic key i.e lexeme
-public class Lexier<K> : LexerSeg<K, Lexi<K>> where K : struct
+public partial class Lexier<K> : LexerSeg<K, Lexi<K>> where K : struct
 {
 	// each unit is just before next byte or after the last byte of wad
 	sealed class Unit
@@ -233,9 +228,7 @@ public class Lexier<K> : LexerSeg<K, Lexi<K>> where K : struct
 
 	public bool Is(K aim) => Is(lexs[loc].key, aim);
 	public bool Is(int loc, K aim) => Is(Lex(loc).key, aim);
-	public virtual bool Is(K key, K aim) => Eq.Equals(key, aim);
-
-	protected static EqualityComparer<K> Eq = EqualityComparer<K>.Default;
+	public virtual bool Is(K key, K aim) => aim.Equals(key);
 
 	public Span<Lexi<K>> Lexs(int from, int to, Span<Lexi<K>> s)
 	{
@@ -278,37 +271,6 @@ public class Lexier<K> : LexerSeg<K, Lexi<K>> where K : struct
 		}
 		var (fl, fc) = LineCol(bf); var (tl, tc) = LineCol(bt);
 		return (fl, fc, tl, tc);
-	}
-
-	static void Dump(Unit u, string pre, Dictionary<Unit, bool> us = null)
-	{
-		using var env = EnvWriter.Use();
-		var usNull = us == null;
-		us ??= [];
-		us[u] = false; // dumped
-		if (u.id == 0)
-			env.WriteLine("unit:");
-		env.WriteLine($"{u.id}: {u.key}.{u.wad} " +
-			$"{(u.mode >= 0 ? "back" : u.mode == -1 ? "ok" : "err")}.{u.go.id} < {pre}");
-		if (!us.ContainsKey(u.go))
-			us[u.go] = true; // not dumped yet
-		if (u.next == null)
-			return;
-		foreach (var n in u.next.Where(n => n != null).Distinct()) {
-			var s = u.next.Select((nn, b) => nn != n ? null : CharSet.Unesc((byte)b))
-				.Where(x => x != null);
-			using var _ = EnvWriter.Indent("  ");
-			if (n == u)
-				env.WriteLine($"+ < {string.Join(' ', s)}");
-			else
-				Dump(n, string.Join(' ', s), us);
-		}
-	Go: if (usNull)
-			foreach (var go in us)
-				if (go.Value) {
-					Dump(go.Key, $"{go.Key.key}.{go.Key.wad - 1}", us);
-					goto Go;
-				}
 	}
 
 	public Lexier(LexGram<K> grammar, bool dumpGram = false)

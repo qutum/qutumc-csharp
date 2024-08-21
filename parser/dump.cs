@@ -5,15 +5,129 @@
 // http://qutum.com  http://qutum.cn
 //
 using qutum.parser;
+using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 
-[assembly: DebuggerTypeProxy(typeof(Dumpers.Form), Target = typeof(SynForm))]
-[assembly: DebuggerTypeProxy(typeof(Dumpers.Stack), Target = typeof((SynForm, int, object)))]
+[assembly: DebuggerTypeProxy(typeof(Dumper.Form), Target = typeof(SynForm))]
+[assembly: DebuggerTypeProxy(typeof(Dumper.Stack), Target = typeof((SynForm, int, object)))]
 
 namespace qutum.parser;
 
-public static class Dumpers
+public partial struct Lexi<K>
+{
+	public override readonly string ToString() => $"{key}{(err < 0 ? "!" : "=")}{value}";
+
+	public readonly string ToString(Func<object, string> dumper)
+		=> $"{key}{(err < 0 ? "!" : "=")}{dumper(value)}";
+}
+
+public partial class Lexier<K> : LexerSeg<K, Lexi<K>>
+{
+
+	static void Dump(Unit u, string pre, Dictionary<Unit, bool> us = null)
+	{
+		using var env = EnvWriter.Use();
+		var usNull = us == null;
+		us ??= [];
+		us[u] = false; // dumped
+		if (u.id == 0)
+			env.WriteLine("unit:");
+		env.WriteLine($"{u.id}: {u.key}.{u.wad} " +
+			$"{(u.mode >= 0 ? "back" : u.mode == -1 ? "ok" : "err")}.{u.go.id} < {pre}");
+		if (!us.ContainsKey(u.go))
+			us[u.go] = true; // not dumped yet
+		if (u.next == null)
+			return;
+		foreach (var n in u.next.Where(n => n != null).Distinct()) {
+			var s = u.next.Select((nn, b) => nn != n ? null : CharSet.Unesc((byte)b))
+				.Where(x => x != null);
+			using var _ = EnvWriter.Indent("  ");
+			if (n == u)
+				env.WriteLine($"+ < {string.Join(' ', s)}");
+			else
+				Dump(n, string.Join(' ', s), us);
+		}
+	Go: if (usNull)
+			foreach (var go in us)
+				if (go.Value) {
+					Dump(go.Key, $"{go.Key.key}.{go.Key.wad - 1}", us);
+					goto Go;
+				}
+	}
+}
+
+public partial class Synt<N, T>
+{
+	public string dump;
+
+	public override string ToString() => $"{from}:{to}{(err == 0 ? info != null ? " " + info : ""
+		: err < -1 ? "!!" : "!")} {dump ?? (err == 0 ? null : info) ?? name}";
+
+	public override string ToString(object extra)
+	{
+		if (extra is not Func<int, int, (int, int, int, int)> loc)
+			return ToString();
+		var (fl, fc, tl, tc) = loc(from, to);
+		return $"{fl}.{fc}:{tl}.{tc}{(err == 0 ? info != null ? " " + info : ""
+			: err < -1 ? "!!" : "!")} {dump ?? (err == 0 ? null : info) ?? name}";
+	}
+}
+
+public partial class SynAlt<N>
+{
+	public object dump;
+
+	public override string ToString() => dump as string ?? (string)
+		(dump is Func<string> d ? dump = d() : dump is Func<object, string> dd ? dump = dd(this)
+		: dump?.ToString() ?? label ?? "alt " + name);
+}
+
+public partial class SynForm
+{
+	public object dump;
+
+	public override string ToString() => dump as string ?? (string)
+		(dump is Func<string> d ? dump = d() : dump is Func<object, string> dd ? dump = dd(this)
+		: dump?.ToString() ?? base.ToString());
+}
+
+public partial class Synter<K, L, N, T, Ler>
+{
+	public int dump = 0; // no: 0, lexs only for tree leaf: 1, lexs: 2, lexs and Alts: 3
+	public Func<object, Type, string> dumper;
+
+	void InitDump()
+	{
+		dumper = Dumper;
+		foreach (var (f, fx) in forms.Each())
+			if (f != null)
+				f.dump ??= (Func<object, string>)Dumper;
+	}
+
+	public string Dumper(object d) => Dumper(d, typeof(object));
+
+	public string Dumper(object d, Type ty)
+	{
+		if (d is ushort ord && (ty == typeof(char) || ty == typeof(string)))
+			return CharSet.Unesc((char)ord);
+		if (d is SynForm f) {
+			StrMaker s = new(); short r;
+			foreach (var (m, k, other) in f.modes.Ok())
+				_ = s.Join('\n') + (other ? " " : dumper(k, typeof(K))) +
+				(m >= 0 ? s + " shift " + m : s + " redu " + (r = SynForm.Reduce(m)) + " " + alts[r]);
+			foreach (var (p, n, other) in f.pushs.Ok())
+				_ = s.Join('\n') + (other ? " " : dumper(n, typeof(N))) + " push " + p;
+			foreach (var a in f.recs)
+				_ = s.Join('\n') + "recover " + a + " " + alts[a];
+			return s.ToString();
+		}
+		return d.ToString();
+	}
+}
+
+public static class Dumper
 {
 	[DebuggerDisplay("{d,nq}")]
 	public struct Str
