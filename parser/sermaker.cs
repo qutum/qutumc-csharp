@@ -295,8 +295,7 @@ public class SerMaker<K, N>
 		if (clashs != null)
 			return (null, null, null);
 		// recovery key ordinals
-		var recKs = alts.Where(a => a.rec).Select(a => keyOrd((K)a[^1]))
-			.Distinct().Prepend(default).ToArray();
+		var recKs = alts.Where(a => a.rec).Select(a => keyOrd((K)a[^1])).Distinct().ToArray();
 		if (recKs.Length > 100)
 			throw new($"recovery keys size {recKs.Length}");
 		Array.Sort(recKs);
@@ -335,7 +334,7 @@ public class SerMaker<K, N>
 	}
 
 	public static int ErrZ = 2;
-	public static string Err = "{0} wants {1} {2}", ErrMore = " \nand ", ErrEtc = " ...";
+	public static string Err = "{0} wants {1}", ErrMore = " \nand ", ErrEtc = " ...";
 	public static string ErrEor = "want end of read";
 
 	// make error info and recovery
@@ -345,7 +344,7 @@ public class SerMaker<K, N>
 		if (F.modes.Redu().May().Max()?.d is short other)
 			if (other == SynForm.Reduce(0))
 				accept = true;
-			else // for better error info, form with any reduce will always reduce on error keys
+			else // for error and recovery, form with any reduce will always reduce on error keys
 				foreach (var (m, kx) in F.modes.s.Each())
 					if (m == -1) F.modes.s[kx] = other;
 
@@ -363,21 +362,20 @@ public class SerMaker<K, N>
 		}
 		StrMaker e = new();
 		foreach (var ((low, want, ax, expect), x) in errs.Each())
-			e += x == ErrZ ? ErrEtc :
-				e.Join(ErrMore) + string.Format(Err, // label or name wants name or key
+			e += x == ErrZ ? ErrEtc : e - ErrMore + e.F(Err, // label or name wants name or key
 				alts[ax].label ?? prods[Name(alts[ax].name)].label ?? alts[ax].name.ToString(),
 				expect is N n ? prods[Name(n)].label ?? n.ToString() : CharSet.Unesc(expect),
-				(low ? "L" : "", want, ax));
+				(low ? "low" : "", want, ax)); // {2}
 		if (e.Size > 0)
 			F.err = e;
 		else if (accept)
 			F.err = ErrEor;
 
 		// recover alts
-		List<short> recs = [];
+		List<(short, short)> recs = [];
 		foreach (var ((a, want), _) in f.Is)
-			if (a.rec && want == 1 && want < a.Count) // so never initial form
-				recs.Add(a.index);
+			if (a.rec && want < a.Count)
+				recs.Add((a.index, want));
 		recs.Sort(); recs.Reverse(); // reduce the latest alt of same recovery key
 		if (recs.Count > 0)
 			F.recs = [.. recs];
@@ -412,6 +410,8 @@ public class SerMaker<K, N>
 			foreach (var (a, pax) in p.Each()) {
 				if (a.Count > 30)
 					throw new($"{p.name}.{pax} size {a.Count}");
+				if (a.Count == 0 && ax == 0)
+					throw new($"initial {p.name}.{pax} emppty");
 				foreach (var c in a)
 					if (c is K k)
 						ks[keyOrd(k)] = !k.Equals(default) ? k
@@ -428,9 +428,9 @@ public class SerMaker<K, N>
 					a.clash = alts[ax - 1].clash < 0 ? alts[ax - 1].clash : (short)~(ax - 1);
 				if (a.lex >= 0 && a[a.lex] is not K)
 					throw new($"{p.name}.{pax} content {a[a.lex]} not lexic key");
-				if (a.rec && a.Count < 2)
-					throw new($"{p.name}.{pax} size {a.Count}");
-				if (a.rec && a[^1] is not K)
+				if (a.rec && ax == 0)
+					throw new($"initial {p.name}.{pax} recovery");
+				if (a.rec && (a.Count == 0 || a[^1] is not K))
 					throw new($"{p.name}.{pax} no final lexic key");
 				alts[a.index = ax++] = a;
 				if (np != p)

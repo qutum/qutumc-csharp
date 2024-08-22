@@ -4,6 +4,7 @@
 // Under the terms of the GNU General Public License version 3
 // http://qutum.com  http://qutum.cn
 //
+#pragma warning disable IDE0059 // Unnecessary assignment
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using qutum.parser;
 using System;
@@ -13,8 +14,8 @@ using static Microsoft.VisualStudio.TestTools.UnitTesting.Assert;
 
 namespace qutum.test.parser;
 
-using Gram = SynGram<char, string>;
 using ClashEq = (HashSet<char>, short[] redus, short[] shifts)[];
+using Gram = SynGram<char, string>;
 
 file static class Extension
 {
@@ -55,11 +56,11 @@ public class TestSerMaker : IDisposable
 		mer = new(gram, k => k, n => n[0], (_) => { });
 	}
 
-	public void NewSer()
+	public void NewSer(bool recover = false)
 	{
 		var (a, f, r) = mer.Make(out var _);
 		AreNotEqual(null, a);
-		ser = new TestSynter { ser = new(n => n[0], a, f, r) };
+		ser = new TestSynter { ser = new(n => n[0], a, f, r) { recover = recover } };
 	}
 
 	[TestMethod]
@@ -411,5 +412,24 @@ public class TestSerMaker : IDisposable
 		ser.Parse(";a").H(null, 0, 1, "sentence expression  expression a", -1).uU();
 		ser.Parse("a;;").H(null, 2, 3, "sentence expression  expression a", -1).uU();
 		ser.Parse("(a;a)").H(null, 2, 3, "parenth )", -1).uU();
+	}
+
+	[TestMethod]
+	public void Recover1()
+	{
+		NewMer(new Gram().n("Z")["S"]
+			.n("S", "sentence")["E", ';'].recover["S", "E", ';'].recover.labelLow
+			.n("E", "expression")['a', ..]['b', ..]
+		);
+		NewSer(recover: true);
+		ser.Parse("a;").h("S").H("E", d: 'a').uuU();
+		ser.Parse("a;b;").h("S").h("S").H("E", d: 'a').u().N("E", d: 'b').uuU();
+		ser.Parse("").H("S", 0, 0, "sentence expression  sentence", 1).u().n(err: -1).U();
+		ser.Parse(";").H("S", err: 1).u().n(err: -1).H(err: -1).uU();
+		var t = ser.Parse(";;").Eq("Z");
+		t = t/**/	.h("S", 0, 2, d: "sentence expression", 1);
+		t = t/**/		.H("S", 0, 1, "sentence expression  sentence", 1).uu();
+		t = t/**/.n(err: -1).H(null, 0, 1, "sentence expression  sentence", -1);
+		t = t/**/			.N(null, 1, 2, "sentence expression", -1).uU();
 	}
 }

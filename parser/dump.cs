@@ -132,8 +132,8 @@ public partial class Synter<K, L, N, T, Ler>
 				(m >= 0 ? s + " shift " + m : s + " redu " + (r = SynForm.Reduce(m)) + " " + alts[r]);
 			foreach (var (p, n, other) in f.pushs.Yes())
 				_ = s - '\n' + (other ? " " : dumper(n)) + " push " + p;
-			foreach (var a in f.recs ?? [])
-				_ = s - '\n' + "recover " + a + " " + alts[a];
+			foreach (var (a, want) in f.recs ?? [])
+				_ = s - '\n' + "recover " + a + ',' + want + ' ' + alts[a];
 			return s.ToString();
 		}
 		return d.ToString();
