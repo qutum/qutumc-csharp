@@ -166,7 +166,7 @@ public class LinkTree<T> : IEnumerable<T> where T : LinkTree<T>
 		for (var t = head; ; t = t.next) {
 			if (t == (o > 0 ? head : o < 0 ? null : head?.next))
 				using (var env = EnvWriter.Indent
-					(noInd ?? (after > 0 ? first ? "- " : "\\ " : last ? "- " : "/ ")))
+					(noInd ?? (after > 0 ? first ? "- " : "\\ " : last ? "- " : "/ "), "    "))
 					env.WriteLine(ToString(extra));
 			if (t == null)
 				break;
@@ -207,12 +207,19 @@ public struct StrMaker
 	readonly StringBuilder s = new();
 
 	public StrMaker() { }
+	public StrMaker(out StrMaker s) => s = this;
 	public static implicit operator StrMaker(string s) => new StrMaker() + s;
 	public static implicit operator string(StrMaker s) => s.ToString();
 
 	public static StrMaker operator +(StrMaker s, object d)
-	{ if (d is not StrMaker m || m.s != s.s) s.s.Append(d); return s; }
-	public StrMaker Join(object d) => s.Length > 0 ? this + d : this;
+	{
+		if (d is not StrMaker m || m.s != s.s) s.s.Append(d); return s;
+	}
+	public static StrMaker operator -(StrMaker s, object d) => s.s.Length > 0 ? s + d : s;
+	public StrMaker F(string format, params object[] args)
+	{
+		s.AppendFormat(format, args); return this;
+	}
 
 	public int Size => s.Length;
 	public override string ToString() => s.ToString();
@@ -224,26 +231,26 @@ public class EnvWriter : StringWriter, IDisposable
 
 	TextWriter output;
 	bool pressKey;
-	readonly List<string> indents = [];
+	readonly List<(string ind, string ind2)> indents = [];
 	bool lineStart = true;
 
 	public static EnvWriter Begin(bool pressKey = false)
 	{
 		env.pressKey = pressKey;
-		if (env.indents.Contains(null))
+		if (env.indents.Contains((null, null)))
 			return env;
 		Console.OutputEncoding = new UTF8Encoding(false, false);
 		env.output = Console.Out;
 		Console.SetOut(env);
-		env.indents.Add(null);
+		env.indents.Add((null, null));
 		return env;
 	}
 
 	public static EnvWriter Use() => Indent("");
 
-	public static EnvWriter Indent(string ind = "\t")
+	public static EnvWriter Indent(string ind = "\t", string ind2 = null)
 	{
-		env.indents.Add(ind ?? throw new ArgumentNullException(nameof(ind)));
+		env.indents.Add((ind ?? throw new ArgumentNullException(nameof(ind)), ind2));
 		return env;
 	}
 
@@ -251,7 +258,7 @@ public class EnvWriter : StringWriter, IDisposable
 	{
 		if (indents.Count == 0)
 			return;
-		var ind = indents[^1];
+		var (ind, ind2) = indents[^1];
 		indents.RemoveAt(indents.Count - 1);
 		if (ind == null) {
 			Console.SetOut(output);
@@ -275,9 +282,13 @@ public class EnvWriter : StringWriter, IDisposable
 				t = cs.Span[f..].IndexOfAny('\n', '\r');
 				if (t != 0) {
 					if (lineStart)
-						foreach (var ind in indents)
-							if (ind != null && ind.Length > 0)
+						for (var x = 0; x < indents.Count; x++) {
+							var (ind, ind2) = indents[x];
+							if (ind?.Length > 0)
 								Print(ind.AsMemory());
+							if (ind2 != null)
+								indents[x] = (ind2, null);
+						}
 					lineStart = false;
 					Print(t < 0 ? cs[f..] : cs.Slice(f, t));
 				}

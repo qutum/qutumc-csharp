@@ -65,17 +65,19 @@ public partial class Synt<N, T>
 {
 	public object dump;
 
-	public override string ToString() => $"{from}:{to}{(err == 0 ? "" : err > 0 ? "!!" : "!"
-		)} {info} {dump ?? name}";
+	public override string ToString() => ToString(new StrMaker() + from + ':' + to);
 
 	public override string ToString(object extra)
 	{
 		if (extra is not Func<int, int, (int, int, int, int)> loc)
 			return ToString();
 		var (fl, fc, tl, tc) = loc(from, to);
-		return $"{fl}.{fc}:{tl}.{tc}{(err == 0 ? info != null ? " " + info : ""
-			: err < -1 ? "!!" : "!")} {dump ?? (err == 0 ? null : info) ?? name}";
+		return ToString(new StrMaker() + fl + '.' + fc + ':' + tl + '.' + tc);
 	}
+
+	public string ToString(StrMaker s) => s + (err > 0 ? "!!" : err < 0 ? "!" : "")
+		+ (info is Synt<N, T> ? s : s + ' ' + info) + ' ' + (dump ?? name)
+		+ (info is Synt<N, T> ? s + '\n' + info : s);
 }
 
 public partial class SynGram<K, N>
@@ -126,12 +128,12 @@ public partial class Synter<K, L, N, T, Ler>
 		if (d is SynForm f) {
 			StrMaker s = new(); short r;
 			foreach (var (m, k, other) in f.modes.Yes())
-				_ = s.Join('\n') + (other ? " " : dumper(k)) +
+				_ = s - '\n' + (other ? " " : dumper(k)) +
 				(m >= 0 ? s + " shift " + m : s + " redu " + (r = SynForm.Reduce(m)) + " " + alts[r]);
 			foreach (var (p, n, other) in f.pushs.Yes())
-				_ = s.Join('\n') + (other ? " " : dumper(n)) + " push " + p;
-			foreach (var a in f.recs)
-				_ = s.Join('\n') + "recover " + a + " " + alts[a];
+				_ = s - '\n' + (other ? " " : dumper(n)) + " push " + p;
+			foreach (var a in f.recs ?? [])
+				_ = s - '\n' + "recover " + a + " " + alts[a];
 			return s.ToString();
 		}
 		return d.ToString();
