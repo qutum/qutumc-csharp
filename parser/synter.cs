@@ -120,7 +120,7 @@ public partial class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where L
 	public virtual T Parse()
 	{
 		T errs = null;
-		stack.Add((init, -1, null));
+		stack.Add((init, 0, null));
 	Next:
 		var loop = 0;
 		var key = ler.Next() ? keyOrd(ler) : default;
@@ -137,7 +137,7 @@ public partial class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where L
 		if (go < -1) { // reduce
 			var alt = alts[SynForm.Reduce(go)];
 			var name = nameOrd(alt.name);
-			int loc = stack[^1].loc + 1;
+			int loc = stack[^1].loc;
 			bool make = alt.synt == 0 ? synt : alt.synt > 0;
 			if (make)
 				t = new() {
@@ -172,7 +172,7 @@ public partial class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where L
 			} // otherwise reject
 		}
 		// error: recover, accept or reject
-		redu = Error(key, form, ref go, t, ref errs);
+		redu = Error(form, ref key, ref go, ref errs);
 		if (redu.err > 0) {
 			loop = 0;
 			if (key != default) // shifted already
@@ -180,55 +180,66 @@ public partial class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where L
 			goto Reduce;
 		}
 		stack.Clear();
-		return (T)redu.info; // accept or reject
+		return redu.err == 0 ? t.Append(errs) : errs; // accept or reject
 	Cyclic:
 		stack.Clear();
 		(t.err, t.info) = (-2, "maybe infinite loop due to cyclic grammar");
-		return (errs ?? new() { err = -1 }).Add(t);
+		return (errs ?? new() { err = -1, info = 1 }).Add(t);
 	}
 
-	(sbyte, short, object) Error(Kord key, SynForm form, ref short go, T t, ref T errs)
+	(sbyte, short, object) Error(SynForm form, ref Kord key, ref short go, ref T errs)
 	{
+		errs ??= new() { err = -1, info = 0 };
 		T e = new() {
-			from = ler.Loc(), to = ler.Loc() + (key != default ? 1 : 0),
-			err = -1, info = form.err ?? (go < -1 ? SerMaker<K, N>.ErrEor : "unknown error"),
+			from = ler.Loc(), to = ler.Loc() + (key != default ? 1 : 0), err = -1,
+			info = (int)errs.info == 100 ? "more than 100 errors ..."
+				: form.err ?? (go < -1 ? SerMaker<K, N>.ErrEor : "unknown error"),
 		};
-		(errs ??= new() { err = -1 }).Add(e);
-		if (!recover)
-			goto Reject;
+		if ((int)errs.info <= 100)
+			errs.Add(e).info = (int)errs.info + 1;
+		if (!recover) // reject
+			return (-1, 0, null);
 		// recover
-		if (go < -1) { // want eor only
-			while (ler.Next()) ;
-			return (0, 0, t.Append(errs)); // drop all following lexs, accept
-		}
+		// TODO remove these two cases
+		//if (go < -1) { // after reduce want eor only
+		//	while (ler.Next()) ;
+		//	key = default;
+		//	return (0, 0, null); // drop all following lexs, accept
+		//}
+		//if (form.recs?[^1].alt == 0) { // after shift want eor only
+		//	while (ler.Next()) ;
+		//	key = default;
+		//	go = SynForm.Reduce(0);
+		//	return (1, alts[0].size, e); // recover to reduce initial alt to accept
+		//}
 		// which forms in stack to recover
 		int[] ss = null; // stack index by each recovery key
 		foreach (var ((f, _, _), x) in stack.Each())
 			foreach (var a in f.recs ?? [])
 				(ss ??= new int[recKs.Length])[alts[a.alt].rec] = x + 1;
 		if (ss == null) // no recovery form in stack, reject
-			goto Reject;
+			return (-1, 0, null);
 		// read until one recovery key
 		var rk = 0;
 		while (key != default && ((rk = Array.BinarySearch(recKs, key)) < 0 || ss[rk] == 0))
 			key = ler.Next() ? keyOrd(ler) : default;
 		if (key == default) // only eor
-			for (var k = 0; k < ss.Length; k++)
+			for (var k = (rk = 0) + 1; k < ss.Length; k++)
 				if (ss[k] > ss[rk])
 					rk = k; // form in the latest stack
-		foreach (var (a, want) in stack[ss[rk] - 1].form.recs)
-			if (alts[a].rec == rk) { // latest alt
-				stack.RemoveRange(ss[rk], stack.Count - ss[rk]);
-				go = SynForm.Reduce(a);
-				return (1, want, e); // recover to reduce
-			}
-		Reject:
-		return (-1, 0, errs);
+		if (ss[rk] > 0)
+			foreach (var (a, want) in stack[ss[rk] - 1].form.recs)
+				if (alts[a].rec == rk) { // latest alt
+					stack.RemoveRange(ss[rk], stack.Count - ss[rk]);
+					go = SynForm.Reduce(a);
+					return (1, want, e); // recover to reduce
+				}
+		return (-1, 0, null); // can not recover, reject
 	}
 
 	public virtual bool Check()
 	{
-		stack.Add((init, -1, null));
+		stack.Add((init, 0, null));
 	Next:
 		var loop = 0;
 		var key = ler.Next() ? keyOrd(ler) : default;
@@ -236,7 +247,7 @@ public partial class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where L
 		var form = stack[^1].form;
 		var mode = form.modes[key];
 		if (mode >= 0) { // shift
-			stack.Add((forms[mode], -1, null));
+			stack.Add((forms[mode], 0, null));
 			goto Next;
 		}
 		else if (mode < -1) { // reduce
@@ -249,7 +260,7 @@ public partial class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where L
 			form = stack[^1].form;
 			var push = form.pushs[nameOrd(alt.name)];
 			if (push >= 0) {
-				stack.Add((forms[push], -1, null));
+				stack.Add((forms[push], 0, null));
 				goto Loop;
 			}
 			else if (key == default) {

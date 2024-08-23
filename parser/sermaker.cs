@@ -349,23 +349,23 @@ public class SerMaker<K, N>
 					if (m == -1) F.modes.s[kx] = other;
 
 		// error infos
-		List<(bool low, int want, int ax, object expect)> errNs = [], errKs = [], errs = [];
+		List<(bool label, int half, int ax, object expect)> errNs = [], errKs = [], errs = [];
 		foreach (var ((a, want), _) in f.Is)
 			if (want < a.Count && want != a.lex) // saved lex is usually for distinct alts of same name
 				(a[want] is N ? errNs : errKs).Add(
-					(a.label == null, a.Count - want - want, a.index, a[want]));
+					(a.label != null, want + want - a.Count, a.index, a[want]));
 		errNs.Sort(); errKs.Sort();
 		// only few infos
-		for (var x = 0; errs.Count <= ErrZ && (x < errNs.Count || x < errKs.Count); x++) {
-			if (errs.Count <= ErrZ && x < errNs.Count) errs.Add(errNs[x]);
-			if (errs.Count <= ErrZ && x < errKs.Count) errs.Add(errKs[x]);
+		for (int z = -1, x = 1; z < (z = errs.Count); x++) {
+			if (errs.Count <= ErrZ && x <= errNs.Count) errs.Add(errNs[^x]);
+			if (errs.Count <= ErrZ && x <= errKs.Count) errs.Add(errKs[^x]);
 		}
 		StrMaker e = new();
-		foreach (var ((low, want, ax, expect), x) in errs.Each())
+		foreach (var ((label, half, ax, expect), x) in errs.Each())
 			e += x == ErrZ ? ErrEtc : e - ErrMore + e.F(Err, // label or name wants name or key
 				alts[ax].label ?? prods[Name(alts[ax].name)].label ?? alts[ax].name.ToString(),
 				expect is N n ? prods[Name(n)].label ?? n.ToString() : CharSet.Unesc(expect),
-				(low ? "low" : "", want, ax)); // {2}
+				(expect is N ? "n" : "k", label ? "l" : "", half, ax)); // {2}
 		if (e.Size > 0)
 			F.err = e;
 		else if (accept)
@@ -377,6 +377,9 @@ public class SerMaker<K, N>
 			if (a.rec && want < a.Count)
 				recs.Add((a.index, want));
 		recs.Sort(); recs.Reverse(); // reduce the latest alt of same recovery key
+		//TODO remove this case
+		//if (F.modes[default] == SynForm.Reduce(0) && F.modes.Yes().Count() == 1)
+		//	recs.Add((0, (short)alts[0].Count)); // want eor only
 		if (recs.Count > 0)
 			F.recs = [.. recs];
 	}

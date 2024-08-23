@@ -162,20 +162,19 @@ public class LinkTree<T> : IEnumerable<T> where T : LinkTree<T>
 		bool first = prev == null && (up == null || after <= 0);
 		bool last = next == null && (up == null || after > 0);
 		string noInd = up == null && after == 0 ? "" : null;
-		int o = dumpOrder;
-		for (var t = head; ; t = t.next) {
-			if (t == (o > 0 ? head : o < 0 ? null : head?.next))
-				using (var env = EnvWriter.Indent
-					(noInd ?? (after > 0 ? first ? "- " : "\\ " : last ? "- " : "/ "), "    "))
-					env.WriteLine(ToString(extra));
-			if (t == null)
-				break;
-			int After = o > 0 || o == 0 && t != head ? 1 : -1; // sub after this
-			using (var env = EnvWriter.Indent(noInd ?? ((After > 0 ? last : first) ? "  " : "| ")))
-				t.Dump(extra, After);
-		}
+		var t = head;
+		for (; t != null && (dumpOrder < 0 || dumpOrder == 0 && t == head); t = t.next)
+			using (var env = EnvWriter.Indent(noInd ?? (first ? "  " : "| ")))
+				t.Dump(extra, -1);
+		using (var env = noInd != null ? EnvWriter.Indent(noInd, "   ") : EnvWriter.Indent(
+				after > 0 ? first ? "- " : "\\ " : last ? "- " : "/ ",
+				t != null ? last ? "  |  " : "| |  " : last ? "     " : "|    "))
+			env.WriteLine(ToString(extra));
+		for (; t != null; t = t.next)
+			using (var env = EnvWriter.Indent(noInd ?? (last ? "  " : "| ")))
+				t.Dump(extra, 1);
 		if (up == null && prev == null)
-			for (var t = next; t != null; t = t.next)
+			for (t = next; t != null; t = t.next)
 				t.Dump(extra, after);
 		return (T)this;
 	}
@@ -258,7 +257,7 @@ public class EnvWriter : StringWriter, IDisposable
 	{
 		if (indents.Count == 0)
 			return;
-		var (ind, ind2) = indents[^1];
+		var (ind, _) = indents[^1];
 		indents.RemoveAt(indents.Count - 1);
 		if (ind == null) {
 			Console.SetOut(output);
@@ -281,14 +280,14 @@ public class EnvWriter : StringWriter, IDisposable
 			while (t >= 0 && f < cs.Length) {
 				t = cs.Span[f..].IndexOfAny('\n', '\r');
 				if (t != 0) {
-					if (lineStart)
-						for (var x = 0; x < indents.Count; x++) {
-							var (ind, ind2) = indents[x];
-							if (ind?.Length > 0)
-								Print(ind.AsMemory());
-							if (ind2 != null)
-								indents[x] = (ind2, null);
-						}
+					if (lineStart) {
+						for (var x = 0; x < indents.Count; x++)
+							if (indents[x].ind?.Length > 0)
+								Print(indents[x].ind.AsMemory());
+						for (var x = 0; x < indents.Count; x++)
+							if (indents[x].ind2 != null)
+								indents[x] = (indents[x].ind2, null);
+					}
 					lineStart = false;
 					Print(t < 0 ? cs[f..] : cs.Slice(f, t));
 				}
