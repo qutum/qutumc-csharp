@@ -57,7 +57,7 @@ public sealed partial class SynForm
 	public S<Kord> modes; // for each key: shift to: form index, reduce: -2-alt index, error: -1
 	public S<Nord> pushs; // for each name: push: form index
 	public string err; // error info
-	public (short alt, short want)[] recs; // recovery alts indexes
+	public (short alt, short want)[] recs; // { recovery alt index and want ... }
 
 	public static short Reduce(int alt) => (short)(-2 - alt);
 }
@@ -138,7 +138,7 @@ public partial class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where L
 			var alt = alts[SynForm.Reduce(go)];
 			var name = nameOrd(alt.name);
 			int loc = stack[^1].loc;
-			bool make = alt.synt == 0 ? synt : alt.synt > 0;
+			bool make = redu.err > 0 || (alt.synt == 0 ? synt : alt.synt > 0);
 			if (make)
 				t = new() {
 					name = alt.name, from = loc, to = ler.Loc(), err = redu.err, info = redu.info
@@ -169,14 +169,12 @@ public partial class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where L
 			else if (key == default) {
 				stack.Clear();
 				return t.Append(errs); // reduce alts[0] by eor, accept
-			} // otherwise reject
+			} // reduce alts[0] by others, error
 		}
 		// error: recover, accept or reject
 		redu = Error(form, ref key, ref go, ref errs);
 		if (redu.err > 0) {
 			loop = 0;
-			if (key != default) // shifted already
-				key = ler.Next() ? keyOrd(ler) : default;
 			goto Reduce;
 		}
 		stack.Clear();
@@ -200,18 +198,6 @@ public partial class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where L
 		if (!recover) // reject
 			return (-1, 0, null);
 		// recover
-		// TODO remove these two cases
-		//if (go < -1) { // after reduce want eor only
-		//	while (ler.Next()) ;
-		//	key = default;
-		//	return (0, 0, null); // drop all following lexs, accept
-		//}
-		//if (form.recs?[^1].alt == 0) { // after shift want eor only
-		//	while (ler.Next()) ;
-		//	key = default;
-		//	go = SynForm.Reduce(0);
-		//	return (1, alts[0].size, e); // recover to reduce initial alt to accept
-		//}
 		// which forms in stack to recover
 		int[] ss = null; // stack index by each recovery key
 		foreach (var ((f, _, _), x) in stack.Each())
@@ -219,6 +205,15 @@ public partial class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where L
 				(ss ??= new int[recKs.Length])[alts[a.alt].rec] = x + 1;
 		if (ss == null) // no recovery form in stack, reject
 			return (-1, 0, null);
+		// insert one recovery key only if want it right now
+		foreach (var (x, k) in ss.Each())
+			if (x == stack.Count) // latest stack
+				foreach (var (a, want) in stack[x - 1].form.recs)
+					if (alts[a].rec == k && alts[a].lex >= 0 && want > 1 && want == alts[a].size - 1) {
+						go = SynForm.Reduce(a); // as if insert final key
+						e.to = e.from;
+						return (1, want, e); // recover to reduce
+					}
 		// read until one recovery key
 		var rk = 0;
 		while (key != default && ((rk = Array.BinarySearch(recKs, key)) < 0 || ss[rk] == 0))
@@ -229,8 +224,9 @@ public partial class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where L
 					rk = k; // form in the latest stack
 		if (ss[rk] > 0)
 			foreach (var (a, want) in stack[ss[rk] - 1].form.recs)
-				if (alts[a].rec == rk) { // latest alt
-					stack.RemoveRange(ss[rk], stack.Count - ss[rk]);
+				if (alts[a].rec == rk) { // alt index reversed, so latest alt
+					key = key != default && ler.Next() ? keyOrd(ler) : default;// shift key
+					stack.RemoveRange(ss[rk], stack.Count - ss[rk]); // drop stack
 					go = SynForm.Reduce(a);
 					return (1, want, e); // recover to reduce
 				}
@@ -266,7 +262,7 @@ public partial class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where L
 			else if (key == default) {
 				stack.Clear();
 				return true; // reduce alts[0] by eor, accept
-			} // otherwise reject
+			} // reduce alts[0] by others, reject
 		} // error
 		stack.Clear();
 		return false;

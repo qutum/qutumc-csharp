@@ -51,30 +51,31 @@ file static class Extension
 
 	public static Ser h(this Ser s,
 		S? name = null, object d = null, double? from = null, double? to = null, int err = 0)
-		=> (s.t.head, s.s).Eq(name, d, from, to, err);
+		=> (s.t.head, s.s).Eq(name, d, from, to, err).Vine();
 	public static Ser t(this Ser s,
 		S? name = null, object d = null, double? from = null, double? to = null, int err = 0)
-		=> (s.t.tail, s.s).Eq(name, d, from, to, err);
+		=> (s.t.tail, s.s).Eq(name, d, from, to, err).Vine();
 	public static Ser n(this Ser s,
 		S? name = null, object d = null, double? from = null, double? to = null, int err = 0)
-		=> (s.t.next, s.s).Eq(name, d, from, to, err);
+		=> (s.t.next, s.s).Eq(name, d, from, to, err).Vine();
 	public static Ser p(this Ser s,
 		S? name = null, object d = null, double? from = null, double? to = null, int err = 0)
-		=> (s.t.prev, s.s).Eq(name, d, from, to, err);
+		=> (s.t.prev, s.s).Eq(name, d, from, to, err).Vine();
 
 	public static Ser H(this Ser s,
 		S? name = null, object d = null, double? from = null, double? to = null, int err = 0)
-		=> h(s, name, d, from, to, err).Leaf();
+		=> (s.t.head, s.s).Eq(name, d, from, to, err).Leaf();
 	public static Ser T(this Ser s,
 		S? name = null, object d = null, double? from = null, double? to = null, int err = 0)
-		=> t(s, name, d, from, to, err).Leaf();
+		=> (s.t.tail, s.s).Eq(name, d, from, to, err).Leaf();
 	public static Ser N(this Ser s,
 		S? name = null, object d = null, double? from = null, double? to = null, int err = 0)
-		=> n(s, name, d, from, to, err).Leaf();
+		=> (s.t.next, s.s).Eq(name, d, from, to, err).Leaf();
 	public static Ser P(this Ser s,
 		S? name = null, object d = null, double? from = null, double? to = null, int err = 0)
-		=> p(s, name, d, from, to, err).Leaf();
+		=> (s.t.prev, s.s).Eq(name, d, from, to, err).Leaf();
 
+	public static Ser Vine(this Ser s) { AreNotEqual(null, s.t.head); return s; }
 	public static Ser Leaf(this Ser s) { AreEqual(null, s.t.head); return s; }
 	public static Ser u(this Ser s) { AreEqual(null, s.t.next); AreNotEqual(null, s.t.up); return (s.t.up, s.s); }
 	public static Ser U(this Ser s) { AreEqual(null, s.t.next); AreEqual(null, s.t.up); return (s.t.up, s.s); }
@@ -226,7 +227,7 @@ public class TestSynter : IDisposable
 				5");
 		t = t/**/	.h(B).H(S.e0).D(L.INT, 1);
 		t = t/**/		.n(N).h(S.e2, L.NOT).H(S.e0).D(L.INT, 3).u();
-		t = t/**/			.n(S.line, err: -4).Leaf();
+		t = t/**/			.N(S.line, err: -4);
 		t = t/**/			.n(N).h(S.e2, L.SUB).H(S.e0).D(L.INT, 4).u();
 		t = t/**/					.N(S.line, err: -4).uu();
 		t = t/**/		.n(N).H(S.e0).D(L.INT, 5).uuu();
@@ -242,13 +243,13 @@ public class TestSynter : IDisposable
 				--2");
 		t = t/**/	.h(B).H(S.e0).D(L.INT, 1);
 		t = t/**/		.n(N).h(S.e2, L.NOTB);
-		t = t/**/			.h(S.e0).D(L.INT, 2).uuuuU();
+		t = t/**/			.H(S.e0).D(L.INT, 2).uuuuU();
 		t = Parse(@"
 			1
 				- -2
 					*!3
 				/+4");
-		t = t/**/	.h(B).h(S.e0).D(L.INT, 1);
+		t = t/**/	.h(B).H(S.e0).D(L.INT, 1);
 		t = t/**/		.n(N, L.SUB);
 		t = t/**/			.h(S.e2, L.SUB).H(S.e0).D(L.INT, 2).u();
 		t = t/**/			.n(N, L.MUL).h(S.e2, L.NOT).H(S.e0).D(L.INT, 3).uuu();

@@ -78,6 +78,7 @@ public partial class SerMaker<K, N>
 	readonly Nord[] nameOs; // { name ordinal... }
 	readonly K[] keys; // at key ordinal index
 	readonly N[] names; // at name ordinal index
+	readonly Kord[] recKs; // { recovery key ordinal ... }
 
 	private int Key(K k) => Array.BinarySearch(keyOs, keyOrd(k));
 	private int Name(N n) => Array.BinarySearch(nameOs, nameOrd(n));
@@ -281,11 +282,6 @@ public partial class SerMaker<K, N>
 		clashs = Clashs(false);
 		if (clashs != null)
 			return (null, null, null);
-		// recovery key ordinals
-		var recKs = alts.Where(a => a.rec).Select(a => keyOrd((K)a[^1])).Distinct().ToArray();
-		if (recKs.Length > 100)
-			throw new($"recovery keys size {recKs.Length}");
-		Array.Sort(recKs);
 		// synter alts
 		var As = new SynAlt<N>[alts.Length];
 		foreach (var (a, ax) in alts.Each())
@@ -294,7 +290,7 @@ public partial class SerMaker<K, N>
 #pragma warning disable CS8974 // Converting method group to non-delegate type
 				synt = a.synt, label = a.label, dump = a.ToString,
 				// final key index in recovery keys
-				rec = (sbyte)(a.rec ? Array.IndexOf(recKs, keyOrd((K)a[^1])) : 0),
+				rec = (sbyte)(a.rec ? Array.BinarySearch(recKs, keyOrd((K)a[^1])) : 0),
 			};
 		// synter forms
 		var Fs = new SynForm[forms.Count];
@@ -364,10 +360,6 @@ public partial class SerMaker<K, N>
 			if (a.rec && want > a.lex && want < a.Count)
 				recs.Add((a.index, want));
 		recs.Sort(); recs.Reverse(); // reduce the latest alt of same recovery key
-
-		//TODO remove this case
-		//if (F.modes[default] == SynForm.Reduce(0) && F.modes.Yes().Count() == 1)
-		//	recs.Add((0, (short)alts[0].Count)); // want eor only
 		if (recs.Count > 0)
 			F.recs = [.. recs];
 	}
@@ -384,14 +376,17 @@ public partial class SerMaker<K, N>
 				throw new($"duplicate ordinal of {ns[nameOrd(p.name)]} and {p.name}");
 		nameOs = [.. ns.Keys];
 		names = [.. ns.Values];
+		if (nameOs[0] == 0)
+			throw new($"name ordinal 0");
 		var accept = gram.prods[0].name;
 
+		SortedDictionary<Kord, K> ks = new() { { keyOrd(default), default } };
+		SortedSet<Kord> recKs = [];
 		// prods
 		prods = new SynGram<K, N>.Prod[names.Length];
 		foreach (var p in gram.prods)
 			prods[Name(p.name)] ??= p;
 		// alts
-		SortedDictionary<Kord, K> ks = new() { { keyOrd(default), default } };
 		alts = new SynGram<K, N>.Alt[gram.prods.Sum(p => p.Count)];
 		if (alts.Length is 0 or > 32767)
 			throw new($"total {alts.Length} alterns");
@@ -421,8 +416,11 @@ public partial class SerMaker<K, N>
 					throw new($"{p.name}.{pax} content {a[a.lex]} not lexic key");
 				if (a.rec && ax == 0)
 					throw new($"initial {p.name}.{pax} recovery");
-				if (a.rec && (a.Count == 0 || a[^1] is not K))
-					throw new($"{p.name}.{pax} no final lexic key");
+				if (a.rec)
+					if (a.Count > 0 && a[^1] is K k)
+						recKs.Add(keyOrd(k));
+					else
+						throw new($"{p.name}.{pax} no final lexic key");
 				alts[a.index = ax++] = a;
 				if (np != p)
 					np.Add(a); // append alterns to same name production
@@ -431,12 +429,16 @@ public partial class SerMaker<K, N>
 		if (prods[Name(accept)].Count > 1)
 			throw new($"multiple alterns of initial name {accept}");
 
-		// others
-		if (keyOrd(default) != default) throw new($"default key ordinal {keyOrd(default)}");
-		if (nameOs[0] == 0) throw new($"name ordinal 0");
+		// keys
+		if (keyOrd(default) != default)
+			throw new($"default key ordinal {keyOrd(default)}");
 		keyOs = [.. ks.Keys];
 		keys = [.. ks.Values];
 		distinct(keys);
+		if (recKs.Count > 10)
+			throw new($"recovery keys size {recKs.Count}");
+		this.recKs = [.. recKs];
+		// others
 		firsts = new (bool, HashSet<K>)[names.Length];
 	}
 }

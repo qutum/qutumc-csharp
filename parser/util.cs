@@ -163,7 +163,7 @@ public class LinkTree<T> : IEnumerable<T> where T : LinkTree<T>
 		bool last = next == null && (up == null || after > 0);
 		string noInd = up == null && after == 0 ? "" : null;
 		var t = head;
-		for (; t != null && (dumpOrder < 0 || dumpOrder == 0 && t == head); t = t.next)
+		for (; t != null && (dumpOrder == 0 ? t == head : dumpOrder < 0); t = t.next)
 			using (var env = EnvWriter.Use(noInd ?? (first ? "  " : "| ")))
 				t.Dump(extra, -1);
 		using (var env = noInd != null ? EnvWriter.Use(noInd, "   ") : EnvWriter.Use(

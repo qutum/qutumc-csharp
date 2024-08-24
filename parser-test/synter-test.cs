@@ -43,30 +43,31 @@ static class Extension
 
 	public static Ser h(this Ser s,
 		string name = null, int? from = null, int? to = null, object d = null, int err = 0)
-		=> (s.t.head, s.s).Eq(name, from, to, d, err);
+		=> (s.t.head, s.s).Eq(name, from, to, d, err).Vine();
 	public static Ser t(this Ser s,
 		string name = null, int? from = null, int? to = null, object d = null, int err = 0)
-		=> (s.t.tail, s.s).Eq(name, from, to, d, err);
+		=> (s.t.tail, s.s).Eq(name, from, to, d, err).Vine();
 	public static Ser n(this Ser s,
 		string name = null, int? from = null, int? to = null, object d = null, int err = 0)
-		=> (s.t.next, s.s).Eq(name, from, to, d, err);
+		=> (s.t.next, s.s).Eq(name, from, to, d, err).Vine();
 	public static Ser p(this Ser s,
 		string name = null, int? from = null, int? to = null, object d = null, int err = 0)
-		=> (s.t.prev, s.s).Eq(name, from, to, d, err);
+		=> (s.t.prev, s.s).Eq(name, from, to, d, err).Vine();
 
 	public static Ser H(this Ser s,
 		string name = null, int? from = null, int? to = null, object d = null, int err = 0)
-		=> h(s, name, from, to, d, err).Leaf();
+		=> (s.t.head, s.s).Eq(name, from, to, d, err).Leaf();
 	public static Ser T(this Ser s,
 		string name = null, int? from = null, int? to = null, object d = null, int err = 0)
-		=> t(s, name, from, to, d, err).Leaf();
+		=> (s.t.tail, s.s).Eq(name, from, to, d, err).Leaf();
 	public static Ser N(this Ser s,
 		string name = null, int? from = null, int? to = null, object d = null, int err = 0)
-		=> n(s, name, from, to, d, err).Leaf();
+		=> (s.t.next, s.s).Eq(name, from, to, d, err).Leaf();
 	public static Ser P(this Ser s,
 		string name = null, int? from = null, int? to = null, object d = null, int err = 0)
-		=> p(s, name, from, to, d, err).Leaf();
+		=> (s.t.prev, s.s).Eq(name, from, to, d, err).Leaf();
 
+	public static Ser Vine(this Ser s) { AreNotEqual(null, s.t.head); return s; }
 	public static Ser Leaf(this Ser s) { AreEqual(null, s.t.head); return s; }
 	public static Ser u(this Ser s) { AreEqual(null, s.t.next); AreNotEqual(null, s.t.up); return (s.t.up, s.s); }
 	public static Ser U(this Ser s) { AreEqual(null, s.t.next); AreEqual(null, s.t.up); return (s.t.up, s.s); }
@@ -115,10 +116,15 @@ public class TestSynter : IDisposable
 						r5 = R(5), r6 = R(6), r7 = R(7), r8 = R(8), r9 = R(9);
 	public static short R(int alt) => SynForm.Reduce(alt);
 
-	public void True(string read) => IsTrue(ser.Begin(new LerStr(read)).Check());
-	public void False(string read) => IsFalse(ser.Begin(new LerStr(read)).Check());
+	public void True(string read) => IsTrue(Begin(read).Check());
+	public void False(string read) => IsFalse(Begin(read).Check());
+	public Ser Parse(string read) => (Begin(read).Parse().Dump(), ser);
 
-	public Ser Parse(string read) => (ser.Begin(new LerStr(read)).Parse().Dump(), ser);
+	private SynterStr Begin(string read)
+	{
+		using (var env = EnvWriter.Use()) env.WriteLine(read);
+		return (SynterStr)ser.Begin(new LerStr(read));
+	}
 
 	[TestMethod]
 	public void TigerF325()
