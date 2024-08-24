@@ -16,6 +16,8 @@ namespace qutum;
 
 public static class Extension
 {
+	public static bool IncLess(this ref int d, int z) => ++d < z || (d = z) < z;
+
 	public static ArraySegment<T> Seg<T>(this T[] s) => new(s);
 	public static ArraySegment<T> Seg<T>(this T[] s, int from, int to) => new(s, from, to - from);
 

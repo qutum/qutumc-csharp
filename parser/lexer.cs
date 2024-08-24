@@ -45,7 +45,7 @@ public class LerStr(string read) : Lexer<char, char>
 
 	void IDisposable.Dispose() { read = null; loc = -1; }
 
-	public bool Next() => ++loc < read.Length;
+	public bool Next() => loc.IncLess(read.Length);
 	public int Loc() => loc;
 	public char Lex() => read[loc];
 	public char Lex(int loc) => read[loc];
@@ -71,7 +71,7 @@ public class LerByte(byte[] read) : LexerSeg<byte, byte>
 
 	void IDisposable.Dispose() { read = null; loc = -1; }
 
-	public bool Next() => ++loc < read.Length;
+	public bool Next() => loc.IncLess(read.Length);
 	public int Loc() => loc;
 	public byte Lex() => read[loc];
 	public byte Lex(int loc) => read[loc];
@@ -97,7 +97,7 @@ public class LerByteSeg(ArraySegment<byte> read) : LexerSeg<byte, byte>
 
 	void IDisposable.Dispose() { read = null; loc = -1; }
 
-	public bool Next() => ++loc < read.Count;
+	public bool Next() => loc.IncLess(read.Count);
 	public int Loc() => loc;
 	public byte Lex() => read[loc];
 	public byte Lex(int loc) => read[loc];
@@ -123,7 +123,7 @@ public class LerByteList(List<byte> read) : Lexer<byte, byte>
 
 	void IDisposable.Dispose() { read = null; loc = -1; }
 
-	public bool Next() => ++loc < read.Count;
+	public bool Next() => loc.IncLess(read.Count);
 	public int Loc() => loc;
 	public byte Lex() => read[loc];
 	public byte Lex(int loc) => read[loc];

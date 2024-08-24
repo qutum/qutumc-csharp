@@ -121,9 +121,9 @@ public partial class Lexier<K> : LexerSeg<K, Lexi<K>> where K : struct
 
 	public bool Next()
 	{
-		if (++loc < size) return true;
+		if (loc.IncLess(size)) return true;
 		var u = begin;
-	Step: bf = bt;
+	Wad: bf = bt;
 	Next: if (bt >= bz)
 			if (read.Next()) {
 				if ((bytes[bz++ & AltByteN] = read.Lex()) == '\n')
@@ -163,7 +163,7 @@ public partial class Lexier<K> : LexerSeg<K, Lexi<K>> where K : struct
 		if (go == begin && loc < size)
 			return true;
 		u = go;
-		goto Step;
+		goto Wad;
 	}
 
 	private static void BuildBack(Unit u)
