@@ -347,7 +347,7 @@ public partial class SerMaker<K, N>
 		foreach (var ((label, half, ax, expect), x) in errs.Each())
 			e += x == ErrZ ? ErrEtc : e - ErrMore + e.F(Err, // label or name wants name or key
 				alts[ax].label ?? prods[Name(alts[ax].name)].label ?? alts[ax].name.ToString(),
-				expect is N n ? prods[Name(n)].label ?? n.ToString() : CharSet.Unesc(expect),
+				expect is N n ? prods[Name(n)].label ?? n.ToString() :Dumper(expect),
 				(expect is N ? "n" : "k", label ? "l" : "", half, ax)); // {2}
 		if (e.Size > 0)
 			F.err = e;

@@ -83,9 +83,15 @@ public partial class SynGram<K, N>
 {
 	public partial class Alt
 	{
-		public override string ToString() => $"{name} = {string.Join(' ', this)}  {clash
-			switch { 0 => "", 1 => "<", > 1 => ">", _ => "^" }}{(rec ? "!!" : "")}{(
-			synt > 0 ? "+" : synt < 0 ? "-" : "")}{(lex >= 0 ? "_" + lex : "")} {label}";
+		public override string ToString()
+		{
+			var s = new StrMaker() + name + " =";
+			foreach (var c in this)
+				_ = s + ' ' + SerMaker<K, N>.Dumper(c);
+			return s + "  " + clash switch { 0 => "", 1 => "<", > 1 => ">", _ => "^" }
+				+ (rec ? "!!" : "") + (synt > 0 ? "+" : synt < 0 ? "-" : "")
+				+ (lex >= 0 ? s + '_' + lex : s) + ' ' + label;
+		}
 	}
 }
 
@@ -156,7 +162,7 @@ public partial class Synter<K, L, N, T, Ler>
 
 	public string Dumper(object d)
 	{
-		if (d is Kord key) return CharSet.Unesc(key);
+		if (d is Kord key) return key == default ? "eor" : CharSet.Unesc(key);
 		else if (d is Nord name) return CharSet.Unesc((char)name);
 		else if (d is SynForm f) {
 			StrMaker s = new(); short r;
@@ -175,6 +181,18 @@ public partial class Synter<K, L, N, T, Ler>
 
 public partial class SerMaker<K, N>
 {
+	public static string Dumper(object d)
+	{
+		if (d is K key) return key.Equals(default) ? "eor" : CharSet.Unesc(key);
+		if (d is IEnumerable<K> keys) {
+			StrMaker s = new();
+			foreach (var k in keys)
+				_ = s - ' ' + (k.Equals(default) ? "eor" : CharSet.Unesc(k));
+			return s;
+		}
+		return d.ToString();
+	}
+
 	public void Dump(object d)
 	{
 		if (d is List<Form> forms)
@@ -187,7 +205,7 @@ public partial class SerMaker<K, N>
 						: $"unsolved clashes: {clashs.Count} (besides {solvez} solved)");
 			foreach (var ((c, (keys, mode)), cx) in clashs.Each(1)) {
 				env.Write(cx + (mode == -1 ? "  : " : " :: "));
-				env.WriteLine(string.Join(' ', keys.Select(k => CharSet.Unesc(k))));
+				env.WriteLine(Dumper(keys));
 				using var _ = EnvWriter.Use("\t\t");
 				foreach (var a in c.redus)
 					env.WriteLine($"{(a == SynForm.Reduce(mode) ? "REDUCE" : "reduce")} {a}  {alts[a]}");
