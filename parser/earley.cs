@@ -27,7 +27,7 @@ public class Esyn<N, T> : LinkTree<T> where T : Esyn<N, T>
 	public override string ToString() => $"{from}:{to}{(err == 0 ? info != null ? " " + info : ""
 		: err < -1 ? "!!" : "!")} {dump ?? (err == 0 ? null : info) ?? name}";
 
-	public override string ToString(object extra)
+	public override string Dumper(object extra)
 	{
 		if (extra is not Func<int, int, (int, int, int, int)> loc)
 			return ToString();

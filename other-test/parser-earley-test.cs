@@ -85,7 +85,7 @@ public class TestParserEarley : IDisposable
 	public Ser Parse(string read)
 	{
 		var t = ser.Begin(new LerStr(read)).Parse().Dump();
-		using var env = EnvWriter.Begin();
+		using var env = EnvWriter.Use();
 		env.WriteLine($"---- {ser.matchz} match/lexi {ser.lexz} = {ser.matchz / Math.Max(ser.lexz, 1)} ----");
 		return (t, ser);
 	}

@@ -22,13 +22,12 @@ public partial struct Lexi<K>
 {
 	public override readonly string ToString() => $"{key}{(err < 0 ? "!" : "=")}{value}";
 
-	public readonly string ToString(Func<object, string> dumper)
+	public readonly string Dumper(Func<object, string> dumper)
 		=> $"{key}{(err < 0 ? "!" : "=")}{dumper(value)}";
 }
 
 public partial class Lexier<K> : LexerSeg<K, Lexi<K>>
 {
-
 	static void Dump(Unit u, string pre, Dictionary<Unit, bool> us = null)
 	{
 		using var env = EnvWriter.Use();
@@ -46,7 +45,7 @@ public partial class Lexier<K> : LexerSeg<K, Lexi<K>>
 		foreach (var n in u.next.Where(n => n != null).Distinct()) {
 			var s = u.next.Select((nn, b) => nn != n ? null : CharSet.Unesc((byte)b))
 				.Where(x => x != null);
-			using var _ = EnvWriter.Indent("  ");
+			using var _ = EnvWriter.Use("  ");
 			if (n == u)
 				env.WriteLine($"+ < {string.Join(' ', s)}");
 			else
@@ -65,17 +64,17 @@ public partial class Synt<N, T>
 {
 	public object dump;
 
-	public override string ToString() => ToString(new StrMaker() + from + ':' + to);
+	public override string ToString() => Dumper(new StrMaker() + from + ':' + to);
 
-	public override string ToString(object extra)
+	public override string Dumper(object extra)
 	{
 		if (extra is not Func<int, int, (int, int, int, int)> loc)
 			return ToString();
 		var (fl, fc, tl, tc) = loc(from, to);
-		return ToString(new StrMaker() + fl + '.' + fc + ':' + tl + '.' + tc);
+		return Dumper(new StrMaker() + fl + '.' + fc + ':' + tl + '.' + tc);
 	}
 
-	public string ToString(StrMaker s) => s + (err > 0 ? "!!" : err < 0 ? "!" : "")
+	public string Dumper(StrMaker s) => s + (err > 0 ? "!!" : err < 0 ? "!" : "")
 		+ (info is Synt<N, T> ? s : s + ' ' + info) + ' ' + (dump ?? name)
 		+ (info is Synt<N, T> ? s + '\n' + info : s);
 }
@@ -108,51 +107,8 @@ public partial class SynForm
 		: dump?.ToString() ?? base.ToString());
 }
 
-public partial class Synter<K, L, N, T, Ler>
+public static partial class Dumper
 {
-	public int dump = 0; // no: 0, lexs only for tree leaf: 1, lexs: 2, lexs and Alts: 3
-	public Func<object, string> dumper;
-
-	void InitDump()
-	{
-		dumper = Dumper;
-		foreach (var (f, fx) in forms.Each())
-			if (f != null)
-				f.dump ??= (Func<object, string>)Dumper;
-	}
-
-	public string Dumper(object d)
-	{
-		if (d is Kord key) return CharSet.Unesc(key);
-		if (d is Nord name) return CharSet.Unesc((char)name);
-		if (d is SynForm f) {
-			StrMaker s = new(); short r;
-			foreach (var (m, k, other) in f.modes.Yes())
-				_ = s - '\n' + (other ? " " : dumper(k)) +
-				(m >= 0 ? s + " shift " + m : s + " redu " + (r = SynForm.Reduce(m)) + " " + alts[r]);
-			foreach (var (p, n, other) in f.pushs.Yes())
-				_ = s - '\n' + (other ? " " : dumper(n)) + " push " + p;
-			foreach (var (a, want) in f.recs ?? [])
-				_ = s - '\n' + "recover " + a + ',' + want + ' ' + alts[a];
-			return s.ToString();
-		}
-		return d.ToString();
-	}
-}
-
-public static class Dumper
-{
-	[DebuggerDisplay("{d,nq}")]
-	public struct Str
-	{
-		[DebuggerBrowsable(DebuggerBrowsableState.Never)]
-		public string d;
-		public override readonly string ToString() => d;
-		public static implicit operator string(Str d) => d.d;
-		public static explicit operator Str(string d) => new() { d = d };
-
-	}
-
 	public struct Form
 	{
 		[DebuggerBrowsable(DebuggerBrowsableState.Never)]
@@ -182,5 +138,76 @@ public static class Dumper
 		public object synt = d.synt;
 
 		public override readonly string ToString() => $"@{d.loc} {form}"; // no effect
+	}
+}
+
+public partial class Synter<K, L, N, T, Ler>
+{
+	public int dump = 0; // no: 0, lexs only for tree leaf: 1, lexs: 2, lexs and Alts: 3
+	public Func<object, string> dumper;
+
+	void InitDump()
+	{
+		dumper = Dumper;
+		foreach (var (f, fx) in forms.Each())
+			if (f != null)
+				f.dump ??= (Func<object, string>)Dumper;
+	}
+
+	public string Dumper(object d)
+	{
+		if (d is Kord key) return CharSet.Unesc(key);
+		else if (d is Nord name) return CharSet.Unesc((char)name);
+		else if (d is SynForm f) {
+			StrMaker s = new(); short r;
+			foreach (var (m, k, other) in f.modes.Yes())
+				_ = s - '\n' + (other ? " " : dumper(k)) +
+				(m >= 0 ? s + " shift " + m : s + " redu " + (r = SynForm.Reduce(m)) + " " + alts[r]);
+			foreach (var (p, n, other) in f.pushs.Yes())
+				_ = s - '\n' + (other ? " " : dumper(n)) + " push " + p;
+			foreach (var (a, want) in f.recs ?? [])
+				_ = s - '\n' + "recover " + a + ',' + want + ' ' + alts[a];
+			return s.ToString();
+		}
+		return d.ToString();
+	}
+}
+
+public partial class SerMaker<K, N>
+{
+	public void Dump(object d)
+	{
+		if (d is List<Form> forms)
+			using (var env = EnvWriter.Use())
+				env.WriteLine($"forms: {forms.Count}");
+		else if (d is (Dictionary<Clash, (HashSet<K> keys, short mode)> clashs,
+				bool detail, int solvez)) {
+			using var env = EnvWriter.Use();
+			env.WriteLine(detail ? $"clashes: {clashs.Count} ({solvez} solved)"
+						: $"unsolved clashes: {clashs.Count} (besides {solvez} solved)");
+			foreach (var ((c, (keys, mode)), cx) in clashs.Each(1)) {
+				env.Write(cx + (mode == -1 ? "  : " : " :: "));
+				env.WriteLine(string.Join(' ', keys.Select(k => CharSet.Unesc(k))));
+				using var _ = EnvWriter.Use("\t\t");
+				foreach (var a in c.redus)
+					env.WriteLine($"{(a == SynForm.Reduce(mode) ? "REDUCE" : "reduce")} {a}  {alts[a]}");
+				foreach (var a in c.shifts ?? [])
+					env.WriteLine($"{(mode >= 0 ? "SHIFT" : "shift")} {a}  {alts[a]}");
+			}
+		}
+	}
+}
+
+public static partial class Dumper
+{
+	[DebuggerDisplay("{d,nq}")]
+	public struct Str
+	{
+		[DebuggerBrowsable(DebuggerBrowsableState.Never)]
+		public string d;
+		public override readonly string ToString() => d;
+		public static implicit operator string(Str d) => d.d;
+		public static explicit operator Str(string d) => new() { d = d };
+
 	}
 }

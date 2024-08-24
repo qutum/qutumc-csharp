@@ -164,14 +164,14 @@ public class LinkTree<T> : IEnumerable<T> where T : LinkTree<T>
 		string noInd = up == null && after == 0 ? "" : null;
 		var t = head;
 		for (; t != null && (dumpOrder < 0 || dumpOrder == 0 && t == head); t = t.next)
-			using (var env = EnvWriter.Indent(noInd ?? (first ? "  " : "| ")))
+			using (var env = EnvWriter.Use(noInd ?? (first ? "  " : "| ")))
 				t.Dump(extra, -1);
-		using (var env = noInd != null ? EnvWriter.Indent(noInd, "   ") : EnvWriter.Indent(
+		using (var env = noInd != null ? EnvWriter.Use(noInd, "   ") : EnvWriter.Use(
 				after > 0 ? first ? "- " : "\\ " : last ? "- " : "/ ",
 				t != null ? last ? "  |  " : "| |  " : last ? "     " : "|    "))
-			env.WriteLine(ToString(extra));
+			env.WriteLine(Dumper(extra));
 		for (; t != null; t = t.next)
-			using (var env = EnvWriter.Indent(noInd ?? (last ? "  " : "| ")))
+			using (var env = EnvWriter.Use(noInd ?? (last ? "  " : "| ")))
 				t.Dump(extra, 1);
 		if (up == null && prev == null)
 			for (t = next; t != null; t = t.next)
@@ -182,7 +182,7 @@ public class LinkTree<T> : IEnumerable<T> where T : LinkTree<T>
 	// preorder >0, inorder 0, postorder <0
 	public virtual int dumpOrder => 1;
 
-	public virtual string ToString(object extra) => extra?.ToString() ?? "dump";
+	public virtual string Dumper(object extra) => extra?.ToString() ?? "dump";
 
 	// enumerate subs
 	public IEnumerator<T> GetEnumerator()
@@ -224,43 +224,33 @@ public struct StrMaker
 	public override string ToString() => s.ToString();
 }
 
-public class EnvWriter : StringWriter, IDisposable
+public class EnvWriter : IndWriter, IDisposable
 {
-	static readonly EnvWriter env = new();
+	protected EnvWriter() : base(null) { }
 
-	TextWriter output;
+	static readonly EnvWriter env = new();
 	bool pressKey;
-	readonly List<(string ind, string ind2)> indents = [];
-	bool lineStart = true;
 
 	public static EnvWriter Begin(bool pressKey = false)
 	{
 		env.pressKey = pressKey;
-		if (env.indents.Contains((null, null)))
-			return env;
-		Console.OutputEncoding = new UTF8Encoding(false, false);
-		env.output = Console.Out;
-		Console.SetOut(env);
-		env.indents.Add((null, null));
+		if (env.output == null) {
+			Console.OutputEncoding = new UTF8Encoding(false, false);
+			env.output = Console.Out;
+			Console.SetOut(env);
+		}
 		return env;
 	}
 
-	public static EnvWriter Use() => Indent("");
+	public static EnvWriter Use() => (EnvWriter)env.Indent("");
 
-	public static EnvWriter Indent(string ind = "\t", string ind2 = null)
-	{
-		env.indents.Add((ind ?? throw new ArgumentNullException(nameof(ind)), ind2));
-		return env;
-	}
+	public static EnvWriter Use(string ind = "\t", string ind2 = null) => (EnvWriter)env.Indent(ind, ind2);
 
 	protected override void Dispose(bool _)
 	{
-		if (indents.Count == 0)
-			return;
-		var (ind, _) = indents[^1];
-		indents.RemoveAt(indents.Count - 1);
-		if (ind == null) {
+		if (output != null && indents.Count == 0) {
 			Console.SetOut(output);
+			output = null;
 			try {
 				if (pressKey && !Console.IsInputRedirected
 						&& GetConsoleProcessList(procs, 1) == 1) {
@@ -270,6 +260,39 @@ public class EnvWriter : StringWriter, IDisposable
 			}
 			catch (DllNotFoundException) { }
 		}
+		base.Dispose(true);
+	}
+
+	protected override void Print(ReadOnlyMemory<char>? s)
+	{
+		base.Print(s);
+		if (Debugger.IsAttached) Debug.Write(s);
+	}
+	protected override void Print() { base.Print(); if (Debugger.IsAttached) Debug.Flush(); }
+
+	[System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability", "SYSLIB1054")]
+	[DllImport("kernel32.dll", SetLastError = false)]
+	static extern uint GetConsoleProcessList(uint[] procs, uint n);
+	static readonly uint[] procs = new uint[1];
+}
+
+public class IndWriter(TextWriter output) : StringWriter, IDisposable
+{
+	protected TextWriter output = output;
+	protected readonly List<(string ind, string ind2)> indents = [];
+	protected bool lineStart = true;
+
+	public IndWriter Indent() => Indent("");
+	public IndWriter Indent(string ind = "\t", string ind2 = null)
+	{
+		indents.Add((ind ?? throw new ArgumentNullException(nameof(ind)), ind2));
+		return this;
+	}
+
+	protected override void Dispose(bool _)
+	{
+		if (indents.Count > 0)
+			indents.RemoveAt(indents.Count - 1);
 	}
 
 	public override void Flush()
@@ -297,22 +320,12 @@ public class EnvWriter : StringWriter, IDisposable
 				f += t + 1;
 			}
 		}
-		Print(null);
+		Print();
 		GetStringBuilder().Clear();
 	}
 
-	void Print(ReadOnlyMemory<char>? s)
-	{
-		if (s != null)
-			output.Write(s);
-		else
-			output.Flush();
-		if (Debugger.IsAttached)
-			if (s != null)
-				Debug.Write(s);
-			else
-				Debug.Flush();
-	}
+	protected virtual void Print(ReadOnlyMemory<char>? s) => output.Write(s);
+	protected virtual void Print() => output.Flush();
 
 	public override void WriteLine()
 	{
@@ -413,9 +426,4 @@ public class EnvWriter : StringWriter, IDisposable
 	{
 		base.WriteLine(value); Flush();
 	}
-
-	[System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability", "SYSLIB1054")]
-	[DllImport("kernel32.dll", SetLastError = false)]
-	static extern uint GetConsoleProcessList(uint[] procs, uint n);
-	static readonly uint[] procs = new uint[1];
 }

@@ -32,7 +32,7 @@ public partial class SynGram<K, N>
 							// as same rule and index as previous one: ~actual alt index
 		public short lex = -1; // save lex at this index to Synt.info, no save: <0
 		public sbyte synt; // as Synter.tree: 0, make Synt: 1, omit Synt: -1
-		public bool rec; // whether recover this alt for error
+		public bool rec; // whether recover this alt for error, recover from saving lex if any
 		public string label;
 	}
 
@@ -67,7 +67,7 @@ public partial class SynGram<K, N>
 // syntax parser maker
 // K for lexical key i.e lexeme
 // N for syntax name i.e synteme
-public class SerMaker<K, N>
+public partial class SerMaker<K, N>
 {
 	public bool dump = true;
 	public int compact = 50;
@@ -217,8 +217,7 @@ public class SerMaker<K, N>
 					foreach (var head in heads)
 						(f.clashs[Key(head)].redus ??= []).Add(a.index);
 		if (dump)
-			using (var env = EnvWriter.Use())
-				env.WriteLine($"forms: {forms.Count}");
+			Dump(forms);
 	}
 
 	// phase 3: find clashes and solve them
@@ -268,20 +267,8 @@ public class SerMaker<K, N>
 			foreach (var (c, (_, mode)) in clashs)
 				if (mode != -1 && clashs.Remove(c))
 					solvez++;
-		if (dump) {
-			using var env = EnvWriter.Use();
-			env.WriteLine(detail ? $"clashes: {clashs.Count} ({solvez} solved)"
-				: $"unsolved clashes: {clashs.Count} (besides {solvez} solved)");
-			foreach (var ((c, (keys, mode)), cx) in clashs.Each(1)) {
-				env.Write(cx + (mode == -1 ? "  : " : " :: "));
-				env.WriteLine(string.Join(' ', keys.Select(k => CharSet.Unesc(k))));
-				using var _ = EnvWriter.Indent("\t\t");
-				foreach (var a in c.redus)
-					env.WriteLine($"{(a == SynForm.Reduce(mode) ? "REDUCE" : "reduce")} {a}  {alts[a]}");
-				foreach (var a in c.shifts ?? [])
-					env.WriteLine($"{(mode >= 0 ? "SHIFT" : "shift")} {a}  {alts[a]}");
-			}
-		}
+		if (dump)
+			Dump((clashs, detail, solvez));
 		return clashs.Count > 0 ? clashs : null;
 	}
 
@@ -374,9 +361,10 @@ public class SerMaker<K, N>
 		// recover alts
 		List<(short, short)> recs = [];
 		foreach (var ((a, want), _) in f.Is)
-			if (a.rec && want < a.Count)
+			if (a.rec && want > a.lex && want < a.Count)
 				recs.Add((a.index, want));
 		recs.Sort(); recs.Reverse(); // reduce the latest alt of same recovery key
+
 		//TODO remove this case
 		//if (F.modes[default] == SynForm.Reduce(0) && F.modes.Yes().Count() == 1)
 		//	recs.Add((0, (short)alts[0].Count)); // want eor only
