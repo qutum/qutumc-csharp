@@ -10,7 +10,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 
-[assembly: DebuggerTypeProxy(typeof(Dumper.Form), Target = typeof(SynForm))]
 [assembly: DebuggerTypeProxy(typeof(Dumper.Stack), Target = typeof((SynForm, int, object)))]
 
 namespace qutum.parser;
@@ -79,22 +78,6 @@ public partial class Synt<N, T>
 		+ (info is Synt<N, T> ? s + '\n' + info : s);
 }
 
-public partial class SynGram<K, N>
-{
-	public partial class Alt
-	{
-		public override string ToString()
-		{
-			var s = new StrMaker() + name + " =";
-			foreach (var c in this)
-				_ = s + ' ' + SerMaker<K, N>.Dumper(c);
-			return s + "  " + clash switch { 0 => "", 1 => "<", > 1 => ">", _ => "^" }
-				+ (rec ? "!!" : "") + (synt > 0 ? "+" : synt < 0 ? "-" : "")
-				+ (lex >= 0 ? s + '_' + lex : s) + ' ' + label;
-		}
-	}
-}
-
 public partial class SynAlt<N>
 {
 	public object dump;
@@ -104,6 +87,7 @@ public partial class SynAlt<N>
 		: dump?.ToString() ?? label ?? "alt " + name);
 }
 
+[DebuggerTypeProxy(typeof(Dumper.Form))]
 public partial class SynForm
 {
 	public object dump;
@@ -136,14 +120,14 @@ public static partial class Dumper
 		public override readonly string ToString() => dump;
 	}
 
-	[DebuggerDisplay("title")] // no effect
+	[DebuggerDisplay("title")] // DebuggerDisplay stupidly ignored for DebuggerTypeProxy
 	public struct Stack((SynForm form, int loc, object synt) d)
 	{
 		[DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
 		public SynForm form = d.form;
 		public object synt = d.synt;
 
-		public override readonly string ToString() => $"@{d.loc} {form}"; // no effect
+		public override readonly string ToString() => $"@{d.loc} {form}"; // still ignored
 	}
 }
 
@@ -163,14 +147,16 @@ public partial class Synter<K, L, N, T, Ler>
 	public string Dumper(object d)
 	{
 		if (d is Kord key) return key == default ? "eor" : CharSet.Unesc(key);
-		else if (d is Nord name) return CharSet.Unesc((char)name);
-		else if (d is SynForm f) {
+		if (d is Nord name) return CharSet.Unesc((char)name);
+		if (d is SynForm f) {
 			StrMaker s = new(); short r;
+			if (dumper != Dumper)
+				s += dumper(d);
 			foreach (var (m, k, other) in f.modes.Yes())
-				_ = s - '\n' + (other ? " " : dumper(k)) +
-				(m >= 0 ? s + " shift " + m : s + " redu " + (r = SynForm.Reduce(m)) + " " + alts[r]);
+				_ = s - '\n' + (other ? " " : Dumper(k)) +
+				(m > No ? s + " shift " + m : s + " redu " + (r = SynForm.Reduce(m)) + " " + alts[r]);
 			foreach (var (p, n, other) in f.pushs.Yes())
-				_ = s - '\n' + (other ? " " : dumper(n)) + " push " + p;
+				_ = s - '\n' + (other ? " " : Dumper(n)) + " push " + p;
 			foreach (var (a, want) in f.recs ?? [])
 				_ = s - '\n' + "recover " + a + ',' + want + ' ' + alts[a];
 			return s.ToString();
@@ -179,18 +165,48 @@ public partial class Synter<K, L, N, T, Ler>
 	}
 }
 
+public partial class SynGram<K, N>
+{
+	public partial class Alt
+	{
+		public override string ToString()
+		{
+			var s = new StrMaker() + name + " =";
+			foreach (var c in this)
+				_ = s + ' ' + SerMaker<K, N>.Dumper_(c);
+			return s + "  " + clash switch { 0 => "", 1 => "<", > 1 => ">", _ => "^" }
+				+ (rec ? "!!" : "") + (synt > 0 ? "+" : synt < 0 ? "-" : "")
+				+ (lex >= 0 ? s + '.' + lex : s) + ' ' + label;
+		}
+	}
+}
+
 public partial class SerMaker<K, N>
 {
-	public static string Dumper(object d)
+	public static string Dumper_(object d)
 	{
-		if (d is K key) return key.Equals(default) ? "eor" : CharSet.Unesc(key);
+		StrMaker s = default;
+		if (d is K key) return key.Equals(default(K)) ? "eor" : CharSet.Unesc(key);
+		if (d is (IEnumerable<K> keys2, StrMaker s2))
+			(d, s) = (keys2, s2);
 		if (d is IEnumerable<K> keys) {
-			StrMaker s = new();
+			var ss = s.s == null; if (ss) s = new();
 			foreach (var k in keys)
-				_ = s - ' ' + (k.Equals(default) ? "eor" : CharSet.Unesc(k));
-			return s;
+				_ = s - ' ' + (k.Equals(default(K)) ? "eor" : CharSet.Unesc(k));
+			return ss ? s : null;
 		}
 		return d.ToString();
+	}
+
+	public string Dumper(object d)
+	{
+		if (d is SynForm f) {
+			StrMaker s = new();
+			foreach (var ((a, want), heads) in forms[f.index].Is)
+				_ = s - '\n' + a.ToString() + " _" + want + Dumper_((heads, s));
+			return s;
+		}
+		return Dumper_(d);
 	}
 
 	public void Dump(object d)
@@ -204,13 +220,13 @@ public partial class SerMaker<K, N>
 			env.WriteLine(detail ? $"clashes: {clashs.Count} ({solvez} solved)"
 						: $"unsolved clashes: {clashs.Count} (besides {solvez} solved)");
 			foreach (var ((c, (keys, mode)), cx) in clashs.Each(1)) {
-				env.Write(cx + (mode == -1 ? "  : " : " :: "));
+				env.Write(cx + (mode == No ? "  : " : " :: "));
 				env.WriteLine(Dumper(keys));
 				using var _ = EnvWriter.Use("\t\t");
 				foreach (var a in c.redus)
 					env.WriteLine($"{(a == SynForm.Reduce(mode) ? "REDUCE" : "reduce")} {a}  {alts[a]}");
 				foreach (var a in c.shifts ?? [])
-					env.WriteLine($"{(mode >= 0 ? "SHIFT" : "shift")} {a}  {alts[a]}");
+					env.WriteLine($"{(mode > No ? "SHIFT" : "shift")} {a}  {alts[a]}");
 			}
 		}
 	}

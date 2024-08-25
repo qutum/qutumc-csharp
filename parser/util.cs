@@ -205,9 +205,9 @@ public class LinkTree<T> : IEnumerable<T> where T : LinkTree<T>
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE0251:Make member 'readonly'")]
 public struct StrMaker
 {
-	readonly StringBuilder s = new();
+	internal readonly StringBuilder s;
 
-	public StrMaker() { }
+	public StrMaker() => s = new();
 	public StrMaker(out StrMaker s) => s = this;
 	public static implicit operator StrMaker(string s) => new StrMaker() + s;
 	public static implicit operator string(StrMaker s) => s.ToString();

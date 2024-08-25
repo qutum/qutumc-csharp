@@ -40,22 +40,24 @@ public sealed partial class SynForm
 	public struct S<O> where O : IBinaryInteger<O>
 	{
 		public short[] s; // at ordinal or ordinal index
-		public O[] x; // compact: { for others, ordinals ... }, normal: null
+		public O[] x; // compact: { ordinals ... }, normal: null
 
 		public readonly short this[O ord] {
 			get => x == null ? s[int.CreateTruncating(ord)]
 				: x.Length switch {
-					1 => s[0],
-					2 => x[1] == ord ? s[1] : s[0],
-					3 => x[1] == ord ? s[1] : x[2] == ord ? s[2] : s[0],
-					4 => x[1] == ord ? s[1] : x[2] == ord ? s[2] : x[3] == ord ? s[3] : s[0],
-					_ => s[Math.Max(Array.BinarySearch(x, 1, x.Length - 1, ord), 0)]
+					1 => x[0] == ord ? s[0] : No,
+					2 => x[0] == ord ? s[0] : x[1] == ord ? s[1] : No,
+					3 => x[0] == ord ? s[0] : x[1] == ord ? s[1] : x[2] == ord ? s[2] : No,
+					4 => x[0] == ord ? s[0] : x[1] == ord ? s[1] : x[2] == ord ? s[2] : x[3] == ord ? s[3] : No,
+					_ => s[Math.Max(Array.BinarySearch(x, ord), 0)]
 				};
 		}
+		internal const short No = -1;
 	}
 	public short index;
 	public S<Kord> modes; // for each key: shift to: form index, reduce: -2-alt index, error: -1
 	public S<Nord> pushs; // for each name: push: form index
+	public short other = S<Kord>.No;
 	public string err; // error info
 	public (short alt, short want)[] recs; // { recovery alt index and want ... }
 
@@ -87,6 +89,7 @@ public partial class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where L
 	readonly SynForm[] forms;
 	readonly SynForm init;
 	readonly Kord[] recKs; // { recovery key ordinal ... }
+	const short No = -1;
 
 	protected Func<Ler, Kord> keyOrd; // ordinal from 1, default for eor: 0
 	protected Func<N, Nord> nameOrd; // ordinal from 1
@@ -121,49 +124,27 @@ public partial class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where L
 	{
 		T errs = null;
 		stack.Add((init, 0, null));
-	Next:
-		var loop = 0;
+	Read:
+		(int min, int loop) stuck = (stack.Count, 0);
 		var key = ler.Next() ? keyOrd(ler) : default;
 	Loop:
 		var form = stack[^1].form;
 		var go = form.modes[key];
-		if (go >= 0) { // shift
+		if (go > No) { // shift
 			stack.Add((forms[go], ler.Loc(), null));
-			goto Next;
+			goto Read;
 		}
 		(sbyte err, short size, object info) redu = default;
 	Reduce:
 		T t = null;
-		if (go < -1) { // reduce
-			var alt = alts[SynForm.Reduce(go)];
-			var name = nameOrd(alt.name);
-			int loc = stack[^1].loc;
-			bool make = redu.err > 0 || (alt.synt == 0 ? synt : alt.synt > 0);
-			if (make)
-				t = new() {
-					name = alt.name, from = loc, to = ler.Loc(), err = redu.err, info = redu.info
-				};
-			if (redu.err == 0)
-				redu.size = alt.size;
-			for (var i = redu.size - 1; i >= 0; i--) {
-				(_, loc, var synt) = stack[^(redu.size - i)];
-				if (make) {
-					t.from = loc; // head loc
-					if (synt is T head)
-						t.AddHead(head);
-					else if (t.err == 0 && i == alt.lex)
-						t.info = ler.Lex(loc);
-				}
-				else if (synt is T head)
-					t = head.Append(t); // flatten Synts inside Alt
-			}
-			stack.RemoveRange(stack.Count - redu.size, redu.size);
-			if (redu.size == 1 && ++loop > 100)
-				goto Cyclic;
+		if (go < No) { // reduce
+			var (name, loc) = Reduce(go, ref redu, ref t);
 			form = stack[^1].form;
 			go = form.pushs[name];
-			if (go >= 0) {
+			if (go > No) {
 				stack.Add((forms[go], loc, t));
+				if (stack.Count < stuck.min) (stuck.min, stuck.loop) = (stack.Count, 1);
+				else if (++stuck.loop >= 100) goto Cyclic; // stack stuck without shift
 				goto Loop;
 			}
 			else if (key == default) {
@@ -173,16 +154,42 @@ public partial class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where L
 		}
 		// error: recover, accept or reject
 		redu = Error(form, ref key, ref go, ref errs);
-		if (redu.err > 0) {
-			loop = 0;
+		if (redu.err > 0)
 			goto Reduce;
-		}
 		stack.Clear();
 		return redu.err == 0 ? t.Append(errs) : errs; // accept or reject
 	Cyclic:
 		stack.Clear();
-		(t.err, t.info) = (-2, "maybe infinite loop due to cyclic grammar");
+		(t.err, t.info) = (-2, "maybe infinite loop due to cyclic grammar or recovery");
 		return (errs ?? new() { err = -1, info = 1 }).Add(t);
+	}
+
+	(Nord name, int loc) Reduce(short go, ref (sbyte err, short size, object info) redu, ref T t)
+	{
+		var alt = alts[SynForm.Reduce(go)];
+		var name = nameOrd(alt.name);
+		int loc = stack[^1].loc;
+		bool make = redu.err > 0 || (alt.synt == 0 ? synt : alt.synt > 0);
+		if (make)
+			t = new() {
+				name = alt.name, from = loc, to = ler.Loc(), err = redu.err, info = redu.info
+			};
+		if (redu.err == 0)
+			redu.size = alt.size;
+		for (var i = redu.size - 1; i >= 0; i--) {
+			(_, loc, var synt) = stack[^(redu.size - i)];
+			if (make) {
+				t.from = loc; // head loc
+				if (synt is T head)
+					t.AddHead(head);
+				else if (t.err == 0 && i == alt.lex)
+					t.info = ler.Lex(loc);
+			}
+			else if (synt is T head)
+				t = head.Append(t); // flatten Synts inside Alt
+		}
+		stack.RemoveRange(stack.Count - redu.size, redu.size);
+		return (name, loc);
 	}
 
 	(sbyte, short, object) Error(SynForm form, ref Kord key, ref short go, ref T errs)
@@ -191,7 +198,7 @@ public partial class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where L
 		T e = new() {
 			from = ler.Loc(), to = ler.Loc() + (key != default ? 1 : 0), err = -1,
 			info = (int)errs.info == 100 ? "more than 100 errors ..."
-				: form.err ?? (go < -1 ? SerMaker<K, N>.ErrEor : "unknown error"),
+				: form.err ?? (go < No ? SerMaker<K, N>.ErrEor : "unknown error"),
 		};
 		if ((int)errs.info <= 100)
 			errs.Add(e).info = (int)errs.info + 1;
@@ -205,34 +212,38 @@ public partial class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where L
 				(ss ??= new int[recKs.Length])[alts[a.alt].rec] = x + 1;
 		if (ss == null) // no recovery form in stack, reject
 			return (-1, 0, null);
-		// insert one recovery key only if want it right now
-		foreach (var (x, k) in ss.Each())
-			if (x == stack.Count) // latest stack
-				foreach (var (a, want) in stack[x - 1].form.recs)
-					if (alts[a].rec == k && alts[a].lex >= 0 && want > 1 && want == alts[a].size - 1) {
-						go = SynForm.Reduce(a); // as if insert final key
-						e.to = e.from;
-						return (1, want, e); // recover to reduce
-					}
+		if (key != default) // insert one recovery key only if want it right now
+			foreach (var (a, want) in stack[^1].form.recs ?? [])
+				if (alts[a].lex >= 0 && want == alts[a].size - 1
+						&& want > 1) { // prevent infinite loop mostly
+					go = SynForm.Reduce(a); // as if insert final key
+					e.to = e.from;
+					return (1, want, e); // recover to reduce
+				}
 		// read until one recovery key
-		var rk = 0;
-		while (key != default && ((rk = Array.BinarySearch(recKs, key)) < 0 || ss[rk] == 0))
+		int rk;
+		while (((rk = Array.BinarySearch(recKs, key)) < 0 || ss[rk] == 0) && key != default)
 			key = ler.Next() ? keyOrd(ler) : default;
 		if (key == default) // only eor
-			for (var k = (rk = 0) + 1; k < ss.Length; k++)
-				if (ss[k] > ss[rk])
-					rk = k; // form in the latest stack
-		if (ss[rk] > 0)
+			for (var k = (rk = -1) + 1; k < ss.Length; k++)
+				if (ss[k] > (rk < 0 ? 0 : ss[rk])) // form in the latest stack
+					foreach (var (a, want) in stack[ss[k] - 1].form.recs)
+						if (alts[a].rec == k && // as if insert one recovery key
+								want + stack.Count - ss[k] > 1) { // prevent infinite loop mostly
+							rk = k; break;
+						}
+		if (rk >= 0 && ss[rk] > 0)
 			foreach (var (a, want) in stack[ss[rk] - 1].form.recs)
 				if (alts[a].rec == rk) { // alt index reversed, so latest alt
-					key = key != default && ler.Next() ? keyOrd(ler) : default;// shift key
 					stack.RemoveRange(ss[rk], stack.Count - ss[rk]); // drop stack
 					go = SynForm.Reduce(a);
+					key = ler.Next() ? keyOrd(ler) : default; // as if shift key
 					return (1, want, e); // recover to reduce
 				}
 		return (-1, 0, null); // can not recover, reject
 	}
 
+	// accept or reject, no synt no error info no recovery
 	public virtual bool Check()
 	{
 		stack.Add((init, 0, null));
@@ -241,22 +252,22 @@ public partial class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where L
 		var key = ler.Next() ? keyOrd(ler) : default;
 	Loop:
 		var form = stack[^1].form;
-		var mode = form.modes[key];
-		if (mode >= 0) { // shift
-			stack.Add((forms[mode], 0, null));
+		var go = form.modes[key];
+		if (go > No) { // shift
+			stack.Add((forms[go], 0, null));
 			goto Next;
 		}
-		else if (mode < -1) { // reduce
-			var alt = alts[SynForm.Reduce(mode)];
+		else if (go < No) { // reduce
+			var alt = alts[SynForm.Reduce(go)];
 			stack.RemoveRange(stack.Count - alt.size, alt.size);
 			if (alt.size == 1 && ++loop > 100) {
 				stack.Clear();
 				return false; // maybe infinite loop due to cyclic grammar
 			}
 			form = stack[^1].form;
-			var push = form.pushs[nameOrd(alt.name)];
-			if (push >= 0) {
-				stack.Add((forms[push], 0, null));
+			go = form.pushs[nameOrd(alt.name)];
+			if (go > No) {
+				stack.Add((forms[go], 0, null));
 				goto Loop;
 			}
 			else if (key == default) {
@@ -271,6 +282,8 @@ public partial class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where L
 
 public static partial class Extension
 {
+	const short No = -1;
+
 	public static IEnumerable<(short d, Kord ord, bool other)> Full(this SynForm.S<Kord> s)
 	{
 		for (var y = 0; y < s.s.Length; y++)
@@ -283,26 +296,26 @@ public static partial class Extension
 	}
 	public static IEnumerable<(short d, Kord ord, bool other)> Yes(this SynForm.S<Kord> s)
 	{
-		foreach (var d in s.Full()) if (d.d != -1) yield return d;
+		foreach (var d in s.Full()) if (d.d != No) yield return d;
 	}
 	public static IEnumerable<(short d, Nord ord, bool other)> Yes(this SynForm.S<Nord> s)
 	{
-		foreach (var d in s.Full()) if (d.d != -1) yield return d;
+		foreach (var d in s.Full()) if (d.d != No) yield return d;
 	}
 	public static IEnumerable<(short d, Kord ord, bool other)> Form(this SynForm.S<Kord> s)
 	{
-		foreach (var d in s.Full()) if (d.d >= 0) yield return d;
+		foreach (var d in s.Full()) if (d.d > No) yield return d;
 	}
 	public static IEnumerable<(short d, Nord ord, bool other)> Form(this SynForm.S<Nord> s)
 	{
-		foreach (var d in s.Full()) if (d.d >= 0) yield return d;
+		foreach (var d in s.Full()) if (d.d > No) yield return d;
 	}
 	public static IEnumerable<(short d, Kord ord, bool other)> Redu(this SynForm.S<Kord> s)
 	{
-		foreach (var d in s.Full()) if (d.d < -1) yield return d;
+		foreach (var d in s.Full()) if (d.d < No) yield return d;
 	}
 	public static IEnumerable<(short d, Kord ord, bool other)> Alt(this SynForm.S<Kord> s)
 	{
-		foreach (var d in s.Full()) if (d.d < -1) yield return (SynForm.Reduce(d.d), d.ord, d.other);
+		foreach (var d in s.Full()) if (d.d < No) yield return (SynForm.Reduce(d.d), d.ord, d.other);
 	}
 }

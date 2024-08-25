@@ -98,16 +98,14 @@ public class TestSynter : IDisposable
 			lex = (short)(a.IndexOfAny(keys, 2) - 2),
 			synt = a[1] switch { '+' => 1, '-' => -1, _ => 0 },
 		}).ToArray();
-		Kord[] ks = [default, .. keys];
-		Nord[] ns = [default, .. names];
 		var Fs = new SynForm[forms.Length];
 		foreach (var (f, fx) in forms.Each())
 			if (f.modes != null) {
 				var F = Fs[fx] = new();
 				F.pushs.s = [];
-				Array.Sort(F.modes.x = ks[..], F.modes.s = [-1, .. f.modes], 1, keys.Length);
+				Array.Sort(F.modes.x = keys[..], F.modes.s = f.modes[..]);
 				if (f.pushs != null)
-					Array.Sort(F.pushs.x = ns[..], F.pushs.s = [-1, .. f.pushs]);
+					Array.Sort(F.pushs.x = names[..], F.pushs.s = f.pushs[..]);
 			}
 		ser = new(name => name[0], alts, Fs) { dump = 3 };
 	}

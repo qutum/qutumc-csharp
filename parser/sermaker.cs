@@ -133,6 +133,7 @@ public partial class SerMaker<K, N>
 		internal short[] pushs; // push form index, at name ordinal index, no: -1
 		internal short[] modes; // solved modes, at key ordinal index, error: -1
 	}
+	const short No = -1;
 
 	static bool AddItem(Items Is, SynGram<K, N>.Alt alt, short want, IEnumerable<K> heads)
 	{
@@ -155,8 +156,7 @@ public partial class SerMaker<K, N>
 			pushs = new short[names.Length], modes = new short[keys.Length],
 		};
 		forms.Add(F);
-		Array.Fill(F.modes, (short)-1);
-		Array.Fill(F.pushs, (short)-1);
+		Array.Fill(F.modes, No); Array.Fill(F.pushs, No);
 		return F.index;
 	}
 
@@ -232,7 +232,7 @@ public partial class SerMaker<K, N>
 			foreach (var (c, kx) in f.clashs.Each())
 				// shift without clash
 				if (c.redus == null)
-					f.modes[kx] = (short)(c.shifts == null ? -1 // error
+					f.modes[kx] = (short)(c.shifts == null ? No // error
 										: c.shift);
 				// reduce without clash
 				else if (c.shifts == null && c.redus.Count == 1)
@@ -244,7 +244,7 @@ public partial class SerMaker<K, N>
 				}
 				// solve
 				else {
-					short mode = -1;
+					short mode = No;
 					if (c.redus.All(a => alts[a].clash != 0)) {
 						int A(int a) => alts[a].clash < 0 ? ~alts[a].clash : a;
 						int r = c.redus.Max(), ra = A(r);
@@ -266,7 +266,7 @@ public partial class SerMaker<K, N>
 		var solvez = 0;
 		if (!detail)
 			foreach (var (c, (_, mode)) in clashs)
-				if (mode != -1 && clashs.Remove(c))
+				if (mode != No && clashs.Remove(c))
 					solvez++;
 		if (dump)
 			Dump((clashs, detail, solvez));
@@ -299,16 +299,16 @@ public partial class SerMaker<K, N>
 			{ // TODO better compact
 				int z;
 				if (int.CreateTruncating(os[^1]) < compact
-					|| (z = fs.Count(m => m != -1)) >= int.CreateTruncating(os[^1]) >>> 3)
+					|| (z = fs.Count(m => m != No)) >= int.CreateTruncating(os[^1]) >>> 3)
 					Fs.s = fs;
 				else {
-					(Fs.s, Fs.x) = (new short[z + 1], new O[z + 1]); Fs.s[0] = -1;
-					for (int X = 1, x = 0; x < os.Length; x++)
-						if (fs[x] != -1)
+					(Fs.s, Fs.x) = (new short[z], new O[z]);
+					for (int X = 0, x = 0; x < os.Length; x++)
+						if (fs[x] != No)
 							(Fs.s[X], Fs.x[X++]) = (fs[x], os[x]);
 				}
 			}
-			var F = Fs[f.index] = new SynForm();
+			var F = Fs[f.index] = new();
 			Compact(keyOs, f.modes, ref F.modes);
 			Compact(nameOs, f.pushs, ref F.pushs);
 			Error(f, F);
@@ -328,8 +328,7 @@ public partial class SerMaker<K, N>
 			if (other == SynForm.Reduce(0))
 				accept = true;
 			else // for error and recovery, form with any reduce will always reduce on error keys
-				foreach (var (m, kx) in F.modes.s.Each())
-					if (m == -1) F.modes.s[kx] = other;
+				F.other = other;
 
 		// error infos
 		List<(bool label, int half, int ax, object expect)> errNs = [], errKs = [], errs = [];
@@ -347,7 +346,7 @@ public partial class SerMaker<K, N>
 		foreach (var ((label, half, ax, expect), x) in errs.Each())
 			e += x == ErrZ ? ErrEtc : e - ErrMore + e.F(Err, // label or name wants name or key
 				alts[ax].label ?? prods[Name(alts[ax].name)].label ?? alts[ax].name.ToString(),
-				expect is N n ? prods[Name(n)].label ?? n.ToString() :Dumper(expect),
+				expect is N n ? prods[Name(n)].label ?? n.ToString() : Dumper(expect),
 				(expect is N ? "n" : "k", label ? "l" : "", half, ax)); // {2}
 		if (e.Size > 0)
 			F.err = e;
@@ -381,7 +380,7 @@ public partial class SerMaker<K, N>
 		var accept = gram.prods[0].name;
 
 		SortedDictionary<Kord, K> ks = new() { { keyOrd(default), default } };
-		SortedSet<Kord> recKs = [];
+		SortedSet<Kord> recs = [];
 		// prods
 		prods = new SynGram<K, N>.Prod[names.Length];
 		foreach (var p in gram.prods)
@@ -400,7 +399,7 @@ public partial class SerMaker<K, N>
 					throw new($"initial {p.name}.{pax} emppty");
 				foreach (var c in a)
 					if (c is K k)
-						ks[keyOrd(k)] = !k.Equals(default) ? k
+						ks[keyOrd(k)] = !k.Equals(default(K)) ? k
 							: throw new($"end of read in {p.name}.{pax}");
 					else if (accept.Equals(c))
 						throw new($"initial name {accept} in {p.name}.{pax} ");
@@ -418,7 +417,7 @@ public partial class SerMaker<K, N>
 					throw new($"initial {p.name}.{pax} recovery");
 				if (a.rec)
 					if (a.Count > 0 && a[^1] is K k)
-						recKs.Add(keyOrd(k));
+						recs.Add(keyOrd(k));
 					else
 						throw new($"{p.name}.{pax} no final lexic key");
 				alts[a.index = ax++] = a;
@@ -435,9 +434,9 @@ public partial class SerMaker<K, N>
 		keyOs = [.. ks.Keys];
 		keys = [.. ks.Values];
 		distinct(keys);
-		if (recKs.Count > 10)
-			throw new($"recovery keys size {recKs.Count}");
-		this.recKs = [.. recKs];
+		if (recs.Count > 10)
+			throw new($"recovery keys size {recs.Count}");
+		recKs = [.. recs];
 		// others
 		firsts = new (bool, HashSet<K>)[names.Length];
 	}
