@@ -152,11 +152,11 @@ public partial class Synter<K, L, N, T, Ler>
 			StrMaker s = new(); short r;
 			if (dumper != Dumper)
 				s += dumper(d);
-			foreach (var (m, k, other) in f.modes.Yes())
+			foreach (var (g, k, other) in f.goKs.Yes())
 				_ = s - '\n' + (other ? " " : Dumper(k)) +
-				(m > No ? s + " shift " + m : s + " redu " + (r = SynForm.Reduce(m)) + " " + alts[r]);
-			foreach (var (p, n, other) in f.pushs.Yes())
-				_ = s - '\n' + (other ? " " : Dumper(n)) + " push " + p;
+				(g > No ? s + " shift " + g : s + " redu " + (r = SynForm.Reduce(g)) + " " + alts[r]);
+			foreach (var (g, n, other) in f.goNs.Yes())
+				_ = s - '\n' + (other ? " " : Dumper(n)) + " go " + g;
 			foreach (var (a, want) in f.recs ?? [])
 				_ = s - '\n' + "recover " + a + ',' + want + ' ' + alts[a];
 			return s.ToString();
@@ -214,19 +214,19 @@ public partial class SerMaker<K, N>
 		if (d is List<Form> forms)
 			using (var env = EnvWriter.Use())
 				env.WriteLine($"forms: {forms.Count}");
-		else if (d is (Dictionary<Clash, (HashSet<K> keys, short mode)> clashs,
+		else if (d is (Dictionary<Clash, (HashSet<K> keys, short go)> clashs,
 				bool detail, int solvez)) {
 			using var env = EnvWriter.Use();
 			env.WriteLine(detail ? $"clashes: {clashs.Count} ({solvez} solved)"
 						: $"unsolved clashes: {clashs.Count} (besides {solvez} solved)");
-			foreach (var ((c, (keys, mode)), cx) in clashs.Each(1)) {
-				env.Write(cx + (mode == No ? "  : " : " :: "));
+			foreach (var ((c, (keys, go)), cx) in clashs.Each(1)) {
+				env.Write(cx + (go == No ? "  : " : " :: "));
 				env.WriteLine(Dumper(keys));
 				using var _ = EnvWriter.Use("\t\t");
 				foreach (var a in c.redus)
-					env.WriteLine($"{(a == SynForm.Reduce(mode) ? "REDUCE" : "reduce")} {a}  {alts[a]}");
+					env.WriteLine($"{(a == SynForm.Reduce(go) ? "REDUCE" : "reduce")} {a}  {alts[a]}");
 				foreach (var a in c.shifts ?? [])
-					env.WriteLine($"{(mode > No ? "SHIFT" : "shift")} {a}  {alts[a]}");
+					env.WriteLine($"{(go > No ? "SHIFT" : "shift")} {a}  {alts[a]}");
 			}
 		}
 	}
@@ -242,6 +242,5 @@ public static partial class Dumper
 		public override readonly string ToString() => d;
 		public static implicit operator string(Str d) => d.d;
 		public static explicit operator Str(string d) => new() { d = d };
-
 	}
 }

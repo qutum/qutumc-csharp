@@ -130,8 +130,8 @@ public partial class SerMaker<K, N>
 		internal short index;
 		internal Items Is;
 		internal Clash[] clashs; // at key ordinal index
-		internal short[] pushs; // push form index, at name ordinal index, no: -1
-		internal short[] modes; // solved modes, at key ordinal index, error: -1
+		internal short[] goKs; // solved, at key ordinal index, error: -1
+		internal short[] goNs; // form index, at name ordinal index, error: -1
 	}
 	const short No = -1;
 
@@ -153,10 +153,10 @@ public partial class SerMaker<K, N>
 			}
 		var F = new Form {
 			index = (short)forms.Count, Is = Is, clashs = new Clash[keys.Length],
-			pushs = new short[names.Length], modes = new short[keys.Length],
+			goNs = new short[names.Length], goKs = new short[keys.Length],
 		};
 		forms.Add(F);
-		Array.Fill(F.modes, No); Array.Fill(F.pushs, No);
+		Array.Fill(F.goKs, No); Array.Fill(F.goNs, No);
 		return F.index;
 	}
 
@@ -197,7 +197,7 @@ public partial class SerMaker<K, N>
 				(f.clashs[Key(k)].shifts ??= []).Add(a.index);
 			}
 			else
-				f.pushs[Name((N)a[want])] = to;
+				f.goNs[Name((N)a[want])] = to;
 		}
 	}
 
@@ -225,48 +225,47 @@ public partial class SerMaker<K, N>
 	// solve 1: shift or reduce the latest index alt, reduce the same index (left associative)
 	// solve 2: shift or reduce the latest index alt, shift the same index (right associative)
 	// all clashing alts should be clashable
-	public Dictionary<Clash, (HashSet<K> keys, short mode)> Clashs(bool detail = true)
+	public Dictionary<Clash, (HashSet<K> keys, short go)> Clashs(bool detail = true)
 	{
-		Dictionary<Clash, (HashSet<K> keys, short mode)> clashs = [];
+		Dictionary<Clash, (HashSet<K> keys, short go)> clashs = [];
 		foreach (var f in forms)
 			foreach (var (c, kx) in f.clashs.Each())
 				// shift without clash
 				if (c.redus == null)
-					f.modes[kx] = (short)(c.shifts == null ? No // error
-										: c.shift);
+					f.goKs[kx] = c.shifts == null ? No : c.shift;
 				// reduce without clash
 				else if (c.shifts == null && c.redus.Count == 1)
-					f.modes[kx] = SynForm.Reduce(c.redus.First());
+					f.goKs[kx] = SynForm.Reduce(c.redus.First());
 				// already solved
 				else if (clashs.TryGetValue(c, out var ok)) {
-					f.modes[kx] = ok.mode;
+					f.goKs[kx] = ok.go;
 					ok.keys.Add(keys[kx]);
 				}
 				// solve
 				else {
-					short mode = No;
+					short go = No;
 					if (c.redus.All(a => alts[a].clash != 0)) {
 						int A(int a) => alts[a].clash < 0 ? ~alts[a].clash : a;
 						int r = c.redus.Max(), ra = A(r);
 						if (c.shifts == null)
-							mode = SynForm.Reduce(r); // reduce
+							go = SynForm.Reduce(r); // reduce
 						else {
 							int ia = A(c.shifts.Max()), ic = alts[ia].clash;
 							if (ic != 0)
 								if (ia > ra || ia == ra && ic > 1)
-									mode = c.shift; // shift
+									go = c.shift; // shift
 								else
-									mode = SynForm.Reduce(r); // reduce
+									go = SynForm.Reduce(r); // reduce
 						}
 					}
-					f.modes[kx] = mode;
-					clashs[c] = ([keys[kx]], mode);
+					f.goKs[kx] = go;
+					clashs[c] = ([keys[kx]], go);
 				}
 		// solved
 		var solvez = 0;
 		if (!detail)
-			foreach (var (c, (_, mode)) in clashs)
-				if (mode != No && clashs.Remove(c))
+			foreach (var (c, (_, go)) in clashs)
+				if (go != No && clashs.Remove(c))
 					solvez++;
 		if (dump)
 			Dump((clashs, detail, solvez));
@@ -275,7 +274,7 @@ public partial class SerMaker<K, N>
 
 	// phase all and final: make all data for synter
 	public (SynAlt<N>[] alts, SynForm[] forms, Kord[] recKs)
-		Make(out Dictionary<Clash, (HashSet<K> keys, short mode)> clashs)
+		Make(out Dictionary<Clash, (HashSet<K> keys, short go)> clashs)
 	{
 		Firsts();
 		Forms();
@@ -309,8 +308,8 @@ public partial class SerMaker<K, N>
 				}
 			}
 			var F = Fs[f.index] = new();
-			Compact(keyOs, f.modes, ref F.modes);
-			Compact(nameOs, f.pushs, ref F.pushs);
+			Compact(keyOs, f.goKs, ref F.goKs);
+			Compact(nameOs, f.goNs, ref F.goNs);
 			Error(f, F);
 		}
 		return (As, Fs, recKs);
@@ -324,7 +323,7 @@ public partial class SerMaker<K, N>
 	void Error(Form f, SynForm F)
 	{
 		bool accept = false;
-		if (F.modes.Redu().May().Max()?.d is short other)
+		if (F.goKs.Redu().May().Max()?.d is short other)
 			if (other == SynForm.Reduce(0))
 				accept = true;
 			else // for error and recovery, form with any reduce will always reduce on error keys

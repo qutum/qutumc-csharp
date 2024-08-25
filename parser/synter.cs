@@ -55,8 +55,8 @@ public sealed partial class SynForm
 		internal const short No = -1;
 	}
 	public short index;
-	public S<Kord> modes; // for each key: shift to: form index, reduce: -2-alt index, error: -1
-	public S<Nord> pushs; // for each name: push: form index
+	public S<Kord> goKs; // for each key: shift to: form index, reduce: -2-alt index, error: -1
+	public S<Nord> goNs; // for each name: form index, error: -1
 	public short other = S<Kord>.No;
 	public string err; // error info
 	public (short alt, short want)[] recs; // { recovery alt index and want ... }
@@ -129,7 +129,7 @@ public partial class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where L
 		var key = ler.Next() ? keyOrd(ler) : default;
 	Loop:
 		var form = stack[^1].form;
-		var go = form.modes[key];
+		var go = form.goKs[key];
 		if (go > No) { // shift
 			stack.Add((forms[go], ler.Loc(), null));
 			goto Read;
@@ -140,7 +140,7 @@ public partial class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where L
 		if (go < No) { // reduce
 			var (name, loc) = Reduce(go, ref redu, ref t);
 			form = stack[^1].form;
-			go = form.pushs[name];
+			go = form.goNs[name];
 			if (go > No) {
 				stack.Add((forms[go], loc, t));
 				if (stack.Count < stuck.min) (stuck.min, stuck.loop) = (stack.Count, 1);
@@ -252,7 +252,7 @@ public partial class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where L
 		var key = ler.Next() ? keyOrd(ler) : default;
 	Loop:
 		var form = stack[^1].form;
-		var go = form.modes[key];
+		var go = form.goKs[key];
 		if (go > No) { // shift
 			stack.Add((forms[go], 0, null));
 			goto Next;
@@ -265,7 +265,7 @@ public partial class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where L
 				return false; // maybe infinite loop due to cyclic grammar
 			}
 			form = stack[^1].form;
-			go = form.pushs[nameOrd(alt.name)];
+			go = form.goNs[nameOrd(alt.name)];
 			if (go > No) {
 				stack.Add((forms[go], 0, null));
 				goto Loop;

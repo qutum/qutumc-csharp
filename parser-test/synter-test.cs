@@ -90,7 +90,7 @@ public class TestSynter : IDisposable
 
 	internal SynterStr ser;
 
-	public void NewSer(string Alts, Kord[] keys, Nord[] names, (short[] modes, short[] pushs)[] forms)
+	public void NewSer(string Alts, Kord[] keys, Nord[] names, (short[] goKs, short[] goNs)[] forms)
 	{
 		var alts = Alts.Split('\n', ' ').Select(a => new SynAlt<string> {
 			name = a[0..1],
@@ -100,12 +100,12 @@ public class TestSynter : IDisposable
 		}).ToArray();
 		var Fs = new SynForm[forms.Length];
 		foreach (var (f, fx) in forms.Each())
-			if (f.modes != null) {
+			if (f.goKs != null) {
 				var F = Fs[fx] = new();
-				F.pushs.s = [];
-				Array.Sort(F.modes.x = keys[..], F.modes.s = f.modes[..]);
-				if (f.pushs != null)
-					Array.Sort(F.pushs.x = names[..], F.pushs.s = f.pushs[..]);
+				F.goNs.s = [];
+				Array.Sort(F.goKs.x = keys[..], F.goKs.s = f.goKs[..]);
+				if (f.goNs != null)
+					Array.Sort(F.goNs.x = names[..], F.goNs.s = f.goNs[..]);
 			}
 		ser = new(name => name[0], alts, Fs) { dump = 3 };
 	}
