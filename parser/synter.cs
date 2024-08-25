@@ -57,7 +57,7 @@ public sealed partial class SynForm
 	public short index;
 	public S<Kord> goKs; // for each key: shift to: form index, reduce: -2-alt index, error: -1
 	public S<Nord> goNs; // for each name: form index, error: -1
-	public short other = S<Kord>.No;
+	public short other = S<Kord>.No; // reduce by other key ordinals
 	public string err; // error info
 	public (short alt, short want)[] recs; // { recovery alt index and want ... }
 
@@ -154,10 +154,10 @@ public partial class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where L
 		}
 		// error: recover, accept or reject
 		redu = Error(form, ref key, ref go, ref errs);
-		if (redu.err > 0)
+		if (redu.err >> 1 == 0)
 			goto Reduce;
 		stack.Clear();
-		return redu.err == 0 ? t.Append(errs) : errs; // accept or reject
+		return redu.err > 0 ? t.Append(errs) : errs; // accept or reject
 	Cyclic:
 		stack.Clear();
 		(t.err, t.info) = (-2, "maybe infinite loop due to cyclic grammar or recovery");
@@ -194,6 +194,8 @@ public partial class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where L
 
 	(sbyte, short, object) Error(SynForm form, ref Kord key, ref short go, ref T errs)
 	{
+		if (go == No && (go = form.other) != No) // reduce by other key ordinals
+			return (0, 0, null);
 		errs ??= new() { err = -1, info = 0 };
 		T e = new() {
 			from = ler.Loc(), to = ler.Loc() + (key != default ? 1 : 0), err = -1,
@@ -284,38 +286,38 @@ public static partial class Extension
 {
 	const short No = -1;
 
-	public static IEnumerable<(short d, Kord ord, bool other)> Full(this SynForm.S<Kord> s)
+	public static IEnumerable<(short d, Kord ord)> Full(this SynForm.S<Kord> s)
 	{
 		for (var y = 0; y < s.s.Length; y++)
-			yield return (s.s[y], s.x?[y] ?? (Kord)y, s.x != null && y == 0);
+			yield return (s.s[y], s.x?[y] ?? (Kord)y);
 	}
-	public static IEnumerable<(short d, Nord ord, bool other)> Full(this SynForm.S<Nord> s)
+	public static IEnumerable<(short d, Nord ord)> Full(this SynForm.S<Nord> s)
 	{
 		for (var y = 0; y < s.s.Length; y++)
-			yield return (s.s[y], s.x?[y] ?? (Nord)y, s.x != null && y == 0);
+			yield return (s.s[y], s.x?[y] ?? (Nord)y);
 	}
-	public static IEnumerable<(short d, Kord ord, bool other)> Yes(this SynForm.S<Kord> s)
+	public static IEnumerable<(short d, Kord ord)> Yes(this SynForm.S<Kord> s)
 	{
 		foreach (var d in s.Full()) if (d.d != No) yield return d;
 	}
-	public static IEnumerable<(short d, Nord ord, bool other)> Yes(this SynForm.S<Nord> s)
+	public static IEnumerable<(short d, Nord ord)> Yes(this SynForm.S<Nord> s)
 	{
 		foreach (var d in s.Full()) if (d.d != No) yield return d;
 	}
-	public static IEnumerable<(short d, Kord ord, bool other)> Form(this SynForm.S<Kord> s)
+	public static IEnumerable<(short d, Kord ord)> Form(this SynForm.S<Kord> s)
 	{
 		foreach (var d in s.Full()) if (d.d > No) yield return d;
 	}
-	public static IEnumerable<(short d, Nord ord, bool other)> Form(this SynForm.S<Nord> s)
+	public static IEnumerable<(short d, Nord ord)> Form(this SynForm.S<Nord> s)
 	{
 		foreach (var d in s.Full()) if (d.d > No) yield return d;
 	}
-	public static IEnumerable<(short d, Kord ord, bool other)> Redu(this SynForm.S<Kord> s)
+	public static IEnumerable<(short d, Kord ord)> Redu(this SynForm.S<Kord> s)
 	{
 		foreach (var d in s.Full()) if (d.d < No) yield return d;
 	}
-	public static IEnumerable<(short d, Kord ord, bool other)> Alt(this SynForm.S<Kord> s)
+	public static IEnumerable<(short d, Kord ord)> Alt(this SynForm.S<Kord> s)
 	{
-		foreach (var d in s.Full()) if (d.d < No) yield return (SynForm.Reduce(d.d), d.ord, d.other);
+		foreach (var d in s.Full()) if (d.d < No) yield return (SynForm.Reduce(d.d), d.ord);
 	}
 }

@@ -152,13 +152,15 @@ public partial class Synter<K, L, N, T, Ler>
 			StrMaker s = new(); short r;
 			if (dumper != Dumper)
 				s += dumper(d);
-			foreach (var (g, k, other) in f.goKs.Yes())
-				_ = s - '\n' + (other ? " " : Dumper(k)) +
-				(g > No ? s + " shift " + g : s + " redu " + (r = SynForm.Reduce(g)) + " " + alts[r]);
-			foreach (var (g, n, other) in f.goNs.Yes())
-				_ = s - '\n' + (other ? " " : Dumper(n)) + " go " + g;
+			if (f.other != No)
+				_ = s - '\n' + "  redu " + (r = SynForm.Reduce(f.other)) + " " + alts[r];
+			foreach (var (g, k) in f.goKs.Yes())
+				_ = s - '\n' + Dumper(k) + (g > No ? s + " shift " + g
+						: s + " redu " + (r = SynForm.Reduce(g)) + " " + alts[r]);
+			foreach (var (g, n) in f.goNs.Yes())
+				_ = s - '\n' + Dumper(n) + " go " + g;
 			foreach (var (a, want) in f.recs ?? [])
-				_ = s - '\n' + "recover " + a + ',' + want + ' ' + alts[a];
+				_ = s - '\n' + "recover " + a + '_' + want + ' ' + alts[a];
 			return s.ToString();
 		}
 		return d.ToString();
