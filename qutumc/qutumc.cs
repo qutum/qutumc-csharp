@@ -4,9 +4,9 @@
 // Under the terms of the GNU General Public License version 3
 // http://qutum.com  http://qutum.cn
 //
-
 using qutum.parser;
 using qutum.syntax;
+using qutum.syntax.earley;
 using System;
 using System.IO;
 
@@ -26,7 +26,7 @@ static class Qutumc
 				file = Console.ReadLine();
 			}
 			var bs = File.ReadAllBytes(file);
-			var p = new Synter(new Lexier { allValue = true });
+			var p = new Earley(new Lexier { allValue = true });
 			using var __ = p.ler.Begin(new LerByte(bs));
 			var top = p.Parse();
 			top.Dump((Func<int, int, (int, int, int, int)>)p.ler.LineCol);

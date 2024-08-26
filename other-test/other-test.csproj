@@ -1,13 +1,13 @@
 <Project>
 	<PropertyGroup>
-		<BaseIntermediateOutputPath>..\bin\obj-parser-test</BaseIntermediateOutputPath>
+		<BaseIntermediateOutputPath>..\bin\obj-other-test</BaseIntermediateOutputPath>
 		<BaseOutputPath>..\bin</BaseOutputPath>
 	</PropertyGroup>
 	<Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
 
 	<PropertyGroup>
 		<TargetFramework>net8.0</TargetFramework>
-		<RootNamespace>qutum.test.parser</RootNamespace>
+		<RootNamespace>qutum.test.other</RootNamespace>
 		<SatelliteResourceLanguages>en</SatelliteResourceLanguages>
 		<ProduceReferenceAssembly>false</ProduceReferenceAssembly>
 		<IsPackable>false</IsPackable>
@@ -32,7 +32,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="..\parser\parser.csproj" />
+		<ProjectReference Include="..\syntax\syntax.csproj" />
 	</ItemGroup>
 
 	<Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />

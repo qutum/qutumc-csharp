@@ -4,7 +4,6 @@
 // Under the terms of the GNU General Public License version 3
 // http://qutum.com  http://qutum.cn
 //
-
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using qutum.parser;
 using qutum.syntax;
@@ -22,26 +21,26 @@ public class TestLexier : IDisposable
 
 	public void Dispose() => env.Dispose();
 
-	readonly Lexier ler = new() { eof = false, errs = null };
+	readonly Lexier ler = new() { eor = false, errs = null };
 
-	void Check(string input, string s)
+	void Check(string read, string s)
 	{
-		env.WriteLine(input);
-		using var __ = ler.Begin(new LerByte(Encoding.UTF8.GetBytes(input)));
+		env.WriteLine(read);
+		using var __ = ler.Begin(new LerByte(Encoding.UTF8.GetBytes(read)));
 		while (ler.Next())
 			;
-		var z = string.Join(" ", ler.Lexs(0, ler.Loc()).Select(t => t.ToString(Dump)).ToArray());
-		env.WriteLine(z);
-		AreEqual(s, z);
+		var ls = string.Join(" ", ler.Lexs(0, ler.Loc()).Select(t => t.Dumper(Dump)).ToArray());
+		env.WriteLine(ls);
+		AreEqual(s, ls);
 	}
 
-	static string Dump(object v) => v is object[] s ? string.Join(',', s) + "," : v?.ToString() ?? "";
+	static string Dump(object d) => d is object[] s ? string.Join(',', s) + "," : d?.ToString() ?? "";
 
-	void CheckSp(string input, string s)
+	void CheckSp(string read, string s)
 	{
 		ler.allBlank = true;
 		try {
-			Check(input, s);
+			Check(read, s);
 		}
 		finally {
 			ler.allBlank = false;
@@ -55,7 +54,7 @@ public class TestLexier : IDisposable
 		CheckSp("\\### \\# ###\\ ###\\ ab", "COMM=COMMB SP= COMM=");
 		CheckSp("\\## \\## ##\\ ##\\ \nab", "COMM=COMMB SP= COMM= EOL= NAME=ab");
 		Check("\\## \\## ##\\ ##\\ \nab", "NAME=ab");
-		Check("\\\\", "COMMB!");
+		Check("\\", "COMMB!"); Check("\\\\", "COMMB!");
 	}
 
 	[TestMethod]
@@ -81,7 +80,7 @@ public class TestLexier : IDisposable
 		CheckSp("\ta\n\tb\n\t\t\tc\n\t\t\t\td\n\t\t\te\n\t\tf\ng\nh",
 			"IND=4 NAME=a EOL= NAME=b EOL= INDR=12 NAME=c EOL= IND=16 NAME=d EOL= DED=16 NAME=e EOL= DEDR=12 IND=8 NAME=f EOL= DED=8 DED=4 NAME=g EOL= NAME=h");
 		Check("          a\n      b\n  c",
-			"INDR=10 NAME=a EOL= INDR!indent same as upper lines expected NAME=b EOL= DEDR=10 IND=2 NAME=c DED=2");
+			"INDR=10 NAME=a EOL= INDR!indent expected same as upper lines NAME=b EOL= DEDR=10 IND=2 NAME=c DED=2");
 	}
 
 	[TestMethod]
@@ -120,7 +119,7 @@ public class TestLexier : IDisposable
 	[TestMethod]
 	public void Eof2()
 	{
-		ler.eof = true;
+		ler.eor = true;
 		CheckSp("a\n", "NAME=a EOL= EOL=");
 		CheckSp("a\t", "NAME=a SP= EOL=");
 		CheckSp("\ta\t", "IND=4 NAME=a SP= EOL= DED=4");
