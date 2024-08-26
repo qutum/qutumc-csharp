@@ -110,7 +110,7 @@ public partial class SerMaker<K, N>
 	public (bool empty, IEnumerable<K> first) First(N name) => firsts[Name(name)];
 
 	class Items : Dictionary<(SynGram<K, N>.Alt alt, short want),
-		HashSet<K>> // lookaheads including eor
+		(HashSet<K> heads, int clo)> // lookaheads including eor
 	{ }
 	[System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2231:Overload operator equals")]
 	public struct Clash
@@ -135,11 +135,11 @@ public partial class SerMaker<K, N>
 	}
 	const short No = -1;
 
-	static bool AddItem(Items Is, SynGram<K, N>.Alt alt, short want, IEnumerable<K> heads)
+	static bool AddItem(Items Is, SynGram<K, N>.Alt alt, short want, IEnumerable<K> heads, int clo)
 	{
 		if (Is.TryGetValue((alt, want), out var hs))
-			return hs.Adds(heads);
-		Is[(alt, want)] = [.. heads];
+			return hs.heads.Adds(heads);
+		Is[(alt, want)] = ([.. heads], clo);
 		return true;
 	}
 	short AddForm(Items Is)
@@ -147,7 +147,7 @@ public partial class SerMaker<K, N>
 		foreach (var f in forms)
 			if (f.Is.Count == Is.Count) {
 				foreach (var (i, h) in Is)
-					if (!f.Is.TryGetValue(i, out var fh) || !fh.SetEquals(h))
+					if (!f.Is.TryGetValue(i, out var fh) || !fh.heads.SetEquals(h.heads))
 						goto No;
 				return f.index; No:;
 			}
@@ -163,14 +163,14 @@ public partial class SerMaker<K, N>
 	// make a whole items
 	Items Closure(Items Is)
 	{
-	Loop: foreach (var ((a, want), heads) in Is) {
+	Loop: foreach (var ((a, want), (heads, clo)) in Is) {
 			if (want >= a.Count || a[want] is not N name)
 				continue;
 			var (e, f) = want + 1 >= a.Count ? (false, heads)
 						: a[want + 1] is K k ? (false, [k]) : First((N)a[want + 1]);
 			var loop = false;
 			foreach (var A in prods[Name(name)])
-				loop |= AddItem(Is, A, 0, e && heads.Count > 0 ? [.. f, .. heads] : f);
+				loop |= AddItem(Is, A, 0, e && heads.Count > 0 ? [.. f, .. heads] : f, clo + 1);
 			if (loop)
 				goto Loop;
 		}
@@ -186,9 +186,9 @@ public partial class SerMaker<K, N>
 				continue;
 			if (!tos.TryGetValue(a[want], out var to)) {
 				Items js = [];
-				foreach (var ((A, W), heads) in f.Is) {
+				foreach (var ((A, W), (heads, _)) in f.Is) {
 					if (W < A.Count && A[W].Equals(a[want]))
-						AddItem(js, A, (short)(W + 1), heads);
+						AddItem(js, A, (short)(W + 1), heads, 0);
 				}
 				tos.Add(a[want], to = AddForm(Closure(js)));
 			}
@@ -206,14 +206,14 @@ public partial class SerMaker<K, N>
 	{
 		if (forms.Count > 0)
 			return;
-		Items init = new() { { (alts[0], 0), [default] } };
+		Items init = new() { { (alts[0], 0), ([default], 0) } };
 		AddForm(Closure(init));
 		for (var x = 0; x < forms.Count; x++) {
 			if (x >= 32767) throw new("too many forms");
 			ShiftPush(forms[x]);
 		}
 		foreach (var f in forms)
-			foreach (var ((a, want), heads) in f.Is)
+			foreach (var ((a, want), (heads, _)) in f.Is)
 				if (want >= a.Count) // alt could be reduced
 					foreach (var head in heads)
 						(f.clashs[Key(head)].redus ??= []).Add(a.index);
@@ -331,12 +331,17 @@ public partial class SerMaker<K, N>
 
 		// error infos
 		List<(bool label, int half, int ax, object expect)> errNs = [], errKs = [], errs = [];
-		foreach (var ((a, want), _) in f.Is)
-			if (want < a.Count && want != a.lex) // saved lex is usually for distinct alts of same name
-				(a[want] is N ? errNs : errKs).Add(
-					(a.label != null, want + want - a.Count, a.index, a[want]));
+		for (int c = 0, cc = 0; // only one closure times mostly
+				c <= cc && (f.index + c == 1 || errNs.Count + errKs.Count == 0); c++)
+			foreach (var ((a, want), (_, clo)) in f.Is)
+				if (clo > cc)
+					cc = clo;
+				else if (clo == c && want < a.Count
+						&& want != a.lex) // saved lex is usually for distinct alts of same name
+					(a[want] is N ? errNs : errKs).Add(
+						(a.label != null, want + want - a.Count, a.index, a[want]));
 		errNs.Sort(); errKs.Sort();
-		// only few infos
+		// only few infos, reverse
 		for (int z = -1, x = 1; z < (z = errs.Count); x++) {
 			if (errs.Count <= ErrZ && x <= errNs.Count) errs.Add(errNs[^x]);
 			if (errs.Count <= ErrZ && x <= errKs.Count) errs.Add(errKs[^x]);

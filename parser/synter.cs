@@ -10,7 +10,6 @@ using System.Numerics;
 
 namespace qutum.parser;
 
-using static qutum.parser.SynForm;
 using Kord = char;
 using Nord = ushort;
 
@@ -237,7 +236,7 @@ public partial class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where L
 		};
 		if ((int)errs.info <= 100)
 			errs.Add(e).info = (int)errs.info + 1;
-		// recover
+		// recovery disabled
 		if (!recover)
 			return (-1, 0, null);
 		// want a recovery key right now, fake it

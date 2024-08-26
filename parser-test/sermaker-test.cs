@@ -401,18 +401,18 @@ public class TestSerMaker : IDisposable
 		);
 		NewSer();
 		ser.Parse("aa").H(null, 1, 2, "sentence ;", -1).uU();
-		ser.Parse("-a").H(null, 0, 1, "sentence expression  expression a", -1).uU();
-		ser.Parse("a+").H(null, 2, 2, "addition expression  expression a", -1).uU();
-		ser.Parse("a++a").H(null, 2, 3, "addition expression  expression a", -1).uU();
-		ser.Parse("a+a--a").H(null, 4, 5, "subtraction expression  expression a", -1).uU();
-		ser.Parse(")").H(null, 0, 1, "sentence expression  expression a", -1).uU();
+		ser.Parse("-a").H(null, 0, 1, "sentence expression  sentence sentence", -1).uU();
+		ser.Parse("a+").H(null, 2, 2, "addition expression", -1).uU();
+		ser.Parse("a++a").H(null, 2, 3, "addition expression", -1).uU();
+		ser.Parse("a+a--a").H(null, 4, 5, "subtraction expression", -1).uU();
+		ser.Parse(")").H(null, 0, 1, "sentence expression  sentence sentence", -1).uU();
 		ser.Parse("a)").H(null, 1, 2, "sentence ;", -1).uU();
 		ser.Parse("(a))").H(null, 3, 4, "sentence ;", -1).uU();
-		ser.Parse("(").H(null, 1, 1, "parenth expression  expression a", -1).uU();
+		ser.Parse("(").H(null, 1, 1, "parenth expression", -1).uU();
 		ser.Parse("(a").H(null, 2, 2, "parenth )", -1).uU();
 		ser.Parse("(a;").H(null, 2, 3, "parenth )", -1).uU();
-		ser.Parse(";a").H(null, 0, 1, "sentence expression  expression a", -1).uU();
-		ser.Parse("a;;").H(null, 2, 3, "sentence expression  expression a", -1).uU();
+		ser.Parse(";a").H(null, 0, 1, "sentence expression  sentence sentence", -1).uU();
+		ser.Parse("a;;").H(null, 2, 3, "sentence expression", -1).uU();
 		ser.Parse("(a;a)").H(null, 2, 3, "parenth )", -1).uU();
 	}
 
