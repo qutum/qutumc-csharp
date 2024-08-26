@@ -43,13 +43,13 @@ public sealed partial class SynForm
 		public O[] x; // compact: { ordinals ... }, normal: null
 
 		public readonly short this[O ord] {
-			get => x == null ? s[int.CreateTruncating(ord)]
+			get => x == null ? int.CreateTruncating(ord) is int y && y < s.Length ? s[y] : No
 				: x.Length switch {
 					1 => x[0] == ord ? s[0] : No,
 					2 => x[0] == ord ? s[0] : x[1] == ord ? s[1] : No,
 					3 => x[0] == ord ? s[0] : x[1] == ord ? s[1] : x[2] == ord ? s[2] : No,
 					4 => x[0] == ord ? s[0] : x[1] == ord ? s[1] : x[2] == ord ? s[2] : x[3] == ord ? s[3] : No,
-					_ => Array.BinarySearch(x, ord) is int y and >= 0 ? s[y] : No
+					_ => Array.BinarySearch(x, ord) is int z and >= 0 ? s[z] : No
 				};
 		}
 		internal const short No = -1;
@@ -256,10 +256,12 @@ public partial class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where L
 		for (; rec.cx == 0; key = ler.Next() ? keyOrd(ler) : default)
 			// not found, fake it
 			if (key == default) {
+				rec.cx = 1;
 				for (int x = 0; x < cks.Length; x++)
-					if (cks[x] > rec.cx && Fake(key, x, cks[x]) is var r && r.cx > 0)
-						rec = r; // latest recovery stack
-				if (rec.cx == 0)
+					if (cks[x] >= rec.cx && Fake(key, x, cks[x]) is var r && r.cx > 0)
+						if (r.cx > rec.cx || r.want > rec.want)
+							rec = r; // latest recovery stack and most want
+				if (rec.want == 0)
 					return (-1, 0, null); // can not recover, reject
 			}
 			else if (Array.BinarySearch(recKs, key) is int kx and >= 0 && cks[kx] is int cx and > 0)
@@ -276,13 +278,11 @@ public partial class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where L
 	{
 		if (key != default)
 			foreach (var (a, want) in stack[cx - 1].form.recs ?? [])
-				if (alts[a].lex >= 0 && want == alts[a].size - 1 // final key
-						&& want > 1) // prevent infinite loop mostly
+				if (alts[a].lex >= 0 && want > 0 && want == alts[a].size - 1) // final key
 					return (cx, a, want);
 		if (key == default)
 			foreach (var (a, want) in stack[cx - 1].form.recs ?? [])
-				if ((kx < 0 || alts[a].rec == kx) &&
-						want + stack.Count - cx > 1) // prevent infinite loop mostly
+				if ((kx < 0 || alts[a].rec == kx) && want + stack.Count - cx > 0)
 					return (cx, a, want);
 		return (0, 0, 0);
 	}

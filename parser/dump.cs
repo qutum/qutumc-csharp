@@ -204,8 +204,8 @@ public partial class SerMaker<K, N>
 	{
 		if (d is SynForm f) {
 			StrMaker s = new();
-			foreach (var ((a, want), heads) in forms[f.index].Is)
-				_ = s - '\n' + want + "_ " + a.ToString() + "  " + Dumper_((heads, s));
+			foreach (var ((a, want), (heads, clo)) in forms[f.index].Is)
+				_ = s - '\n' + want + "_ " + a.ToString() + "  " + Dumper_((heads, s)) + "  ~" + clo;
 			return s;
 		}
 		return Dumper_(d);

@@ -397,6 +397,7 @@ public partial class SerMaker<K, N>
 		foreach (var p in gram.prods) {
 			var np = prods[Name(p.name)];
 			foreach (var (a, pax) in p.Each()) {
+				// content
 				if (a.Count > 30)
 					throw new($"{p.name}.{pax} size {a.Count}");
 				if (a.Count == 0 && ax == 0)
@@ -409,14 +410,17 @@ public partial class SerMaker<K, N>
 						throw new($"initial name {accept} in {p.name}.{pax} ");
 					else if (Name((N)c) < 0)
 						throw new($"name {c} in {p.name}.{pax} not found");
+				// clash
 				if (a.clash != 0 && a.Count == 0)
 					throw new($"{p.name}.{pax} clash but empty");
 				if (a.clash < 0 && (ax == 0 || alts[ax - 1].clash == 0))
 					throw new($"{p.name}.{pax} no previous clash");
 				if (a.clash < 0)
 					a.clash = alts[ax - 1].clash < 0 ? alts[ax - 1].clash : (short)~(ax - 1);
+				// lex
 				if (a.lex >= 0 && a[a.lex] is not K)
 					throw new($"{p.name}.{pax} content {a[a.lex]} not lexic key");
+				// recover
 				if (a.rec && ax == 0)
 					throw new($"initial {p.name}.{pax} recovery");
 				if (a.rec)
