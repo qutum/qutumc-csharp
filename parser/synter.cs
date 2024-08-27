@@ -116,49 +116,10 @@ public partial class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where L
 
 	public Synter<K, L, N, T, Ler> Begin(Ler ler) { this.ler = ler; return this; }
 
-	// (form, lex loc i.e Synt.from, synt or null for lex)
-	readonly List<(SynForm form, int loc, object synt)> stack = [];
-
 	// accept or reject, no synt no error info no recovery
 	public virtual bool Check()
 	{
-		stack.Add((init, -1, null));
-	Next:
-		var loop = 0;
-		var key = ler.Next() ? keyOrd(ler) : default;
-	Loop:
-		var form = stack[^1].form;
-		var go = form.goKs[key];
-		if (go > No) { // shift
-			stack.Add((forms[go], -1, null));
-			goto Next;
-		}
-		else if (go < No) { // reduce
-			var alt = alts[SynForm.Reduce(go)];
-			stack.RemoveRange(stack.Count - alt.size, alt.size);
-			if (alt.size == 1 && ++loop > 100) {
-				stack.Clear();
-				return false; // maybe infinite loop due to cyclic grammar
-			}
-			form = stack[^1].form;
-			go = form.goNs[nameOrd(alt.name)];
-			if (go > No) {
-				stack.Add((forms[go], -1, null));
-				goto Loop;
-			}
-			else if (key == default) {
-				stack.Clear();
-				return true; // reduce alts[0] by eor, accept
-			} // reduce alts[0] by others, reject
-		} // error
-		stack.Clear();
-		return false;
-	}
-
-	// make Synt tree followed by errors
-	public virtual T Parse()
-	{
-		var errs = new T { err = -1, info = 0 };
+		stack.Add(default);
 		stack.Add((init, -1, null));
 	Read:
 		(int min, int loop) stuck = (stack.Count, 0);
@@ -167,7 +128,78 @@ public partial class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where L
 		var form = stack[^1].form;
 		var go = form.goKs[key];
 		if (go > No) { // shift
-			stack.Add((forms[go], ler.Loc(), null));
+			stack.Add((forms[go], -1, null));
+			goto Read;
+		}
+		else if (go < No) { // reduce
+			var alt = alts[SynForm.Reduce(go)];
+			stack.RemoveRange(stack.Count - alt.size, alt.size);
+			form = stack[^1].form;
+			go = form.goNs[nameOrd(alt.name)];
+			if (go > No) {
+				stack.Add((forms[go], -1, null));
+				if (stack.Count < stuck.min) (stuck.min, stuck.loop) = (stack.Count, 1);
+				else if (++stuck.loop >= 100) goto Reject; // stack stuck without shift
+				goto Loop;
+			}
+			else if (key == default) {
+				stack.Clear();
+				return true; // reduce alts[0] by eor, accept
+			} // reduce alts[0] by others, reject
+		} // error
+	Reject:
+		stack.Clear();
+		return false;
+	}
+
+	// (form, lex loc i.e Synt.from, synt or null for lex)
+	readonly List<(SynForm form, int loc, object synt)> stack = []; // index from 1
+	internal List<int>[] recCs; // { 0, recovery stack index... } of each recovery key
+
+	void StackPush(SynForm form, int loc, object synt)
+	{
+		stack.Add((form, loc, synt));
+		if (recCs != null && form.recs != null)
+			foreach (var a in form.recs)
+				recCs[alts[a.alt].rec].Add(stack.Count - 1);
+	}
+	void StackPop(int from = 0, int size = 0)
+	{
+		if (from == 0) from = stack.Count - size;
+		else if (size == 0) size = stack.Count - from;
+		stack.RemoveRange(from, size);
+		if (recCs != null)
+			foreach (var cs in recCs) {
+				var x = cs.Count;
+				for (; cs[x - 1] >= from; x--) ;
+				cs.RemoveRange(x, cs.Count - x);
+			}
+	}
+	void StackRecs()
+	{
+		recCs = new List<int>[recKs.Length];
+		for (var x = 0; x < recCs.Length; x++)
+			recCs[x] = new(stack.Capacity) { 0 };
+		foreach (var ((f, _, _), x) in stack.Each())
+			foreach (var a in f?.recs ?? [])
+				recCs[alts[a.alt].rec].Add(x);
+	}
+	void StackClear() { stack.Clear(); recCs = null; }
+
+	// make Synt tree followed by errors
+	public virtual T Parse()
+	{
+		var errs = new T { err = -1, info = 0 };
+		stack.Add(default);
+		StackPush(init, -1, null);
+	Read:
+		(int min, int loop) stuck = (stack.Count, 0);
+		var key = ler.Next() ? keyOrd(ler) : default;
+	Loop:
+		var form = stack[^1].form;
+		var go = form.goKs[key];
+		if (go > No) { // shift
+			StackPush(forms[go], ler.Loc(), null);
 			goto Read;
 		}
 		(sbyte err, short size, object info) redu = default;
@@ -178,13 +210,13 @@ public partial class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where L
 			form = stack[^1].form;
 			go = form.goNs[name];
 			if (go > No) {
-				stack.Add((forms[go], loc, t));
+				StackPush(forms[go], loc, t);
 				if (stack.Count < stuck.min) (stuck.min, stuck.loop) = (stack.Count, 1);
 				else if (++stuck.loop >= 100) goto Cyclic; // stack stuck without shift
 				goto Loop;
 			}
 			else if (key == default) {
-				stack.Clear();
+				StackClear();
 				return t.Append(errs.head?.up); // reduce alts[0] by eor, accept
 			} // reduce alts[0] by others, error
 		}
@@ -192,10 +224,10 @@ public partial class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where L
 		redu = Error(form, ref key, ref go, errs);
 		if (redu.err >> 1 == 0)
 			goto Reduce;
-		stack.Clear();
+		StackClear();
 		return redu.err > 0 ? t.Append(errs.head?.up) : errs; // accept or reject
 	Cyclic:
-		stack.Clear();
+		StackClear();
 		(t.err, t.info) = (-2, "maybe infinite loop due to cyclic grammar or recovery");
 		return errs.Add(t);
 	}
@@ -217,7 +249,7 @@ public partial class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where L
 			else if (make && i == alt.lex)
 				t.info ??= ler.Lex(l);
 		}
-		stack.RemoveRange(stack.Count - redu.size, redu.size);
+		StackPop(size: redu.size);
 		return (nameOrd(alt.name), loc, t);
 	}
 
@@ -225,7 +257,7 @@ public partial class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where L
 	{
 		(int cx, short a, short want) rec = default;
 		if (go == No && form.other != No) // reduce by other key ordinals
-			if (!recover || Fake(key, -1, stack.Count).cx == 0) {
+			if (!recover || Fake(key, -1, stack.Count - 1).cx == 0) {
 				go = form.other;
 				return (0, 0, null);
 			}
@@ -240,36 +272,33 @@ public partial class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where L
 		if (!recover)
 			return (-1, 0, null);
 		// want a recovery key right now, fake it
-		if (key != default && (rec = Fake(key, -1, stack.Count)).cx > 0) {
+		if (key != default && (rec = Fake(key, -1, stack.Count - 1)).cx > 0) {
 			go = SynForm.Reduce(rec.a);
 			e.to = e.from;
 			return (1, rec.want, e); // recover
 		}
-		// recovery stack index + 1 by each recovery key
-		int[] cks = null;
-		foreach (var ((f, _, _), x) in stack.Each())
-			foreach (var a in f.recs ?? [])
-				(cks ??= new int[recKs.Length])[alts[a.alt].rec] = x + 1;
-		if (cks == null) // no recovery stack, reject
-			return (-1, 0, null);
+		// recovery stack
+		if (recCs == null)
+			StackRecs();
 		// read until one recovery key and shift it
 		for (; rec.cx == 0; key = ler.Next() ? keyOrd(ler) : default)
 			// not found, fake it
 			if (key == default) {
 				rec.cx = 1;
-				for (int x = 0; x < cks.Length; x++)
-					if (cks[x] >= rec.cx && Fake(key, x, cks[x]) is var r && r.cx > 0)
+				for (int x = 0; x < recCs.Length; x++)
+					if (recCs[x][^1] >= rec.cx && Fake(key, x, recCs[x][^1]) is var r && r.cx > 0)
 						if (r.cx > rec.cx || r.want > rec.want)
 							rec = r; // latest recovery stack and most want
 				if (rec.want == 0)
 					return (-1, 0, null); // can not recover, reject
 			}
-			else if (Array.BinarySearch(recKs, key) is int kx and >= 0 && cks[kx] is int cx and > 0)
-				foreach (var (a, want) in stack[cx - 1].form.recs)
+			else if (Array.BinarySearch(recKs, key) is int kx and >= 0
+					&& recCs[kx][^1] is int cx and > 0)
+				foreach (var (a, want) in stack[cx].form.recs)
 					if (alts[(rec = (cx, a, want)).a].rec == kx) // latest alt due to reversed index
 						break;
 		// recover
-		stack.RemoveRange(rec.cx, stack.Count - rec.cx);
+		StackPop(from: rec.cx + 1);
 		go = SynForm.Reduce(rec.a);
 		return (1, rec.want, e);
 	}
@@ -277,12 +306,12 @@ public partial class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where L
 	(int cx, short a, short want) Fake(Kord key, int kx, int cx)
 	{
 		if (key != default)
-			foreach (var (a, want) in stack[cx - 1].form.recs ?? [])
+			foreach (var (a, want) in stack[cx].form.recs ?? [])
 				if (alts[a].lex >= 0 && want > 0 && want == alts[a].size - 1) // final key
 					return (cx, a, want);
 		if (key == default)
-			foreach (var (a, want) in stack[cx - 1].form.recs ?? [])
-				if ((kx < 0 || alts[a].rec == kx) && want + stack.Count - cx > 0)
+			foreach (var (a, want) in stack[cx].form.recs ?? [])
+				if ((kx < 0 || alts[a].rec == kx) && want + stack.Count - cx - 1 > 0)
 					return (cx, a, want);
 		return (0, 0, 0);
 	}
