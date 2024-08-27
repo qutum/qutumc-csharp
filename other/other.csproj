@@ -1,13 +1,13 @@
 <Project>
 	<PropertyGroup>
-		<BaseIntermediateOutputPath>..\bin\obj-other-test</BaseIntermediateOutputPath>
+		<BaseIntermediateOutputPath>..\bin\obj-other</BaseIntermediateOutputPath>
 		<BaseOutputPath>..\bin</BaseOutputPath>
 	</PropertyGroup>
 	<Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
 
 	<PropertyGroup>
 		<TargetFramework>net8.0</TargetFramework>
-		<RootNamespace>qutum.test.other</RootNamespace>
+		<RootNamespace>qutum</RootNamespace>
 		<SatelliteResourceLanguages>en</SatelliteResourceLanguages>
 		<ProduceReferenceAssembly>false</ProduceReferenceAssembly>
 		<IsPackable>false</IsPackable>
@@ -25,15 +25,7 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<!--RuntimeHostConfigurationOption Include="System.Globalization.Invariant" Value="true" /-->
-		<PackageReference Include="Microsoft.NET.Test.Sdk" />
-		<PackageReference Include="MSTest.TestAdapter" />
-		<PackageReference Include="MSTest.TestFramework" />
-	</ItemGroup>
-
-	<ItemGroup>
-		<ProjectReference Include="..\syntax\syntax.csproj" />
-		<ProjectReference Include="..\other\other.csproj" />
+		<ProjectReference Include="..\parser\parser.csproj" />
 	</ItemGroup>
 
 	<Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />

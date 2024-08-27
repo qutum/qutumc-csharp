@@ -143,17 +143,17 @@ public class LerByteList(List<byte> read) : Lexer<byte, byte>
 
 public static class CharSet
 {
-	internal static bool[] L = new bool[129],  // single line, no \r \n, \x80
-							D = new bool[129], // decimal
-							X = new bool[129], // hexadecimal
-							A = new bool[129], // alphabet
-							W = new bool[129], // word, decimal or alphabet or _
-							O = new bool[129], // operator
-							G = new bool[129], // grammar operator, op except * + = ? \\ |
-							I = new bool[129], // grammer single, word or = or grammar op except [ ]
-							RI = new bool[129]; // default inclusive range
-	internal static string ALL, LINE, DEC, HEX, ALPHA, WORD, OP;
-	internal static string[] ONE; // [each byte]
+	public static readonly bool[] L = new bool[129],// single line, no \r \n, \x80
+								D = new bool[129],  // decimal
+								X = new bool[129],  // hexadecimal
+								A = new bool[129],  // alphabet
+								W = new bool[129],  // word, decimal or alphabet or _
+								O = new bool[129],  // operator
+								G = new bool[129],  // grammar operator, op except * + = ? \\ |
+								I = new bool[129],  // grammer single, word or = or grammar op except [ ]
+								RI = new bool[129]; // default inclusive range
+	public static readonly string ALL, LINE, DEC, HEX, ALPHA, WORD, OP;
+	public static readonly string[] ONE; // [each byte]
 
 	public static readonly ReadOnlyMemory<char> All, Line, Dec, Hex, Alpha, Word, Op;
 
