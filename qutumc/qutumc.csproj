@@ -24,6 +24,7 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\syntax\syntax.csproj" />
+		<ProjectReference Include="..\other\other.csproj" />
 	</ItemGroup>
 
 	<Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />

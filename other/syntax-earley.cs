@@ -6,6 +6,7 @@
 //
 using qutum.parser;
 using qutum.parser.earley;
+using qutum.syntax;
 using System;
 using System.Linq;
 

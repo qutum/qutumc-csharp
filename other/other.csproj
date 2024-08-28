@@ -26,6 +26,7 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\parser\parser.csproj" />
+		<ProjectReference Include="..\syntax\syntax.csproj" />
 	</ItemGroup>
 
 	<Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
