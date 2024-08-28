@@ -30,8 +30,8 @@ public partial class SynGram<K, N>
 		public N name;
 		public short clash; // reject: 0, solve 1: 1, solve 2: 2
 							// as same rule and index as previous one: ~actual alt index
-		public short lex = -1; // save lex at this index to Synt.info, no save: <0
-		public sbyte synt; // as Synter.tree: 0, make Synt: 1, omit Synt: -1
+		public short lex = -1; // save lex at this index to synt.info, no save: <0
+		public sbyte synt; // make synt: as synter: 0, omit: -1, make: 1, flat left: 2, flat right: 3
 		public bool rec; // whether recover this alt for error, recover from saving lex if any
 		public string label;
 	}
@@ -58,6 +58,8 @@ public partial class SynGram<K, N>
 	public SynGram<K, N> clashRight { get { prods[^1][^1].clash = 2; return this; } }
 	public SynGram<K, N> clashPrev { get { prods[^1][^1].clash = -1; return this; } }
 	public SynGram<K, N> synt { get { prods[^1][^1].synt = 1; return this; } }
+	public SynGram<K, N> syntLeft { get { prods[^1][^1].synt = 2; return this; } }
+	public SynGram<K, N> syntRight { get { prods[^1][^1].synt = 3; return this; } }
 	public SynGram<K, N> syntOmit { get { prods[^1][^1].synt = -1; return this; } }
 	public SynGram<K, N> recover { get { prods[^1][^1].rec = true; return this; } }
 	public SynGram<K, N> label(string w) { prods[^1][^1].label = w.ToString(); return this; }
@@ -420,6 +422,11 @@ public partial class SerMaker<K, N>
 				// lex
 				if (a.lex >= 0 && a[a.lex] is not K)
 					throw new($"{p.name}.{pax} content {a[a.lex]} not lexic key");
+				// synt
+				if (a.synt == 2 && (a.Count == 0 || a[0] is not N))
+					throw new($"{p.name}.{pax} leftmost not name");
+				if (a.synt == 3 && (a.Count == 0 || a[^1] is not N))
+					throw new($"{p.name}.{pax} rightmost not name");
 				// recover
 				if (a.rec && ax == 0)
 					throw new($"initial {p.name}.{pax} recovery");

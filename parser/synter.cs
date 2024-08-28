@@ -30,8 +30,8 @@ public sealed partial class SynAlt<N>
 {
 	public N name;
 	public short size;
-	public short lex; // save lex at this index to Synt.info, no save: <0
-	public sbyte synt; // as Synter.tree: 0, make Synt: 1, omit Synt: -1
+	public short lex; // save lex at this index to synt.info, no save: <0
+	public sbyte synt; // make synt: as synter: 0, omit: -1, make: 1, flat left: 2, flat right: 3
 	public sbyte rec; // at recovery key ordinal index, or 0
 	public string label;
 }
@@ -96,7 +96,7 @@ public partial class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where L
 
 	public Ler ler;
 	public bool recover = false; // whether recover errors
-	public bool synt = true; // make Synt tree by default
+	public bool synt = true; // make synt tree by default, always make recovery synt
 
 	public Synter(Func<Ler, Kord> keyOrd, Func<N, Nord> nameOrd,
 		SynAlt<N>[] alts, SynForm[] forms, Kord[] recKs = null)
@@ -152,7 +152,7 @@ public partial class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where L
 		return false;
 	}
 
-	// (form, lex loc i.e Synt.from, synt or null for lex)
+	// (form, lex loc i.e synt.from, synt or null for lex)
 	readonly List<(SynForm form, int loc, object synt)> stack = []; // index from 1
 	internal List<int>[] recCs; // { 0, recovery stack index... } of each recovery key
 
@@ -186,7 +186,7 @@ public partial class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where L
 	}
 	void StackClear() { stack.Clear(); recCs = null; }
 
-	// make Synt tree followed by errors
+	// make synt tree followed by errors
 	public virtual T Parse()
 	{
 		var errs = new T { err = -1, info = 0 };
@@ -238,14 +238,20 @@ public partial class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where L
 		if (redu.err == 0)
 			redu.size = alt.size;
 		int loc = redu.size > 0 ? stack[^redu.size].loc : stack[^1].loc + 1;
-		bool make = redu.err > 0 || (alt.synt == 0 ? synt : alt.synt > 0);
+		bool make = redu.err > 0 || alt.synt > 0 || alt.synt == 0 && synt;
 		T t = make ? new() {
 			name = alt.name, from = loc, to = ler.Loc(), err = redu.err, info = redu.info
 		} : null;
 		for (var i = redu.size - 1; i >= 0; i--) {
 			var (_, l, synt) = stack[^(redu.size - i)];
 			if (synt is T head)
-				t = make ? t.AddHead(head) : head.Append(t); // flatten Synts inside Alt
+				if (!make // flatten synts of this alt
+					|| alt.synt == 2 && i == 0) // lift first synt as prev
+					t = head.Append(t);
+				else if (alt.synt == 3 && i == redu.size - 1) // lift last synt as next
+					t.Append(head);
+				else
+					t.AddHead(head);
 			else if (make && i == alt.lex)
 				t.info ??= ler.Lex(l);
 		}

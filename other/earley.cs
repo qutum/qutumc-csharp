@@ -21,7 +21,7 @@ public class Esyn<N, T> : LinkTree<T> where T : Esyn<N, T>
 	public N name;
 	public int from, to; // lexs from loc to loc excluded, for error may < 0
 	public int err; // no error: 0, error: -1, error step: > 0, recovered: -4
-	public object info; // error lex, expected Alt hint/name or K, or recovered Prod hint/name or K
+	public object info; // error lex, expected alt hint/name or K, or recovered prod hint/name or K
 	public string dump;
 
 	public override string ToString() => $"{from}:{to}{(err == 0 ? info != null ? " " + info : ""
@@ -65,21 +65,21 @@ public class Earley<K, L, N, T, Ler> where T : Esyn<N, T>, new() where Ler : Lex
 	}
 	struct Con
 	{
-		internal object p; // Prod or K or null for complete;
+		internal object p; // prod or K or null for complete;
 		internal Qua q;
 	}
 	sealed class Alt
 	{
 		internal N name;
 		internal Con[] s;
-		internal bool prior; // prior than other Alts of the same Prod or of all recovery
+		internal bool prior; // prior than other alts of the same prod or of all recovery
 		internal sbyte greedy; // as earley.greedy: 0, greedy: 1, lazy: -1
-		internal sbyte synt; // as earley.tree: 0, make Synt: 2, omit Synt: -1
+		internal sbyte synt; // as earley.tree: 0, make synt: 2, omit synt: -1
 							 // omit if no up or has 0 or 1 sub: 1
-		internal bool lex; // save first shifted lex to Synt.info
+		internal bool lex; // save first shifted lex to synt.info
 		internal bool errExpect; // make expect synt when error
 		internal int recover; // no: -1, recover ahead to last One or More K index: > 0,
-							  // recover just at last One or More Prod index without shift: > 0
+							  // recover just at last One or More prod index without shift: > 0
 		internal K recPair; // skip each pair of this and recovery K, no skip: recovery K
 		internal K recDeny; // deny this K when recover ahead, nothing denied: recovery K
 		internal string hint;
@@ -97,13 +97,13 @@ public class Earley<K, L, N, T, Ler> where T : Esyn<N, T>, new() where Ler : Lex
 	public int matchz, completez;
 	public int lexz; // lexm size
 	readonly List<int> lexm = []; // {matchz before each lex}
-	readonly int[] recm; // {latest match index of each recovery Alt}
+	readonly int[] recm; // {latest match index of each recovery alt}
 	public Ler ler;
 	public bool greedy = false; // greedy: true, may or may not: false
 								// eg. S=AB A=1|12 B=23|3  gready: (12)3  lazy: 1(23)
 	public int recover = 10; // no recovery: 0, how many times to recover at eor: > 0
-	public bool tree = true; // make whole tree from complete Alts
-	public int dump = 0; // no: 0, lexs for tree leaf: 1, lexs: 2, lexs and Alt: 3
+	public bool tree = true; // make whole tree from complete alts
+	public int dump = 0; // no: 0, lexs for tree leaf: 1, lexs: 2, lexs and alt: 3
 	public int errExpect = 2; // no: 0, One or More: 2, all: 3
 	public Func<object, string> dumper = null;
 
@@ -112,7 +112,7 @@ public class Earley<K, L, N, T, Ler> where T : Esyn<N, T>, new() where Ler : Lex
 		internal Alt a;
 		internal int from, to, step; // empty (always predicted): from==to (step could be 0 in quantifier)
 		internal int prev; // complete or option: >=0, predict: >=-1, shift: see code, repeat: kept
-		internal int tail; // Alt: >=0, predict: -1, shift: -2, option: -3, repeat: kept, recover: -4
+		internal int tail; // alt: >=0, predict: -1, shift: -2, option: -3, repeat: kept, recover: -4
 
 		public override readonly string ToString()
 			=> $"{from}:{to}{(a.s[step].p != null ? "'" : "#")}{step}" +
@@ -123,7 +123,7 @@ public class Earley<K, L, N, T, Ler> where T : Esyn<N, T>, new() where Ler : Lex
 
 	public Earley<K, L, N, T, Ler> Begin(Ler ler) { this.ler = ler; return this; }
 
-	// make synt from complete Alts
+	// make synt from complete alts
 	public virtual T Parse()
 	{
 		matchz = 0;

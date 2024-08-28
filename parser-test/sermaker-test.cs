@@ -362,6 +362,54 @@ public class TestSerMaker : IDisposable
 	}
 
 	[TestMethod]
+	public void Synt1()
+	{
+		NewMer(new Gram()
+			.n("S")["E"].n("E")["A", "B"]
+			.n("A")['a', ..].synt
+			.n("B")['b', ..].synt
+		);
+		NewSer(); ser.ser.synt = false;
+		ser.Parse("ab").Eq("A", d: 'a').Leaf().N("B", d: 'b').U();
+	}
+
+	[TestMethod]
+	public void Synt2()
+	{
+		NewMer(new Gram().n("S")["E"]
+			.n("E")["E", '+', .., "E"].clash.syntLeft
+					["E", '-', .., "E"].clashPrev.syntLeft
+					["E", '*', .., "E"].clash.syntLeft
+					["E", '/', .., "E"].clashPrev.syntLeft
+					['#', .., "T"]
+					['#', .., "T", "E"].clash.syntRight
+					["T"].syntOmit
+			.n("T")["W"].syntOmit["N"].syntOmit
+			.n("W")['a', ..]['b', ..]
+			.n("N")['1', ..]['2', ..]
+		);
+		NewSer();
+		var t = ser.Parse("a+1").Eq("S");
+		t = t/**/	.H("W", d: 'a');
+		t = t/**/	.n("E", d: '+').H("N", d: '1').uuU();
+		t = ser.Parse("a+1-b");
+		t = t/**/	.H("W", d: 'a');
+		t = t/**/	.n("E", d: '+').H("N", d: '1').u();
+		t = t/**/	.n("E", d: '-').H("W", d: 'b').uuU();
+		t = ser.Parse("2*b-b+1/a");
+		t = t/**/	.H("N", d: '2');
+		t = t/**/	.n("E", d: '*').H("W", d: 'b').u();
+		t = t/**/	.n("E", d: '-').H("W", d: 'b').u();
+		t = t/**/	.n("E", d: '+').H("N", d: '1').n("E", d: '/').H("W", d: 'a').uuuU();
+		t = ser.Parse("1+#a#1#b*2");
+		t = t/**/.H("N", d: '1').n("E", d: '+');
+		t = t/**/					.h("E", d: '#').H("W", d: 'a').u();
+		t = t/**/					.n("E", d: '#').H("N", d: '1').u();
+		t = t/**/					.n("E", d: '#').H("W", d: 'b').u();
+		t = t/**/					.n("E", d: '*').H("N", d: '2').uuuU();
+	}
+
+	[TestMethod]
 	public void ErrorCyclic()
 	{
 		NewMer(new Gram()

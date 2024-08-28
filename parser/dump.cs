@@ -133,7 +133,7 @@ public static partial class Dumper
 
 public partial class Synter<K, L, N, T, Ler>
 {
-	public int dump = 0; // no: 0, lexs only for tree leaf: 1, lexs: 2, lexs and Alts: 3
+	public int dump = 0; // no: 0, lexs only for tree leaf: 1, lexs: 2, lexs and alts: 3
 	public Func<object, string> dumper;
 
 	void InitDump()
