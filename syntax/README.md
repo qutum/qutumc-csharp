@@ -20,7 +20,7 @@ qutum语言的词法解析器，输入byte流，输出`Lexi`流
 
 错误词提示，部分词无间隔提示
 
-## qutum.syntax.earley.Earley
+## qutum.syntax.Synter
 
 qutum语言的语法解析器，输入`Lexier`，输出语法树
 

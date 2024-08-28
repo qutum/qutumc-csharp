@@ -35,12 +35,12 @@ http://qutum.com  http://qutum.cn
 * 以空格分隔多个组，以`|`分隔多个分支，`|`前接空格为空分支，`|`后接的空格忽略
 * 每个组开头`*`表示重试，每个分支开头`+`表示循环，每个字节后接`+`表示重复
 
-## qutum.parser.earley.Earley
+## qutum.parser.Synter
 
-语法解析器，输入指定`Lexer`，基于earley算法，输出语法树
+语法解析器，输入指定`Lexer`，基于LR算法，输出语法树
 
-支持量词、greedy串联贪婪匹配、优先分支、语法树节点保留或穿透、寻找前方词或从当前位置错误恢复
+支持冲突解决、语法节点保留或穿透、从当前位置或寻找前方词恢复错误
 
-## qutum.parser.earley.EarleyStr
+## qutum.parser.SynterStr
 
 以`LerStr`为输入的语法解析器
