@@ -7,7 +7,7 @@
 
 	<PropertyGroup>
 		<TargetFramework>net8.0</TargetFramework>
-		<RootNamespace>qutum.test.other</RootNamespace>
+		<RootNamespace>qutum.test</RootNamespace>
 		<SatelliteResourceLanguages>en</SatelliteResourceLanguages>
 		<ProduceReferenceAssembly>false</ProduceReferenceAssembly>
 		<IsPackable>false</IsPackable>

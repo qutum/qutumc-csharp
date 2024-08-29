@@ -19,17 +19,18 @@ public enum Lex
 {
 	// 0 for end of read
 	// kinds
+	BINPRE = BIN43, // some arithmetic binarys as prefix
 	LITERAL = 1,
 	POST,  // postfix operators
 	PRE,   // prefix operators
-	BIN3,
-	BIN43, // bitwise binary operators
-	BIN46, // bitwise binary operators
-	BIN53, // arithmetic binary operators
-	BIN56, // arithmetic binary operators
-	BIN6,  // comparison binary operators
-	BIN7,  // logical binary operators
-	BIN8,
+	BIN1,
+	BIN2,  // logical binary operators
+	BIN3,  // comparison binary operators
+	BIN43, // arithmetic binary operators
+	BIN46, // arithmetic binary operators
+	BIN53, // bitwise binary operators
+	BIN56, // bitwise binary operators
+	BIN6,
 
 	// singles
 	BIND = 16                     /**/, LP, LSB, LCB,
@@ -42,18 +43,16 @@ public enum Lex
 	STR = Other | LITERAL << 8 | 1, STRB, NAME, HEX, INT, FLOAT,
 	// postfix
 	RUNP = Right | POST << 8 | 1,
-	// bitwise
-	SHL = Bin | BIN43 << 8 | 1, SHR,
-	ANDB = Bin | BIN46 << 8 | 1, ORB, XORB, NOTB = Other | PRE << 8 | 1,
-	// arithmetic
-	MUL = Bin | BIN53 << 8 | 1, DIV, MOD, DIVF, MODF,
-	ADD = Bin | BIN56 << 8 | 1, SUB,
-	// comparison
-	EQ = Bin | BIN6 << 8 | 1, UEQ, LEQ, GEQ, LT, GT,
 	// logical
-	AND = Bin | BIN7 << 8 | 1, OR, XOR, NOT = Other | PRE << 8 | 2,
-	// some arithmetic binarys as prefix
-	BINPRE = BIN56,
+	AND = Bin | BIN2 << 8 | 1, OR, XOR, NOT = Other | PRE << 8 | 2,
+	// comparison
+	EQ = Bin | BIN3 << 8 | 1, UEQ, LEQ, GEQ, LT, GT,
+	// arithmetic
+	ADD = Bin | BIN43 << 8 | 1, SUB,
+	MUL = Bin | BIN46 << 8 | 1, DIV, MOD, DIVF, MODF,
+	// bitwise
+	ANDB = Bin | BIN53 << 8 | 1, ORB, XORB, NOTB = Other | PRE << 8 | 1,
+	SHL = Bin | BIN56 << 8 | 1, SHR,
 
 	// groups
 	Other  /**/= 0x800_0000, // other group 8<<24
@@ -87,21 +86,21 @@ public sealed class Lexier : Lexier<K>, Lexer<K, Lexi<K>>
 	static readonly LexGram<K> Grammar = new LexGram<K>()
 		.k(K.BIND).w["="]
 
-		.k(K.LP).w["("].k(K.RP).w[")"]
-		.k(K.LSB).w["["].k(K.RSB).w["]"]
-		.k(K.LCB).w["{"].k(K.RCB).w["}"]
-
-		.k(K.SHL).w["<<"].k(K.SHR).w[">>"]
-		.k(K.ANDB).w["&&"].k(K.ORB).w["||"].k(K.XORB).w["++"].k(K.NOTB).w["--"]
-
-		.k(K.MUL).w["*"].k(K.DIV).w["/"].k(K.MOD).w["%"]
-		.k(K.DIVF).w["//"].k(K.MODF).w["%%"]
-		.k(K.ADD).w["+"].k(K.SUB).w["-"]
+		.k(K.AND).w["&"].k(K.OR).w["|"].k(K.XOR).w["+|"].k(K.NOT).w["!"]
 
 		.k(K.EQ).w["=="].k(K.UEQ).w["/="]
 		.k(K.LEQ).w["<="].k(K.GEQ).w[">="].k(K.LT).w["<"].k(K.GT).w[">"]
 
-		.k(K.AND).w["&"].k(K.OR).w["|"].k(K.XOR).w["+|"].k(K.NOT).w["!"]
+		.k(K.ADD).w["+"].k(K.SUB).w["-"]
+		.k(K.MUL).w["*"].k(K.DIV).w["/"].k(K.MOD).w["%"]
+		.k(K.DIVF).w["//"].k(K.MODF).w["%%"]
+
+		.k(K.ANDB).w["&&"].k(K.ORB).w["||"].k(K.XORB).w["++"].k(K.NOTB).w["--"]
+		.k(K.SHL).w["<<"].k(K.SHR).w[">>"]
+
+		.k(K.LP).w["("].k(K.RP).w[")"]
+		.k(K.LSB).w["["].k(K.RSB).w["]"]
+		.k(K.LCB).w["{"].k(K.RCB).w["}"]
 
 		.k(K.EOL).w["\n"]["\r\n"]
 		.k(K.SP).w[" \t".Mem()] // [\s\t]  |+\s+|+\t+
@@ -149,7 +148,7 @@ public sealed class Lexier : Lexier<K>, Lexer<K, Lexi<K>>
 	public static bool IsGroup(K key, K aim) => (int)(key & aim) << 8 != 0;
 	public static bool IsKind(K key, K aim) => (byte)((int)key >> ((int)key >> 24)) == (byte)aim;
 	public override bool Is(K key, K aim) =>
-		(byte)aim == 0 ? IsGroup(key, aim) : aim <= K.BIN8 ? IsKind(key, aim) : key == aim;
+		(byte)aim == 0 ? IsGroup(key, aim) : (int)aim <= 15 ? IsKind(key, aim) : key == aim;
 
 	// check each key distinct from others, otherwise throw exception
 	public static void Distinct(IEnumerable<K> keys)
@@ -157,7 +156,7 @@ public sealed class Lexier : Lexier<K>, Lexer<K, Lexi<K>>
 		int kinds = 0;
 		StrMaker err = new();
 		foreach (var k in keys)
-			if ((ushort)k == 0)
+			if ((byte)k == 0)
 				_ = err - ' ' + k; // group
 		foreach (var k in keys)
 			if ((int)k <= 15 && (kinds ^ (1 << (int)k)) != (kinds |= 1 << (int)k))

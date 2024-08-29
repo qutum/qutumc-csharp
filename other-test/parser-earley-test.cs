@@ -12,7 +12,7 @@ using qutum.parser.earley;
 using System;
 using static Microsoft.VisualStudio.TestTools.UnitTesting.Assert;
 
-namespace qutum.test.other.parser;
+namespace qutum.test.parser.earley;
 
 using Ser = (EsynStr t, EarleyStr s);
 
