@@ -17,6 +17,7 @@ using Set = CharSet;
 // lexemes
 public enum Lex
 {
+	// 0 for end of read
 	// kinds
 	LITERAL = 1,
 	POST,  // postfix operators
@@ -29,32 +30,33 @@ public enum Lex
 	BIN6,  // comparison binary operators
 	BIN7,  // logical binary operators
 	BIN8,
+
 	// singles
-	BIND                          /**/, LP, LSB, LCB,
+	BIND = 16                     /**/, LP, LSB, LCB,
 	RUN = (Right | LCB & 255) + 1 /**/, RP, RSB, RCB,
 	EOL = (Blank | RCB & 255) + 1, IND, DED, INDR, DEDR,
 	SP, COMM, COMMB, PATH, NUM,
 
 	// inside kinds
 	// literal
-	STR = LITERAL << 8 | Other | 1, STRB, NAME, HEX, INT, FLOAT,
+	STR = Other | LITERAL << 8 | 1, STRB, NAME, HEX, INT, FLOAT,
 	// postfix
-	RUNP = POST << 8 | Right | 1,
+	RUNP = Right | POST << 8 | 1,
 	// bitwise
-	SHL = BIN43 << 8 | Bin | 1, SHR,
-	ANDB = BIN46 << 8 | Bin | 1, ORB, XORB, NOTB = PRE << 8 | Other | 1,
+	SHL = Bin | BIN43 << 8 | 1, SHR,
+	ANDB = Bin | BIN46 << 8 | 1, ORB, XORB, NOTB = Other | PRE << 8 | 1,
 	// arithmetic
-	MUL = BIN53 << 8 | Bin | 1, DIV, MOD, DIVF, MODF,
-	ADD = BIN56 << 8 | Bin | 1, SUB,
+	MUL = Bin | BIN53 << 8 | 1, DIV, MOD, DIVF, MODF,
+	ADD = Bin | BIN56 << 8 | 1, SUB,
 	// comparison
-	EQ = BIN6 << 8 | Bin | 1, UEQ, LEQ, GEQ, LT, GT,
+	EQ = Bin | BIN6 << 8 | 1, UEQ, LEQ, GEQ, LT, GT,
 	// logical
-	AND = BIN7 << 8 | Bin | 1, OR, XOR, NOT = PRE << 8 | Other | 2,
+	AND = Bin | BIN7 << 8 | 1, OR, XOR, NOT = Other | PRE << 8 | 2,
 	// some arithmetic binarys as prefix
 	BINPRE = BIN56,
 
 	// groups
-	Other  /**/= 0x800_0000, // other group 1<<24
+	Other  /**/= 0x800_0000, // other group 8<<24
 	Right  /**/= 0x801_0000, // right-side group
 	Bin    /**/= 0x802_0000, // binary group
 	Blank  /**/= 0x880_0000, // blank group
@@ -149,19 +151,22 @@ public sealed class Lexier : Lexier<K>, Lexer<K, Lexi<K>>
 	public override bool Is(K key, K aim) =>
 		(byte)aim == 0 ? IsGroup(key, aim) : aim <= K.BIN8 ? IsKind(key, aim) : key == aim;
 
-	// check each keys distinct from others, otherwise throw exception
+	// check each key distinct from others, otherwise throw exception
 	public static void Distinct(IEnumerable<K> keys)
 	{
-		K kind = 0;
-		StringBuilder err = new();
+		int kinds = 0;
+		StrMaker err = new();
 		foreach (var k in keys)
-			if (((int)k & 15) == 0 && (kind ^ k) != (kind |= k))
-				err.Append(k + " ");
+			if ((ushort)k == 0)
+				_ = err - ' ' + k; // group
 		foreach (var k in keys)
-			if (((int)k & 15) != 0 && (kind & k) != 0)
-				err.Append(k + " ");
-		if (err.Length > 0)
-			throw new(err.ToString());
+			if ((int)k <= 15 && (kinds ^ (1 << (int)k)) != (kinds |= 1 << (int)k))
+				_ = err - ' ' + k; // duplicate kind
+		foreach (var k in keys)
+			if ((int)k > 15 && (kinds & (1 << (byte)((int)k >> 8))) != 0)
+				_ = err - ' ' + k; // key inside kinds
+		if (err.Size > 0)
+			throw new(err);
 	}
 
 	public Lexier() : base(Grammar) { }

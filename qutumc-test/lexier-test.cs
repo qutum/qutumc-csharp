@@ -10,6 +10,7 @@ using qutum.syntax;
 using System;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using static Microsoft.VisualStudio.TestTools.UnitTesting.Assert;
 
 namespace qutum.test.syntax;
@@ -45,6 +46,19 @@ public class TestLexier : IDisposable
 		finally {
 			ler.allBlank = false;
 		}
+	}
+
+	static void Throw(Action a, string reg)
+	{
+		try {
+			a();
+		}
+		catch (Exception e) {
+			if (new Regex(reg).IsMatch(e.Message))
+				return;
+			Fail($"Expected Regex <{reg}> Actual <{e.Message}>");
+		}
+		Fail($"Expected Regex <{reg}> Actually No Excpetion");
 	}
 
 	[TestMethod]
@@ -264,7 +278,7 @@ public class TestLexier : IDisposable
 	public void Float1()
 	{
 		Check("0.000f", "FLOAT=0"); Check("-0f", "SUB= FLOAT=0");
-		Check("00.0x", "FLOAT=0 NAME!literal can not densely follow literal NAME=x"); 
+		Check("00.0x", "FLOAT=0 NAME!literal can not densely follow literal NAME=x");
 		Check("340282347999999999999999999999999999999.99999", "FLOAT=3.4028235E+38");
 		Check("340282430000000000000000000000000000000.5", "FLOAT!float out of range FLOAT=0");
 	}
@@ -318,5 +332,20 @@ public class TestLexier : IDisposable
 	{
 		Check("===/=<<=<=<>=>", "EQ= BIND= UEQ= SHL= BIND= LEQ= LT= GEQ= GT=");
 		Check("!!&+||", "NOT= NOT= AND= XOR= OR=");
+	}
+
+	[TestMethod]
+	public void Distinct()
+	{
+		Lexier.Distinct([
+			Lex.LITERAL, Lex.POST, Lex.PRE, Lex.BIN3, Lex.BIN43, Lex.BIN46,
+			Lex.BIN53, Lex.BIN56, Lex.BIN6, Lex.BIN7, Lex.BIN8,
+			Lex.LP, Lex.LSB, Lex.LCB, Lex.RP, Lex.RSB, Lex.RCB,
+			Lex.EOL, Lex.IND, Lex.DED, Lex.INDR, Lex.DEDR,
+			Lex.SP, Lex.COMM, Lex.COMMB, Lex.PATH, Lex.NUM,
+			Lex.BIND, Lex.RUN ]);
+		Throw(() => Lexier.Distinct([
+			Lex.Other, Lex.LITERAL, Lex.BIN56, Lex.BINPRE, Lex.STR, Lex.ADD, Lex.EQ,
+		]), "Other BIN56 STR ADD");
 	}
 }
