@@ -44,7 +44,7 @@ public class Earley : Earley<Lex, Esy, Esyn, Lexier>
 	      | feed
 	e7    = e9 e8*					=		operand
 	      | PRE e7					=+_!	prefix operator
-	      | BINPRE e7				=+_!	binary prefix operator
+	      | BIN43 e7				=+_!	binary prefix operator
 	e56   = BIN56 e7							=+_!	bitwise operator
 	e53   = BIN53 e7 e56*						=+_!	bitwise operator
 	e46   = BIN46 e7 e56* e53*					=+_!	arithmetic operator
@@ -56,7 +56,7 @@ public class Earley : Earley<Lex, Esy, Esyn, Lexier>
 	f8    = POST								=+_		Postfix 
 	f7    = e9 f8*
 	      | PRE f7								=+_!	Prefix operator
-	      | BINPRE f7							=+_!	Binary as prefix operator
+	      | BIN43 f7							=+_!	Binary as prefix operator
 	F7    = e9 f8*								=		Expression
 	      | PRE f7								=+_!	Prefix operator
 	f56   = BIN56 f7							=+_!	Bitwise operator

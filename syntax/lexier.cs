@@ -19,14 +19,13 @@ public enum Lex
 {
 	// 0 for end of read
 	// kinds
-	BINPRE = BIN43, // some arithmetic binarys as prefix
 	LITERAL = 1,
 	POST,  // postfix operators
 	PRE,   // prefix operators
 	BIN1,
 	BIN2,  // logical binary operators
 	BIN3,  // comparison binary operators
-	BIN43, // arithmetic binary operators
+	BIN43, // arithmetic binary operators, also prefix
 	BIN46, // arithmetic binary operators
 	BIN53, // bitwise binary operators
 	BIN56, // bitwise binary operators
@@ -157,7 +156,7 @@ public sealed class Lexier : Lexier<K>, Lexer<K, Lexi<K>>
 		StrMaker err = new();
 		foreach (var k in keys)
 			if ((byte)k == 0)
-				_ = err - ' ' + k; // group
+				_ = err - ' ' + k; // denied group
 		foreach (var k in keys)
 			if ((int)k <= 15 && (kinds ^ (1 << (int)k)) != (kinds |= 1 << (int)k))
 				_ = err - ' ' + k; // duplicate kind
@@ -313,7 +312,7 @@ public sealed class Lexier : Lexier<K>, Lexer<K, Lexi<K>>
 			end = true;
 			if (!allBlank)
 				goto End;
-			key = K.COMM; d = nameof(K.COMMB); // as COMM
+			key = K.COMM; d = K.COMMB; // as COMM
 			break;
 
 		case K.STRB:

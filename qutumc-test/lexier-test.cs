@@ -91,8 +91,16 @@ public class TestLexier : IDisposable
 	[TestMethod]
 	public void Indent2()
 	{
-		CheckSp("\ta\n\tb\n\t\t\tc\n\t\t\t\td\n\t\t\te\n\t\tf\ng\nh",
-			"IND=4 NAME=a EOL= NAME=b EOL= INDR=12 NAME=c EOL= IND=16 NAME=d EOL= DED=16 NAME=e EOL= DEDR=12 IND=8 NAME=f EOL= DED=8 DED=4 NAME=g EOL= NAME=h");
+		CheckSp("""
+			a
+			b
+					c
+						d
+					e
+				f
+		g
+		h
+		""", "IND=4 NAME=a EOL= NAME=b EOL= INDR=12 NAME=c EOL= IND=16 NAME=d EOL= DED=16 NAME=e EOL= DEDR=12 IND=8 NAME=f EOL= DED=8 DED=4 NAME=g EOL= NAME=h");
 		Check("          a\n      b\n  c",
 			"INDR=10 NAME=a EOL= INDR!indent expected same as upper lines NAME=b EOL= DEDR=10 IND=2 NAME=c DED=2");
 	}
@@ -101,8 +109,16 @@ public class TestLexier : IDisposable
 	public void Indent3()
 	{
 		CheckSp(" a", "NAME=a"); CheckSp("  a", "IND=2 NAME=a DED=2");
-		CheckSp("  a\n  b\n        c\n          d\n        e\n    f\ng\nh",
-			"IND=2 NAME=a EOL= NAME=b EOL= INDR=8 NAME=c EOL= IND=10 NAME=d EOL= DED=10 NAME=e EOL= DEDR=8 IND=4 NAME=f EOL= DED=4 DED=2 NAME=g EOL= NAME=h");
+		CheckSp("""
+		  a
+		  b
+		        c
+		          d
+		        e
+		    f
+		g
+		h
+		""", "IND=2 NAME=a EOL= NAME=b EOL= INDR=8 NAME=c EOL= IND=10 NAME=d EOL= DED=10 NAME=e EOL= DEDR=8 IND=4 NAME=f EOL= DED=4 DED=2 NAME=g EOL= NAME=h");
 		CheckSp("   a\n  b\n    c\n     d\n  e",
 			"IND=3 NAME=a EOL= NAME=b EOL= NAME=c EOL= IND=5 NAME=d EOL= DED=5 NAME=e DED=3");
 	}
@@ -110,15 +126,31 @@ public class TestLexier : IDisposable
 	[TestMethod]
 	public void Indent4()
 	{
-		CheckSp("\t\t##\n", "INDR=8 COMM= EOL= DEDR=8");
-		Check("\n\ta\n\t\t\n\n\tb\n\t\t\t\n\t\t\tc\n\n\t\nd",
-			"IND=4 NAME=a EOL= NAME=b EOL= INDR=12 NAME=c EOL= DEDR=12 DED=4 NAME=d");
-		Check("\t\t### \n\ta \n\\##\\  b\n\t\t\\###\\\tc",
-			"IND=4 NAME=a EOL= DED=4 NAME=b EOL= INDR=8 NAME=c DEDR=8");
+		CheckSp("\t\t##\n\t\t\t##\n\t##", "INDR=8 COMM= EOL= IND=12 COMM= EOL= DED=12 DEDR=8 IND=4 COMM= DED=4");
+		Check("\t\t##\n\t\t\t##\n\t##", "");
+		Check("""
+			a
+				,
+		,
+			b
+					,
+					c
+		
+			,
+		d
+		""".Replace(",", ""), "IND=4 NAME=a EOL= NAME=b EOL= INDR=12 NAME=c EOL= DEDR=12 DED=4 NAME=d");
+		Check("""
+				### ,
+			a ,
+		\##\  b
+				\###\	c
+		##
+					d
+		""".Replace(",", ""), "IND=4 NAME=a EOL= DED=4 NAME=b EOL= INDR=8 NAME=c EOL= IND=12 NAME=d DED=12 DEDR=8");
 	}
 
 	[TestMethod]
-	public void Eof1()
+	public void Eor1()
 	{
 		CheckSp("a\t", "NAME=a SP=");
 		CheckSp("\ta\t", "IND=4 NAME=a SP= DED=4");
@@ -131,16 +163,18 @@ public class TestLexier : IDisposable
 	}
 
 	[TestMethod]
-	public void Eof2()
+	public void Eor2()
 	{
 		ler.eor = true;
 		CheckSp("a\n", "NAME=a EOL= EOL=");
 		CheckSp("a\t", "NAME=a SP= EOL=");
+		CheckSp("\ta", "IND=4 NAME=a EOL= DED=4");
 		CheckSp("\ta\t", "IND=4 NAME=a SP= EOL= DED=4");
 		CheckSp("a\n\t", "NAME=a EOL= EOL=");
 		CheckSp("\ta\n", "IND=4 NAME=a EOL= EOL= DED=4");
 		Check("a\n", "NAME=a EOL=");
 		Check("a\t", "NAME=a EOL=");
+		Check("\ta", "IND=4 NAME=a EOL= DED=4");
 		Check("\ta\t", "IND=4 NAME=a EOL= DED=4");
 		Check("a\n\t\t\n\t", "NAME=a EOL=");
 		Check("\ta\n\t\t\n", "IND=4 NAME=a EOL= DED=4");
@@ -345,7 +379,7 @@ public class TestLexier : IDisposable
 			Lex.SP, Lex.COMM, Lex.COMMB, Lex.PATH, Lex.NUM,
 			Lex.BIND, Lex.RUN ]);
 		Throw(() => Lexier.Distinct([
-			Lex.Other, Lex.LITERAL, Lex.BIN43, Lex.BINPRE, Lex.STR, Lex.ADD, Lex.EQ,
-		]), "Other BIN43 STR ADD");
+			Lex.Other, Lex.LITERAL, Lex.BIN43, Lex.STR, Lex.ADD, Lex.EQ,
+		]), "Other STR ADD");
 	}
 }
