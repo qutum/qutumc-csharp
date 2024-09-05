@@ -282,7 +282,7 @@ public partial class SerMaker<K, N>
 		Forms();
 		clashs = Clashs(false);
 		if (clashs != null)
-			return (null, null, null);
+			throw new("can not make synter due to clashes");
 		// synter alts
 		var As = new SynAlt<N>[alts.Length];
 		foreach (var (a, ax) in alts.Each())

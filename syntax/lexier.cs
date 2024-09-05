@@ -7,10 +7,12 @@
 using qutum.parser;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
 namespace qutum.syntax;
 
+using Kord = char;
 using L = Lex;
 using Set = CharSet;
 
@@ -18,7 +20,7 @@ using Set = CharSet;
 public enum Lex : int
 {
 	// 0 for end of read
-	// kinds
+	// kinds 0xff<<8
 	LITERAL = 1,
 	POST,  // postfix operators
 	PRE,   // prefix operators
@@ -32,32 +34,37 @@ public enum Lex : int
 	BIN6,
 
 	// singles
-	BIND = 16                     /**/, LP, LSB, LCB,
-	RUN = (Right | LCB & 255) + 1 /**/, RP, RSB, RCB,
-	EOL = (Blank | RCB & 255) + 1, IND, DED, INDR, DEDR,
+	BIND = 0x10                   /**/, LP, LSB, LCB,
+	RUN = (right | LCB & 255) + 1 /**/, RP, RSB, RCB,
+	EOL = (blank | RCB & 255) + 1, IND, DED, INDR, DEDR,
 	SP, COMM, COMMB, PATH, NUM,
 
 	// inside kinds
 	// literal
-	STR = Other | LITERAL << 8 | 1, STRB, NAME, HEX, INT, FLOAT,
+	STR = Kind | LITERAL << 8 | 1, STRB, NAME, HEX, INT, FLOAT,
 	// postfix
-	RUNP = Right | POST << 8 | 1,
+	RUNP = right | Kind | POST << 8 | 1,
 	// logical
-	AND = Bin | BIN2 << 8 | 1, OR, XOR, NOT = Other | PRE << 8 | 2,
+	AND = Bin | BIN2 << 8 | 1, OR, XOR, NOT = Kind | PRE << 8 | 2,
 	// comparison
 	EQ = Bin | BIN3 << 8 | 1, UEQ, LEQ, GEQ, LT, GT,
 	// arithmetic
 	ADD = Bin | BIN43 << 8 | 1, SUB,
 	MUL = Bin | BIN46 << 8 | 1, DIV, MOD, DIVF, MODF,
 	// bitwise
-	ANDB = Bin | BIN53 << 8 | 1, ORB, XORB, NOTB = Other | PRE << 8 | 1,
+	ANDB = Bin | BIN53 << 8 | 1, ORB, XORB, NOTB = Kind | PRE << 8 | 1,
 	SHL = Bin | BIN56 << 8 | 1, SHR,
 
-	// groups
-	Other  /**/= 0x800_0000, // other group 8<<24
-	Right  /**/= 0x801_0000, // right-side group
-	Bin    /**/= 0x802_0000, // binary group
-	Blank  /**/= 0x880_0000, // blank group
+	// groups 0xff<<16
+	blank  /**/= 0x_01_0000, // blank group
+	right  /**/= 0x_02_0000, // right-side group
+	Kind   /**/= 0x800_0000, // kind group 8<<24
+	Bin    /**/= 0x804_0000, // binary group
+}
+
+file static partial class Extensions
+{
+	internal static int Kind(this int kind) => 8 << 24 | kind << 8;
 }
 
 // lexic parser
@@ -141,27 +148,26 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 	;
 
 	// key ordinal is single or kind value, useful for syntax parser
-	public static char Ordin(L key) => (char)(byte)((int)key >> ((int)key >> 24));
-	public static char Ordin(Lexier ler) => Ordin(ler.lexs[ler.loc].key);
+	public static Kord Ordin(L key) => (Kord)(byte)((int)key >> ((int)key >> 24));
+	public static Kord Ordin(Lexier ler) => Ordin(ler.lexs[ler.loc].key);
 
-	public static bool IsGroup(L key, L aim) => (int)(key & aim) << 8 != 0;
+	public static bool IsGroup(L key, L aim) => (key & aim) != 0;
 	public static bool IsKind(L key, L aim) => (byte)((int)key >> ((int)key >> 24)) == (byte)aim;
 	public override bool Is(L key, L aim) =>
-		(byte)aim == 0 ? IsGroup(key, aim) : (int)aim <= 15 ? IsKind(key, aim) : key == aim;
+		(byte)aim == 0 ? IsGroup(key, aim) : (int)aim < 0x10 ? IsKind(key, aim) : key == aim;
 
 	// check each key distinct from others, otherwise throw exception
 	public static void Distinct(IEnumerable<L> keys)
 	{
 		int kinds = 0;
 		StrMaker err = new();
+		foreach (var k in keys.Cast<int>())
+			if (k > 0 &&
+				((byte)k == 0 || // denied group
+				k < 0x10 && (kinds ^ (1 << k)) != (kinds |= 1 << k))) // duplicate kind
+				_ = err - ' ' + k;
 		foreach (var k in keys)
-			if ((byte)k == 0)
-				_ = err - ' ' + k; // denied group
-		foreach (var k in keys)
-			if ((int)k <= 15 && (kinds ^ (1 << (int)k)) != (kinds |= 1 << (int)k))
-				_ = err - ' ' + k; // duplicate kind
-		foreach (var k in keys)
-			if ((int)k > 15 && (kinds & (1 << (byte)((int)k >> 8))) != 0)
+			if ((kinds & (1 << ((ushort)k >> 8))) != 0)
 				_ = err - ' ' + k; // key inside kinds
 		if (err.Size > 0)
 			throw new(err);
@@ -242,11 +248,11 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 		Indent();
 		Lexi<L> p;
 		if (size > 0 && (p = lexs[size - 1]).to == f)
-			if (key == L.RUN && (IsKind(p.key, L.LITERAL) || IsGroup(p.key, L.Right)))
+			if (key == L.RUN && (IsKind(p.key, L.LITERAL) || IsGroup(p.key, L.right)))
 				key = L.RUNP; // run follows previous lexi densely, high precedence
 			else if (IsKind(key, L.LITERAL) && IsKind(p.key, L.LITERAL))
 				Error(key, f, to, "literal can not densely follow literal");
-			else if (IsKind(key, L.PRE) && !(IsKind(p.key, L.PRE) || IsGroup(p.key, L.Blank | L.Bin)))
+			else if (IsKind(key, L.PRE) && !(IsKind(p.key, L.PRE) || IsGroup(p.key, L.blank | L.Bin)))
 				Error(key, f, to, "prefix operator can densely follow blank and prefix and binary only");
 		base.Lexi(key, f, to, value);
 	}

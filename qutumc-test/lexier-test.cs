@@ -379,7 +379,7 @@ public class TestLexier : IDisposable
 			Lex.SP, Lex.COMM, Lex.COMMB, Lex.PATH, Lex.NUM,
 			Lex.BIND, Lex.RUN ]);
 		Throw(() => Lexier.Distinct([
-			Lex.Other, Lex.LITERAL, Lex.BIN43, Lex.STR, Lex.ADD, Lex.EQ,
-		]), "Other STR ADD");
+			default, Lex.LITERAL, Lex.BIN43, Lex.STR, Lex.ADD, Lex.EQ, Lex.LP, Lex.RP
+		]), "STR ADD");
 	}
 }

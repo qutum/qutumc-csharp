@@ -58,7 +58,6 @@ public class TestSerMaker : IDisposable
 	public void NewSer(bool recover = false)
 	{
 		var (a, f, r) = mer.Make(out var _);
-		AreNotEqual(null, a);
 		ser = new TestSynter {
 			ser = new(n => n[0], a, f, r) { recover = recover, dumper = mer.Dumper }
 		};
