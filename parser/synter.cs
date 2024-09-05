@@ -217,7 +217,7 @@ public partial class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where L
 			}
 			else if (key == default) {
 				StackClear();
-				return t.Append(errs.head?.up); // reduce alts[0] by eor, accept
+				return (t ?? new()).Append(errs.head?.up); // reduce alts[0] by eor, accept
 			} // reduce alts[0] by others, error
 		}
 		// error: other, recover, accept, reject
@@ -225,10 +225,11 @@ public partial class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where L
 		if (redu.err >> 1 == 0)
 			goto Reduce;
 		StackClear();
-		return redu.err > 0 ? t.Append(errs.head?.up) : errs; // accept or reject
+		return redu.err > 0 ? (t ?? new()).Append(errs.head?.up) : errs; // accept or reject
 	Cyclic:
 		StackClear();
-		(t.err, t.info) = (-2, "maybe infinite loop due to cyclic grammar or recovery");
+		(t ??= new()).err = -2;
+		t.info = "maybe infinite loop due to cyclic grammar or recovery";
 		return errs.Add(t);
 	}
 

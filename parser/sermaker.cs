@@ -296,17 +296,21 @@ public partial class SerMaker<K, N>
 		// synter forms
 		var Fs = new SynForm[forms.Count];
 		foreach (var f in forms) {
-			void Compact<O>(O[] os, short[] fs, ref SynForm.S<O> Fs) where O : IBinaryInteger<O>
+			void Compact<O>(O[] os, short[] gs, ref SynForm.S<O> Gs) where O : IBinaryInteger<O>
 			{ // TODO better compact
 				int z;
-				if (int.CreateTruncating(os[^1]) < compact
-					|| (z = fs.Count(m => m != No)) >= int.CreateTruncating(os[^1]) >>> 3)
-					Fs.s = fs;
+				if ((z = int.CreateTruncating(os[^1])) < compact
+					|| (z = gs.Count(m => m != No)) >= int.CreateTruncating(os[^1]) >>> 3) {
+					Gs.s = new short[z + 1];
+					Array.Fill(Gs.s, No);
+					foreach (var (g, x) in gs.Each())
+						Gs.s[int.CreateTruncating(os[x])] = g;
+				}
 				else {
-					(Fs.s, Fs.x) = (new short[z], new O[z]);
+					(Gs.s, Gs.x) = (new short[z], new O[z]);
 					for (int X = 0, x = 0; x < os.Length; x++)
-						if (fs[x] != No)
-							(Fs.s[X], Fs.x[X++]) = (fs[x], os[x]);
+						if (gs[x] != No)
+							(Gs.s[X], Gs.x[X++]) = (gs[x], os[x]);
 				}
 			}
 			var F = Fs[f.index] = new();

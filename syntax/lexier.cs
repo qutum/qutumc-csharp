@@ -150,6 +150,18 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 	// key ordinal is single or kind value, useful for syntax parser
 	public static Kord Ordin(L key) => (Kord)(byte)((int)key >> ((int)key >> 24));
 	public static Kord Ordin(Lexier ler) => Ordin(ler.lexs[ler.loc].key);
+	public static L Ordin(Kord o)
+	{
+		if (ordins == null) {
+			var s = new L[256];
+			foreach (var k in Enum.GetValues<L>())
+				s[Ordin(k)] = k;
+			s[default] = default;
+			ordins = s;
+		}
+		return ordins[o];
+	}
+	private static L[] ordins;
 
 	public static bool IsGroup(L key, L aim) => (key & aim) != 0;
 	public static bool IsKind(L key, L aim) => (byte)((int)key >> ((int)key >> 24)) == (byte)aim;
