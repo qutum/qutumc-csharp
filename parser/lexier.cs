@@ -222,7 +222,7 @@ public partial class Lexier<K> : LexerSeg<K, Lexi<K>> where K : struct
 	protected virtual void Error(K key, int f, int to, object value)
 		=> Lexi(new() { key = key, from = f, to = to, value = value, err = ~size }, true);
 
-	public int Loc() => Math.Min(loc, size);
+	public int Loc() => loc;
 	public Lexi<K> Lex() => lexs[loc];
 	public Lexi<K> Lex(int loc) => lexs.AsSpan(0, size)[loc];
 

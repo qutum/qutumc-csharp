@@ -14,7 +14,6 @@ using static Microsoft.VisualStudio.TestTools.UnitTesting.Assert;
 
 namespace qutum.test.parser;
 
-using ClashEq = (HashSet<char>, short[] redus, short[] shifts)[];
 using Gram = SynGram<char, string>;
 
 file static class Extension
@@ -26,7 +25,7 @@ file static class Extension
 	}
 
 	public static void Eq(this Dictionary<SerMaker<char, string>.Clash, (HashSet<char> ks, short m)> tests,
-		params ClashEq aims)
+		params (HashSet<char>, short[] redus, short[] shifts)[] aims)
 	{
 		AreEqual(tests.Count, aims.Length);
 		foreach (var (ks, redus, shifts) in aims) {
@@ -172,6 +171,11 @@ public class TestSerMaker : IDisposable
 			(['^'], [2], [~3]),
 			(['^'], [3], [~3])
 		);
+	}
+
+	[TestMethod]
+	public void Clash4()
+	{
 		NewMer(new Gram().n("S")["E"]
 			.n("E")["E", ",", "E"].clash
 					["E", '+', "E"].clash
@@ -180,7 +184,7 @@ public class TestSerMaker : IDisposable
 			.n("E")['a']['b']
 		);
 		mer.Firsts(); mer.Forms();
-		ClashEq eq = [
+		mer.Clashs().Eq(
 			([','], [1], [~4]),
 			([','], [2], [~4]),
 			([','], [3], [~4]),
@@ -190,12 +194,31 @@ public class TestSerMaker : IDisposable
 			(['^'], [1], [~3]),
 			(['^'], [2], [~3]),
 			(['^'], [3], [~3])
-		];
-		mer.Clashs().Eq(eq);
+		);
+		NewMer(new Gram().n("S")["E"]
+			.n("B")[",", "E"].clash
+					['+', "E"].clash
+					['^', "E"].clashRight
+			.n(",")[','].clash
+			.n("E")["E", "B"]
+					['a']
+		);
+		mer.Firsts(); mer.Forms();
+		mer.Clashs().Eq(
+			([','], [1], [~4]),
+			([','], [2], [~4]),
+			([','], [3], [~4]),
+			(['+'], [1], [~2]),
+			(['+'], [~2], [2]),
+			(['+'], [~3], [2]),
+			(['^'], [1], [~3]),
+			(['^'], [2], [~3]),
+			(['^'], [3], [~3])
+		);
 	}
 
 	[TestMethod]
-	public void Clash4()
+	public void Clash5()
 	{
 		NewMer(new Gram().n("S")["E"]
 			.n("E")["E", '?', "E", ':', "E", '?', "E"].clashRight
@@ -219,7 +242,7 @@ public class TestSerMaker : IDisposable
 	}
 
 	[TestMethod]
-	public void Clash5()
+	public void Clash6()
 	{
 		NewMer(new Gram().n("S")["E"]
 			.n("E")["E", '+', "E"].clash

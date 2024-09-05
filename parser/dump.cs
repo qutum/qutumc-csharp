@@ -144,7 +144,7 @@ public partial class Synter<K, L, N, T, Ler>
 				f.dump ??= (Func<object, string>)Dumper;
 	}
 
-	public string Dumper(object d)
+	public virtual string Dumper(object d)
 	{
 		if (d is Kord key) return key == default ? "eor" : CharSet.Unesc(key);
 		if (d is Nord name) return CharSet.Unesc((char)name);

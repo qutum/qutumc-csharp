@@ -8,7 +8,6 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using qutum.parser;
 using qutum.syntax;
-using qutum.syntax.earley;
 using System;
 using System.Text;
 using static Microsoft.VisualStudio.TestTools.UnitTesting.Assert;
@@ -16,8 +15,8 @@ using static Microsoft.VisualStudio.TestTools.UnitTesting.Assert;
 namespace qutum.test.syntax;
 
 using L = Lex;
-using S = Esy;
-using Ser = (Esyn t, Earley s);
+using S = Syn;
+using Ser = (Synt t, Synter s);
 
 file static class Extension
 {
@@ -96,7 +95,7 @@ public class TestSynter : IDisposable
 
 	public void Dispose() => env.Dispose();
 
-	readonly Earley ser = new(new Lexier()) { dump = 2 };
+	readonly Synter ser = new(new Lexier()) { dump = 2 };
 
 	Ser Parse(string read)
 	{
@@ -104,7 +103,7 @@ public class TestSynter : IDisposable
 		ser.ler.Dispose();
 		ser.ler.Begin(new LerByte(Encoding.UTF8.GetBytes(read)));
 		var t = ser.Parse().Dump((Func<int, int, (int, int, int, int)>)ser.ler.LineCol);
-		env.WriteLine($"--- match {ser.matchz} / lexi {ser.lexz} = {ser.matchz / Math.Max(ser.lexz, 1)} ---");
+		env.WriteLine($"--- lexi {ser.ler.Loc()} ---");
 		return (t, ser);
 	}
 
