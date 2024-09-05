@@ -107,12 +107,12 @@ public class TestSynter : IDisposable
 		return (t, ser);
 	}
 
-	public const S B = S.Block, N = S.nest, F = S.feed;
+	public const S B = S.block, N = S.nest, F = S.feed;
 
 	[TestMethod]
 	public void Blocks()
 	{
-		var t = Parse("").Eq(S.all).U();
+		var t = Parse("").Eq(S.__).U();
 		t = Parse(@"
 			1
 			2");
