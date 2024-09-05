@@ -222,7 +222,7 @@ public partial class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where L
 		}
 		// error: other, recover, accept, reject
 		redu = Error(form, ref key, ref go, errs);
-		if (redu.err >> 1 == 0)
+		if (redu.err is 0 or 1)
 			goto Reduce;
 		StackClear();
 		return redu.err > 0 ? (t ?? new()).Append(errs.head?.up) : errs; // accept or reject

@@ -205,6 +205,7 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 		base.Clear();
 		indb = ind = -1; indz = indf = indt = 0; inds[0] = 0;
 		crlf = false; path.Clear();
+		loc = 0; base.Lexi(default, 0, 0, null);
 	}
 
 	int Read(int f, int to, int x)
@@ -259,7 +260,7 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 	{
 		Indent();
 		Lexi<L> p;
-		if (size > 0 && (p = lexs[size - 1]).to == f)
+		if (size > 1 && (p = lexs[size - 1]).to == f)
 			if (key == L.RUN && (IsKind(p.key, L.LITERAL) || IsGroup(p.key, L.right)))
 				key = L.RUNP; // run follows previous lexi densely, high precedence
 			else if (IsKind(key, L.LITERAL) && IsKind(p.key, L.LITERAL))
@@ -290,7 +291,7 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 				crlf = true;
 			}
 			if (allBlank
-				|| size > 0 && lexs[size - 1].key != L.EOL) // no EOL for empty line
+				|| size > 1 && lexs[size - 1].key != L.EOL) // no EOL for empty line
 				base.Lexi(key, from, to, null);
 			ind = 0; indf = indt = to;
 			goto End;
