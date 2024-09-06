@@ -151,9 +151,11 @@ public class Earley<K, L, N, T, Ler> where T : Esyn<N, T>, new() where Ler : Lex
 
 	int Parse(out T err, int rec)
 	{
-		lexm.Add(lexz = 0);
+		for (lexz = -1; lexz <= ler.Loc(); lexz++)
+			lexm.Add(0);
+		var from0 = lexz;
 		foreach (var x in begin.alts)
-			Add(x, 0, 0, 0, -1, -1);
+			Add(x, from0, from0, 0, -1, -1);
 		err = null;
 		if (rec == 0) rec = -1;
 		int shift = 0;
@@ -177,7 +179,7 @@ public class Earley<K, L, N, T, Ler> where T : Esyn<N, T>, new() where Ler : Lex
 		completez = matchz;
 		for (int x = lexm[lexz]; x < matchz; x++) {
 			var m = matchs[x];
-			if (Eq.Equals(m.a.name, begin.name) && m.from == 0 && m.a.s[m.step].p == null)
+			if (Eq.Equals(m.a.name, begin.name) && m.from == from0 && m.a.s[m.step].p == null)
 				return x;
 		}
 		err ??= new T();

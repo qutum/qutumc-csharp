@@ -34,16 +34,16 @@ public enum Lex : int
 	BIN6,
 
 	// singles
-	BIND = 0x10                   /**/, LP, LSB, LCB,
-	RUN = (right | LCB & 255) + 1 /**/, RP, RSB, RCB,
-	EOL = (blank | RCB & 255) + 1, IND, DED, INDR, DEDR,
+	BIND = 0x10              /**/, LP, LSB, LCB,
+	RUN = (Right | LCB & 255) + 1, RP, RSB, RCB,
+	EOL = (Blank | RCB & 255) + 1, IND, DED, INDR, DEDR,
 	SP, COMM, COMMB, PATH, NUM,
 
 	// inside kinds
 	// literal
 	STR = Kind | LITERAL << 8 | 1, STRB, NAME, HEX, INT, FLOAT,
 	// postfix
-	RUNP = right | Kind | POST << 8 | 1,
+	RUNP = Right | Kind | POST << 8 | 1,
 	// logical
 	AND = Bin | BIN2 << 8 | 1, OR, XOR, NOT = Kind | PRE << 8 | 2,
 	// comparison
@@ -56,10 +56,10 @@ public enum Lex : int
 	SHL = Bin | BIN56 << 8 | 1, SHR,
 
 	// groups 0xff<<16
-	blank  /**/= 0x_01_0000, // blank group
-	right  /**/= 0x_02_0000, // right-side group
+	Blank  /**/= 0x_01_0000, // blank group
+	Right  /**/= 0x_02_0000, // right-side group
 	Kind   /**/= 0x800_0000, // kind group 8<<24
-	Bin    /**/= 0x804_0000, // binary group
+	Bin    /**/= 0x804_0000, // binary kind group
 }
 
 file static partial class Extensions
@@ -163,7 +163,7 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 	}
 	private static L[] ordins;
 
-	public static bool IsGroup(L key, L aim) => (key & aim) != 0;
+	public static bool IsGroup(L key, L aim) => (int)(key & aim) << 8 != 0;
 	public static bool IsKind(L key, L aim) => (byte)((int)key >> ((int)key >> 24)) == (byte)aim;
 	public override bool Is(L key, L aim) =>
 		(byte)aim == 0 ? IsGroup(key, aim) : (int)aim < 0x10 ? IsKind(key, aim) : key == aim;
@@ -261,12 +261,12 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 		Indent();
 		Lexi<L> p;
 		if (size > 1 && (p = lexs[size - 1]).to == f)
-			if (key == L.RUN && (IsKind(p.key, L.LITERAL) || IsGroup(p.key, L.right)))
+			if (key == L.RUN && (IsKind(p.key, L.LITERAL) || IsGroup(p.key, L.Right)))
 				key = L.RUNP; // run follows previous lexi densely, high precedence
 			else if (IsKind(key, L.LITERAL) && IsKind(p.key, L.LITERAL))
 				Error(key, f, to, "literal can not densely follow literal");
-			else if (IsKind(key, L.PRE) && !(IsKind(p.key, L.PRE) || IsGroup(p.key, L.blank | L.Bin)))
-				Error(key, f, to, "prefix operator can densely follow blank and prefix and binary only");
+			else if (IsKind(key, L.PRE) && !(IsKind(p.key, L.PRE) || IsGroup(p.key, L.Blank | L.Bin)))
+				Error(key, f, to, "prefix operator can densely follow blank or prefix or binary only");
 		base.Lexi(key, f, to, value);
 	}
 
