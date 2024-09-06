@@ -55,7 +55,7 @@ public class Synter : Synter<L, S, Synt, Lexier>
 		;
 		// make
 		var m = new SerMaker<L, S>(gram, Lexier.Ordin, NameOrd, Lexier.Distinct);
-		(alts, forms, recKs) = m.Make(out var clashs);
+		(alts, forms, recKs) = m.Make(out var _);
 #if DEBUG
 		mer = m;
 #endif
