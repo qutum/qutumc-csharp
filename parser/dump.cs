@@ -175,7 +175,7 @@ public partial class SynGram<K, N>
 		{
 			var s = new StrMaker() + name + " =";
 			foreach (var c in this)
-				_ = s + ' ' + SerMaker<K, N>.Dumper_(c);
+				s = s + ' ' + SerMaker<K, N>.Dumper_(c);
 			return s + "  " + clash switch { 0 => "", 1 => "<", > 1 => ">", _ => "^" }
 				+ (rec ? "!!" : "") + (synt > 0 ? "+" : synt < 0 ? "-" : "")
 				+ (lex >= 0 ? s + '.' + lex : s) + ' ' + label;

@@ -17,9 +17,10 @@ using S = Syn;
 public enum Syn : Nord
 {
 	__ = default,
-	all, allir, alli, blocks,
-	block, nestr, nests, nest, line,
-	e9, e8, e7, e6, e56, e53, e46, e43, e3, e2, e1, exp,
+	all, all__, all_, Block,
+	block, nestr, nests, Nest,
+	nest, bin, line,
+	e9, e8, e7, exp,
 	F7, f8, f7, f6, f56, f53, f46, f43, f3, f2, f1, feed,
 }
 
@@ -39,19 +40,37 @@ public class Synter : Synter<L, S, Synt, Lexier>
 	{
 		// syntax grammar
 		var gram = new SynGram<L, S>()
-			.n(S.all)[S.allir, S.alli, S.blocks]
-			.n(S.allir)[[]][L.INDR, S.blocks, L.DEDR]
-			.n(S.alli)[[]][L.IND, S.blocks, L.DED]
-			.n(S.blocks)[[]][S.block, S.blocks]
+		.n(S.all).___[S.all__, S.all_, S.Block].synt
+		.n(S.all__)._[[]]._[L.INDR, S.Block, L.DEDR]
+		.n(S.all_).__[[]]._[L.IND, S.Block, L.DED]
+		.n(S.Block)._[[]]._[S.block, S.Block].syntRight
 
-			.n(S.block)[S.line]
-						[S.line, L.INDR, S.nests, L.DEDR]
-						[S.line, L.INDR, S.nests, L.DEDR, L.IND, S.nests, L.DED]
-						[S.line, L.IND, S.nests, L.DED]
-			.n(S.nests)[S.nest]
-						[S.nest, S.nests]
-			.n(S.line)[L.LITERAL]
-			.n(S.nest)[S.block]
+		.n(S.block)._[S.line, S.nestr, S.nests]
+		.n(S.nestr)._[[]]._[L.INDR, S.Nest, L.DEDR].recover.synt.label("right nested blocks")
+		.n(S.nests)._[[]]._[L.IND, S.Nest, L.DED].recover.label("nested blocks")
+		.n(S.Nest).__[S.nest]._[S.nest, S.Nest]
+
+		.n(S.nest)._[S.block].synt
+					[S.bin, .., S.block].synt.label("nested binary block")
+		.n(S.bin).__[L.BIN1][L.BIN2][L.BIN3]._[L.BIN46][L.BIN53][L.BIN56][L.BIN6]
+
+		.n(S.line, "line")._[S.exp, L.EOL].recover
+
+		.n(S.exp, "expression")
+				[S.exp, L.BIN1, .., S.exp].clash.syntLeft.label("bin1 operator")
+				[S.exp, L.BIN2, .., S.exp].clash.syntLeft.label("logical operator")
+				[S.exp, L.BIN3, .., S.exp].clash.syntLeft.label("comparison operator")
+				[S.exp, L.BIN43, .., S.exp].clash.syntLeft.label("arithmetic operator")
+				[S.exp, L.BIN46, .., S.exp].clash.syntLeft.label("arithmetic operator")
+				[S.exp, L.BIN53, .., S.exp].clash.syntLeft.label("bitwise operator")
+				[S.exp, L.BIN56, .., S.exp].clash.syntLeft.label("bitwise operator")
+				[S.exp, L.BIN6, .., S.exp].clash.syntLeft.label("bin6 operator")
+				[S.e7][S.e9]
+		.n(S.e7)[L.BIN43, .., S.exp].clash.synt.label("binary prefix operator")
+				[L.PRE, .., S.exp].clash.synt.label("prefix operator")
+		.n(S.e9)[L.LITERAL, ..].clash.synt.label("literal")
+				[L.LP, .., S.exp, L.RP].clash.recover.label("parenth")
+		.n(S.bin)[L.BIN43].clash
 		;
 		// make
 		var m = new SerMaker<L, S>(gram, Lexier.Ordin, NameOrd, Lexier.Distinct);

@@ -241,7 +241,8 @@ public partial class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where L
 		int loc = redu.size > 0 ? stack[^redu.size].loc : stack[^1].loc + 1;
 		bool make = alt.synt > 0 || alt.synt == 0 && synt;
 		T t = make || redu.err > 0 ? new() { // for omitted recovery synt, append it
-			name = alt.name, from = loc, to = ler.Loc(), err = redu.err, info = redu.info
+			name = alt.name, from = loc, to = ler.Loc(), dump = alt.label,
+			err = redu.err, info = redu.info,
 		} : null;
 		for (var i = redu.size - 1; i >= 0; i--) {
 			var (_, l, synt) = stack[^(redu.size - i)];

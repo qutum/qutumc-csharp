@@ -31,7 +31,7 @@ public partial class SynGram<K, N>
 		public short clash; // reject: 0, solve 1: 1, solve 2: 2
 							// as same rule and index as previous one: ~actual alt index
 		public short lex = -1; // save lex at this index to synt.info, no save: <0
-		public sbyte synt; // make synt: as synter: 0, omit: -1, make: 1, flat left: 2, flat right: 3
+		public sbyte synt; // make synt: as synter: 0, omit: -1, make: 1, lift left: 2, lift right: 3
 		public bool rec; // whether recover this alt for error, recover from saving lex if any
 		public string label;
 	}
@@ -64,6 +64,11 @@ public partial class SynGram<K, N>
 	public SynGram<K, N> recover { get { prods[^1][^1].rec = true; return this; } }
 	public SynGram<K, N> label(string w) { prods[^1][^1].label = w.ToString(); return this; }
 	public SynGram<K, N> labelLow { get { prods[^1][^1].label = null; return this; } }
+	// for format
+	public SynGram<K, N> _ { get => this; }
+	public SynGram<K, N> __ { get => this; }
+	public SynGram<K, N> ___ { get => this; }
+	public SynGram<K, N> ____ { get => this; }
 }
 
 // syntax parser maker
@@ -423,9 +428,6 @@ public partial class SerMaker<K, N>
 					throw new($"{p.name}.{pax} no previous clash");
 				if (a.clash < 0)
 					a.clash = alts[ax - 1].clash < 0 ? alts[ax - 1].clash : (short)~(ax - 1);
-				// lex
-				if (a.lex >= 0 && a[a.lex] is not K)
-					throw new($"{p.name}.{pax} content {a[a.lex]} not lexic key");
 				// synt
 				if (a.synt == 2 && (a.Count == 0 || a[0] is not N))
 					throw new($"{p.name}.{pax} leftmost not name");
