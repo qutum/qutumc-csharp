@@ -342,15 +342,15 @@ public partial class SerMaker<K, N>
 
 		// error infos
 		List<(bool label, int half, int ax, object expect)> errNs = [], errKs = [], errs = [];
-		for (int c = 0, cc = 0; // only one closure times mostly
-				c <= cc && (f.index + c == 1 || errNs.Count + errKs.Count == 0); c++)
+		for (int c = 0, cc = 0, label = 0; // mostly only one closure time
+				(label == (label = 0) || f.index + c == 1) && c <= cc; c++)
 			foreach (var ((a, want), (_, clo)) in f.Is)
 				if (clo > cc)
 					cc = clo;
 				else if (clo == c && want < a.Count
 						&& want != a.lex) // saved lex is usually for distinct alts of same name
 					(a[want] is N ? errNs : errKs).Add(
-						(a.label != null, want + want - a.Count, a.index, a[want]));
+						(a.label != null && (++label > 0), want + want - a.Count, a.index, a[want]));
 		errNs.Sort(); errKs.Sort();
 		// only few infos, reverse
 		for (int z = -1, x = 1; z < (z = errs.Count); x++) {

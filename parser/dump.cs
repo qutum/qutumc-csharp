@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 
+// synter.stack
 [assembly: DebuggerTypeProxy(typeof(Dumper.Stack), Target = typeof((SynForm, int, object)))]
 
 namespace qutum.parser;
@@ -74,7 +75,7 @@ public partial class Synt<N, T>
 	}
 
 	public string Dumper(StrMaker s) => s + (err > 0 ? "!!" : err < 0 ? "!" : "")
-		+ (info is Synt<N, T> ? s : s + ' ' + info) + ' ' + (dump ?? name)
+		+ (info is Synt<N, T> or null ? s : s + ' ' + info) + " : " + (dump ?? name)
 		+ (info is Synt<N, T> ? s + '\n' + info : s);
 }
 
@@ -136,7 +137,7 @@ public partial class Synter<K, L, N, T, Ler>
 	public int dump = 0; // no: 0, lexs only for tree leaf: 1, lexs: 2, lexs and alts: 3
 	public Func<object, string> dumper;
 
-	void InitDump()
+	protected virtual void InitDump()
 	{
 		dumper = Dumper;
 		foreach (var (f, fx) in forms.Each())

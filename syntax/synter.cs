@@ -9,7 +9,6 @@ using System;
 
 namespace qutum.syntax;
 
-using Kord = char;
 using Nord = ushort;
 using L = Lex;
 using S = Syn;
@@ -28,7 +27,7 @@ public class Synt : Synt<S, Synt>
 {
 }
 
-public class Synter : Synter<L, S, Synt, Lexier>
+public partial class Synter : Synter<L, S, Synt, Lexier>
 {
 	static readonly Func<S, Nord> NameOrd = n => (Nord)n;
 	static readonly SynAlt<S>[] alts;
@@ -46,13 +45,14 @@ public class Synter : Synter<L, S, Synt, Lexier>
 		.n(S.Block)._[[]]._[S.block, S.Block].syntRight
 
 		.n(S.block)._[S.line, S.nestr, S.nests]
-		.n(S.nestr)._[[]]._[L.INDR, S.Nest, L.DEDR].recover.synt.label("right nested blocks")
-		.n(S.nests)._[[]]._[L.IND, S.Nest, L.DED].recover.label("nested blocks")
+		.n(S.nestr)._[[]]._[L.INDR, S.Nest, L.DEDR].synt
+		.n(S.nests)._[[]]._[L.IND, S.Nest, L.DED]
 		.n(S.Nest).__[S.nest]._[S.nest, S.Nest]
 
 		.n(S.nest)._[S.block].synt
 					[S.bin, .., S.block].synt.label("nested binary block")
-		.n(S.bin).__[L.BIN1][L.BIN2][L.BIN3]._[L.BIN46][L.BIN53][L.BIN56][L.BIN6]
+		.n(S.bin).__[L.BIN1, ..][L.BIN2, ..][L.BIN3, ..] // save lex for no error info
+					[L.BIN46, ..][L.BIN53, ..][L.BIN56, ..][L.BIN6, ..]
 
 		.n(S.line, "line")._[S.exp, L.EOL].recover
 
@@ -70,7 +70,7 @@ public class Synter : Synter<L, S, Synt, Lexier>
 				[L.PRE, .., S.exp].clash.synt.label("prefix operator")
 		.n(S.e9)[L.LITERAL, ..].clash.synt.label("literal")
 				[L.LP, .., S.exp, L.RP].clash.recover.label("parenth")
-		.n(S.bin)[L.BIN43].clash
+		.n(S.bin)[L.BIN43, ..].clash // save lex for no error info
 		;
 		// make
 		var m = new SerMaker<L, S>(gram, Lexier.Ordin, NameOrd, Lexier.Distinct);
@@ -97,12 +97,5 @@ public class Synter : Synter<L, S, Synt, Lexier>
 				from = ~x, to = ~x - 1, err = -3, info = err.key, dump = err.ToString()
 			});
 		return t.Append(errs.head?.up);
-	}
-
-	public override string Dumper(object d)
-	{
-		if (d is Kord k && k != default) return Lexier.Ordin(k).ToString();
-		if (d is Nord n) return ((S)n).ToString();
-		return base.Dumper(d);
 	}
 }

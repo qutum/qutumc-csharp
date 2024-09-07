@@ -186,7 +186,7 @@ public class TestSynter : IDisposable
 		t = t/**/	.h(B).H(S.e9).D(L.INT, 1);
 		t = t/**/		.n(N).H(S.line, err: 1).u();
 		t = t/**/		.n(N).H(S.e9).D(L.INT, 2).uuu();
-		t = t/**/.e().H(null, "line expression", 3.5, 3.6, -1).uU();
+		t = t/**/.e().H(null, "line expression  nest block", 3.5, 3.6, -1).uU();
 	}
 
 	[TestMethod]
