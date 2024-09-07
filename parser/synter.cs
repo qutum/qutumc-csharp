@@ -19,7 +19,7 @@ public partial class Synt<N, T> : LinkTree<T> where T : Synt<N, T>
 	public N name;
 	public int from, to; // lexs from loc to loc excluded, for error may < 0
 	public sbyte err; // no error: 0, recovered: 1, error: -1, cyclic: -2, lex error: -3
-	public object info; // lexi, error info, recovery info ...
+	public object info; // lexi, error info, error synt of recovery ...
 }
 
 public class SyntStr : Synt<string, SyntStr>
@@ -31,7 +31,7 @@ public sealed partial class SynAlt<N>
 	public N name;
 	public short size;
 	public short lex; // save lex at this index to synt.info, no save: <0
-	public sbyte synt; // make synt: as synter: 0, omit: -1, make: 1, flat left: 2, flat right: 3
+	public sbyte synt; // make synt: as synter: 0, omit: -1, make: 1, lift left: 2, lift right: 3
 	public sbyte rec; // at recovery key ordinal index, or 0
 	public string label;
 }
@@ -202,7 +202,7 @@ public partial class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where L
 			StackPush(forms[go], ler.Loc(), null);
 			goto Read;
 		}
-		(sbyte err, short size, object info) redu = default;
+		(sbyte err, short size, T info) redu = default;
 	Reduce:
 		T t = null;
 		if (go < No) { // reduce
@@ -222,10 +222,10 @@ public partial class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where L
 		}
 		// error: other, recover, accept, reject
 		redu = Error(form, ref key, ref go, errs);
-		if (redu.err is 0 or 1)
+		if (redu.err >= 0)
 			goto Reduce;
 		StackClear();
-		return redu.err > 0 ? (t ?? new()).Append(errs.head?.up) : errs; // accept or reject
+		return errs; // reject
 	Cyclic:
 		StackClear();
 		(t ??= new()).err = -2;
@@ -233,14 +233,14 @@ public partial class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where L
 		return errs.Add(t);
 	}
 
-	(Nord name, int loc, T t) Reduce(short go, ref (sbyte err, short size, object info) redu)
+	(Nord name, int loc, T t) Reduce(short go, ref (sbyte err, short size, T info) redu)
 	{
 		var alt = alts[SynForm.Reduce(go)];
 		if (redu.err == 0)
 			redu.size = alt.size;
 		int loc = redu.size > 0 ? stack[^redu.size].loc : stack[^1].loc + 1;
-		bool make = redu.err > 0 || alt.synt > 0 || alt.synt == 0 && synt;
-		T t = make ? new() {
+		bool make = alt.synt > 0 || alt.synt == 0 && synt;
+		T t = make || redu.err > 0 ? new() { // for omitted recovery synt, append it
 			name = alt.name, from = loc, to = ler.Loc(), err = redu.err, info = redu.info
 		} : null;
 		for (var i = redu.size - 1; i >= 0; i--) {
@@ -260,7 +260,7 @@ public partial class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where L
 		return (nameOrd(alt.name), loc, t);
 	}
 
-	(sbyte err, short size, object info) Error(SynForm form, ref Kord key, ref short go, T errs)
+	(sbyte err, short size, T info) Error(SynForm form, ref Kord key, ref short go, T errs)
 	{
 		(int cx, short a, short want) rec = default;
 		if (go == No && form.other != No) // reduce by other key ordinals
@@ -307,6 +307,7 @@ public partial class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where L
 		// recover
 		StackPop(from: rec.cx + 1);
 		go = SynForm.Reduce(rec.a);
+		e.name = alts[rec.a].name;
 		return (1, rec.want, e);
 	}
 
