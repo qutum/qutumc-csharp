@@ -6,7 +6,6 @@
 //
 using qutum.parser;
 using qutum.syntax;
-using qutum.syntax.earley;
 using System;
 using System.IO;
 
@@ -26,10 +25,9 @@ static class Qutumc
 				file = Console.ReadLine();
 			}
 			var bs = File.ReadAllBytes(file);
-			var p = new Earley(new Lexier { allValue = true });
-			using var __ = p.ler.Begin(new LerByte(bs));
-			var top = p.Parse();
-			top.Dump((Func<int, int, (int, int, int, int)>)p.ler.LineCol);
+			var ser = new Synter().Begin(new() { allValue = true });
+			using var __ = ser.ler.Begin(new LerByte(bs));
+			ser.Parse().Dump(ser.Dumper);
 		}
 		catch (Exception e) {
 			env.WriteLine(e);

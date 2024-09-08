@@ -11,7 +11,7 @@ using System.Diagnostics;
 using System.Linq;
 
 // synter.stack
-[assembly: DebuggerTypeProxy(typeof(Dumper.Stack), Target = typeof((SynForm, int, object)))]
+[assembly: DebuggerTypeProxy(typeof(Dumps.Stack), Target = typeof((SynForm, int, object)))]
 
 namespace qutum.parser;
 
@@ -22,7 +22,7 @@ public partial struct Lexi<K>
 {
 	public override readonly string ToString() => $"{key}{(err < 0 ? "!" : "=")}{value}";
 
-	public readonly string Dumper(Func<object, string> dumper)
+	public readonly string Dumper(Func<object, object> dumper)
 		=> $"{key}{(err < 0 ? "!" : "=")}{dumper(value)}";
 }
 
@@ -60,23 +60,45 @@ public partial class Lexier<K> : LexerSeg<K, Lexi<K>>
 	}
 }
 
+public partial class LinkTree<T>
+{
+	public T Dump(Func<LinkTree<T>, object> dumper = null, int after = 1)
+	{
+		bool first = prev == null && (up == null || after <= 0);
+		bool last = next == null && (up == null || after > 0);
+		string noInd = up == null && after == 0 ? "" : null;
+		var t = head;
+		for (; t != null && (dumpOrder == 0 ? t == head : dumpOrder < 0); t = t.next)
+			using (var env = EnvWriter.Use(noInd ?? (first ? "  " : "| ")))
+				t.Dump(dumper, -1);
+		using (var env = noInd != null ? EnvWriter.Use(noInd, "   ") : EnvWriter.Use(
+				after > 0 ? first ? "- " : "\\ " : last ? "- " : "/ ",
+				t != null ? last ? "  |  " : "| |  " : last ? "     " : "|    "))
+			env.WriteLine(dumper?.Invoke(this) ?? this);
+		for (; t != null; t = t.next)
+			using (var env = EnvWriter.Use(noInd ?? (last ? "  " : "| ")))
+				t.Dump(dumper, 1);
+		if (up == null && prev == null)
+			for (t = next; t != null; t = t.next)
+				t.Dump(dumper, after);
+		return (T)this;
+	}
+
+	// preorder >0, inorder 0, postorder <0
+	public virtual int dumpOrder => 1;
+}
+
 public partial class Synt<N, T>
 {
 	public object dump;
 
-	public override string ToString() => Dumper(new StrMaker() + from + ':' + to);
+	public string Dumper(StrMaker s, Func<Synt<N, T>, object> dumper = null) =>
+		(s.s != null ? s : (s = new()) + from + ':' + to)
+		+ (err > 0 ? "!!" : err < 0 ? "!" : "")
+		+ (info is Synt<N, T> or null ? s : s + ' ' + info) + " : " + (dump ?? name.ToString())
+		+ (info is Synt<N, T> t ? s + '\n' + (dumper?.Invoke(t) ?? t) : s);
 
-	public override string Dumper(object extra)
-	{
-		if (extra is not Func<int, int, (int, int, int, int)> loc)
-			return ToString();
-		var (fl, fc, tl, tc) = loc(from, to);
-		return Dumper(new StrMaker() + fl + '.' + fc + ':' + tl + '.' + tc);
-	}
-
-	public string Dumper(StrMaker s) => s + (err > 0 ? "!!" : err < 0 ? "!" : "")
-		+ (info is Synt<N, T> or null ? s : s + ' ' + info) + " : " + (dump ?? name)
-		+ (info is Synt<N, T> ? s + '\n' + info : s);
+	public override string ToString() => Dumper(default);
 }
 
 public partial class SynAlt<N>
@@ -88,7 +110,7 @@ public partial class SynAlt<N>
 		: dump?.ToString() ?? label ?? "alt " + name);
 }
 
-[DebuggerTypeProxy(typeof(Dumper.Form))]
+[DebuggerTypeProxy(typeof(Dumps.Form))]
 public partial class SynForm
 {
 	public object dump;
@@ -98,7 +120,7 @@ public partial class SynForm
 		: dump?.ToString() ?? base.ToString());
 }
 
-public static partial class Dumper
+public static partial class Dumps
 {
 	public struct Form
 	{
@@ -134,7 +156,7 @@ public static partial class Dumper
 
 public partial class Synter<K, L, N, T, Ler>
 {
-	public int dump = 0; // no: 0, lexs only for tree leaf: 1, lexs: 2, lexs and alts: 3
+	public int dump = 1; // least: 0, and line column: 1, and lexs: 2, and alts: 3
 	public Func<object, string> dumper;
 
 	protected virtual void InitDump()
@@ -163,6 +185,19 @@ public partial class Synter<K, L, N, T, Ler>
 			foreach (var (a, want) in f.recs ?? [])
 				_ = s - '\n' + "recover " + a + '_' + want + ' ' + alts[a];
 			return s.ToString();
+		}
+		if (dump > 0 && d is Synt<N, T> t) {
+			StrMaker s = default;
+			if (t.from >= 0 && t.dump is not Dumps.Str && dump > 1) {
+				_ = (s = new()) + (t.dump ?? t.name.ToString()) + " :";
+				foreach (var l in ler.Lexs(t.from, t.to))
+					_ = s + ' ' + l;
+				t.dump = (Dumps.Str)(string)s;
+				s.s.Clear();
+			}
+			return (ler as Lexier<K>)?.LineCol(t.from, t.to) is var (fl, fc, tl, tc)
+				? t.Dumper((s.s != null ? s : new()) + fl + '.' + fc + ':' + tl + '.' + tc, Dumper)
+				: t.Dumper(s, Dumper);
 		}
 		return d.ToString();
 	}
@@ -235,7 +270,7 @@ public partial class SerMaker<K, N>
 	}
 }
 
-public static partial class Dumper
+public static partial class Dumps
 {
 	[DebuggerDisplay("{d,nq}")]
 	public struct Str

@@ -107,14 +107,14 @@ public class TestSynter : IDisposable
 
 	public void Dispose() => env.Dispose();
 
-	readonly Synter ser = new(new Lexier()) { dump = 2 };
+	readonly Synter ser = new Synter { dump = 1 }.Begin(new());
 
 	Ser Parse(string read)
 	{
 		env.WriteLine(read);
 		ser.ler.Dispose();
 		ser.ler.Begin(new LerByte(Encoding.UTF8.GetBytes(read)));
-		var t = ser.Parse().Dump((Func<int, int, (int, int, int, int)>)ser.ler.LineCol);
+		var t = ser.Parse().Dump(ser.Dumper);
 		env.WriteLine($"--- lexi {ser.ler.Loc()} ---");
 		return (t, ser);
 	}

@@ -83,7 +83,8 @@ public class SynterStr : Synter<char, char, string, SyntStr, LerStr>
 // syntax parser using LR algorithm
 // K for lexical key i.e lexeme, L for lexical token
 // N for syntax name i.e synteme, T for syntax tree
-public partial class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where Ler : class, Lexer<K, L>
+public partial class Synter<K, L, N, T, Ler>
+	where K : struct where T : Synt<N, T>, new() where Ler : class, Lexer<K, L>
 {
 	readonly SynAlt<N>[] alts; // reduce [0] by eor: accept
 	readonly SynForm[] forms;
@@ -114,7 +115,7 @@ public partial class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where L
 		InitDump();
 	}
 
-	public Synter<K, L, N, T, Ler> Begin(Ler ler) { this.ler = ler; return this; }
+	public virtual Synter<K, L, N, T, Ler> Begin(Ler ler) { this.ler = ler; return this; }
 
 	// accept or reject, no synt no error info no recovery
 	public virtual bool Check()
@@ -241,7 +242,7 @@ public partial class Synter<K, L, N, T, Ler> where T : Synt<N, T>, new() where L
 		int loc = redu.size > 0 ? stack[^redu.size].loc : stack[^1].loc + 1;
 		bool make = alt.synt > 0 || alt.synt == 0 && synt;
 		T t = make || redu.err > 0 ? new() { // for omitted recovery synt, append it
-			name = alt.name, from = loc, to = ler.Loc(), dump = alt.label,
+			name = alt.name, from = loc, to = ler.Loc(), dump = dump >= 3 ? alt : alt.label,
 			err = redu.err, info = redu.info,
 		} : null;
 		for (var i = redu.size - 1; i >= 0; i--) {

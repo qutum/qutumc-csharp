@@ -6,6 +6,7 @@
 //
 using qutum.parser;
 using System;
+using System.Runtime.ConstrainedExecution;
 
 namespace qutum.syntax;
 
@@ -65,9 +66,11 @@ public partial class Synter : Synter<L, S, Synt, Lexier>
 				[S.exp, L.BIN53, .., S.exp].clash.syntLeft.label("bitwise operator")
 				[S.exp, L.BIN56, .., S.exp].clash.syntLeft.label("bitwise operator")
 				[S.exp, L.BIN6, .., S.exp].clash.syntLeft.label("bin6 operator")
-				[S.e7][S.e9]
-		.n(S.e7)[L.BIN43, .., S.exp].clash.synt.label("binary prefix operator")
-				[L.PRE, .., S.exp].clash.synt.label("prefix operator")
+				[S.e7]
+		.n(S.e7, "expression")
+				[L.BIN43, .., S.e7].clash.synt.label("binary prefix operator")
+				[L.PRE, .., S.e7].clash.synt.label("prefix operator")
+				[S.e9]
 		.n(S.e9)[L.LITERAL, ..].clash.synt.label("literal")
 				[L.LP, .., S.exp, L.RP].clash.recover.label("parenth")
 		.n(S.bin)[L.BIN43, ..].clash // save lex for no error info
@@ -80,12 +83,13 @@ public partial class Synter : Synter<L, S, Synt, Lexier>
 #endif
 	}
 
-	public Synter(Lexier l) : base(Lexier.Ordin, NameOrd, alts, forms, recKs)
+	public Synter() : base(Lexier.Ordin, NameOrd, alts, forms, recKs)
 	{
 		recover = true;
 		synt = false;
-		Begin(l);
 	}
+
+	public override Synter Begin(Lexier ler) => (Synter)base.Begin(ler);
 
 	public override Synt Parse()
 	{

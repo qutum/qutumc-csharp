@@ -106,9 +106,9 @@ public static class MetaLex
 		using var read = new MetaStr(gram);
 		var top = meta.Begin(read).Parse();
 		if (top.err != 0) {
-			using var input2 = new MetaStr(gram);
+			using var read2 = new MetaStr(gram);
 			var dum = meta.dump; meta.dump = 3;
-			meta.Begin(input2).Parse().Dump(); meta.dump = dum;
+			meta.Begin(read2).Parse().Dump(); meta.dump = dum;
 			var e = new Exception("lexic grammar error"); e.Data["err"] = top;
 			throw e;
 		}

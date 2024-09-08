@@ -12,9 +12,9 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 
-namespace qutum;
+namespace qutum.parser;
 
-public static class Extension
+public static partial class Extension
 {
 	public static bool IncLess(this ref int d, int z) => ++d < z || (d = z) < z;
 
@@ -54,7 +54,7 @@ public static class Extension
 	}
 }
 
-public class LinkTree<T> : IEnumerable<T> where T : LinkTree<T>
+public partial class LinkTree<T> : IEnumerable<T> where T : LinkTree<T>
 {
 	public T up, prev, next, head, tail;
 
@@ -158,33 +158,6 @@ public class LinkTree<T> : IEnumerable<T> where T : LinkTree<T>
 			up = prev = next = null;
 		return (T)this;
 	}
-
-	public T Dump(object extra = null, int after = 1)
-	{
-		bool first = prev == null && (up == null || after <= 0);
-		bool last = next == null && (up == null || after > 0);
-		string noInd = up == null && after == 0 ? "" : null;
-		var t = head;
-		for (; t != null && (dumpOrder == 0 ? t == head : dumpOrder < 0); t = t.next)
-			using (var env = EnvWriter.Use(noInd ?? (first ? "  " : "| ")))
-				t.Dump(extra, -1);
-		using (var env = noInd != null ? EnvWriter.Use(noInd, "   ") : EnvWriter.Use(
-				after > 0 ? first ? "- " : "\\ " : last ? "- " : "/ ",
-				t != null ? last ? "  |  " : "| |  " : last ? "     " : "|    "))
-			env.WriteLine(Dumper(extra));
-		for (; t != null; t = t.next)
-			using (var env = EnvWriter.Use(noInd ?? (last ? "  " : "| ")))
-				t.Dump(extra, 1);
-		if (up == null && prev == null)
-			for (t = next; t != null; t = t.next)
-				t.Dump(extra, after);
-		return (T)this;
-	}
-
-	// preorder >0, inorder 0, postorder <0
-	public virtual int dumpOrder => 1;
-
-	public virtual string Dumper(object extra) => extra?.ToString() ?? "dump";
 
 	// enumerate subs
 	public IEnumerator<T> GetEnumerator()
