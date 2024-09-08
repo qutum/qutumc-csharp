@@ -94,6 +94,7 @@ public partial class Lexier<K> : LexerSeg<K, Lexi<K>> where K : struct
 	int bf, bt; // read from loc to excluded loc for each wad
 	readonly List<int> lines = []; // [0, loc of read after eol...]
 	readonly byte[] bytes = new byte[AltByteN + 1]; // {latest bytes}[read loc & AltByteN]
+
 	protected int size, loc; // lexs size, current loc
 	protected Lexi<K>[] lexs;
 	protected int from; // read loc for current lexi
@@ -202,9 +203,6 @@ public partial class Lexier<K> : LexerSeg<K, Lexi<K>> where K : struct
 		if (end) from = -1;
 	}
 
-	// eor
-	protected virtual void Eor(int bz) { }
-
 	protected void Lexi(Lexi<K> lexi, bool err = false)
 	{
 		if (err && errs != null)
@@ -221,6 +219,9 @@ public partial class Lexier<K> : LexerSeg<K, Lexi<K>> where K : struct
 	// from f loc of read to excluded loc
 	protected virtual void Error(K key, int f, int to, object value)
 		=> Lexi(new() { key = key, from = f, to = to, value = value, err = ~size }, true);
+
+	// eor, read to excluded loc
+	protected virtual void Eor(int to) { }
 
 	public int Loc() => loc;
 	public Lexi<K> Lex() => lexs[loc];

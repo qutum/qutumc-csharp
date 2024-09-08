@@ -16,79 +16,79 @@ using Kord = char;
 using L = Lex;
 using Set = CharSet;
 
+/*	EXC   = ! == not
+	QUO   = " == string
+	HASH  = #
+	DOL   = $
+	AMP   = & == and
+	APO   = ' == string?
+	COM   = ,
+	DOT   = . == run
+	COL   = :
+	SCOL  = ;
+	EQ    = = == bind
+	QUE   = \?
+	AT    = @
+	BSL   = \\ == byte block
+	HAT   = ^
+	BAPO  = ` == path
+	VER   = \| == or
+	TIL   = ~
+*/
+
 // lexemes
 public enum Lex : int
 {
 	// 0 for end of read
 	// kinds 0xff<<8
 	LITERAL = 1,
-	POST,  // postfix operators
-	PRE,   // prefix operators
 	BIN1,
 	BIN2,  // logical binary operators
 	BIN3,  // comparison binary operators
-	BIN43, // arithmetic binary operators, also prefix
+	BIN43, // arithmetic binary operators
 	BIN46, // arithmetic binary operators
 	BIN53, // bitwise binary operators
 	BIN56, // bitwise binary operators
 	BIN6,
+	PRE,   // prefix operators
+	POST,  // postfix operators
 
 	// singles
-	BIND = 0x10              /**/, LP, LSB, LCB,
-	RUN = (Right | LCB & 255) + 1, RP, RSB, RCB,
-	EOL = (Blank | RCB & 255) + 1, IND, DED, INDR, DEDR,
+	BIND = 0x10,
+	LP = (Left | BIND & 255) + 1, LSB, LCB,
+	RP = (Right | LCB & 255) + 1, RSB, RCB, RUN,
+	EOL = (Blank | RUN & 255) + 1, IND, DED, INDR, DEDR,
 	SP, COMM, COMMB, PATH, NUM,
 
 	// inside kinds
 	// literal
 	STR = Kind | LITERAL << 8 | 1, STRB, NAME, HEX, INT, FLOAT,
-	// postfix
-	RUNP = Right | Kind | POST << 8 | 1,
 	// logical
-	AND = Bin | BIN2 << 8 | 1, OR, XOR, NOT = Kind | PRE << 8 | 2,
+	AND = Bin | BIN2 << 8 | 1, OR, XOR,
 	// comparison
 	EQ = Bin | BIN3 << 8 | 1, UEQ, LEQ, GEQ, LT, GT,
 	// arithmetic
 	ADD = Bin | BIN43 << 8 | 1, SUB,
 	MUL = Bin | BIN46 << 8 | 1, DIV, MOD, DIVF, MODF,
 	// bitwise
-	ANDB = Bin | BIN53 << 8 | 1, ORB, XORB, NOTB = Kind | PRE << 8 | 1,
+	ANDB = Bin | BIN53 << 8 | 1, ORB, XORB,
 	SHL = Bin | BIN56 << 8 | 1, SHR,
+	// prefix: logical, arithmetic, bitwise
+	NOT = Left | Kind | PRE << 8 | 1, POSI, NEGA, NOTB,
+	// postfix
+	RUNP = Right | Kind | POST << 8 | 1,
 
 	// groups 0xff<<16
-	Blank  /**/= 0x_01_0000, // blank group
-	Right  /**/= 0x_02_0000, // right-side group
 	Kind   /**/= 0x800_0000, // kind group 8<<24
-	Bin    /**/= 0x804_0000, // binary kind group
-}
-
-file static partial class Extensions
-{
-	internal static int Kind(this int kind) => 8 << 24 | kind << 8;
+	Blank  /**/= 0x_01_0000, // blank group
+	Left   /**/= 0x_02_0000, // left-side group
+	Right  /**/= 0x_04_0000, // right-side group
+	Bin    /**/= 0x806_0000, // binary kind group
 }
 
 // lexic parser
 public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 {
-	/*	EXC   = ! == not
-		QUO   = " == string
-		HASH  = #
-		DOL   = $
-		AMP   = & == and
-		APO   = ' == string?
-		COM   = ,
-		DOT   = . == run
-		COL   = :
-		SCOL  = ;
-		EQ    = = == bind
-		QUE   = \?
-		AT    = @
-		BSL   = \\ == byte block
-		HAT   = ^
-		BAPO  = ` == path
-		VER   = \| == or
-		TIL   = ~
-	*/
 	static readonly LexGram<L> Grammar = new LexGram<L>()
 		.k(L.BIND).w["="]
 
@@ -185,39 +185,25 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 			throw new(err);
 	}
 
-	public Lexier() : base(Grammar) { }
-
-	byte[] bs = new byte[4096]; // buffer used by some lexi
-	int bz;
-	int ni, nf, ne; // end of each number wad
-	int indb; // indent byte, unknown: -1
-	int indz; // inds size
-	int[] inds = new int[100]; // {0, indent column...}
-	int ind, indf, indt; // indent column 0 based, read from loc to excluded loc
-	bool crlf; // \r\n found
-	readonly List<string> path = [];
 	public bool eor = true; // insert eol at eor
 	public bool allValue = false; // set all lexis value
 	public bool allBlank = false; // keep spaces without indent and offset, comments and empty lines
+
+	public Lexier() : base(Grammar) { }
 
 	public override void Clear()
 	{
 		base.Clear();
 		indb = ind = -1; indz = indf = indt = 0; inds[0] = 0;
-		crlf = false; path.Clear();
-		loc = 0; base.Lexi(default, 0, 0, null);
-	}
-
-	int Read(int f, int to, int x)
-	{
-		var n = x + to - f;
-		if (bs.Length < n)
-			Array.Resize(ref bs, n + 4095 & ~4095);
-		read.Lexs(f, to, bs.AsSpan(x));
-		return n;
+		crlf = false; bin = default; path.Clear();
+		loc = 0; base.Lexi(L.EOL, 0, 0, null); // eol for lexs[size - 1]
 	}
 
 	public const int IndLoc = 2, IndrLoc = 6;
+	int indb; // indent byte, unknown: -1
+	int indz; // inds size
+	int[] inds = new int[100]; // {0, indent column...}
+	int ind, indf, indt; // indent column 0 based, read from loc to excluded loc
 
 	void Indent()
 	{
@@ -234,7 +220,7 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 						base.Lexi(inds[x] - inds[x - 1] < IndrLoc ? L.DED : L.DEDR,
 							indf, indf, inds[x]);
 					else { // still INDR
-						Error(L.INDR, indf, indt, "indent expected same as upper lines");
+						base.Error(L.INDR, indf, indt, "indent expected same as upper lines");
 						goto Done;
 					}
 			}
@@ -248,26 +234,35 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 	Done: ind = -1;
 	}
 
-	protected override void Eor(int bz)
+	void BinPre(L key, int f)
 	{
-		var end = true;
-		if (eor)
-			Wad(L.EOL, 1, ref end, bz, bz);
-		ind = 0; indf = indt = bz; Indent();
+		if (bin == default)
+			return;
+		Indent();
+		if (bint == f && !IsGroup(key, L.Blank)) // right dense, binary as prefix
+			bin = bin switch { L.ADD => L.POSI, L.SUB => L.NEGA, _ => throw new() };
+		base.Lexi(bin, binf, bint, null);
+		bin = default;
 	}
 
 	protected override void Lexi(L key, int f, int to, object value)
 	{
 		Indent();
-		Lexi<L> p;
-		if (size > 1 && (p = lexs[size - 1]).to == f)
+		BinPre(key, f);
+		if (lexs[size - 1] is Lexi<L> p && p.to == f)
 			if (key == L.RUN && (IsKind(p.key, L.LITERAL) || IsGroup(p.key, L.Right)))
 				key = L.RUNP; // run follows previous lexi densely, high precedence
 			else if (IsKind(key, L.LITERAL) && IsKind(p.key, L.LITERAL))
-				Error(key, f, to, "literal can not densely follow literal");
-			else if (IsKind(key, L.PRE) && !(IsKind(p.key, L.PRE) || IsGroup(p.key, L.Blank | L.Bin)))
-				Error(key, f, to, "prefix operator can densely follow blank or prefix or binary only");
+				base.Error(key, f, to, "literal can not densely follow literal");
+			else if (IsKind(key, L.PRE) && !IsGroup(p.key, L.Blank | L.Left))
+				base.Error(key, f, to, "prefix operator can densely follow blank or left only");
 		base.Lexi(key, f, to, value);
+	}
+	protected override void Error(L key, int f, int to, object value)
+	{
+		Indent();
+		BinPre(key, f);
+		base.Error(key, f, to, value);
 	}
 
 	protected override void WadErr(L key, int wad, bool end, int b, int f, int to)
@@ -276,6 +271,25 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 			key = L.NAME;
 		base.WadErr(key, wad, end, b, f, to);
 	}
+
+	protected override void Eor(int to)
+	{
+		BinPre(L.EOL, to + 1);
+		var end = true;
+		if (eor)
+			Wad(L.EOL, 1, ref end, to, to);
+		ind = 0; indf = indt = to; Indent();
+		bin = default;
+	}
+
+	int bz; // buffer size
+	byte[] bs = new byte[4096]; // long read buffer
+	bool crlf; // \r\n found
+	bool sol; // line start
+	L bin; // binary, maybe prefix
+	int binf, bint; // binary, read from loc to excluded loc
+	int ni, nf, ne; // end of each number wad
+	readonly List<string> path = [];
 
 	protected override void Wad(L key, int wad, ref bool end, int f, int to)
 	{
@@ -290,25 +304,26 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 				Error(key, f, to, @"use LF \n eol instead of CRLF \r\n");
 				crlf = true;
 			}
-			if (allBlank
-				|| size > 1 && lexs[size - 1].key != L.EOL) // no EOL for empty line
+			if (allBlank || bin != default || lexs[size - 1].key != L.EOL) { // no EOL for empty line
+				BinPre(key, from);
 				base.Lexi(key, from, to, null);
+			}
 			ind = 0; indf = indt = to;
 			goto End;
 
 		case L.SP:
 			if (wad == 1)
-				bs[0] = (byte)(f < 1 || read.Lex(f - 1) == '\n' ? 1 : 0); // maybe line start
-			if (bs[0] != 0)
+				sol = f < 1 || read.Lex(f - 1) == '\n'; // maybe line start
+			if (sol)
 				if (indb < 0)
 					indb = read.Lex(f); // first line start, save the indent byte
 				else if (f < to && read.Lex(f) != indb) { // mix \s and \t
-					bs[0] = 0; // as not line start and indent unchanged
+					sol = false; // as not line start and indent unchanged
 					Error(key, f, to, "do not mix tabs and spaces for indent"); // TODO omit this before COMM
 				}
 			if (!end)
 				return;
-			if (bs[0] != 0) {
+			if (sol) {
 				ind = to - from << (indb == '\t' ? 2 : 0); // 4 column each \t
 				indf = from; indt = to;
 			}
@@ -356,6 +371,15 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 			}
 			Read(f, to, bz); Unesc(f, to);
 			return; // inside string
+
+		case L.ADD:
+		case L.SUB:
+			if (lexs[size - 1].to < f || IsGroup(lexs[size - 1].key, L.Blank | L.Left)) { // left not dense
+				BinPre(key, f); // last binary
+				bin = key; binf = f; bint = to; // binary may be prefix
+				goto End;
+			}
+			break;
 
 		case L.HEX:
 			if (!end)
@@ -420,6 +444,15 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 		Lexi(key, from, to, d ?? (bz > 0 ? Encoding.UTF8.GetString(bs, 0, bz) : null));
 	End: // lexi already made
 		from = -1;
+	}
+
+	int Read(int f, int to, int x)
+	{
+		var n = x + to - f;
+		if (bs.Length < n)
+			Array.Resize(ref bs, n + 4095 & ~4095);
+		read.Lexs(f, to, bs.AsSpan(x));
+		return n;
 	}
 
 	void Unesc(int f, int to)

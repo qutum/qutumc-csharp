@@ -213,7 +213,7 @@ public partial class SerMaker<K, N>
 	{
 		if (forms.Count > 0)
 			return;
-		Items init = new() { { (alts[0], 0), ([default], 0) } };
+		Items init = new() { [(alts[0], 0)] = ([default], 0) };
 		AddForm(Closure(init));
 		for (var x = 0; x < forms.Count; x++) {
 			if (x >= 32767) throw new("too many forms");
@@ -394,7 +394,7 @@ public partial class SerMaker<K, N>
 			throw new($"name ordinal 0");
 		var accept = gram.prods[0].name;
 
-		SortedDictionary<Kord, K> ks = new() { { keyOrd(default), default } };
+		SortedDictionary<Kord, K> ks = new() { [keyOrd(default)] = default };
 		SortedSet<Kord> recs = [];
 		// prods
 		prods = new SynGram<K, N>.Prod[names.Length];

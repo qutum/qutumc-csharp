@@ -62,7 +62,7 @@ public class TestLexier : IDisposable
 	}
 
 	[TestMethod]
-	public void Comm()
+	public void Comment()
 	{
 		CheckSp("\\##\\\\###\\ ", "COMM=COMMB SP=");
 		CheckSp("\\### \\# ###\\ ###\\ ab", "COMM=COMMB SP= COMM=");
@@ -281,7 +281,7 @@ public class TestLexier : IDisposable
 	public void Hex1()
 	{
 		Check("0x0", "INT=0"); Check("0xF", "INT=15"); Check("0xx", "HEX!x");
-		Check("+0x0A", "ADD= INT=10"); Check("-0x0A", "SUB= INT=10");
+		Check("+0x0A", "POSI= INT=10"); Check("-0x0A", "NEGA= INT=10");
 		Check("0x_0", "INT=0"); Check("0x__0", "INT=0"); Check("0x_0_", "HEX!");
 		Check("1x1", "INT=1 NAME!literal can not densely follow literal NAME=x1");
 	}
@@ -297,7 +297,7 @@ public class TestLexier : IDisposable
 	public void Int1()
 	{
 		Check("0", "INT=0"); Check("0 a", "INT=0 NAME=a");
-		Check("+09", "ADD= INT=9"); Check("-9876", "SUB= INT=9876");
+		Check("+09", "POSI= INT=9"); Check("-9876", "NEGA= INT=9876");
 		Check("2_", "NUM!"); Check("23__3", "INT=233");
 	}
 
@@ -305,13 +305,13 @@ public class TestLexier : IDisposable
 	public void Int2()
 	{
 		Check("2_14_7483_648", "INT=2147483648");
-		Check("+214_7483_649", "ADD= INT!integer out of range INT=0");
+		Check("+214_7483_649", "POSI= INT!integer out of range INT=0");
 	}
 
 	[TestMethod]
 	public void Float1()
 	{
-		Check("0.000f", "FLOAT=0"); Check("-0f", "SUB= FLOAT=0");
+		Check("0.000f", "FLOAT=0"); Check("-0f", "NEGA= FLOAT=0");
 		Check("00.0x", "FLOAT=0 NAME!literal can not densely follow literal NAME=x");
 		Check("340282347999999999999999999999999999999.99999", "FLOAT=3.4028235E+38");
 		Check("340282430000000000000000000000000000000.5", "FLOAT!float out of range FLOAT=0");
@@ -358,7 +358,7 @@ public class TestLexier : IDisposable
 	{
 		Check("([{)]}", "LP= LSB= LCB= RP= RSB= RCB=");
 		Check("*/%//%%", "MUL= DIV= MOD= DIVF= MODF=");
-		Check("<<>>---&&++||", "SHL= SHR= NOTB= SUB= ANDB= XORB= ORB=");
+		Check("<<>>---&&++||", "SHL= SHR= NOTB= NEGA= ANDB= XORB= ORB=");
 	}
 
 	[TestMethod]
@@ -366,6 +366,14 @@ public class TestLexier : IDisposable
 	{
 		Check("===/=<<=<=<>=>", "EQ= BIND= UEQ= SHL= BIND= LEQ= LT= GEQ= GT=");
 		Check("!!&+||", "NOT= NOT= AND= XOR= OR=");
+	}
+
+	[TestMethod]
+	public void BinaryPrefix()
+	{
+		Check("+-1 +a- b + 2-", "POSI= NEGA= INT=1 POSI= NAME=a SUB= NAME=b ADD= INT=2 SUB=");
+		Check("+\n1+- 2\\##\\+- a +", "ADD= EOL= INT=1 ADD= SUB= INT=2 POSI= SUB= NAME=a ADD=");
+		Check("(+1 -)+2 +\n-3", "LP= POSI= INT=1 NEGA= RP= ADD= INT=2 ADD= EOL= NEGA= INT=3");
 	}
 
 	[TestMethod]
