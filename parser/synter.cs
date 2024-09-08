@@ -205,7 +205,7 @@ public partial class Synter<K, L, N, T, Ler>
 		}
 		(sbyte err, short size, T info) redu = default;
 	Reduce:
-		T t = null;
+		T t;
 		if (go < No) { // reduce
 			(var name, var loc, t) = Reduce(go, ref redu);
 			form = stack[^1].form;

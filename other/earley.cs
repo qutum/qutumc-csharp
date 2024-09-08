@@ -24,17 +24,10 @@ public class Esyn<N, T> : LinkTree<T> where T : Esyn<N, T>
 	public object info; // error lex, expected alt hint/name or K, or recovered prod hint/name or K
 	public string dump;
 
-	public override string ToString() => $"{from}:{to}{(err == 0 ? info != null ? " " + info : ""
-		: err < -1 ? "!!" : "!")} {dump ?? (err == 0 ? null : info) ?? name}";
-
-	public override string Dumper(object extra)
-	{
-		if (extra is not Func<int, int, (int, int, int, int)> loc)
-			return ToString();
-		var (fl, fc, tl, tc) = loc(from, to);
-		return $"{fl}.{fc}:{tl}.{tc}{(err == 0 ? info != null ? " " + info : ""
-			: err < -1 ? "!!" : "!")} {dump ?? (err == 0 ? null : info) ?? name}";
-	}
+	public string Dumper(object f, object t) => $"{f ?? from}:{t ?? to}{(
+		err == 0 ? info != null ? " " + info : "" : err < -1 ? "!!" : "!"
+		)} {dump ?? (err == 0 ? null : info) ?? name}";
+	public override string ToString() => Dumper(null, null);
 }
 
 public class EsynStr : Esyn<string, EsynStr>
@@ -56,7 +49,8 @@ public class EarleyStr : EarleyChar
 }
 
 // syntax parser using extended Earley algorithm
-public class Earley<K, L, N, T, Ler> where T : Esyn<N, T>, new() where Ler : Lexer<K, L>
+public class Earley<K, L, N, T, Ler>
+	where K : struct where T : Esyn<N, T>, new() where Ler : Lexer<K, L>
 {
 	sealed class Prod
 	{
@@ -427,7 +421,14 @@ public class Earley<K, L, N, T, Ler> where T : Esyn<N, T>, new() where Ler : Lex
 			(dump <= 2 ? m.a.hint ?? m.a.name.ToString() : m.a.ToString())
 				+ $" :: {Dump(ler.Lexs(m.from, m.to))}";
 	}
-	string Dump(object d) => dumper?.Invoke(d) ?? Esc(d);
+	public string Dump(object d)
+	{
+		if (d is T t)
+			return (ler as Lexier<K>)?.LineCol(t.from, t.to) is var (fl, fc, tl, tc)
+				? t.Dumper($"{fl}.{fc}", $"{tl}.{tc}") : t.ToString();
+		return dumper?.Invoke(d) ?? Esc(d);
+	}
+
 	static string Esc(object d)
 	{
 		return d.ToString().Replace("\n", "\\n").Replace("\r", "\\r").Replace("\t", "\\t");
@@ -505,9 +506,9 @@ public class Earley<K, L, N, T, Ler> where T : Esyn<N, T>, new() where Ler : Lex
 		using var read = new MetaStr(gram);
 		var top = meta.Begin(read).Parse();
 		if (top.err != 0) {
-			using var input2 = new MetaStr(gram);
+			using var read2 = new MetaStr(gram);
 			var dump = meta.dump; meta.dump = 3;
-			meta.Begin(input2).Parse().Dump(); meta.dump = dump;
+			meta.Begin(read2).Parse().Dump(); meta.dump = dump;
 			var e = new Exception(); e.Data["err"] = top;
 			throw e;
 		}

@@ -95,7 +95,7 @@ public partial class Synt<N, T>
 	public string Dumper(StrMaker s, Func<Synt<N, T>, object> dumper = null) =>
 		(s.s != null ? s : (s = new()) + from + ':' + to)
 		+ (err > 0 ? "!!" : err < 0 ? "!" : "")
-		+ (info is Synt<N, T> or null ? s : s + ' ' + info) + " : " + (dump ?? name.ToString())
+		+ (info is Synt<N, T> or null ? s : s + ' ' + info) + " : " + (dump ?? name)
 		+ (info is Synt<N, T> t ? s + '\n' + (dumper?.Invoke(t) ?? t) : s);
 
 	public override string ToString() => Dumper(default);
@@ -186,7 +186,7 @@ public partial class Synter<K, L, N, T, Ler>
 				_ = s - '\n' + "recover " + a + '_' + want + ' ' + alts[a];
 			return s.ToString();
 		}
-		if (dump > 0 && d is Synt<N, T> t) {
+		if (dump > 0 && d is T t) {
 			StrMaker s = default;
 			if (t.from >= 0 && t.dump is not Dumps.Str && dump > 1) {
 				_ = (s = new()) + (t.dump ?? t.name.ToString()) + " :";

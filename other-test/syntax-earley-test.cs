@@ -103,7 +103,7 @@ public class TestSyntaxEarley : IDisposable
 		env.WriteLine(read);
 		ser.ler.Dispose();
 		ser.ler.Begin(new LerByte(Encoding.UTF8.GetBytes(read)));
-		var t = ser.Parse().Dump((Func<int, int, (int, int, int, int)>)ser.ler.LineCol);
+		var t = ser.Parse().Dump(ser.Dump);
 		env.WriteLine($"--- match {ser.matchz} / lexi {ser.lexz} = {ser.matchz / Math.Max(ser.lexz, 1)} ---");
 		return (t, ser);
 	}
