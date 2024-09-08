@@ -52,7 +52,7 @@ public partial class Synter : Synter<L, S, Synt, Lexier>
 		.n(S.nest)._[S.block].synt
 					[S.bin, .., S.block].synt.label("nested binary block")
 		.n(S.bin).__[L.BIN1, ..][L.BIN2, ..][L.BIN3, ..] // save lex for no error info
-					[L.BIN46, ..][L.BIN53, ..][L.BIN56, ..][L.BIN6, ..]
+					[L.BIN43, ..][L.BIN46, ..][L.BIN53, ..][L.BIN56, ..][L.BIN6, ..]
 
 		.n(S.line, "line")._[S.exp, L.EOL].recover
 
@@ -66,14 +66,12 @@ public partial class Synter : Synter<L, S, Synt, Lexier>
 				[S.exp, L.BIN56, .., S.exp].clash.syntLeft.label("bitwise operator")
 				[S.exp, L.BIN6, .., S.exp].clash.syntLeft.label("bin6 operator")
 				[S.e7][S.e8][S.e9]
-		.n(S.e7)[L.BIN43, .., S.exp].clash.synt.label("binary prefix operator")
-				[L.PRE, .., S.exp].clash.synt.label("prefix operator")
+		.n(S.e7)[L.PRE, .., S.exp].clash.synt.label("prefix operator")
 		.n(S.e8)[S.exp, L.POST, ..].clash.syntLeft.label("postfix operator")
 				[S.exp, L.RUN, ..].clash.syntLeft.label("postfix operator")
 				[S.inp]
 		.n(S.e9)[L.LITERAL, ..].clash.synt.label("literal")
 				[L.LP, .., S.exp, L.RP].clash.recover.label("parenth")
-		.n(S.bin)[L.BIN43, ..].clash // save lex for no error info
 
 		.n(S.inp)
 				[S.exp, S.iexp].clash.syntLeft.label("serie input")
