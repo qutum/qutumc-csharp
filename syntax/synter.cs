@@ -19,9 +19,8 @@ public enum Syn : Nord
 	__ = default,
 	all, all__, all_, Block,
 	block, nestr, nests, Nest,
-	nest, bin, line,
-	e9, e8, e7, exp,
-	F7, f8, f7, f6, f56, f53, f46, f43, f3, f2, f1, feed,
+	nest, bin, line, inp,
+	e9, e8, e7, exp, i8, i7, iexp,
 }
 
 public class Synt : Synt<S, Synt>
@@ -66,14 +65,30 @@ public partial class Synter : Synter<L, S, Synt, Lexier>
 				[S.exp, L.BIN53, .., S.exp].clash.syntLeft.label("bitwise operator")
 				[S.exp, L.BIN56, .., S.exp].clash.syntLeft.label("bitwise operator")
 				[S.exp, L.BIN6, .., S.exp].clash.syntLeft.label("bin6 operator")
-				[S.e7]
-		.n(S.e7, "expression")
-				[L.BIN43, .., S.e7].clash.synt.label("binary prefix operator")
-				[L.PRE, .., S.e7].clash.synt.label("prefix operator")
-				[S.e9]
+				[S.e7][S.e8][S.e9]
+		.n(S.e7)[L.BIN43, .., S.exp].clash.synt.label("binary prefix operator")
+				[L.PRE, .., S.exp].clash.synt.label("prefix operator")
+		.n(S.e8)[S.exp, L.POST, ..].clash.syntLeft.label("postfix operator")
+				[S.exp, L.RUN, ..].clash.syntLeft.label("postfix operator")
+				[S.inp]
 		.n(S.e9)[L.LITERAL, ..].clash.synt.label("literal")
 				[L.LP, .., S.exp, L.RP].clash.recover.label("parenth")
 		.n(S.bin)[L.BIN43, ..].clash // save lex for no error info
+
+		.n(S.inp)
+				[S.exp, S.iexp].clash.syntLeft.label("serie input")
+		.n(S.iexp, "Expression")
+				[S.iexp, L.BIN1, .., S.iexp].clash.syntLeft.label("Bin1 operator")
+				[S.iexp, L.BIN2, .., S.iexp].clash.syntLeft.label("Logical operator")
+				[S.iexp, L.BIN3, .., S.iexp].clash.syntLeft.label("Comparison operator")
+				[S.iexp, L.BIN43, .., S.iexp].clash.syntLeft.label("Arithmetic operator")
+				[S.iexp, L.BIN46, .., S.iexp].clash.syntLeft.label("Arithmetic operator")
+				[S.iexp, L.BIN53, .., S.iexp].clash.syntLeft.label("Bitwise operator")
+				[S.iexp, L.BIN56, .., S.iexp].clash.syntLeft.label("Bitwise operator")
+				[S.iexp, L.BIN6, .., S.iexp].clash.syntLeft.label("Bin6 operator")
+				[S.i7][S.i8][S.e9]
+		.n(S.i7)[L.PRE, .., S.iexp].clash.synt.label("Prefix operator")
+		.n(S.i8)[S.iexp, L.POST, ..].clash.syntLeft.label("Postfix operator")
 		;
 		// make
 		var m = new SerMaker<L, S>(gram, Lexier.Ordin, NameOrd, Lexier.Distinct);
