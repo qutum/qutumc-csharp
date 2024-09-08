@@ -155,7 +155,8 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 		if (ordins == null) {
 			var s = new L[256];
 			foreach (var k in Enum.GetValues<L>())
-				s[Ordin(k)] = k;
+				if ((ushort)k >> 8 == 0)
+					s[Ordin(k)] = k;
 			s[default] = default;
 			ordins = s;
 		}
@@ -163,10 +164,10 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 	}
 	private static L[] ordins;
 
-	public static bool IsGroup(L key, L aim) => (int)(key & aim) << 8 != 0;
-	public static bool IsKind(L key, L aim) => (byte)((int)key >> ((int)key >> 24)) == (byte)aim;
+	public static bool InGroup(L key, L aim) => (int)(key & aim) << 8 != 0;
+	public static bool InKind(L key, L aim) => (byte)((int)key >> ((int)key >> 24)) == (byte)aim;
 	public override bool Is(L key, L aim) =>
-		(byte)aim == 0 ? IsGroup(key, aim) : (int)aim < 0x10 ? IsKind(key, aim) : key == aim;
+		(byte)aim == 0 ? InGroup(key, aim) : (int)aim < 0x10 ? InKind(key, aim) : key == aim;
 
 	// check each key distinct from others, otherwise throw exception
 	public static void Distinct(IEnumerable<L> keys)
@@ -239,7 +240,7 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 		if (bin == default)
 			return;
 		Indent();
-		if (bint == f && !IsGroup(key, L.Blank)) // right dense, binary as prefix
+		if (bint == f && !InGroup(key, L.Blank)) // right dense, binary as prefix
 			bin = bin switch { L.ADD => L.POSI, L.SUB => L.NEGA, _ => throw new() };
 		base.Lexi(bin, binf, bint, null);
 		bin = default;
@@ -250,11 +251,11 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 		Indent();
 		BinPre(key, f);
 		if (lexs[size - 1] is Lexi<L> p && p.to == f)
-			if (key == L.RUN && (IsKind(p.key, L.LITERAL) || IsGroup(p.key, L.Right)))
+			if (key == L.RUN && (InKind(p.key, L.LITERAL) || InGroup(p.key, L.Right)))
 				key = L.RUNP; // run follows previous lexi densely, high precedence
-			else if (IsKind(key, L.LITERAL) && IsKind(p.key, L.LITERAL))
+			else if (InKind(key, L.LITERAL) && InKind(p.key, L.LITERAL))
 				base.Error(key, f, to, "literal can not densely follow literal");
-			else if (IsKind(key, L.PRE) && !IsGroup(p.key, L.Blank | L.Left))
+			else if (InKind(key, L.PRE) && !InGroup(p.key, L.Blank | L.Left))
 				base.Error(key, f, to, "prefix operator can densely follow blank or left only");
 		base.Lexi(key, f, to, value);
 	}
@@ -374,7 +375,7 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 
 		case L.ADD:
 		case L.SUB:
-			if (lexs[size - 1].to < f || IsGroup(lexs[size - 1].key, L.Blank | L.Left)) { // left not dense
+			if (lexs[size - 1].to < f || InGroup(lexs[size - 1].key, L.Blank | L.Left)) { // left not dense
 				BinPre(key, f); // last binary
 				bin = key; binf = f; bint = to; // binary may be prefix
 				goto End;
