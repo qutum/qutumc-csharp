@@ -266,7 +266,7 @@ public partial class Synter<K, L, N, T, Ler>
 	{
 		(int cx, short a, short want) rec = default;
 		if (go == No && form.other != No) // reduce by other key ordinals
-			if (!recover || Fake(key, -1, stack.Count - 1).cx == 0) {
+			if (!recover || stack[^1].form.recs == null) {
 				go = form.other;
 				return (0, 0, null);
 			}
