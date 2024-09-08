@@ -92,7 +92,7 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 	static readonly LexGram<L> Grammar = new LexGram<L>()
 		.k(L.BIND).w["="]
 
-		.k(L.AND).w["&"].k(L.OR).w["|"].k(L.XOR).w["+|"].k(L.NOT).w["!"]
+		.k(L.AND).w["&"].k(L.OR).w["|"].k(L.XOR).w["!="].k(L.NOT).w["!"]
 
 		.k(L.EQ).w["=="].k(L.UEQ).w["/="]
 		.k(L.LEQ).w["<="].k(L.GEQ).w[">="].k(L.LT).w["<"].k(L.GT).w[">"]

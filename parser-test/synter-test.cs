@@ -112,7 +112,7 @@ public class TestSynter : IDisposable
 	public static short _ = -1;
 	public static short r0 = R(0), r1 = R(1), r2 = R(2), r3 = R(3), r4 = R(4),
 						r5 = R(5), r6 = R(6), r7 = R(7), r8 = R(8), r9 = R(9);
-	public static short R(int alt) => SynForm.Reduce(alt);
+	public static short R(int alt) => SynForm.Redu(alt);
 
 	public void True(string read) => IsTrue(Begin(read).Check());
 	public void False(string read) => IsFalse(Begin(read).Check());

@@ -242,7 +242,7 @@ public partial class SerMaker<K, N>
 					f.goKs[kx] = c.shifts == null ? No : c.shift;
 				// reduce without clash
 				else if (c.shifts == null && c.redus.Count == 1)
-					f.goKs[kx] = SynForm.Reduce(c.redus.First());
+					f.goKs[kx] = SynForm.Redu(c.redus.First());
 				// already solved
 				else if (clashs.TryGetValue(c, out var ok)) {
 					f.goKs[kx] = ok.go;
@@ -255,14 +255,14 @@ public partial class SerMaker<K, N>
 						int A(int a) => alts[a].clash < 0 ? ~alts[a].clash : a;
 						int r = c.redus.Max(), ra = A(r);
 						if (c.shifts == null)
-							go = SynForm.Reduce(r); // reduce
+							go = SynForm.Redu(r); // reduce
 						else {
 							int ia = A(c.shifts.Max()), ic = alts[ia].clash;
 							if (ic != 0)
 								if (ia > ra || ia == ra && ic > 1)
 									go = c.shift; // shift
 								else
-									go = SynForm.Reduce(r); // reduce
+									go = SynForm.Redu(r); // reduce
 						}
 					}
 					f.goKs[kx] = go;
@@ -335,7 +335,7 @@ public partial class SerMaker<K, N>
 	{
 		bool accept = false;
 		if (F.goKs.Redu().May().Max()?.d is short other)
-			if (other == SynForm.Reduce(0))
+			if (other == SynForm.Redu(0))
 				accept = true;
 			else // for error and recovery, form with any reduce will always reduce on error keys
 				F.other = other;

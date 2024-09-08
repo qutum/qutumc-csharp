@@ -284,7 +284,7 @@ public class TestSynter : IDisposable
 		t = t/**/		.n(S.exp, L.ADD).H(S.e9, (L.INT, 2));
 		t = t/**/					.n(S.exp, L.MUL).H(S.e9, (L.INT, 3)).uu();
 		t = t/**/		.n(S.exp, L.SUB).H(S.e9, (L.INT, 4)).uuuU();
-		t = Parse(@"1 + 2 * 3 >> 4 % 5 < 6 +| 7 ++ 8");
+		t = Parse(@"1 + 2 * 3 >> 4 % 5 < 6 != 7 ++ 8");
 		t = t/**/	.h(B).H(S.e9, (L.INT, 1));
 		t = t/**/		.n(S.exp, L.ADD).H(S.e9, (L.INT, 2));
 		t = t/**/			.n(S.exp, L.MUL).H(S.e9, (L.INT, 3));

@@ -61,7 +61,7 @@ public sealed partial class SynForm
 	public string err; // error info
 	public (short alt, short want)[] recs; // { recovery alt index and want ... }
 
-	public static short Reduce(int alt) => (short)(-2 - alt);
+	public static short Redu(int alt) => (short)(-2 - alt);
 }
 
 // syntax parser
@@ -133,7 +133,7 @@ public partial class Synter<K, L, N, T, Ler>
 			goto Read;
 		}
 		else if (go < No) { // reduce
-			var alt = alts[SynForm.Reduce(go)];
+			var alt = alts[SynForm.Redu(go)];
 			stack.RemoveRange(stack.Count - alt.size, alt.size);
 			form = stack[^1].form;
 			go = form.goNs[nameOrd(alt.name)];
@@ -236,7 +236,7 @@ public partial class Synter<K, L, N, T, Ler>
 
 	(Nord name, int loc, T t) Reduce(short go, ref (sbyte err, short size, T info) redu)
 	{
-		var alt = alts[SynForm.Reduce(go)];
+		var alt = alts[SynForm.Redu(go)];
 		if (redu.err == 0)
 			redu.size = alt.size;
 		int loc = redu.size > 0 ? stack[^redu.size].loc : stack[^1].loc + 1;
@@ -282,7 +282,7 @@ public partial class Synter<K, L, N, T, Ler>
 			return (-1, 0, null);
 		// want a recovery key right now, fake it
 		if (key != default && (rec = Fake(key, -1, stack.Count - 1)).cx > 0) {
-			go = SynForm.Reduce(rec.a);
+			go = SynForm.Redu(rec.a);
 			e.to = e.from;
 			return (1, rec.want, e); // recover
 		}
@@ -308,7 +308,7 @@ public partial class Synter<K, L, N, T, Ler>
 						break;
 		// recover
 		StackPop(from: rec.cx + 1);
-		go = SynForm.Reduce(rec.a);
+		go = SynForm.Redu(rec.a);
 		e.name = alts[rec.a].name;
 		return (1, rec.want, e);
 	}
@@ -363,6 +363,6 @@ public static partial class Extension
 	}
 	public static IEnumerable<(short d, Kord ord)> Alt(this SynForm.S<Kord> s)
 	{
-		foreach (var d in s.Full()) if (d.d < No) yield return (SynForm.Reduce(d.d), d.ord);
+		foreach (var d in s.Full()) if (d.d < No) yield return (SynForm.Redu(d.d), d.ord);
 	}
 }

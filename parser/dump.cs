@@ -176,10 +176,10 @@ public partial class Synter<K, L, N, T, Ler>
 			if (dumper != Dumper)
 				s += dumper(d);
 			if (f.other != No)
-				_ = s - '\n' + "  redu " + (r = SynForm.Reduce(f.other)) + " " + alts[r];
+				_ = s - '\n' + "  redu " + (r = SynForm.Redu(f.other)) + " " + alts[r];
 			foreach (var (g, k) in f.goKs.Yes())
 				_ = s - '\n' + Dumper(k) + (g > No ? s + " shift " + g
-						: s + " redu " + (r = SynForm.Reduce(g)) + " " + alts[r]);
+						: s + " redu " + (r = SynForm.Redu(g)) + " " + alts[r]);
 			foreach (var (g, n) in f.goNs.Yes())
 				_ = s - '\n' + Dumper(n) + " go " + g;
 			foreach (var (a, want) in f.recs ?? [])
@@ -262,7 +262,7 @@ public partial class SerMaker<K, N>
 				env.WriteLine(Dumper(keys));
 				using var _ = EnvWriter.Use("\t\t");
 				foreach (var a in c.redus)
-					env.WriteLine($"{(a == SynForm.Reduce(go) ? "REDUCE" : "reduce")} {a}  {alts[a]}");
+					env.WriteLine($"{(a == SynForm.Redu(go) ? "REDU" : "redu")} {a}  {alts[a]}");
 				foreach (var a in c.shifts ?? [])
 					env.WriteLine($"{(go > No ? "SHIFT" : "shift")} {a}  {alts[a]}");
 			}

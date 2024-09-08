@@ -365,7 +365,7 @@ public class TestLexier : IDisposable
 	public void Symbol3()
 	{
 		Check("===/=<<=<=<>=>", "EQ= BIND= UEQ= SHL= BIND= LEQ= LT= GEQ= GT=");
-		Check("!!&+||", "NOT= NOT= AND= XOR= OR=");
+		Check("!!&!=|", "NOT= NOT= AND= XOR= OR=");
 	}
 
 	[TestMethod]

@@ -34,7 +34,7 @@ file static class Extension
 				shifts = shifts?.Select(a => (short)(a ^ a >> 15)).ToHashSet()
 			}, out var t));
 			IsTrue(ks.SetEquals(t.ks));
-			AreEqual(shifts?.Min() < 0 ? 0 : redus.Min() < 0 ? SynForm.Reduce(~redus.Min()) : -1,
+			AreEqual(shifts?.Min() < 0 ? 0 : redus.Min() < 0 ? SynForm.Redu(~redus.Min()) : -1,
 				Math.Min((int)t.m, 0));
 		}
 	}
