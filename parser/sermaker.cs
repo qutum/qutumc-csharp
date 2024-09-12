@@ -357,32 +357,28 @@ public partial class SerMaker<K, N>
 			F.recs = [.. recs];
 
 		// error infos
-		List<(bool label, int clo, int half, int ax, object need)> wns = [], wks = [];
-		foreach (var ((a, want), (_, clo)) in f.Is)
+		List<(bool label, int clo, int half, int ax, bool n, object need)> ws = [];
+		foreach (var ((a, want), (_, c)) in f.Is)
 			if (want < a.Count && want != a.lex) // saved lex is usually for distinct alts of same name
-				(a[want] is N ? wns : wks).Add(
-					(a.label != null, -clo, want + want - a.Count, a.index, a[want]));
-		wns.Sort(); wks.Sort();
+				ws.Add((a.label != null, -c, want + want - a.Count, a.index, a[want] is N, a[want]));
+		ws.Sort();
 		// only few infos, reverse
-		List<(string a, string b, (string, string, int, int, int) c)> es = [];
+		List<(string a, string b, (string, int, int, int) c)> es = [];
 		bool label = false, debug = Err.Contains("{2}");
 		int closu = int.MinValue;
-		for (int z = -1, x = 1; z < (z = es.Count); x++)
-			// one name by one key
-			for (var ws = wns; ws != null && es.Count <= ErrZ; ws = ws == wns ? wks : null) {
-				if (x > ws.Count) continue;
-				var (lab, clo, half, ax, need) = ws[^x];
-				if (lab != (label |= lab)) continue;
-				if (clo < (closu = Math.Max(closu, clo))) continue;
-				// error info, no duplicate
-				var e = (alts[ax].label ?? prods[Name(alts[ax].name)].label ?? alts[ax].name.ToString(),
-					need is N n ? prods[Name(n)].label ?? n.ToString() : Dumper(need),
-					debug ? (need is N ? "n" : "k", lab ? "l" : "", clo, half, ax) : default);
-				if (es.IndexOf(e) < 0)
-					es.Add(e);
-			}
+		for (int x = 1; x <= ws.Count && es.Count <= ErrZ; x++) {
+			var (lab, clo, half, ax, _, need) = ws[^x];
+			if (lab != (label |= lab)) continue;
+			if (clo < (closu = Math.Max(closu, clo))) continue;
+			// label or name wants name or key, no duplicate
+			var e = (alts[ax].label ?? prods[Name(alts[ax].name)].label ?? alts[ax].name.ToString(),
+				need is N n ? prods[Name(n)].label ?? n.ToString() : Dumper(need),
+				debug ? (lab ? "l" : "", clo, half, ax) : default);
+			if (es.IndexOf(e) < 0)
+				es.Add(e);
+		}
 		StrMaker err = new();
-		for (int x = 0; x < es.Count; x++) // label or name wants name or key ...
+		for (int x = 0; x < es.Count; x++)
 			err += x == ErrZ ? ErrEtc : err - ErrMore + err.F(Err, es[x].a, es[x].b, es[x].c);
 		if (err.Size > 0)
 			F.err = err;

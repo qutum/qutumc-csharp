@@ -601,8 +601,8 @@ public class TestSerMaker : IDisposable
 		t = t/**/.n(err: -1).H(null, 4, 4, "par )", -1).uU();
 		t = ser.Parse("{a*b;");
 		t = t/**/	.h("S", 1, 5).h("E", 1, 4, d: '*').H(d: 'a').N(d: 'b').uu();
-		t = t/**/	.N("B", 0, 5, "sen exp  blo }", 1).u();
-		t = t/**/.n(err: -1).H(null, 5, 5, "sen exp  blo }", -1).uU();
+		t = t/**/	.N("B", 0, 5, "blo }  sen exp", 1).u();
+		t = t/**/.n(err: -1).H(null, 5, 5, "blo }  sen exp", -1).uU();
 	}
 
 	[TestMethod]
@@ -612,22 +612,22 @@ public class TestSerMaker : IDisposable
 		var t = ser.Parse("{(a*b;");
 		t = t/**/	.h("S").h("E", 1, 5, d: "par )", 1);
 		t = t/**/				.h("E", 2, 5, d: '*').H(d: 'a').N(d: 'b').uuu();
-		t = t/**/	.N("B", 0, 6, "sen exp  blo }", 1).u();
-		t = t/**/.n(err: -1).H(null, 5, 5, "par )", -1).N(null, 6, 6, "sen exp  blo }", -1).uU();
+		t = t/**/	.N("B", 0, 6, "blo }  sen exp", 1).u();
+		t = t/**/.n(err: -1).H(null, 5, 5, "par )", -1).N(null, 6, 6, "blo }  sen exp", -1).uU();
 		t = ser.Parse("({b;");
 		t = t/**/	.h("S", 0, 4, "sen ;", 1).h("E", 0, 4, "plo )", 1);
 		t = t/**/								.h("S", 2, 4).H("E", d: 'b').u();
-		t = t/**/								.N("B", 1, 4, "sen exp  blo }", 1).uuu();
-		t = t/**/.n(err: -1).H(null, 4, 4, "sen exp  blo }", -1).N(null, 4, 4, "plo )", -1);
+		t = t/**/								.N("B", 1, 4, "blo }  sen exp", 1).uuu();
+		t = t/**/.n(err: -1).H(null, 4, 4, "blo }  sen exp", -1).N(null, 4, 4, "plo )", -1);
 		t = t/**/			.N(null, 4, 4, "sen ;", -1).uU();
 		t = ser.Parse("{({b");
 		t = t/**/	.h("S", 1, 4, "sen ;", 1).h("E", 1, 4, "plo )", 1);
 		t = t/**/								.h("S", 3, 4, "sen ;", 1).H("E", 3, 4, 'b').u();
-		t = t/**/								.N("B", 2, 4, "sen exp  blo }", 1).uu();
-		t = t/**/	.N("B", 0, 4, "sen exp  blo }", 1).u();
-		t = t/**/.n(err: -1).H(null, 4, 4, "sen ;", -1).N(null, 4, 4, "sen exp  blo }", -1);
+		t = t/**/								.N("B", 2, 4, "blo }  sen exp", 1).uu();
+		t = t/**/	.N("B", 0, 4, "blo }  sen exp", 1).u();
+		t = t/**/.n(err: -1).H(null, 4, 4, "sen ;", -1).N(null, 4, 4, "blo }  sen exp", -1);
 		t = t/**/			.N(null, 4, 4, "plo )", -1).N(null, 4, 4, "sen ;", -1);
-		t = t/**/			.N(null, 4, 4, "sen exp  blo }", -1).uU();
+		t = t/**/			.N(null, 4, 4, "blo }  sen exp", -1).uU();
 	}
 
 	[TestMethod]
