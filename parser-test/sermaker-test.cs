@@ -482,8 +482,8 @@ public class TestSerMaker : IDisposable
 		ser.Parse("b").H(null, 0, 1, "S a", -1).uU();
 		NewMer(new Gram().n("Z")["S"].n("S")['a']['b']);
 		NewSer();
-		ser.Parse("").H(null, 0, 0, "Z S  S b", -1).uU();
-		ser.Parse("c").H(null, 0, 1, "Z S  S b", -1).uU();
+		ser.Parse("").H(null, 0, 0, "Z S", -1).uU();
+		ser.Parse("c").H(null, 0, 1, "Z S", -1).uU();
 		ser.Parse("aa").H(null, 1, 2, "end of", -1).uU();
 	}
 
@@ -493,8 +493,8 @@ public class TestSerMaker : IDisposable
 		NewMer(new Gram().n("P")["S"].syntOmit
 			.n("S", "sentence")
 					["E"]["S", ';', "E"]
-			.n("E", "expression")
-					["A"].labelLow["B"].labelLow
+			.n("E", "expression", false)
+					["A"]["B"]
 					['(', .., "E", ')'].label("parenth")
 					['a']
 			.n("A")["E", '+', .., "E"].clash.label("addition")
@@ -526,33 +526,33 @@ public class TestSerMaker : IDisposable
 		);
 		NewSer(true);
 		ser.True("a;"); ser.True("b;a;"); ser.False("a;a");
-		ser.Parse("").H(null, 0, 0, "sen exp  sen exp", -1).uU();
-		ser.Parse(";").H("S", 0, 1, "sen exp  sen exp", 1).u();
+		ser.Parse("").H(null, 0, 0, "sen exp", -1).uU();
+		ser.Parse(";").H("S", 0, 1, "sen exp", 1).u();
 		var t = ser.Parse("aa").Eq("Z");
-		t = t/**/	.h("S", 0, 2, "sen ;  sen ;", 1).H("E", 0, 1, 'a').uu();
-		t = t/**/.n(err: -1).H(null, 1, 2, "sen ;  sen ;", -1).uU();
+		t = t/**/	.h("S", 0, 2, "sen ;", 1).H("E", 0, 1, 'a').uu();
+		t = t/**/.n(err: -1).H(null, 1, 2, "sen ;", -1).uU();
 		t = ser.Parse("a;;b;;").Eq("Z");
 		t = t/**/	.H("S", 0, 6, d: "5:6! end of", 1).u();
 		t = t/**/.n(err: -1).H(null, 2, 3, "sen sen", -1);
 		t = t/**/			.N(null, 3, 4, "end of", -1).N(null, 5, 6, "end of", -1).uU();
 		t = ser.Parse(";;b;;").Eq("Z");
 		t = t/**/	.H("S", 0, 5, d: "4:5! end of", 1).u();
-		t = t/**/.n(err: -1).H(null, 0, 1, "sen exp  sen exp", -1).N(null, 1, 2, "end of", -1);
+		t = t/**/.n(err: -1).H(null, 0, 1, "sen exp", -1).N(null, 1, 2, "end of", -1);
 		t = t/**/			.N(null, 2, 3, "end of", -1).N(null, 4, 5, "end of", -1).uU();
 	}
 
 	[TestMethod]
 	public void Recover2()
 	{
-		NewMer(new Gram().n("Z", "prog")["S"]
+		NewMer(new Gram().n("Z")["S"]
 			.n("S", "sen")["E", ';'].recover["S", "E", ';'].recover
 			.n("E", "exp")['a', ..]['b', ..]
 		);
 		NewSer(true);
 		ser.Parse("a;").h("S").H("E", d: 'a').uuU();
 		ser.Parse("a;b;").h("S").h("S").H("E", d: 'a').u().N("E", d: 'b').uuU();
-		ser.Parse("").H(null, 0, 0, "prog sen  sen exp", -1).uU();
-		ser.Parse(";").H("S", 0, 1, "prog sen  sen exp", 1).u();
+		ser.Parse("").H(null, 0, 0, "sen exp  sen sen", -1).uU();
+		ser.Parse(";").H("S", 0, 1, "sen exp  sen sen", 1).u();
 		var t = ser.Parse("aa").Eq("Z");
 		t = t/**/	.h("S", 0, 2, "sen ;", 1).H("E", 0, 1, 'a').uu();
 		t = t/**/.n(err: -1).H(null, 1, 2, "sen ;", -1).uU();
@@ -563,16 +563,16 @@ public class TestSerMaker : IDisposable
 		t = ser.Parse(";;a;;").Eq("Z");
 		t = t/**/	.h("S", 0, 5, d: "4:5! sen exp", 1);
 		t = t/**/		.h("S", 0, 4).h("S", 0, 2, "1:2! sen exp", 1);
-		t = t/**/						.H("S", 0, 1, "0:1! prog sen  sen exp", 1).u();
+		t = t/**/						.H("S", 0, 1, "0:1! sen exp  sen sen", 1).u();
 		t = t/**/					.N("E", 2, 3, 'a').uuu();
-		t = t/**/.n(err: -1).H(null, 0, 1, "prog sen  sen exp", -1);
+		t = t/**/.n(err: -1).H(null, 0, 1, "sen exp  sen sen", -1);
 		t = t/**/			.N(null, 1, 2, "sen exp", -1);
 		t = t/**/			.N(null, 4, 5, "sen exp", -1).uU();
 	}
 
 	void DoRecover3()
 	{
-		NewMer(new Gram().n("Z", "prog")["S"]
+		NewMer(new Gram().n("Z")["S"]
 			.n("S", "sen")["B"].syntOmit
 					["E", ';'].recover["S", "E", ';'].recover
 			.n("B", "blo")['{', .., "S", '}'].recover.syntOmit
@@ -633,16 +633,18 @@ public class TestSerMaker : IDisposable
 	[TestMethod]
 	public void Recover5()
 	{
+		var z = SerMaker<char, string>.ErrZ; SerMaker<char, string>.ErrZ = 2;
 		DoRecover3();
-		ser.Parse("+;").H("S", 0, 2, "sen blo  prog sen", 1).u();
-		ser.Parse("*b;").H("S", 0, 3, "sen blo  prog sen", 1).u();
+		SerMaker<char, string>.ErrZ = z;
+		ser.Parse("+;").H("S", 0, 2, "sen blo  sen exp ...", 1).u();
+		ser.Parse("*b;").H("S", 0, 3, "sen blo  sen exp ...", 1).u();
 		var t = ser.Parse("a+;").Eq("Z");
 		t = t/**/	.h("S", 0, 3, "add exp", 1).H("E", 0, 1, 'a').uu();
 		t = t/**/.n(err: -1).H(null, 2, 3, "add exp", -1).uU();
 		t = ser.Parse("*+;a+;");
-		t = t/**/	.h("S", 0, 6, "add exp", 1).H("S", 0, 3, "sen blo  prog sen", 1);
+		t = t/**/	.h("S", 0, 6, "add exp", 1).H("S", 0, 3, "sen blo  sen exp ...", 1);
 		t = t/**/								.N("E", 3, 4, 'a').uu();
-		t = t/**/.n(err: -1).H(null, 0, 1, "sen blo  prog sen", -1).N(null, 5, 6, "add exp", -1).uU();
+		t = t/**/.n(err: -1).H(null, 0, 1, "sen blo  sen exp ...", -1).N(null, 5, 6, "add exp", -1).uU();
 		t = ser.Parse("a+b;a*;+b;");
 		t = t/**/	.h("S", 0, 10, "sen exp", 1).h("S", 0, 7, "mul exp", 1);
 		t = t/**/									.h("S", 0, 4).h("E", 0, 3, "a+b").u();

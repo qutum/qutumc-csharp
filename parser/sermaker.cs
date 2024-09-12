@@ -11,6 +11,7 @@ using System.Numerics;
 
 namespace qutum.parser;
 
+using static System.Runtime.InteropServices.JavaScript.JSType;
 using Kord = char;
 using Nord = ushort;
 
@@ -18,10 +19,11 @@ using Nord = ushort;
 public partial class SynGram<K, N>
 {
 	public readonly List<Prod> prods = [];
-	public class Prod(N name, string label) : List<Alt>
+	public class Prod(N name, string label, bool labelYes) : List<Alt>
 	{
 		public N name = name;
 		public string label = label;
+		public bool labelYes = labelYes;
 	}
 	// { K or N ... }
 	public partial class Alt : List<object>
@@ -36,17 +38,21 @@ public partial class SynGram<K, N>
 		public string label;
 	}
 
-	public SynGram<K, N> n(N name, string label = null) { prods.Add(new(name, label)); return this; }
+	public SynGram<K, N> n(N name, string label = null, bool labelYes = true)
+	{
+		prods.Add(new(name, label, labelYes)); return this;
+	}
 
 	// K : lexic key, N : syntax name, .. : save last lex
 	public SynGram<K, N> this[params object[] cons] {
 		get {
-			Alt a = new() { name = prods[^1].name, label = prods[^1].label };
-			prods[^1].Add(a);
+			var p = prods[^1];
+			Alt a = new() { name = p.name, label = p.labelYes ? p.label : null };
+			p.Add(a);
 			foreach (var c in cons)
 				if (c is Range)
 					a.lex = a.lex < 0 ? (short)(a.Count - 1)
-						: throw new($"{a.name}.{prods[^1].Count - 1} lex {a.lex}");
+						: throw new($"{a.name}.{p.Count - 1} lex {a.lex}");
 				else if (c is N or K)
 					a.Add(c);
 				else
@@ -63,7 +69,8 @@ public partial class SynGram<K, N>
 	public SynGram<K, N> syntOmit { get { prods[^1][^1].synt = -1; return this; } }
 	public SynGram<K, N> recover { get { prods[^1][^1].rec = true; return this; } }
 	public SynGram<K, N> label(string w) { prods[^1][^1].label = w.ToString(); return this; }
-	public SynGram<K, N> labelLow { get { prods[^1][^1].label = null; return this; } }
+	public SynGram<K, N> labelNo { get { prods[^1][^1].label = null; return this; } }
+	public SynGram<K, N> labelYes { get { prods[^1][^1].label = prods[^1].label; return this; } }
 	// for format
 	public SynGram<K, N> _ { get => this; }
 	public SynGram<K, N> __ { get => this; }
@@ -326,7 +333,7 @@ public partial class SerMaker<K, N>
 		return (As, Fs, recKs);
 	}
 
-	public static int ErrZ = 2;
+	public static int ErrZ = 3;
 	public static string Err = "{0} wants {1}", ErrMore = " \nand ", ErrEtc = " ...";
 	public static string ErrEor = "want end of read";
 
@@ -340,34 +347,6 @@ public partial class SerMaker<K, N>
 			else // for error and recovery, form with any reduce will always reduce on error keys
 				F.other = other;
 
-		// error infos
-		List<(bool label, int half, int ax, object expect)> errNs = [], errKs = [], errs = [];
-		for (int c = 0, cc = 0, label = 0; // mostly only one closure time
-				(label == (label = 0) || f.index + c == 1) && c <= cc; c++)
-			foreach (var ((a, want), (_, clo)) in f.Is)
-				if (clo > cc)
-					cc = clo;
-				else if (clo == c && want < a.Count
-						&& want != a.lex) // saved lex is usually for distinct alts of same name
-					(a[want] is N ? errNs : errKs).Add(
-						(a.label != null && (++label > 0), want + want - a.Count, a.index, a[want]));
-		errNs.Sort(); errKs.Sort();
-		// only few infos, reverse
-		for (int z = -1, x = 1; z < (z = errs.Count); x++) {
-			if (errs.Count <= ErrZ && x <= errNs.Count) errs.Add(errNs[^x]);
-			if (errs.Count <= ErrZ && x <= errKs.Count) errs.Add(errKs[^x]);
-		}
-		StrMaker e = new();
-		foreach (var ((label, half, ax, expect), x) in errs.Each())
-			e += x == ErrZ ? ErrEtc : e - ErrMore + e.F(Err, // label or name wants name or key
-				alts[ax].label ?? prods[Name(alts[ax].name)].label ?? alts[ax].name.ToString(),
-				expect is N n ? prods[Name(n)].label ?? n.ToString() : Dumper(expect),
-				(expect is N ? "n" : "k", label ? "l" : "", half, ax)); // {2}
-		if (e.Size > 0)
-			F.err = e;
-		else if (accept)
-			F.err = ErrEor;
-
 		// recover alts
 		List<(short, short)> recs = [];
 		foreach (var ((a, want), _) in f.Is)
@@ -376,6 +355,39 @@ public partial class SerMaker<K, N>
 		recs.Sort(); recs.Reverse(); // reduce the latest alt of same recovery key
 		if (recs.Count > 0)
 			F.recs = [.. recs];
+
+		// error infos
+		List<(bool label, int clo, int half, int ax, object need)> wns = [], wks = [];
+		foreach (var ((a, want), (_, clo)) in f.Is)
+			if (want < a.Count && want != a.lex) // saved lex is usually for distinct alts of same name
+				(a[want] is N ? wns : wks).Add(
+					(a.label != null, -clo, want + want - a.Count, a.index, a[want]));
+		wns.Sort(); wks.Sort();
+		// only few infos, reverse
+		List<(string a, string b, (string, string, int, int, int) c)> es = [];
+		bool label = false, debug = Err.Contains("{2}");
+		int closu = int.MinValue;
+		for (int z = -1, x = 1; z < (z = es.Count); x++)
+			// one name by one key
+			for (var ws = wns; ws != null && es.Count <= ErrZ; ws = ws == wns ? wks : null) {
+				if (x > ws.Count) continue;
+				var (lab, clo, half, ax, need) = ws[^x];
+				if (lab != (label |= lab)) continue;
+				if (clo < (closu = Math.Max(closu, clo))) continue;
+				// error info, no duplicate
+				var e = (alts[ax].label ?? prods[Name(alts[ax].name)].label ?? alts[ax].name.ToString(),
+					need is N n ? prods[Name(n)].label ?? n.ToString() : Dumper(need),
+					debug ? (need is N ? "n" : "k", lab ? "l" : "", clo, half, ax) : default);
+				if (es.IndexOf(e) < 0)
+					es.Add(e);
+			}
+		StrMaker err = new();
+		for (int x = 0; x < es.Count; x++) // label or name wants name or key ...
+			err += x == ErrZ ? ErrEtc : err - ErrMore + err.F(Err, es[x].a, es[x].b, es[x].c);
+		if (err.Size > 0)
+			F.err = err;
+		else if (accept)
+			F.err = ErrEor;
 	}
 
 	// phase init: get grammar

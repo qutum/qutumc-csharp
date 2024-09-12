@@ -56,7 +56,7 @@ public partial class Synter : Synter<L, S, Synt, Lexier>
 
 		.n(S.line, "line")._[S.exp, L.EOL].recover
 
-		.n(S.exp, "expression")
+		.n(S.exp, "expression", false)
 				[S.exp, L.BIN1, .., S.exp].clash.syntLeft.label("bin1 operator")
 				[S.exp, L.BIN2, .., S.exp].clash.syntLeft.label("logical operator")
 				[S.exp, L.BIN3, .., S.exp].clash.syntLeft.label("comparison operator")
@@ -75,7 +75,7 @@ public partial class Synter : Synter<L, S, Synt, Lexier>
 
 		.n(S.inp)
 				[S.exp, S.iexp].clash.syntLeft.label("serie input")
-		.n(S.iexp, "Expression")
+		.n(S.iexp, "Expression", false)
 				[S.iexp, L.BIN1, .., S.iexp].clash.syntLeft.label("Bin1 operator")
 				[S.iexp, L.BIN2, .., S.iexp].clash.syntLeft.label("Logical operator")
 				[S.iexp, L.BIN3, .., S.iexp].clash.syntLeft.label("Comparison operator")

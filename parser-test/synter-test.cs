@@ -31,7 +31,7 @@ static class Extension
 		if (err != 0 && d is string aim && s.t.info?.ToString() is string test) {
 			var ts = test.Split(SerMaker<char, string>.ErrMore);
 			var As = aim.Split("  ");
-			if ((As.Length < 2 ? ts.Length != As.Length : ts.Length < As.Length)
+			if ((As.Length < 3 ? ts.Length != As.Length : ts.Length < As.Length)
 				|| !As.Zip(ts).All(ea => ea.First.Split(' ').ToCount().ToHashSet()
 					.IsSubsetOf(ea.Second.Split(' ').ToCount().ToHashSet())))
 				Fail($"Expected Error <{aim}> Actual <{test.Replace("\n", "  ")}>");
