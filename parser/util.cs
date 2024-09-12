@@ -52,6 +52,24 @@ public static partial class Extension
 		foreach (var d in s) if (If(d)) return d;
 		return null;
 	}
+
+	public static Dictionary<T, V> ToDict<T, V>(this IEnumerable<T> s, Func<T, V?, V> value)
+	{
+		var kv = new Dictionary<T, V>();
+		foreach (var d in s)
+			kv[d] = kv.TryGetValue(d, out var v) ? value(d, v) : value(d, default);
+		return kv;
+	}
+	public static Dictionary<K, V> ToDict<T, K, V>(this IEnumerable<T> s, Func<T, K?> key, Func<K, V?, V> value)
+	{
+		var kv = new Dictionary<K, V>();
+		foreach (var d in s)
+			if (key(d) is K k)
+				kv[k] = kv.TryGetValue(k, out var v) ? value(k, v) : value(k, default);
+		return kv;
+	}
+	public static Dictionary<T, int> ToCount<T>(this IEnumerable<T> s)
+		=> ToDict<T, int>(s, (d, z) => z + 1);
 }
 
 public partial class LinkTree<T> : IEnumerable<T> where T : LinkTree<T>

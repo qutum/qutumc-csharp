@@ -533,11 +533,11 @@ public class TestSerMaker : IDisposable
 		t = t/**/.n(err: -1).H(null, 1, 2, "sen ;  sen ;", -1).uU();
 		t = ser.Parse("a;;b;;").Eq("Z");
 		t = t/**/	.H("S", 0, 6, d: "5:6! end of", 1).u();
-		t = t/**/.n(err: -1).H(null, 2, 3, "end of", -1);
+		t = t/**/.n(err: -1).H(null, 2, 3, "sen sen", -1);
 		t = t/**/			.N(null, 3, 4, "end of", -1).N(null, 5, 6, "end of", -1).uU();
 		t = ser.Parse(";;b;;").Eq("Z");
 		t = t/**/	.H("S", 0, 5, d: "4:5! end of", 1).u();
-		t = t/**/.n(err: -1).H(null, 0, 1, "sen exp  sen", -1).N(null, 1, 2, "end of", -1);
+		t = t/**/.n(err: -1).H(null, 0, 1, "sen exp  sen exp", -1).N(null, 1, 2, "end of", -1);
 		t = t/**/			.N(null, 2, 3, "end of", -1).N(null, 4, 5, "end of", -1).uU();
 	}
 

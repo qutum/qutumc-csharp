@@ -42,8 +42,8 @@ file static class Extension
 			var ts = test.Split(SerMaker<char, string>.ErrMore);
 			var As = aim.Split("  ");
 			if ((As.Length < 2 ? ts.Length != As.Length : ts.Length < As.Length)
-				|| As.Zip(ts).Any(ea =>
-					!ea.First.Split(' ').ToHashSet().IsSubsetOf(ea.Second.Split(' ').ToHashSet())))
+				|| !As.Zip(ts).All(ea => ea.First.Split(' ').ToCount().ToHashSet()
+					.IsSubsetOf(ea.Second.Split(' ').ToCount().ToHashSet())))
 				Fail($"Expected Error <{aim}> Actual <{test.Replace("\n", "  ")}>");
 		}
 		else if (d is (L key, object value))
@@ -116,7 +116,7 @@ public class TestSynter : IDisposable
 
 	public void Dispose() => env.Dispose();
 
-	readonly Synter ser = new Synter { dump = 1 }.Begin(new());
+	readonly Synter ser = new Synter().Begin(new());
 
 	Ser Parse(string read)
 	{
@@ -333,7 +333,7 @@ public class TestSynter : IDisposable
 				*");
 		t = t/**/	.h(B).H(S.e9, (L.INT, 1));
 		t = t/**/		.n(N, L.MUL).H(S.line, err: 1).uuu();
-		t = t/**/.e().H(null, "nested binary block", 3.6, 3.6, -1).uU();
+		t = t/**/.e().H(null, "nested binary block block", 3.6, 3.6, -1).uU();
 		t = Parse(@"
 			1
 				+
@@ -349,8 +349,8 @@ public class TestSynter : IDisposable
 		t = t/**/		.n(N, L.DIV).H(S.e9, (L.INT, 4)).uu();
 		t = t/**/	.n(B).H(S.line, err: 1);
 		t = t/**/		.n(N).H(S.e9, (L.INT, 5)).uuu();
-		t = t/**/.e().H(null, "nested binary block", 3.6, 4.1, -1);
-		t = t/**/	.N(null, "binary prefix expression", 7.5, 8.1, -1).uU();
+		t = t/**/.e().H(null, "nested binary block block", 3.6, 4.1, -1);
+		t = t/**/	.N(null, "line expression", 7.4, 7.5, -1).uU();
 	}
 
 	[TestMethod]
