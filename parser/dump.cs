@@ -251,7 +251,8 @@ public partial class SerMaker<K, N>
 	{
 		if (d is List<Form> forms)
 			using (var env = EnvWriter.Use())
-				env.WriteLine($"forms: {forms.Count}");
+				env.WriteLine($"forms: {forms.Count} (max {(
+					forms.Select(f => f.Is.Count).Max())} items)");
 		else if (d is (Dictionary<Clash, (HashSet<K> keys, short go)> clashs,
 				bool detail, int solvez)) {
 			using var env = EnvWriter.Use();

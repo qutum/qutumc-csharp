@@ -32,9 +32,9 @@ public partial class SynGram<K, N>
 		public N name;
 		public short clash; // reject: 0, solve 1: 1, solve 2: 2
 							// as same rule and index as previous one: ~actual alt index
-		public short lex = -1; // save lex at this index to synt.info, no save: <0
+		public short lex = -1; // save main lex at this index to synt.info, no save: <0
 		public sbyte synt; // make synt: as synter: 0, omit: -1, make: 1, lift left: 2, lift right: 3
-		public bool rec; // whether recover this alt for error, recover from saving lex if any
+		public bool rec; // whether recover this alt for error, after main lex if any
 		public string label;
 	}
 
@@ -43,7 +43,7 @@ public partial class SynGram<K, N>
 		prods.Add(new(name, label, labelYes)); return this;
 	}
 
-	// K : lexic key, N : syntax name, .. : save last lex
+	// K : lexic key, N : syntax name, .. : last is main lex
 	public SynGram<K, N> this[params object[] cons] {
 		get {
 			var p = prods[^1];
@@ -350,7 +350,7 @@ public partial class SerMaker<K, N>
 		// recover alts
 		List<(short, short)> recs = [];
 		foreach (var ((a, want), _) in f.Is)
-			if (a.rec && want > a.lex && want < a.Count)
+			if (a.rec && want > a.lex && want < a.Count) // usually useless before main lex
 				recs.Add((a.index, want));
 		recs.Sort(); recs.Reverse(); // reduce the latest alt of same recovery key
 		if (recs.Count > 0)
@@ -359,7 +359,7 @@ public partial class SerMaker<K, N>
 		// error infos
 		List<(bool label, int clo, int half, int ax, bool n, object need)> ws = [];
 		foreach (var ((a, want), (_, c)) in f.Is)
-			if (want < a.Count && want != a.lex) // saved lex is usually for distinct alts of same name
+			if (want < a.Count && want != a.lex) // main lex is usually for distinct alts of same name
 				ws.Add((a.label != null, -c, want + want - a.Count, a.index, a[want] is N, a[want]));
 		ws.Sort();
 		// only few infos, reverse

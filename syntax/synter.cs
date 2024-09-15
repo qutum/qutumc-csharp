@@ -50,16 +50,14 @@ public partial class Synter : Synter<L, S, Synt, Lexier>
 
 		.n(S.nest)._[S.block].synt
 					[S.bin, .., S.block].synt.label("nested binary block")
-		.n(S.bin).__[L.BIN1, ..][L.BIN2, ..][L.BIN3, ..] // save lex for no error info
-					[L.BIN43, ..][L.BIN46, ..][L.BIN53, ..][L.BIN56, ..][L.BIN6, ..]
+		.n(S.bin).__[L.BIN1][L.BIN2][L.BIN3]
+					[L.BIN43][L.BIN46][L.BIN53][L.BIN56][L.BIN6]
 
 		.n(S.line, "line")._[S.exp, L.EOL].recover
 
-		.n(S.inp, "serial input")
-				[S.inp, L.INP].clash
-				[S.exph, L.INP].clash
-				[S.inp, L.INP, .., S.exp].clash.syntLeft
-				[S.exph, L.INP, .., S.exp].clash.syntLeft
+		.n(S.inp)
+				[S.exph, L.INP].clash // trailing comma
+				[S.exph, L.INP, .., S.exp].clash.syntLeft.label("serial input")
 		.n(S.exp, "expression", false)
 				[S.exp, L.BIN1, .., S.exp].clash.syntLeft.label("bin1 operator")
 				[S.exp, L.BIN2, .., S.exp].clash.syntLeft.label("logical operator")
@@ -71,15 +69,15 @@ public partial class Synter : Synter<L, S, Synt, Lexier>
 				[S.exp, L.BIN6, .., S.exp].clash.syntLeft.label("bin6 operator")
 				[L.PRE, .., S.exp].clash.synt.label("prefix operator")
 				[S.exph].clash
-				[S.inp].clash
 		.n(S.exph)
+				[S.inp].clash
 				[S.exp, L.POST, ..].clash.syntLeft.label("postfix operator")
 				[L.LITERAL, ..].clash.synt.label("literal")
-				[L.LP, .., S.exp, L.RP].clash.recover.label("parenth")
-		.n(S.inp, "serial input")
-				[S.exp, S.exp].clash.syntLeft
+				[L.LP, .., S.exp, L.RP].clash.recover.label("parenth") // main lex for recovery
+		.n(S.inp)
+				[S.exp, S.exp].clash.syntLeft // higher than others for left associative
 		.n(S.exph)
-				[S.exp, L.POSTH, ..].clash.syntLeft.label("high postfix operator")
+				[S.exph, L.POSTH, ..].clash.syntLeft.label("high postfix operator")
 		;
 		// make
 		var m = new SerMaker<L, S>(gram, Lexier.Ordin, NameOrd, Lexier.Distinct);
