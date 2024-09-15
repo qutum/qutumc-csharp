@@ -356,7 +356,7 @@ public class TestLexier : IDisposable
 	[TestMethod]
 	public void Symbol2()
 	{
-		Check("([{)]}", "LP= LSB= LCB= RP= RSB= RCB=");
+		Check("([{)]},", "LP= LSB= LCB= RP= RSB= RCB= INP=");
 		Check("*/%//%%", "MUL= DIV= MOD= DIVF= MODF=");
 		Check("<<>>---&&++||", "SHL= SHR= NOTB= NEGA= ANDB= XORB= ORB=");
 	}
@@ -380,12 +380,12 @@ public class TestLexier : IDisposable
 	public void Distinct()
 	{
 		Lexier.Distinct([
-			Lex.LITERAL, Lex.POST, Lex.PRE, Lex.BIN6, Lex.BIN56, Lex.BIN53,
-			Lex.BIN46, Lex.BIN43, Lex.BIN3, Lex.BIN2, Lex.BIN1,
+			Lex.LITERAL, Lex.BIN1, Lex.BIN2, Lex.BIN3, Lex.BIN43, Lex.BIN46,
+			Lex.BIN53, Lex.BIN56, Lex.BIN6, Lex.PRE, Lex.POST,
+			Lex.INP, Lex.BIND, Lex.RUN,
 			Lex.LP, Lex.LSB, Lex.LCB, Lex.RP, Lex.RSB, Lex.RCB,
 			Lex.EOL, Lex.IND, Lex.DED, Lex.INDR, Lex.DEDR,
-			Lex.SP, Lex.COMM, Lex.COMMB, Lex.PATH, Lex.NUM,
-			Lex.BIND, Lex.RUN ]);
+			Lex.SP, Lex.COMM, Lex.COMMB, Lex.PATH, Lex.NUM ]);
 		Throw(() => Lexier.Distinct([
 			default, Lex.LITERAL, Lex.BIN43, Lex.STR, Lex.ADD, Lex.EQ, Lex.LP, Lex.RP
 		]), "STR ADD");

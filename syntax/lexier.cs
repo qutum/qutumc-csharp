@@ -16,24 +16,24 @@ using Kord = char;
 using L = Lex;
 using Set = CharSet;
 
-/*	EXC   = ! == not
-	QUO   = " == string
-	HASH  = #
-	DOL   = $
-	AMP   = & == and
-	APO   = ' == string?
-	COM   = ,
-	DOT   = . == run
-	COL   = :
-	SCOL  = ;
-	EQ    = = == bind
-	QUE   = \?
-	AT    = @
-	BSL   = \\ == byte block
-	HAT   = ^
-	BAPO  = ` == path
-	VER   = \| == or
-	TIL   = ~
+/*	EXC		!	not
+	QUO		"	string
+	HASH	#
+	DOL		$
+	AMP		&	and
+	APO		'	string?
+	COM		,	input
+	DOT		.	run
+	COL		:
+	SCOL	;
+	EQ		=	bind
+	QUE		?
+	AT		@
+	BSL		\	byte block
+	HAT		^
+	BAPO	`	path
+	VER		|	or
+	TIL		~
 */
 
 // lexemes
@@ -43,18 +43,18 @@ public enum Lex : int
 	// kinds 0xff<<8
 	LITERAL = 1,
 	BIN1,
-	BIN2,  // logical binary operators
-	BIN3,  // comparison binary operators
-	BIN43, // arithmetic binary operators
-	BIN46, // arithmetic binary operators
-	BIN53, // bitwise binary operators
-	BIN56, // bitwise binary operators
+	BIN2,   // logical binary operators
+	BIN3,   // comparison binary operators
+	BIN43,  // arithmetic binary operators
+	BIN46,	// arithmetic binary operators
+	BIN53,	// bitwise binary operators
+	BIN56,	// bitwise binary operators
 	BIN6,
 	PRE,   // prefix operators
 	POST,  // postfix operators
 
 	// singles
-	BIND = 0x10,
+	INP = 0x10, BIND,
 	LP = (Left | BIND & 255) + 1, LSB, LCB,
 	RP = (Right | LCB & 255) + 1, RSB, RCB, RUN,
 	EOL = (Blank | RUN & 255) + 1, IND, DED, INDR, DEDR,
@@ -90,7 +90,7 @@ public enum Lex : int
 public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 {
 	static readonly LexGram<L> Grammar = new LexGram<L>()
-		.k(L.BIND).w["="]
+		.k(L.INP).w[","].k(L.BIND).w["="]
 
 		.k(L.AND).w["&"].k(L.OR).w["|"].k(L.XOR).w["!="].k(L.NOT).w["!"]
 
