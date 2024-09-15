@@ -334,7 +334,7 @@ public partial class SerMaker<K, N>
 	}
 
 	public static int ErrZ = 3;
-	public static string Err = "{0} wants {1}", ErrMore = " \nand ", ErrEtc = " ...";
+	public static string Err = "{0} wants {1}", ErrMore = " and\n", ErrEtc = " ...";
 	public static string ErrEor = "want end of read";
 
 	// make error info and recovery
