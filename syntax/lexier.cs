@@ -46,18 +46,19 @@ public enum Lex : int
 	BIN2,   // logical binary operators
 	BIN3,   // comparison binary operators
 	BIN43,  // arithmetic binary operators
-	BIN46,	// arithmetic binary operators
-	BIN53,	// bitwise binary operators
-	BIN56,	// bitwise binary operators
+	BIN46,  // arithmetic binary operators
+	BIN53,  // bitwise binary operators
+	BIN56,  // bitwise binary operators
 	BIN6,
-	PRE,   // prefix operators
-	POST,  // postfix operators
+	PRE,    // prefix operators
+	POST,   // postfix operators
+	POSTH,  // high postfix operators
 
 	// singles
 	INP = 0x10, BIND,
 	LP = (Left | BIND & 255) + 1, LSB, LCB,
-	RP = (Right | LCB & 255) + 1, RSB, RCB, RUN,
-	EOL = (Blank | RUN & 255) + 1, IND, DED, INDR, DEDR,
+	RP = (Right | LCB & 255) + 1, RSB, RCB,
+	EOL = (Blank | RCB & 255) + 1, IND, DED, INDR, DEDR,
 	SP, COMM, COMMB, PATH, NUM,
 
 	// inside kinds
@@ -76,7 +77,9 @@ public enum Lex : int
 	// prefix: logical, arithmetic, bitwise
 	NOT = Left | Kind | PRE << 8 | 1, POSI, NEGA, NOTB,
 	// postfix
-	RUNP = Right | Kind | POST << 8 | 1,
+	RUN = Right | Kind | POST << 8 | 1,
+	// high postfix
+	RUNH = POSTH << 8 | POST << 8 ^ RUN,
 
 	// groups 0xff<<16
 	Kind   /**/= 0x800_0000, // kind group 8<<24
@@ -251,8 +254,9 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 		Indent();
 		BinPre(key, f);
 		if (lexs[size - 1] is Lexi<L> p && p.to == f)
-			if (key == L.RUN && (InKind(p.key, L.LITERAL) || InGroup(p.key, L.Right)))
-				key = L.RUNP; // run follows previous lexi densely, high precedence
+			if (InKind(key, L.POST) && (InKind(p.key, L.LITERAL) || InGroup(p.key, L.Right)))
+				// postfix follows previous lexi densely, high precedence
+				key = (L)((int)key ^ (int)L.POST << 8 | (int)L.POSTH << 8);
 			else if (InKind(key, L.LITERAL) && InKind(p.key, L.LITERAL))
 				base.Error(key, f, to, "literal can not densely follow literal");
 			else if (InKind(key, L.PRE) && !InGroup(p.key, L.Blank | L.Left))

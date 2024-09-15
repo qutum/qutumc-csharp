@@ -238,16 +238,16 @@ public class TestLexier : IDisposable
 	[TestMethod]
 	public void Name2()
 	{
-		Check("a..", "NAME=a RUNP= RUNP=");
-		Check("1.).", "INT=1 RUNP= RP= RUNP=");
-		Check("A1.b_..c-__.__", "NAME=A1 RUNP=b_ RUNP= RUNP=c SUB= NAME=__ RUNP=__");
+		Check("a..", "NAME=a RUNH= RUNH=");
+		Check("1.).", "INT=1 RUNH= RP= RUNH=");
+		Check("A1.b_..c-__.__", "NAME=A1 RUNH=b_ RUNH= RUNH=c SUB= NAME=__ RUNH=__");
 	}
 
 	[TestMethod]
 	public void Name3()
 	{
-		Check("a ..).b", "NAME=a RUN= RUNP= RP= RUNP=b");
-		Check("A1 .b_..c .d", "NAME=A1 RUN=b_ RUNP= RUNP=c RUN=d");
+		Check("a ..).b", "NAME=a RUN= RUNH= RP= RUNH=b");
+		Check("A1 .b_..c .d", "NAME=A1 RUN=b_ RUNH= RUNH=c RUN=d");
 	}
 
 	[TestMethod]
@@ -273,8 +273,8 @@ public class TestLexier : IDisposable
 	{
 		Check(".``", "RUN=,");
 		Check(".`a\n", "NAME!eol unexpected RUN=a, EOL=");
-		Check(".`a`.b.`c`", "RUN=a, RUNP=b RUNP=c,");
-		Check("a .`b.b`.`c` .`d`.``", "NAME=a RUN=b,b, RUNP=c, RUN=d, RUNP=,");
+		Check(".`a`.b.`c`", "RUN=a, RUNH=b RUNH=c,");
+		Check("a .`b.b`.`c` .`d`.``", "NAME=a RUN=b,b, RUNH=c, RUN=d, RUNH=,");
 	}
 
 	[TestMethod]
@@ -381,8 +381,8 @@ public class TestLexier : IDisposable
 	{
 		Lexier.Distinct([
 			Lex.LITERAL, Lex.BIN1, Lex.BIN2, Lex.BIN3, Lex.BIN43, Lex.BIN46,
-			Lex.BIN53, Lex.BIN56, Lex.BIN6, Lex.PRE, Lex.POST,
-			Lex.INP, Lex.BIND, Lex.RUN,
+			Lex.BIN53, Lex.BIN56, Lex.BIN6, Lex.PRE, Lex.POST, Lex.POSTH,
+			Lex.INP, Lex.BIND,
 			Lex.LP, Lex.LSB, Lex.LCB, Lex.RP, Lex.RSB, Lex.RCB,
 			Lex.EOL, Lex.IND, Lex.DED, Lex.INDR, Lex.DEDR,
 			Lex.SP, Lex.COMM, Lex.COMMB, Lex.PATH, Lex.NUM ]);
