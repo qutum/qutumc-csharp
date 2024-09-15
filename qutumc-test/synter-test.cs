@@ -430,6 +430,22 @@ public class TestSynter : IDisposable
 	}
 
 	[TestMethod]
+	public void Input4()
+	{
+		var t = Parse(@"a,");
+		t = t/**/	.h(B).H(Eh, (L.NAME, "a")).uuU();
+		t = Parse(@"a,1,");
+		t = t/**/	.h(B).H(Eh, (L.NAME, "a")).n(I).H(Eh, (L.INT, 1)).uuuU();
+		t = Parse(@"a 1,");
+		t = t/**/	.h(B).H(Eh, (L.NAME, "a")).n(I).H(Eh, (L.INT, 1)).uuuU();
+		t = Parse(@"(0 * a 1,2 3,)");
+		t = t/**/	.h(B).H(Eh, (L.INT, "0")).n(E, L.MUL);
+		t = t/**/		.H(Eh, (L.NAME, "a"));
+		t = t/**/		.n(I).H(Eh, (L.INT, 1)).u();
+		t = t/**/		.n(I).H(Eh, (L.INT, 2)).n(I).H(Eh, (L.INT, 3)).uuuuuU();
+	}
+
+	[TestMethod]
 	public void InputRun()
 	{
 		var t = Parse(@"0 == a, 1 * 2, 3, 4 .d / 5 c .");

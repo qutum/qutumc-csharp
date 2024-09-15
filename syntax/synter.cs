@@ -56,6 +56,8 @@ public partial class Synter : Synter<L, S, Synt, Lexier>
 		.n(S.line, "line")._[S.exp, L.EOL].recover
 
 		.n(S.inp, "serial input")
+				[S.inp, L.INP].clash
+				[S.exph, L.INP].clash
 				[S.inp, L.INP, .., S.exp].clash.syntLeft
 				[S.exph, L.INP, .., S.exp].clash.syntLeft
 		.n(S.exp, "expression", false)
