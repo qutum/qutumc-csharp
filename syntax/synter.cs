@@ -77,7 +77,7 @@ public partial class Synter : Synter<L, S, Synt, Lexier>
 		.n(S.inp)
 				[S.exp, S.exp].clash.syntLeft // higher than others for left associative
 		.n(S.exph)
-				[S.exph, L.POSTH, ..].clash.syntLeft.label("high postfix operator")
+				[S.exph, L.POSTD, ..].clash.syntLeft.label("high postfix operator")
 		;
 		// make
 		var m = new SerMaker<L, S>(gram, Lexier.Ordin, NameOrd, Lexier.Distinct);

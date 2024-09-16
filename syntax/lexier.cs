@@ -52,7 +52,7 @@ public enum Lex : int
 	BIN6,
 	PRE,    // prefix operators
 	POST,   // postfix operators
-	POSTH,  // high postfix operators
+	POSTD,  // dense postfix operators
 
 	// singles
 	INP = 0x10, BIND,
@@ -78,8 +78,8 @@ public enum Lex : int
 	NOT = Left | Kind | PRE << 8 | 1, POSI, NEGA, NOTB,
 	// postfix
 	RUN = Right | Kind | POST << 8 | 1,
-	// high postfix
-	RUNH = POSTH << 8 | POST << 8 ^ RUN,
+	// dense postfix
+	RUND = POSTD << 8 | POST << 8 ^ RUN,
 
 	// groups 0xff<<16
 	Kind   /**/= 0x800_0000, // kind group 8<<24
@@ -255,8 +255,8 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 		BinPre(key, f);
 		if (lexs[size - 1] is Lexi<L> p && p.to == f)
 			if (InKind(key, L.POST) && (InKind(p.key, L.LITERAL) || InGroup(p.key, L.Right)))
-				// postfix follows previous lexi densely, high precedence
-				key = (L)((int)key ^ (int)L.POST << 8 | (int)L.POSTH << 8);
+				// postfix follows previous lexi densely, higher precedence
+				key = (L)((int)key ^ (int)L.POST << 8 | (int)L.POSTD << 8);
 			else if (InKind(key, L.LITERAL) && InKind(p.key, L.LITERAL))
 				base.Error(key, f, to, "literal can not densely follow literal");
 			else if (InKind(key, L.PRE) && !InGroup(p.key, L.Blank | L.Left))

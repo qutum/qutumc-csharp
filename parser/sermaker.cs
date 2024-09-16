@@ -71,7 +71,7 @@ public partial class SynGram<K, N>
 	public SynGram<K, N> label(string w) { prods[^1][^1].label = w.ToString(); return this; }
 	public SynGram<K, N> labelNo { get { prods[^1][^1].label = null; return this; } }
 	public SynGram<K, N> labelYes { get { prods[^1][^1].label = prods[^1].label; return this; } }
-	// for format
+	// for sourcecode format
 	public SynGram<K, N> _ { get => this; }
 	public SynGram<K, N> __ { get => this; }
 	public SynGram<K, N> ___ { get => this; }

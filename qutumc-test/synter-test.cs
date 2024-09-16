@@ -351,7 +351,7 @@ public class TestSynter : IDisposable
 	}
 
 	[TestMethod]
-	public void Parath()
+	public void Parenth()
 	{
 		var t = Parse(@"(1)");
 		t = t/**/	.h(B).H(Eh, (L.INT, 1)).uuU();
@@ -438,7 +438,7 @@ public class TestSynter : IDisposable
 		t = t/**/	.h(B).H(Eh, (L.NAME, "a")).n(I).H(Eh, (L.INT, 1)).uuuU();
 		t = Parse(@"a 1,");
 		t = t/**/	.h(B).H(Eh, (L.NAME, "a")).n(I).H(Eh, (L.INT, 1)).uuuU();
-		t = Parse(@"(0 * a 1,2 3,)");
+		t = Parse(@"(0 * (a) 1,2 3,)");
 		t = t/**/	.h(B).H(Eh, (L.INT, "0")).n(E, L.MUL);
 		t = t/**/			.H(Eh, (L.NAME, "a"));
 		t = t/**/			.n(I).H(Eh, (L.INT, 1)).u();
@@ -460,10 +460,20 @@ public class TestSynter : IDisposable
 		t = t/**/	.h(B).H(Eh, (L.INT, "0"));
 		t = t/**/		.n(E, L.SHL).H(Eh, (L.NAME, "a")).n(I).H(Eh, (L.INT, 1)).uu();
 		t = t/**/		.n(E, L.MUL).H(Eh, (L.INT, 2));
-		t = t/**/					.n(I).H(Eh, (L.INT, 3)).N(Eh, (L.RUNH, "")).u();
+		t = t/**/					.n(I).H(Eh, (L.INT, 3)).N(Eh, (L.RUND, "")).u();
 		t = t/**/					.n(I).H(Eh, (L.INT, 4)).u();
 		t = t/**/					.N(Eh, L.RUN).u();
 		t = t/**/		.n(E, L.DIV).H(Eh, (L.INT, 5)).n(I).H(Eh, (L.NAME, "c")).u();
 		t = t/**/					.N(Eh, L.RUN).uuuU();
+		t = Parse(@"0 << a,1 * 2 3. 4 .d / 5 c .");
+		t = t/**/	.h(B).H(Eh, (L.INT, "0"));
+		t = t/**/		.n(E, L.SHL).H(Eh, (L.NAME, "a"));
+		t = t/**/					.n(I).H(Eh, (L.INT, 1));
+		t = t/**/					.n(E, L.MUL).H(Eh, (L.INT, 2));
+		t = t/**/								.n(I).H(Eh, (L.INT, 3)).N(Eh, (L.RUND, "")).u();
+		t = t/**/								.n(I).H(Eh, (L.INT, 4)).u();
+		t = t/**/								.N(Eh, L.RUN).u();
+		t = t/**/					.n(E, L.DIV).H(Eh, (L.INT, 5)).n(I).H(Eh, (L.NAME, "c")).u();
+		t = t/**/								.N(Eh, L.RUN).uuuuuU();
 	}
 }
