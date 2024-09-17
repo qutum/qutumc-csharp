@@ -6,7 +6,6 @@
 //
 using qutum.parser;
 using System;
-using System.Runtime.ConstrainedExecution;
 
 namespace qutum.syntax;
 
@@ -28,12 +27,6 @@ public class Synt : Synt<S, Synt>
 
 public partial class Synter : Synter<L, S, Synt, Lexier>
 {
-	static readonly Func<S, Nord> NameOrd = n => (Nord)n;
-	static readonly SynAlt<S>[] alts;
-	static readonly SynForm[] forms;
-	static readonly char[] recKs;
-	static readonly SerMaker<L, S> mer;
-
 	static Synter()
 	{
 		// syntax grammar
@@ -48,8 +41,7 @@ public partial class Synter : Synter<L, S, Synt, Lexier>
 
 		.n(S.nest)._[S.block].synt
 					[S.bin, .., S.block].synt.label("nested binary block")
-		.n(S.bin).__[L.BIN1][L.BIN2][L.BIN3][L.BIN43][L.BIN47]
-					[L.ORB][L.XORB][L.ANDB][L.BIN57][L.BIN6]
+		.n(S.bin).__.Alts(L.Bin)
 
 		.n(S.line, "line")._[S.exp, L.EOL].recover
 
@@ -80,12 +72,18 @@ public partial class Synter : Synter<L, S, Synt, Lexier>
 				[S.exph, L.POSTD, ..].clash.syntLeft.label("high postfix operator")
 		;
 		// make
-		var m = new SerMaker<L, S>(gram, Lexier.Ordin, NameOrd, Lexier.Distinct);
+		var m = new SerMaker<L, S>(gram, LexIs.Ordin, NameOrd, LexIs.Distinct);
 		(alts, forms, recKs) = m.Make(out var _);
 #if DEBUG
 		mer = m;
 #endif
 	}
+
+	static readonly Func<S, Nord> NameOrd = n => (Nord)n;
+	static readonly SynAlt<S>[] alts;
+	static readonly SynForm[] forms;
+	static readonly char[] recKs;
+	static readonly SerMaker<L, S> mer;
 
 	public Synter() : base(Lexier.Ordin, NameOrd, alts, forms, recKs)
 	{
@@ -106,5 +104,16 @@ public partial class Synter : Synter<L, S, Synt, Lexier>
 				from = ~x, to = ~x - 1, err = -3, info = err.key, dump = err.ToString()
 			});
 		return t.Append(errs.head?.up);
+	}
+}
+
+file static class Extension
+{
+	public static SynGram<L, S> Alts(this SynGram<L, S> gram, L group)
+	{
+		foreach (var k in LexIs.OfGroup(group))
+			if (k.IsKind() || k.IsSingle())
+				_ = gram[k];
+		return gram;
 	}
 }

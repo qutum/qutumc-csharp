@@ -20,7 +20,7 @@ public partial class Synter
 
 	public override string Dumper(object d)
 	{
-		if (d is Kord k && k != default) return Lexier.Ordin(k).ToString();
+		if (d is Kord k && k != default) return LexIs.Lex(k).ToString();
 		if (d is Nord n) return ((Syn)n).ToString();
 		return base.Dumper(d);
 	}

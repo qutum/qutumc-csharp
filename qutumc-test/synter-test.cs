@@ -263,8 +263,8 @@ public class TestSynter : IDisposable
 		t = Parse(@"
 			1
 				- -2
-					*!3
-				/+4");
+					* !3
+				/ +4");
 		t = t/**/	.h(B).H(Eh, (L.INT, 1));
 		t = t/**/		.n(N, L.SUB);
 		t = t/**/			.h(E, L.NEGA).H(Eh, (L.INT, 2)).u();

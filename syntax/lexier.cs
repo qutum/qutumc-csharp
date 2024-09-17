@@ -26,7 +26,7 @@ using Set = CharSet;
 	DOT		.	run
 	COL		:
 	SCOL	;
-	EQ		=	bind
+	EQ		=	quote
 	QUE		?
 	AT		@
 	BSL		\	byte block
@@ -36,27 +36,76 @@ using Set = CharSet;
 	TIL		~
 */
 
+public static class LexIs
+{
+	public static L Lex(Kord o)
+	{
+		if (ordins == null) {
+			var s = new L[256];
+			foreach (var k in Enum.GetValues<L>())
+				if (k.IsKind() || k.IsSingle())
+					s[k.Ordin()] = k;
+			s[default] = default;
+			ordins = s;
+		}
+		return ordins[o];
+	}
+	private static L[] ordins;
+
+	// check each key distinct from others, otherwise throw exception
+	public static void Distinct(IEnumerable<L> keys)
+	{
+		int kinds = 0;
+		StrMaker err = new();
+		foreach (var k in keys)
+			if (k != default &&
+				(k.IsGroup() || // any group
+				k.IsKind() && (kinds ^ (1 << (byte)k)) != (kinds |= 1 << (byte)k))) // duplicate kind
+				_ = err - ' ' + k;
+		foreach (var k in keys)
+			if ((kinds & (1 << k.InKind())) != 0)
+				_ = err - ' ' + k; // key inside kinds
+		if (err.Size > 0)
+			throw new(err);
+	}
+
+	public static IEnumerable<L> OfGroup(this L g) => Enum.GetValues<L>().Where(k => k.InGroup(g));
+
+	public static bool IsGroup(this L aim) => (byte)aim == 0;
+	public static bool IsKind(this L aim) => (ushort)aim is > 0 and < 16;
+	public static bool IsSingle(this L aim) => (ushort)aim is >= 16 and <= 255;
+	public static bool InGroup(this L key, L aim) => (int)(key & aim) << 8 != 0;
+	public static byte InKind(this L key) => (byte)((ushort)key >> 8);
+	public static bool InKind(this L key, L aim) => (byte)((int)key >> ((int)key >> 24)) == (byte)aim;
+
+	public static bool Is(this L key, L aim) =>
+		aim.IsGroup() ? key.InGroup(aim) : aim.IsKind() ? key.InKind(aim) : key == aim;
+
+	// key ordinal is single or kind value, useful for syntax parser
+	public static Kord Ordin(this L key) => (Kord)(byte)((int)key >> ((int)key >> 24));
+}
+
 // lexemes
 public enum Lex : int
 {
 	// 0 for end of read
 	// kinds 0xff<<8
 	LITERAL = 1,
-	BIN1,
+	BIN1 = Bin | 2,
 	BIN2,   // logical binary operators
 	BIN3,   // comparison binary operators
 	BIN43,  // arithmetic binary operators
 	BIN47,  // arithmetic binary operators
 	BIN57,  // bitwise binary operators
 	BIN6,
-	PRE,    // prefix operators
+	PRE = 10, // prefix operators
 	POST,   // postfix operators
 	POSTD,  // dense postfix operators
 
 	// singles
-	INP = 0x10, BIND, _orb,
+	INP = 16, QUO, _orb,
 	// singles of groups
-	ORB = Left | Right | _orb & 255, XORB, ANDB, _lp,
+	ORB = Bin | _orb & 255, XORB, _lp,
 	LP = Left | _lp & 255, LSB, LCB, _rp,
 	RP = Right | _rp & 255, RSB, RCB, _eol,
 	EOL = Blank | _eol & 255, IND, DED, INDR, DEDR,
@@ -66,14 +115,14 @@ public enum Lex : int
 	// literal
 	STR = Kind | LITERAL << 8 | 1, STRB, NAME, HEX, INT, FLOAT,
 	// logical
-	OR = Bin | BIN2 << 8 | 1, XOR, AND,
+	OR = BinK | BIN2 << 8 & 65535 | 1, XOR, AND,
 	// comparison
-	EQ = Bin | BIN3 << 8 | 1, UEQ, LEQ, GEQ, LT, GT,
+	EQ = BinK | BIN3 << 8 & 65535 | 1, UEQ, LEQ, GEQ, LT, GT,
 	// arithmetic
-	ADD = Bin | BIN43 << 8 | 1, SUB,
-	MUL = Bin | BIN47 << 8 | 1, DIV, MOD, DIVF, MODF,
+	ADD = BinK | BIN43 << 8 & 65535 | 1, SUB,
+	MUL = BinK | BIN47 << 8 & 65535 | 1, DIV, MOD, DIVF, MODF,
 	// bitwise
-	SHL = Bin | BIN57 << 8 | 1, SHR,
+	SHL = BinK | BIN57 << 8 & 65535 | 1, SHR, ANDB,
 	// prefix: logical, arithmetic, bitwise
 	NOT = Left | Kind | PRE << 8 | 1, POSI, NEGA, NOTB,
 	// postfix
@@ -85,15 +134,16 @@ public enum Lex : int
 	Blank  /**/= 0x_01_0000, // blank group
 	Left   /**/= 0x_02_0000, // left-side group
 	Right  /**/= 0x_04_0000, // right-side group
+	Bin    /**/= 0x_08_0000, // right-side group
 	Kind   /**/= 0x800_0000, // kind group 8<<24
-	Bin    /**/= Left | Right | Kind, // binary kind group
+	BinK   /**/= Bin | Kind, // binary kind group
 }
 
 // lexic parser
 public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 {
 	static readonly LexGram<L> Grammar = new LexGram<L>()
-		.k(L.INP).w[","].k(L.BIND).w["="]
+		.k(L.INP).w[","].k(L.QUO).w["="]
 
 		.k(L.AND).w["&"].k(L.OR).w["|"].k(L.XOR).w["!="].k(L.NOT).w["!"]
 
@@ -149,45 +199,9 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 				.w[[]]["eE".Mem(), Set.Dec, ..]["eE".Mem(), "+-".Mem(), Set.Dec, ..]
 				.w[[]]["fF".Mem()]
 	;
+	public static Kord Ordin(Lexier ler) => ler.lexs[ler.loc].key.Ordin();
 
-	// key ordinal is single or kind value, useful for syntax parser
-	public static Kord Ordin(L key) => (Kord)(byte)((int)key >> ((int)key >> 24));
-	public static Kord Ordin(Lexier ler) => Ordin(ler.lexs[ler.loc].key);
-	public static L Ordin(Kord o)
-	{
-		if (ordins == null) {
-			var s = new L[256];
-			foreach (var k in Enum.GetValues<L>())
-				if ((ushort)k >> 8 == 0)
-					s[Ordin(k)] = k;
-			s[default] = default;
-			ordins = s;
-		}
-		return ordins[o];
-	}
-	private static L[] ordins;
-
-	public static bool InGroup(L key, L aim) => (int)(key & aim) << 8 != 0;
-	public static bool InKind(L key, L aim) => (byte)((int)key >> ((int)key >> 24)) == (byte)aim;
-	public override bool Is(L key, L aim) =>
-		(byte)aim == 0 ? InGroup(key, aim) : (int)aim < 0x10 ? InKind(key, aim) : key == aim;
-
-	// check each key distinct from others, otherwise throw exception
-	public static void Distinct(IEnumerable<L> keys)
-	{
-		int kinds = 0;
-		StrMaker err = new();
-		foreach (var k in keys.Cast<int>())
-			if (k > 0 &&
-				((byte)k == 0 || // denied group
-				k < 0x10 && (kinds ^ (1 << k)) != (kinds |= 1 << k))) // duplicate kind
-				_ = err - ' ' + k;
-		foreach (var k in keys)
-			if ((kinds & (1 << ((ushort)k >> 8))) != 0)
-				_ = err - ' ' + k; // key inside kinds
-		if (err.Size > 0)
-			throw new(err);
-	}
+	public override bool Is(L key, L aim) => key.Is(aim);
 
 	public bool leadInd = true; // keep leading indent
 	public bool eor = true; // insert eol at eor
@@ -244,7 +258,7 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 		if (bin == default)
 			return;
 		Indent();
-		if (bint == f && !InGroup(key, L.Blank)) // right dense, binary as prefix
+		if (bint == f && !key.InGroup(L.Blank)) // right dense, binary as prefix
 			bin = bin switch { L.ADD => L.POSI, L.SUB => L.NEGA, _ => throw new() };
 		base.Lexi(bin, binf, bint, null);
 		bin = default;
@@ -255,12 +269,12 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 		Indent();
 		BinPre(key, f);
 		if (lexs[size - 1] is Lexi<L> p && p.to == f)
-			if (InKind(key, L.POST) && (InKind(p.key, L.LITERAL) || InGroup(p.key, L.Right)))
-				// postfix follows previous lexi densely, higher precedence
+			if (key.InKind(L.POST) && (p.key.InKind(L.LITERAL) || p.key.InGroup(L.Right)))
+				// postfix follows literal or right densely, higher precedence
 				key = (L)((int)key ^ (int)L.POST << 8 | (int)L.POSTD << 8);
-			else if (InKind(key, L.LITERAL) && InKind(p.key, L.LITERAL))
+			else if (key.InKind(L.LITERAL) && p.key.InKind(L.LITERAL))
 				base.Error(key, f, to, "literal can not densely follow literal");
-			else if (InKind(key, L.PRE) && !InGroup(p.key, L.Blank | L.Left))
+			else if (key.InKind(L.PRE) && !p.key.InGroup(L.Blank | L.Left))
 				base.Error(key, f, to, "prefix operator can densely follow blank or left only");
 		base.Lexi(key, f, to, value);
 	}
@@ -379,7 +393,7 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 
 		case L.ADD:
 		case L.SUB:
-			if (lexs[size - 1].to < f || InGroup(lexs[size - 1].key, L.Blank | L.Left)) { // left not dense
+			if (lexs[size - 1].to < f || lexs[size - 1].key.InGroup(L.Blank | L.Left)) { // left not dense
 				BinPre(key, f); // last binary
 				bin = key; binf = f; bint = to; // binary may be prefix
 				goto End;

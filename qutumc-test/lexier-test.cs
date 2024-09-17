@@ -367,13 +367,13 @@ public class TestLexier : IDisposable
 	{
 		Check("([{)]},", "LP= LSB= LCB= RP= RSB= RCB= INP=");
 		Check("*/%//%%", "MUL= DIV= MOD= DIVF= MODF=");
-		Check("<<>>---&&++||", "SHL= SHR= NOTB= NEGA= ANDB= XORB= ORB=");
+		Check("<<>> ---&&++||", "SHL= SHR= NOTB= NEGA= ANDB= XORB= ORB=");
 	}
 
 	[TestMethod]
 	public void Symbol3()
 	{
-		Check("===/=<<=<=<>=>", "EQ= BIND= UEQ= SHL= BIND= LEQ= LT= GEQ= GT=");
+		Check("===/=<<=<=<>=>", "EQ= QUO= UEQ= SHL= QUO= LEQ= LT= GEQ= GT=");
 		Check("!!&!=|", "NOT= NOT= AND= XOR= OR=");
 	}
 
@@ -388,15 +388,14 @@ public class TestLexier : IDisposable
 	[TestMethod]
 	public void Distinct()
 	{
-		Lexier.Distinct([
+		LexIs.Distinct([
 			Lex.LITERAL, Lex.BIN1, Lex.BIN2, Lex.BIN3, Lex.BIN43, Lex.BIN47,
 			Lex.BIN57, Lex.BIN6, Lex.PRE, Lex.POST, Lex.POSTD,
-			Lex.INP, Lex.BIND,
-			Lex.ORB, Lex.XORB, Lex.ANDB,
+			Lex.INP, Lex.QUO, Lex.ORB, Lex.XORB,
 			Lex.LP, Lex.LSB, Lex.LCB, Lex.RP, Lex.RSB, Lex.RCB,
 			Lex.EOL, Lex.IND, Lex.DED, Lex.INDR, Lex.DEDR,
 			Lex.SP, Lex.COM, Lex.COMB, Lex.PATH, Lex.NUM ]);
-		Throw(() => Lexier.Distinct([
+		Throw(() => LexIs.Distinct([
 			default, Lex.LITERAL, Lex.BIN43, Lex.STR, Lex.ADD, Lex.EQ, Lex.LP, Lex.RP
 		]), "STR ADD");
 	}
