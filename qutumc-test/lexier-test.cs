@@ -64,18 +64,18 @@ public class TestLexier : IDisposable
 	[TestMethod]
 	public void Comment()
 	{
-		CheckSp("\\##\\\\###\\ ", "COMM=COMMB SP=");
-		CheckSp("\\### \\# ###\\ ###\\ ab", "COMM=COMMB SP= COMM=");
-		CheckSp("\\## \\## ##\\ ##\\ \nab", "COMM=COMMB SP= COMM= EOL= NAME=ab");
+		CheckSp("\\##\\\\###\\ ", "COMB= SP=");
+		CheckSp("\\### \\# ###\\ ###\\ ab", "COMB= SP= COM=");
+		CheckSp("\\## \\## ##\\ ##\\ \nab", "COMB= SP= COM= EOL= NAME=ab");
 		Check("\\## \\## ##\\ ##\\ \nab", "NAME=ab");
-		Check("\\", "COMMB!"); Check("\\\\", "COMMB!");
+		Check("\\", "COMB!"); Check("\\\\", "COMB!");
 	}
 
 	[TestMethod]
 	public void Eol()
 	{
 		CheckSp("\\##\\\t \r\n\r\n\\##\\ \t \n",
-			@"COMM=COMMB SP= EOL!use LF \n eol instead of CRLF \r\n EOL= EOL= COMM=COMMB SP= EOL=");
+			@"COMB= SP= EOL!use LF \n eol instead of CRLF \r\n EOL= EOL= COMB= SP= EOL=");
 		Check("\\##\\\t \r\n\r\n\\##\\ \t \n", @"EOL!use LF \n eol instead of CRLF \r\n");
 	}
 
@@ -126,7 +126,7 @@ public class TestLexier : IDisposable
 	[TestMethod]
 	public void Indent4()
 	{
-		CheckSp("\t\t##\n\t\t\t##\n\t##", "INDR=8 COMM= EOL= IND=12 COMM= EOL= DED=12 DEDR=8 IND=4 COMM= DED=4");
+		CheckSp("\t\t##\n\t\t\t##\n\t##", "INDR=8 COM= EOL= IND=12 COM= EOL= DED=12 DEDR=8 IND=4 COM= DED=4");
 		Check("\t\t##\n\t\t\t##\n\t##", "");
 		Check("""
 			a
@@ -380,12 +380,13 @@ public class TestLexier : IDisposable
 	public void Distinct()
 	{
 		Lexier.Distinct([
-			Lex.LITERAL, Lex.BIN1, Lex.BIN2, Lex.BIN3, Lex.BIN43, Lex.BIN46,
-			Lex.BIN53, Lex.BIN56, Lex.BIN6, Lex.PRE, Lex.POST, Lex.POSTD,
+			Lex.LITERAL, Lex.BIN1, Lex.BIN2, Lex.BIN3, Lex.BIN43, Lex.BIN47,
+			Lex.BIN57, Lex.BIN6, Lex.PRE, Lex.POST, Lex.POSTD,
 			Lex.INP, Lex.BIND,
+			Lex.ORB, Lex.XORB, Lex.ANDB,
 			Lex.LP, Lex.LSB, Lex.LCB, Lex.RP, Lex.RSB, Lex.RCB,
 			Lex.EOL, Lex.IND, Lex.DED, Lex.INDR, Lex.DEDR,
-			Lex.SP, Lex.COMM, Lex.COMMB, Lex.PATH, Lex.NUM ]);
+			Lex.SP, Lex.COM, Lex.COMB, Lex.PATH, Lex.NUM ]);
 		Throw(() => Lexier.Distinct([
 			default, Lex.LITERAL, Lex.BIN43, Lex.STR, Lex.ADD, Lex.EQ, Lex.LP, Lex.RP
 		]), "STR ADD");

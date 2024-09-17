@@ -363,6 +363,21 @@ public class TestSynter : IDisposable
 	}
 
 	[TestMethod]
+	public void RecoverParenth()
+	{
+		var t = Parse(@"(1");
+		t = t/**/	.h(B).H(Eh, (L.INT, 1)).N(S.exph, err: 1).uu();
+		t = t/**/.e().H(null, "parenth RP", 1.3, 1.3, -1).uU();
+		t = Parse(@"-(-1/(2+)3)/)");
+		t = t/**/	.h(B).h(E, L.NEGA).h(E, L.NEGA).H(Eh, (L.INT, 1)).u();
+		t = t/**/					.n(E, L.DIV).H(Eh, (L.INT, 2)).N(S.exph, err: 1);
+		t = t/**/								.n(I).H(Eh, (L.INT, 3)).uuu();
+		t = t/**/		.N(S.line, err: 1).uu();
+		t = t/**/.e().H(S.exph, "arithmetic expression", 1.9, 1.10m, -1);
+		t = t/**/	.N(S.line, "arithmetic expression", 1.13, 1.14, -1).uU();
+	}
+
+	[TestMethod]
 	public void Prefix()
 	{
 		var t = Parse(@"1- -2");

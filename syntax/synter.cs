@@ -50,8 +50,8 @@ public partial class Synter : Synter<L, S, Synt, Lexier>
 
 		.n(S.nest)._[S.block].synt
 					[S.bin, .., S.block].synt.label("nested binary block")
-		.n(S.bin).__[L.BIN1][L.BIN2][L.BIN3]
-					[L.BIN43][L.BIN46][L.BIN53][L.BIN56][L.BIN6]
+		.n(S.bin).__[L.BIN1][L.BIN2][L.BIN3][L.BIN43][L.BIN47]
+					[L.ORB][L.XORB][L.ANDB][L.BIN57][L.BIN6]
 
 		.n(S.line, "line")._[S.exp, L.EOL].recover
 
@@ -63,9 +63,11 @@ public partial class Synter : Synter<L, S, Synt, Lexier>
 				[S.exp, L.BIN2, .., S.exp].clash.syntLeft.label("logical operator")
 				[S.exp, L.BIN3, .., S.exp].clash.syntLeft.label("comparison operator")
 				[S.exp, L.BIN43, .., S.exp].clash.syntLeft.label("arithmetic operator")
-				[S.exp, L.BIN46, .., S.exp].clash.syntLeft.label("arithmetic operator")
-				[S.exp, L.BIN53, .., S.exp].clash.syntLeft.label("bitwise operator")
-				[S.exp, L.BIN56, .., S.exp].clash.syntLeft.label("bitwise operator")
+				[S.exp, L.BIN47, .., S.exp].clash.syntLeft.label("arithmetic operator")
+				[S.exp, L.ORB, .., S.exp].clash.syntLeft.label("bitwise operator")
+				[S.exp, L.XORB, .., S.exp].clash.syntLeft.label("bitwise operator")
+				[S.exp, L.ANDB, .., S.exp].clash.syntLeft.label("bitwise operator")
+				[S.exp, L.BIN57, .., S.exp].clash.syntLeft.label("bitwise operator")
 				[S.exp, L.BIN6, .., S.exp].clash.syntLeft.label("bin6 operator")
 				[L.PRE, .., S.exp].clash.synt.label("prefix operator")
 				[S.exph].clash

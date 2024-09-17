@@ -46,34 +46,34 @@ public enum Lex : int
 	BIN2,   // logical binary operators
 	BIN3,   // comparison binary operators
 	BIN43,  // arithmetic binary operators
-	BIN46,  // arithmetic binary operators
-	BIN53,  // bitwise binary operators
-	BIN56,  // bitwise binary operators
+	BIN47,  // arithmetic binary operators
+	BIN57,  // bitwise binary operators
 	BIN6,
 	PRE,    // prefix operators
 	POST,   // postfix operators
 	POSTD,  // dense postfix operators
 
 	// singles
-	INP = 0x10, BIND,
-	LP = (Left | BIND & 255) + 1, LSB, LCB,
-	RP = (Right | LCB & 255) + 1, RSB, RCB,
-	EOL = (Blank | RCB & 255) + 1, IND, DED, INDR, DEDR,
-	SP, COMM, COMMB, PATH, NUM,
+	INP = 0x10, BIND, _orb,
+	// singles of groups
+	ORB = Left | Right | _orb & 255, XORB, ANDB, _lp,
+	LP = Left | _lp & 255, LSB, LCB, _rp,
+	RP = Right | _rp & 255, RSB, RCB, _eol,
+	EOL = Blank | _eol & 255, IND, DED, INDR, DEDR,
+	SP, COM, COMB, PATH, NUM,
 
 	// inside kinds
 	// literal
 	STR = Kind | LITERAL << 8 | 1, STRB, NAME, HEX, INT, FLOAT,
 	// logical
-	AND = Bin | BIN2 << 8 | 1, OR, XOR,
+	OR = Bin | BIN2 << 8 | 1, XOR, AND,
 	// comparison
 	EQ = Bin | BIN3 << 8 | 1, UEQ, LEQ, GEQ, LT, GT,
 	// arithmetic
 	ADD = Bin | BIN43 << 8 | 1, SUB,
-	MUL = Bin | BIN46 << 8 | 1, DIV, MOD, DIVF, MODF,
+	MUL = Bin | BIN47 << 8 | 1, DIV, MOD, DIVF, MODF,
 	// bitwise
-	ANDB = Bin | BIN53 << 8 | 1, ORB, XORB,
-	SHL = Bin | BIN56 << 8 | 1, SHR,
+	SHL = Bin | BIN57 << 8 | 1, SHR,
 	// prefix: logical, arithmetic, bitwise
 	NOT = Left | Kind | PRE << 8 | 1, POSI, NEGA, NOTB,
 	// postfix
@@ -82,11 +82,11 @@ public enum Lex : int
 	RUND = POSTD << 8 | POST << 8 ^ RUN,
 
 	// groups 0xff<<16
-	Kind   /**/= 0x800_0000, // kind group 8<<24
 	Blank  /**/= 0x_01_0000, // blank group
 	Left   /**/= 0x_02_0000, // left-side group
 	Right  /**/= 0x_04_0000, // right-side group
-	Bin    /**/= 0x806_0000, // binary kind group
+	Kind   /**/= 0x800_0000, // kind group 8<<24
+	Bin    /**/= Left | Right | Kind, // binary kind group
 }
 
 // lexic parser
@@ -115,9 +115,9 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 		.k(L.SP).w[" \t".Mem()] // [\s\t]  |+\s+|+\t+
 				.w[[]][" ", ..].loop["\t", ..].loop
 
-		.k(L.COMM).w["##"] // ##  |[\A^\n]+
+		.k(L.COM).w["##"] // ##  |[\A^\n]+
 					.w[[]][Set.All.Exc("\n"), ..]
-		.k(L.COMMB).w["\\", .., "#"] // \\+#  +#\\+|+#|+[\A^#]+
+		.k(L.COMB).w["\\", .., "#"] // \\+#  +#\\+|+#|+[\A^#]+
 					.w["#", "\\", ..].loop["#"].loop[Set.All.Exc("#"), ..].loop
 
 		.k(L.STRB).w["\\", .., "\""] // \\+"  +"\\+|+"|+[\A^"]+
@@ -324,7 +324,7 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 					indb = read.Lex(f); // first line start, save the indent byte
 				else if (f < to && read.Lex(f) != indb) { // mix \s and \t
 					sol = false; // as not line start and indent unchanged
-					Error(key, f, to, "do not mix tabs and spaces for indent"); // TODO omit this before COMM
+					Error(key, f, to, "do not mix tabs and spaces for indent"); // TODO omit this before COM ?
 				}
 			if (!end)
 				return;
@@ -336,22 +336,21 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 				Lexi(key, from, to, null);
 			goto End; // lexis already made
 
-		case L.COMM:
+		case L.COM:
 			if (!allBlank)
 				goto End;
 			break;
 
-		case L.COMMB:
+		case L.COMB:
 			if (wad == 1) {
 				bz = to; // begin wad loc
 				return;
 			}
 			if (to - f != bz - from || read.Lex(f) != '#') // check end wad size
 				return;
-			end = true;
+			end = true; bz = 0;
 			if (!allBlank)
 				goto End;
-			key = L.COMM; d = L.COMMB; // as COMM
 			break;
 
 		case L.STRB:
