@@ -25,7 +25,7 @@ static class Qutumc
 				file = Console.ReadLine();
 			}
 			var bs = File.ReadAllBytes(file);
-			var ser = new Synter().Begin(new() { allValue = true });
+			var ser = new Synter().Begin(new());
 			using var __ = ser.ler.Begin(new LerByte(bs));
 			ser.Parse().Dump(ser.Dumper);
 		}

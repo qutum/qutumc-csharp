@@ -189,8 +189,8 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 			throw new(err);
 	}
 
+	public bool leadInd = true; // keep leading indent
 	public bool eor = true; // insert eol at eor
-	public bool allValue = false; // set all lexis value
 	public bool allBlank = false; // keep spaces without indent and offset, comments and empty lines
 
 	public Lexier() : base(Grammar) { }
@@ -203,7 +203,7 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 		loc = 0; base.Lexi(L.EOL, 0, 0, null); // eol for lexs[size - 1]
 	}
 
-	public const int IndLoc = 2, IndrLoc = 6;
+	public const int IndMin = 2, IndrMin = 6;
 	int indb; // indent byte, unknown: -1
 	int indz; // inds size
 	int[] inds = new int[100]; // {0, indent column...}
@@ -213,24 +213,25 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 	{
 		if (ind < 0)
 			return;
-		int i = 1, c = ind;
-		if (indz > 0) {
-			i = Array.BinarySearch<int>(inds, 0, indz + 1, ind + IndLoc); // min indent as offset
-			i ^= i >> 31;
-			c = ind - inds[i - 1];
-			if (i <= indz) { // drop these indents
-				for (var x = indz; x >= i; indz = --x)
-					if (x > i || c < IndrLoc)
-						base.Lexi(inds[x] - inds[x - 1] < IndrLoc ? L.DED : L.DEDR,
-							indf, indf, inds[x]);
-					else { // still INDR
-						base.Error(L.INDR, indf, indt, "indent expected same as upper lines");
-						goto Done;
-					}
-			}
-		}
-		if (c >= IndLoc) {
-			base.Lexi(c < IndrLoc ? L.IND : L.INDR, indf, indt, ind);
+		if (indz == 0 && leadInd)
+			inds[indz = 1] = 0;
+		var i = Array.BinarySearch(inds, 0, indz + 1, ind + IndMin); // indent with offset
+		i ^= i >> 31; // >= 1
+		var c = ind - inds[i - 1];
+		// for i <= indz, drop these indents
+		for (var x = indz; x >= i; indz = --x)
+			if (x > 1)
+				if (x > i || c < IndrMin)
+					base.Lexi(inds[x] - inds[x - 1] < IndrMin ? L.DED : L.DEDR,
+						indf, indf, inds[x]);
+				else { // INDR remains
+					base.Error(L.INDR, indf, indt, "indent-right expected same as upper lines");
+					goto Done;
+				}
+		// add indent
+		if (c >= IndMin) {
+			if (i > 1)
+				base.Lexi(c < IndrMin ? L.IND : L.INDR, indf, indt, ind);
 			indz = i;
 			if (indz >= inds.Length) Array.Resize(ref inds, inds.Length << 1);
 			inds[i] = ind;
@@ -437,11 +438,6 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 				Read(f, to, bz); Unesc(f, to);
 			}
 			return; // inside path
-
-		default:
-			if (allValue)
-				bz = Read(from, to, 0);
-			break;
 		}
 		if (!end)
 			return;

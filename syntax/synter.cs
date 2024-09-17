@@ -17,7 +17,7 @@ using S = Syn;
 public enum Syn : Nord
 {
 	__ = default,
-	all, all__, all_, Block,
+	qutum, Block,
 	block, nestr, nests, Nest, nest, bin, line,
 	exp, exph, inp,
 }
@@ -38,15 +38,13 @@ public partial class Synter : Synter<L, S, Synt, Lexier>
 	{
 		// syntax grammar
 		var gram = new SynGram<L, S>()
-		.n(S.all).___[S.all__, S.all_, S.Block].synt
-		.n(S.all__)._[[]]._[L.INDR, S.Block, L.DEDR]
-		.n(S.all_).__[[]]._[L.IND, S.Block, L.DED]
-		.n(S.Block)._[[]]._[S.block, S.Block].syntRight
+		.n(S.qutum)._[S.Block].synt
+		.n(S.Block)._[[]]._[S.Block, S.block].syntLeft
 
 		.n(S.block)._[S.line, S.nestr, S.nests]
 		.n(S.nestr)._[[]]._[L.INDR, S.Nest, L.DEDR].synt
 		.n(S.nests)._[[]]._[L.IND, S.Nest, L.DED]
-		.n(S.Nest).__[S.nest]._[S.nest, S.Nest]
+		.n(S.Nest).__[S.nest]._[S.Nest, S.nest]
 
 		.n(S.nest)._[S.block].synt
 					[S.bin, .., S.block].synt.label("nested binary block")
@@ -99,6 +97,7 @@ public partial class Synter : Synter<L, S, Synt, Lexier>
 
 	public override Synt Parse()
 	{
+		(ler.leadInd, ler.eor, ler.allBlank) = (false, true, false);
 		var t = base.Parse();
 		// add error lexis
 		var errs = new Synt { err = -3, info = ler.errs.Count };

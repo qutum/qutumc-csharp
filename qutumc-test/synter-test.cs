@@ -130,7 +130,7 @@ public class TestSynter : IDisposable
 	[TestMethod]
 	public void Blocks()
 	{
-		var t = Parse("").Eq(S.all).U();
+		var t = Parse("").Eq(S.qutum).U();
 		t = Parse(@"
 			1
 			2");
@@ -139,7 +139,7 @@ public class TestSynter : IDisposable
 		t = Parse(@"
 				1
 		\##\ 2
-				3
+		3
 	\##\ 4
 	5
 6");
@@ -148,8 +148,7 @@ public class TestSynter : IDisposable
 		t = t/**/	.n(B).H(Eh, (L.INT, 3)).u();
 		t = t/**/	.n(B).H(Eh, (L.INT, 4)).u();
 		t = t/**/	.n(B).H(Eh, (L.INT, 5)).u();
-		t = t/**/	.n(B).H(Eh, (L.INT, 6)).uu();
-		t = t/**/.e(-3).H(null, L.INDR, 3.1, 3.3, -3).uU();
+		t = t/**/	.n(B).H(Eh, (L.INT, 6)).uuU();
 	}
 
 	[TestMethod]
@@ -198,6 +197,7 @@ public class TestSynter : IDisposable
 	[TestMethod]
 	public void NestedRight()
 	{
+		ser.dump = 3;
 		var t = Parse(@"
 			1
 					2

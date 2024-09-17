@@ -101,8 +101,6 @@ public class TestLexier : IDisposable
 		g
 		h
 		""", "IND=4 NAME=a EOL= NAME=b EOL= INDR=12 NAME=c EOL= IND=16 NAME=d EOL= DED=16 NAME=e EOL= DEDR=12 IND=8 NAME=f EOL= DED=8 DED=4 NAME=g EOL= NAME=h");
-		Check("          a\n      b\n  c",
-			"INDR=10 NAME=a EOL= INDR!indent expected same as upper lines NAME=b EOL= DEDR=10 IND=2 NAME=c DED=2");
 	}
 
 	[TestMethod]
@@ -119,8 +117,6 @@ public class TestLexier : IDisposable
 		g
 		h
 		""", "IND=2 NAME=a EOL= NAME=b EOL= INDR=8 NAME=c EOL= IND=10 NAME=d EOL= DED=10 NAME=e EOL= DEDR=8 IND=4 NAME=f EOL= DED=4 DED=2 NAME=g EOL= NAME=h");
-		CheckSp("   a\n  b\n    c\n     d\n  e",
-			"IND=3 NAME=a EOL= NAME=b EOL= NAME=c EOL= IND=5 NAME=d EOL= DED=5 NAME=e DED=3");
 	}
 
 	[TestMethod]
@@ -147,6 +143,19 @@ public class TestLexier : IDisposable
 		##
 					d
 		""".Replace(",", ""), "IND=4 NAME=a EOL= DED=4 NAME=b EOL= INDR=8 NAME=c EOL= IND=12 NAME=d DED=12 DEDR=8");
+	}
+
+	[TestMethod]
+	public void Indent5()
+	{
+		Check("          a\n      b\n  c",
+			"INDR=10 NAME=a EOL= INDR!indent-right expected same as upper lines NAME=b EOL= DEDR=10 IND=2 NAME=c DED=2");
+		CheckSp("   a\n  b\n    c\n     d\n  e",
+			"IND=3 NAME=a EOL= NAME=b EOL= NAME=c EOL= IND=5 NAME=d EOL= DED=5 NAME=e DED=3");
+		ler.leadInd = false;
+		Check("          a\n      b\n  c", "NAME=a EOL= NAME=b EOL= NAME=c");
+		CheckSp("   a\n  b\n    c\n     d\n  e",
+			"NAME=a EOL= NAME=b EOL= NAME=c EOL= IND=5 NAME=d EOL= DED=5 NAME=e");
 	}
 
 	[TestMethod]
