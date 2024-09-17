@@ -52,7 +52,7 @@ public class TestSerMaker : IDisposable
 
 	public void NewMer(Gram gram)
 	{
-		mer = new(gram, k => k, n => n[0], (_) => { });
+		mer = new(gram, k => k, n => n[0]);
 	}
 
 	public void NewSer(bool recover = false)

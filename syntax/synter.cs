@@ -16,9 +16,8 @@ using S = Syn;
 public enum Syn : Nord
 {
 	__ = default,
-	qutum, Block,
-	block, nestr, nests, Nest, nest, bin, line,
-	exp, exph, inp,
+	qutum, Block, block, nestr, nests, Nest, nest, bin,
+	line, exp, exph, inp,
 }
 
 public class Synt : Synt<S, Synt>
@@ -50,15 +49,15 @@ public partial class Synter : Synter<L, S, Synt, Lexier>
 				[S.exph, L.INP, .., S.exp].clash.syntLeft.label("serial input")
 		.n(S.exp, "expression", false)
 				[S.exp, L.BIN1, .., S.exp].clash.syntLeft.label("bin1 operator")
-				[S.exp, L.BIN2, .., S.exp].clash.syntLeft.label("logical operator")
-				[S.exp, L.BIN3, .., S.exp].clash.syntLeft.label("comparison operator")
-				[S.exp, L.BIN43, .., S.exp].clash.syntLeft.label("arithmetic operator")
-				[S.exp, L.BIN47, .., S.exp].clash.syntLeft.label("arithmetic operator")
+				[S.exp, L.BIN2, .., S.exp].clash.syntLeft.label("bin2 operator")
+				[S.exp, L.BIN3, .., S.exp].clash.syntLeft.label("logical operator")
+				[S.exp, L.BIN4, .., S.exp].clash.syntLeft.label("comparison operator")
+				[S.exp, L.BIN53, .., S.exp].clash.syntLeft.label("arithmetic operator")
+				[S.exp, L.BIN57, .., S.exp].clash.syntLeft.label("arithmetic operator")
 				[S.exp, L.ORB, .., S.exp].clash.syntLeft.label("bitwise operator")
 				[S.exp, L.XORB, .., S.exp].clash.syntLeft.label("bitwise operator")
-				[S.exp, L.ANDB, .., S.exp].clash.syntLeft.label("bitwise operator")
-				[S.exp, L.BIN57, .., S.exp].clash.syntLeft.label("bitwise operator")
-				[S.exp, L.BIN6, .., S.exp].clash.syntLeft.label("bin6 operator")
+				[S.exp, L.BIN67, .., S.exp].clash.syntLeft.label("bitwise operator")
+				[S.exp, L.BIN7, .., S.exp].clash.syntLeft.label("bin7 operator")
 				[L.PRE, .., S.exp].clash.synt.label("prefix operator")
 				[S.exph].clash
 		.n(S.exph)
@@ -72,7 +71,7 @@ public partial class Synter : Synter<L, S, Synt, Lexier>
 				[S.exph, L.POSTD, ..].clash.syntLeft.label("high postfix operator")
 		;
 		// make
-		var m = new SerMaker<L, S>(gram, LexIs.Ordin, NameOrd, LexIs.Distinct);
+		var m = new SerMaker<L, S>(gram, LexIs.Ordin, NameOrd);
 		(alts, forms, recKs) = m.Make(out var _);
 #if DEBUG
 		mer = m;

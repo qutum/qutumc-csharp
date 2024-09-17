@@ -4,14 +4,12 @@
 // Under the terms of the GNU General Public License version 3
 // http://qutum.com  http://qutum.cn
 //
+namespace qutum.parser;
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
-
-namespace qutum.parser;
-
-using static System.Runtime.InteropServices.JavaScript.JSType;
 using Kord = char;
 using Nord = ushort;
 
@@ -387,8 +385,7 @@ public partial class SerMaker<K, N>
 	}
 
 	// phase init: get grammar
-	public SerMaker(SynGram<K, N> gram, Func<K, Kord> keyOrd, Func<N, Nord> nameOrd,
-		Action<IEnumerable<K>> distinct, bool dump = true)
+	public SerMaker(SynGram<K, N> gram, Func<K, Kord> keyOrd, Func<N, Nord> nameOrd, bool dump = true)
 	{
 		this.dump = dump; this.keyOrd = keyOrd; this.nameOrd = nameOrd;
 		// names
@@ -412,7 +409,7 @@ public partial class SerMaker<K, N>
 		alts = new SynGram<K, N>.Alt[gram.prods.Sum(p => p.Count)];
 		if (alts.Length is 0 or > 32767)
 			throw new($"total {alts.Length} alterns");
-		short ax = 0;
+		short ax = 0; Kord ko;
 		foreach (var p in gram.prods) {
 			var np = prods[Name(p.name)];
 			foreach (var (a, pax) in p.Each()) {
@@ -422,13 +419,18 @@ public partial class SerMaker<K, N>
 				if (a.Count == 0 && ax == 0)
 					throw new($"initial {p.name}.{pax} emppty");
 				foreach (var c in a)
-					if (c is K k)
-						ks[keyOrd(k)] = !k.Equals(default(K)) ? k
-							: throw new($"end of read in {p.name}.{pax}");
-					else if (accept.Equals(c))
-						throw new($"initial name {accept} in {p.name}.{pax} ");
-					else if (Name((N)c) < 0)
-						throw new($"name {c} in {p.name}.{pax} not found");
+					if (c is not K k) {
+						if (accept.Equals(c))
+							throw new($"initial name {accept} in {p.name}.{pax} ");
+						else if (Name((N)c) < 0)
+							throw new($"name {c} in {p.name}.{pax} not found");
+					}
+					else if ((ko = keyOrd(k)) == default)
+						throw new($"end of read in {p.name}.{pax}");
+					else if (!ks.TryGetValue(ko, out var kk))
+						ks[ko] = k;
+					else if (!k.Equals(kk))
+						throw new($"{p.name}.{pax} lexic key {k} confused with {kk}");
 				// clash
 				if (a.clash != 0 && a.Count == 0)
 					throw new($"{p.name}.{pax} clash but empty");
@@ -462,7 +464,6 @@ public partial class SerMaker<K, N>
 			throw new($"default key ordinal {keyOrd(default)}");
 		keyOs = [.. ks.Keys];
 		keys = [.. ks.Values];
-		distinct(keys);
 		if (recs.Count > 10)
 			throw new($"recovery keys size {recs.Count}");
 		recKs = [.. recs];

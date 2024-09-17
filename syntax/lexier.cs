@@ -38,37 +38,6 @@ using Set = CharSet;
 
 public static class LexIs
 {
-	public static L Lex(Kord o)
-	{
-		if (ordins == null) {
-			var s = new L[256];
-			foreach (var k in Enum.GetValues<L>())
-				if (k.IsKind() || k.IsSingle())
-					s[k.Ordin()] = k;
-			s[default] = default;
-			ordins = s;
-		}
-		return ordins[o];
-	}
-	private static L[] ordins;
-
-	// check each key distinct from others, otherwise throw exception
-	public static void Distinct(IEnumerable<L> keys)
-	{
-		int kinds = 0;
-		StrMaker err = new();
-		foreach (var k in keys)
-			if (k != default &&
-				(k.IsGroup() || // any group
-				k.IsKind() && (kinds ^ (1 << (byte)k)) != (kinds |= 1 << (byte)k))) // duplicate kind
-				_ = err - ' ' + k;
-		foreach (var k in keys)
-			if ((kinds & (1 << k.InKind())) != 0)
-				_ = err - ' ' + k; // key inside kinds
-		if (err.Size > 0)
-			throw new(err);
-	}
-
 	public static IEnumerable<L> OfGroup(this L g) => Enum.GetValues<L>().Where(k => k.InGroup(g));
 
 	public static bool IsGroup(this L aim) => (byte)aim == 0;
@@ -81,7 +50,7 @@ public static class LexIs
 	public static bool Is(this L key, L aim) =>
 		aim.IsGroup() ? key.InGroup(aim) : aim.IsKind() ? key.InKind(aim) : key == aim;
 
-	// key ordinal is single or kind value, useful for syntax parser
+	// key ordinal is single or kind byte
 	public static Kord Ordin(this L key) => (Kord)(byte)((int)key >> ((int)key >> 24));
 }
 
@@ -92,37 +61,38 @@ public enum Lex : int
 	// kinds 0xff<<8
 	LITERAL = 1,
 	BIN1 = Bin | 2,
-	BIN2,   // logical binary operators
-	BIN3,   // comparison binary operators
-	BIN43,  // arithmetic binary operators
-	BIN47,  // arithmetic binary operators
-	BIN57,  // bitwise binary operators
-	BIN6,
+	BIN2,
+	BIN3,   // logical binary operators
+	BIN4,   // comparison binary operators
+	BIN53,  // arithmetic binary operators
+	BIN57,  // arithmetic binary operators
+	BIN67,  // bitwise binary operators
+	BIN7,
 	PRE = 10, // prefix operators
 	POST,   // postfix operators
 	POSTD,  // dense postfix operators
 
 	// singles
-	INP = 16, QUO, _orb,
-	// singles of groups
-	ORB = Bin | _orb & 255, XORB, _lp,
-	LP = Left | _lp & 255, LSB, LCB, _rp,
-	RP = Right | _rp & 255, RSB, RCB, _eol,
-	EOL = Blank | _eol & 255, IND, DED, INDR, DEDR,
+	INP = 16, QUO,
+	// singles of groups: bitwise, left, right, blank
+	ORB = Bin | QUO + 1 & 255, XORB,
+	LP = Left | XORB + 1 & 255, LSB, LCB,
+	RP = Right | LCB + 1 & 255, RSB, RCB,
+	EOL = Blank | RCB + 1 & 255, IND, DED, INDR, DEDR,
 	SP, COM, COMB, PATH, NUM,
 
 	// inside kinds
 	// literal
 	STR = Kind | LITERAL << 8 | 1, STRB, NAME, HEX, INT, FLOAT,
 	// logical
-	OR = BinK | BIN2 << 8 & 65535 | 1, XOR, AND,
+	OR = BinK | BIN3 << 8 & 65535 | 1, XOR, AND,
 	// comparison
-	EQ = BinK | BIN3 << 8 & 65535 | 1, UEQ, LEQ, GEQ, LT, GT,
+	EQ = BinK | BIN4 << 8 & 65535 | 1, UEQ, LEQ, GEQ, LT, GT,
 	// arithmetic
-	ADD = BinK | BIN43 << 8 & 65535 | 1, SUB,
-	MUL = BinK | BIN47 << 8 & 65535 | 1, DIV, MOD, DIVF, MODF,
+	ADD = BinK | BIN53 << 8 & 65535 | 1, SUB,
+	MUL = BinK | BIN57 << 8 & 65535 | 1, DIV, MOD, DIVF, MODF,
 	// bitwise
-	SHL = BinK | BIN57 << 8 & 65535 | 1, SHR, ANDB,
+	SHL = BinK | BIN67 << 8 & 65535 | 1, SHR, ANDB,
 	// prefix: logical, arithmetic, bitwise
 	NOT = Left | Kind | PRE << 8 | 1, POSI, NEGA, NOTB,
 	// postfix
@@ -130,11 +100,11 @@ public enum Lex : int
 	// dense postfix
 	RUND = POSTD << 8 | POST << 8 ^ RUN,
 
-	// groups 0xff<<16
-	Blank  /**/= 0x_01_0000, // blank group
-	Left   /**/= 0x_02_0000, // left-side group
-	Right  /**/= 0x_04_0000, // right-side group
-	Bin    /**/= 0x_08_0000, // right-side group
+	// groups 255<<16
+	Left   /**/= 0x_01_0000, // left-side group
+	Right  /**/= 0x_02_0000, // right-side group
+	Bin    /**/= 0x_04_0000, // binary group
+	Blank  /**/= 0x_80_0000, // blank group
 	Kind   /**/= 0x800_0000, // kind group 8<<24
 	BinK   /**/= Bin | Kind, // binary kind group
 }
@@ -199,8 +169,8 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 				.w[[]]["eE".Mem(), Set.Dec, ..]["eE".Mem(), "+-".Mem(), Set.Dec, ..]
 				.w[[]]["fF".Mem()]
 	;
-	public static Kord Ordin(Lexier ler) => ler.lexs[ler.loc].key.Ordin();
 
+	public static Kord Ordin(Lexier ler) => ler.lexs[ler.loc].key.Ordin();
 	public override bool Is(L key, L aim) => key.Is(aim);
 
 	public bool leadInd = true; // keep leading indent

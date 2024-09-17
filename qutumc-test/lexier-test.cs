@@ -10,7 +10,6 @@ using qutum.syntax;
 using System;
 using System.Linq;
 using System.Text;
-using System.Text.RegularExpressions;
 using static Microsoft.VisualStudio.TestTools.UnitTesting.Assert;
 
 namespace qutum.test.syntax;
@@ -48,17 +47,12 @@ public class TestLexier : IDisposable
 		}
 	}
 
-	static void Throw(Action a, string reg)
+	[TestMethod]
+	public void LexGroup()
 	{
-		try {
-			a();
-		}
-		catch (Exception e) {
-			if (new Regex(reg).IsMatch(e.Message))
-				return;
-			Fail($"Expected Regex <{reg}> Actual <{e.Message}>");
-		}
-		Fail($"Expected Regex <{reg}> Actually No Excpetion");
+		AreEqual("Bin BIN1 BIN2 BIN3 BIN4 BIN53 BIN57 BIN67 BIN7 ORB XORB BinK "
+			+ "OR XOR AND EQ UEQ LEQ GEQ LT GT ADD SUB MUL DIV MOD DIVF MODF SHL SHR ANDB",
+			string.Join(" ", LexIs.OfGroup(Lex.Bin).Order()));
 	}
 
 	[TestMethod]
@@ -383,20 +377,5 @@ public class TestLexier : IDisposable
 		Check("+-1 +a- b + 2-", "POSI= NEGA= INT=1 POSI= NAME=a SUB= NAME=b ADD= INT=2 SUB=");
 		Check("+\n1+- 2\\##\\+- a +", "ADD= EOL= INT=1 ADD= SUB= INT=2 POSI= SUB= NAME=a ADD=");
 		Check("(+1 -)+2 +\n-3", "LP= POSI= INT=1 NEGA= RP= ADD= INT=2 ADD= EOL= NEGA= INT=3");
-	}
-
-	[TestMethod]
-	public void Distinct()
-	{
-		LexIs.Distinct([
-			Lex.LITERAL, Lex.BIN1, Lex.BIN2, Lex.BIN3, Lex.BIN43, Lex.BIN47,
-			Lex.BIN57, Lex.BIN6, Lex.PRE, Lex.POST, Lex.POSTD,
-			Lex.INP, Lex.QUO, Lex.ORB, Lex.XORB,
-			Lex.LP, Lex.LSB, Lex.LCB, Lex.RP, Lex.RSB, Lex.RCB,
-			Lex.EOL, Lex.IND, Lex.DED, Lex.INDR, Lex.DEDR,
-			Lex.SP, Lex.COM, Lex.COMB, Lex.PATH, Lex.NUM ]);
-		Throw(() => LexIs.Distinct([
-			default, Lex.LITERAL, Lex.BIN43, Lex.STR, Lex.ADD, Lex.EQ, Lex.LP, Lex.RP
-		]), "STR ADD");
 	}
 }

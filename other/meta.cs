@@ -5,10 +5,10 @@
 // http://qutum.com  http://qutum.cn
 //
 #pragma warning disable IDE0078 // Use pattern matching
+using qutum.parser.earley;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using qutum.parser.earley;
 
 namespace qutum.parser.meta;
 
