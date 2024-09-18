@@ -63,7 +63,7 @@ public partial class Synter : Synter<L, S, Synt, Lexier>
 		.n(S.exph)
 				[S.inp].clash
 				[S.exp, L.POST, ..].clash.syntLeft.label("postfix operator")
-				[L.LITERAL, ..].clash.synt.label("literal")
+				[L.LIT, ..].clash.synt.label("literal")
 				[L.LP, .., S.exp, L.RP].clash.recover.label("parenth") // main lex for recovery
 		.n(S.inp)
 				[S.exp, S.exp].clash.syntLeft // higher than others for left associative
@@ -110,7 +110,7 @@ file static class Extension
 {
 	public static SynGram<L, S> Alts(this SynGram<L, S> gram, L group)
 	{
-		foreach (var k in LexIs.OfGroup(group))
+		foreach (var k in LexIs.OfGroup(group, true))
 			if (k.IsKind() || k.IsSingle())
 				_ = gram[k];
 		return gram;

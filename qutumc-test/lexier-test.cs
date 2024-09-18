@@ -50,9 +50,11 @@ public class TestLexier : IDisposable
 	[TestMethod]
 	public void LexGroup()
 	{
-		AreEqual("Bin BIN1 BIN2 BIN3 BIN4 BIN53 BIN57 BIN67 BIN7 ORB XORB BinK "
-			+ "OR XOR AND EQ UEQ LEQ GEQ LT GT ADD SUB MUL DIV MOD DIVF MODF SHL SHR ANDB",
+		AreEqual("Bin ORB XORB BinK OR XOR AND EQ UEQ LEQ GEQ LT GT ADD SUB MUL DIV MOD DIVF MODF SHL SHR ANDB",
 			string.Join(" ", LexIs.OfGroup(Lex.Bin).Order()));
+		AreEqual("BIN3 BIN4 BIN53 BIN57 BIN67 "
+			+ "Bin ORB XORB BinK OR XOR AND EQ UEQ LEQ GEQ LT GT ADD SUB MUL DIV MOD DIVF MODF SHL SHR ANDB",
+			string.Join(" ", LexIs.OfGroup(Lex.Bin, true).Order()));
 	}
 
 	[TestMethod]

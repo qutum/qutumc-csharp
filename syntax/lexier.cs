@@ -7,7 +7,6 @@
 using qutum.parser;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 
 namespace qutum.syntax;
@@ -38,7 +37,19 @@ using Set = CharSet;
 
 public static class LexIs
 {
-	public static IEnumerable<L> OfGroup(this L g) => Enum.GetValues<L>().Where(k => k.InGroup(g));
+	public static IEnumerable<L> OfGroup(this L g, bool kinds = false)
+	{
+		HashSet<L> ks = kinds ? [] : null;
+		foreach (var key in Enum.GetValues<L>())
+			if (key.InGroup(g)) {
+				yield return key;
+				if (kinds && key.InKind() is byte k and > 0)
+					ks.Add((L)k);
+			}
+		if (kinds)
+			foreach (var k in ks)
+				yield return k;
+	}
 
 	public static bool IsGroup(this L aim) => (byte)aim == 0;
 	public static bool IsKind(this L aim) => (ushort)aim is > 0 and < 16;
@@ -58,55 +69,55 @@ public static class LexIs
 public enum Lex : int
 {
 	// 0 for end of read
-	// kinds 0xff<<8
-	LITERAL = 1,
-	BIN1 = Bin | 2,
+	// kinds 255<<8
+	LIT = 1, // literals
+	BIN1,
 	BIN2,
-	BIN3,   // logical binary operators
-	BIN4,   // comparison binary operators
-	BIN53,  // arithmetic binary operators
-	BIN57,  // arithmetic binary operators
-	BIN67,  // bitwise binary operators
+	BIN3,  // logical binary operators
+	BIN4,  // comparison binary operators
+	BIN53, // arithmetic binary operators
+	BIN57, // arithmetic binary operators
+	BIN67, // bitwise binary operators
 	BIN7,
-	PRE = 10, // prefix operators
-	POST,   // postfix operators
-	POSTD,  // dense postfix operators
+	PRE,   // prefix operators
+	POST,  // postfix operators
+	POSTD, // dense postfix operators
 
 	// singles
 	INP = 16, QUO,
-	// singles of groups: bitwise, left, right, blank
+	// singles of groups: bitwise, start, data, blank
 	ORB = Bin | QUO + 1 & 255, XORB,
-	LP = Left | XORB + 1 & 255, LSB, LCB,
-	RP = Right | LCB + 1 & 255, RSB, RCB,
+	LP = Start | XORB + 1 & 255, LSB, LCB,
+	RP = Data | LCB + 1 & 255, RSB, RCB,
 	EOL = Blank | RCB + 1 & 255, IND, DED, INDR, DEDR,
 	SP, COM, COMB, PATH, NUM,
 
 	// inside kinds
 	// literal
-	STR = Kind | LITERAL << 8 | 1, STRB, NAME, HEX, INT, FLOAT,
+	STR = Data | Kind | LIT << 8 | 1, STRB, NAME, HEX, INT, FLOAT,
 	// logical
-	OR = BinK | BIN3 << 8 & 65535 | 1, XOR, AND,
+	OR = BinK | BIN3 << 8 | 1, XOR, AND,
 	// comparison
-	EQ = BinK | BIN4 << 8 & 65535 | 1, UEQ, LEQ, GEQ, LT, GT,
+	EQ = BinK | BIN4 << 8 | 1, UEQ, LEQ, GEQ, LT, GT,
 	// arithmetic
-	ADD = BinK | BIN53 << 8 & 65535 | 1, SUB,
-	MUL = BinK | BIN57 << 8 & 65535 | 1, DIV, MOD, DIVF, MODF,
+	ADD = BinK | BIN53 << 8 | 1, SUB,
+	MUL = BinK | BIN57 << 8 | 1, DIV, MOD, DIVF, MODF,
 	// bitwise
-	SHL = BinK | BIN67 << 8 & 65535 | 1, SHR, ANDB,
+	SHL = BinK | BIN67 << 8 | 1, SHR, ANDB,
 	// prefix: logical, arithmetic, bitwise
-	NOT = Left | Kind | PRE << 8 | 1, POSI, NEGA, NOTB,
+	NOT = Start | Kind | PRE << 8 | 1, POSI, NEGA, NOTB,
 	// postfix
-	RUN = Right | Kind | POST << 8 | 1,
+	RUN = Data | Kind | POST << 8 | 1,
 	// dense postfix
 	RUND = POSTD << 8 | POST << 8 ^ RUN,
 
 	// groups 255<<16
-	Left   /**/= 0x_01_0000, // left-side group
-	Right  /**/= 0x_02_0000, // right-side group
-	Bin    /**/= 0x_04_0000, // binary group
-	Blank  /**/= 0x_80_0000, // blank group
-	Kind   /**/= 0x800_0000, // kind group 8<<24
-	BinK   /**/= Bin | Kind, // binary kind group
+	Start  /**/= 0x_01_0000, // start of followings
+	Data  /**/= 0x_02_0000, // as data
+	Bin    /**/= 0x_04_0000, // binary
+	Blank  /**/= 0x_80_0000, // blank
+	Kind   /**/= 0x800_0000, // kind 8<<24
+	BinK   /**/= Bin | Kind, // binary kind
 }
 
 // lexic parser
@@ -115,7 +126,7 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 	static readonly LexGram<L> Grammar = new LexGram<L>()
 		.k(L.INP).w[","].k(L.QUO).w["="]
 
-		.k(L.AND).w["&"].k(L.OR).w["|"].k(L.XOR).w["!="].k(L.NOT).w["!"]
+		.k(L.OR).w["|"].k(L.XOR).w["!="].k(L.AND).w["&"].k(L.NOT).w["!"]
 
 		.k(L.EQ).w["=="].k(L.UEQ).w["/="]
 		.k(L.LEQ).w["<="].k(L.GEQ).w[">="].k(L.LT).w["<"].k(L.GT).w[">"]
@@ -124,12 +135,11 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 		.k(L.MUL).w["*"].k(L.DIV).w["/"].k(L.MOD).w["%"]
 		.k(L.DIVF).w["//"].k(L.MODF).w["%%"]
 
-		.k(L.ANDB).w["&&"].k(L.ORB).w["||"].k(L.XORB).w["++"].k(L.NOTB).w["--"]
+		.k(L.ORB).w["||"].k(L.XORB).w["++"].k(L.ANDB).w["&&"].k(L.NOTB).w["--"]
 		.k(L.SHL).w["<<"].k(L.SHR).w[">>"]
 
-		.k(L.LP).w["("].k(L.RP).w[")"]
-		.k(L.LSB).w["["].k(L.RSB).w["]"]
-		.k(L.LCB).w["{"].k(L.RCB).w["}"]
+		.k(L.LP).w["("].k(L.LSB).w["["].k(L.LCB).w["{"]
+		.k(L.RP).w[")"].k(L.RSB).w["]"].k(L.RCB).w["}"]
 
 		.k(L.EOL).w["\n"]["\r\n"]
 		.k(L.SP).w[" \t".Mem()] // [\s\t]  |+\s+|+\t+
@@ -239,13 +249,13 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 		Indent();
 		BinPre(key, f);
 		if (lexs[size - 1] is Lexi<L> p && p.to == f)
-			if (key.InKind(L.POST) && (p.key.InKind(L.LITERAL) || p.key.InGroup(L.Right)))
-				// postfix follows literal or right densely, higher precedence
+			if (key.InKind(L.POST) && p.key.InGroup(L.Data))
+				// postfix follows datum densely, higher precedence
 				key = (L)((int)key ^ (int)L.POST << 8 | (int)L.POSTD << 8);
-			else if (key.InKind(L.LITERAL) && p.key.InKind(L.LITERAL))
+			else if (key.InKind(L.LIT) && p.key.InKind(L.LIT))
 				base.Error(key, f, to, "literal can not densely follow literal");
-			else if (key.InKind(L.PRE) && !p.key.InGroup(L.Blank | L.Left))
-				base.Error(key, f, to, "prefix operator can densely follow blank or left only");
+			else if (key.InKind(L.PRE) && !p.key.InGroup(L.Start | L.Blank))
+				base.Error(key, f, to, "prefix operator can densely follow start or blank only");
 		base.Lexi(key, f, to, value);
 	}
 	protected override void Error(L key, int f, int to, object value)
@@ -363,7 +373,7 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 
 		case L.ADD:
 		case L.SUB:
-			if (lexs[size - 1].to < f || lexs[size - 1].key.InGroup(L.Blank | L.Left)) { // left not dense
+			if (lexs[size - 1].to < f || lexs[size - 1].key.InGroup(L.Start | L.Blank)) { // left not dense
 				BinPre(key, f); // last binary
 				bin = key; binf = f; bint = to; // binary may be prefix
 				goto End;
