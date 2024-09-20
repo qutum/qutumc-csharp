@@ -125,7 +125,7 @@ public class TestSynter : IDisposable
 		ser.ler.Begin(new LerByte(Encoding.UTF8.GetBytes(read)));
 		return (ser.Parse().Dump(ser.Dumper), ser);
 	}
-	public const S B = S.Block, N = S.nest, E = S.exp, Eh = S.exph, I = S.inp;
+	public const S B = S.Block, N = S.nest, E = S.exp, P = S.phr, I = S.inp;
 
 	[TestMethod]
 	public void Blocks()
@@ -134,8 +134,8 @@ public class TestSynter : IDisposable
 		t = Parse(@"
 			1
 			2");
-		t = t/**/	.h(B).H(Eh, (L.INT, 1)).u();
-		t = t/**/	.n(B).H(Eh, (L.INT, 2)).uuU();
+		t = t/**/	.h(B).H(P, (L.INT, 1)).u();
+		t = t/**/	.n(B).H(P, (L.INT, 2)).uuU();
 		t = Parse(@"
 				1
 		\##\ 2
@@ -143,12 +143,12 @@ public class TestSynter : IDisposable
 	\##\ 4
 	5
 6");
-		t = t/**/	.h(B).H(Eh, (L.INT, 1)).u();
-		t = t/**/	.n(B).H(Eh, (L.INT, 2)).u();
-		t = t/**/	.n(B).H(Eh, (L.INT, 3)).u();
-		t = t/**/	.n(B).H(Eh, (L.INT, 4)).u();
-		t = t/**/	.n(B).H(Eh, (L.INT, 5)).u();
-		t = t/**/	.n(B).H(Eh, (L.INT, 6)).uuU();
+		t = t/**/	.h(B).H(P, (L.INT, 1)).u();
+		t = t/**/	.n(B).H(P, (L.INT, 2)).u();
+		t = t/**/	.n(B).H(P, (L.INT, 3)).u();
+		t = t/**/	.n(B).H(P, (L.INT, 4)).u();
+		t = t/**/	.n(B).H(P, (L.INT, 5)).u();
+		t = t/**/	.n(B).H(P, (L.INT, 6)).uuU();
 	}
 
 	[TestMethod]
@@ -160,10 +160,10 @@ public class TestSynter : IDisposable
 				2
 					3
 				4");
-		t = t/**/	.h(B).H(Eh, (L.INT, 1));
-		t = t/**/		.n(N).H(Eh, (L.INT, 2));
-		t = t/**/			.n(N).H(Eh, (L.INT, 3)).uu();
-		t = t/**/		.n(N).H(Eh, (L.INT, 4)).uuuU();
+		t = t/**/	.h(B).H(P, (L.INT, 1));
+		t = t/**/		.n(N).H(P, (L.INT, 2));
+		t = t/**/			.n(N).H(P, (L.INT, 3)).uu();
+		t = t/**/		.n(N).H(P, (L.INT, 4)).uuuU();
 		t = Parse(@"
 			1
 				2
@@ -172,13 +172,13 @@ public class TestSynter : IDisposable
 						5
 					6
 			7");
-		t = t/**/	.h(B).H(Eh, (L.INT, 1));
-		t = t/**/		.n(N).H(Eh, (L.INT, 2)).u();
-		t = t/**/		.n(N).H(Eh, (L.INT, 3));
-		t = t/**/			.n(N).H(Eh, (L.INT, 4));
-		t = t/**/				.n(N).H(Eh, (L.INT, 5)).uu();
-		t = t/**/			.n(N).H(Eh, (L.INT, 6)).uuu();
-		t = t/**/	.n(B).H(Eh, (L.INT, 7)).uuU();
+		t = t/**/	.h(B).H(P, (L.INT, 1));
+		t = t/**/		.n(N).H(P, (L.INT, 2)).u();
+		t = t/**/		.n(N).H(P, (L.INT, 3));
+		t = t/**/			.n(N).H(P, (L.INT, 4));
+		t = t/**/				.n(N).H(P, (L.INT, 5)).uu();
+		t = t/**/			.n(N).H(P, (L.INT, 6)).uuu();
+		t = t/**/	.n(B).H(P, (L.INT, 7)).uuU();
 	}
 
 	[TestMethod]
@@ -188,9 +188,9 @@ public class TestSynter : IDisposable
 			1
 				)
 				2");
-		t = t/**/	.h(B).H(Eh, (L.INT, 1));
+		t = t/**/	.h(B).H(P, (L.INT, 1));
 		t = t/**/		.n(N).H(S.line, err: 1).u();
-		t = t/**/		.n(N).H(Eh, (L.INT, 2)).uuu();
+		t = t/**/		.n(N).H(P, (L.INT, 2)).uuu();
 		t = t/**/.e().H(null, "line expression", 3.5, 3.6, -1).uU();
 	}
 
@@ -203,22 +203,22 @@ public class TestSynter : IDisposable
 					2
 						3
 					4");
-		t = t/**/	.h(B).H(Eh, (L.INT, 1));
+		t = t/**/	.h(B).H(P, (L.INT, 1));
 		t = t/**/		.n(S.nestr).h(N);
-		t = t/**/					.H(Eh, (L.INT, 2));
-		t = t/**/					.n(N).H(Eh, (L.INT, 3)).uu();
-		t = t/**/				.n(N).H(Eh, (L.INT, 4)).uuuuU();
+		t = t/**/					.H(P, (L.INT, 2));
+		t = t/**/					.n(N).H(P, (L.INT, 3)).uu();
+		t = t/**/				.n(N).H(P, (L.INT, 4)).uuuuU();
 		t = Parse(@"
 			1
 						2
 								3
 					4
 				5");
-		t = t/**/	.h(B).H(Eh, (L.INT, 1));
-		t = t/**/		.n(S.nestr).h(N).H(Eh, (L.INT, 2));
-		t = t/**/						.n(S.nestr).h(N).H(Eh, (L.INT, 3)).uuu();
-		t = t/**/				.n(N).H(Eh, (L.INT, 4)).uu();
-		t = t/**/		.n(N).H(Eh, (L.INT, 5)).uuu();
+		t = t/**/	.h(B).H(P, (L.INT, 1));
+		t = t/**/		.n(S.nestr).h(N).H(P, (L.INT, 2));
+		t = t/**/						.n(S.nestr).h(N).H(P, (L.INT, 3)).uuu();
+		t = t/**/				.n(N).H(P, (L.INT, 4)).uu();
+		t = t/**/		.n(N).H(P, (L.INT, 5)).uuu();
 		t = t/**/.e(-3).H(null, L.INDR, 5.1, 5.6, -3).uU();
 	}
 
@@ -228,8 +228,8 @@ public class TestSynter : IDisposable
 		var t = Parse(@"
 			1 *>
 						2");
-		t = t/**/	.h(B).H(Eh, (L.INT, 1)).N(S.line, err: 1);
-		t = t/**/		.n(S.nestr).h(N).H(Eh, (L.INT, 2)).uuuu();
+		t = t/**/	.h(B).H(P, (L.INT, 1)).N(S.line, err: 1);
+		t = t/**/		.n(S.nestr).h(N).H(P, (L.INT, 2)).uuuu();
 		t = t/**/.e().H(null, "arithmetic expression", 2.7, 2.8, -1).uU();
 	}
 
@@ -241,11 +241,11 @@ public class TestSynter : IDisposable
 				!3/
 					- 4-
 				5");
-		t = t/**/	.h(B).H(Eh, (L.INT, 1));
-		t = t/**/		.n(N).h(E, L.NOT).H(Eh, (L.INT, 3)).u();
+		t = t/**/	.h(B).H(P, (L.INT, 1));
+		t = t/**/		.n(N).h(E, L.NOT).H(P, (L.INT, 3)).u();
 		t = t/**/			.N(S.line, err: 1);
-		t = t/**/			.n(N, L.SUB).H(Eh, (L.INT, 4)).N(S.line, err: 1).uu();
-		t = t/**/		.n(N).H(Eh, (L.INT, 5)).uuu();
+		t = t/**/			.n(N, L.SUB).H(P, (L.INT, 4)).N(S.line, err: 1).uu();
+		t = t/**/		.n(N).H(P, (L.INT, 5)).uuu();
 		t = t/**/.e().H(null, "arithmetic expression", 3.8, 4.1, -1);
 		t = t/**/	.N(null, "arithmetic expression", 4.10m, 5.1, -1).uU();
 	}
@@ -257,39 +257,39 @@ public class TestSynter : IDisposable
 			1
 				--2
 				- 3");
-		t = t/**/	.h(B).H(Eh, (L.INT, 1));
-		t = t/**/		.n(N).h(E, L.NOTB).H(Eh, (L.INT, 2)).uu();
-		t = t/**/		.n(N, L.SUB).H(Eh, (L.INT, 3)).uuuU();
+		t = t/**/	.h(B).H(P, (L.INT, 1));
+		t = t/**/		.n(N).h(E, L.NOTB).H(P, (L.INT, 2)).uu();
+		t = t/**/		.n(N, L.SUB).H(P, (L.INT, 3)).uuuU();
 		t = Parse(@"
 			1
 				- -2
 					* !3
 				/ +4");
-		t = t/**/	.h(B).H(Eh, (L.INT, 1));
+		t = t/**/	.h(B).H(P, (L.INT, 1));
 		t = t/**/		.n(N, L.SUB);
-		t = t/**/			.h(E, L.NEGA).H(Eh, (L.INT, 2)).u();
-		t = t/**/			.n(N, L.MUL).h(E, L.NOT).H(Eh, (L.INT, 3)).uuu();
+		t = t/**/			.h(E, L.NEGA).H(P, (L.INT, 2)).u();
+		t = t/**/			.n(N, L.MUL).h(E, L.NOT).H(P, (L.INT, 3)).uuu();
 		t = t/**/		.n(N, L.DIV);
-		t = t/**/			.h(E, L.POSI).H(Eh, (L.INT, 4)).uuuuU();
+		t = t/**/			.h(E, L.POSI).H(P, (L.INT, 4)).uuuuU();
 	}
 
 	[TestMethod]
 	public void Binary()
 	{
 		var t = Parse(@"1+2*3-4");
-		t = t/**/	.h(B).H(Eh, (L.INT, 1));
-		t = t/**/		.n(E, L.ADD).H(Eh, (L.INT, 2));
-		t = t/**/					.n(E, L.MUL).H(Eh, (L.INT, 3)).uu();
-		t = t/**/		.n(E, L.SUB).H(Eh, (L.INT, 4)).uuuU();
+		t = t/**/	.h(B).H(P, (L.INT, 1));
+		t = t/**/		.n(E, L.ADD).H(P, (L.INT, 2));
+		t = t/**/					.n(E, L.MUL).H(P, (L.INT, 3)).uu();
+		t = t/**/		.n(E, L.SUB).H(P, (L.INT, 4)).uuuU();
 		t = Parse(@"1 + 2 * 3 >> 4 % 5 < 6 != 7 ++ 8");
-		t = t/**/	.h(B).H(Eh, (L.INT, 1));
-		t = t/**/		.n(E, L.ADD).H(Eh, (L.INT, 2));
-		t = t/**/			.n(E, L.MUL).H(Eh, (L.INT, 3));
-		t = t/**/				.n(E, L.SHR).H(Eh, (L.INT, 4)).uu();
-		t = t/**/			.n(E, L.MOD).H(Eh, (L.INT, 5)).uu();
-		t = t/**/		.n(E, L.LT).H(Eh, (L.INT, 6)).u();
-		t = t/**/		.n(E, L.XOR).H(Eh, (L.INT, 7));
-		t = t/**/			.n(E, L.XORB).H(Eh, (L.INT, 8)).uuuuU();
+		t = t/**/	.h(B).H(P, (L.INT, 1));
+		t = t/**/		.n(E, L.ADD).H(P, (L.INT, 2));
+		t = t/**/			.n(E, L.MUL).H(P, (L.INT, 3));
+		t = t/**/				.n(E, L.SHR).H(P, (L.INT, 4)).uu();
+		t = t/**/			.n(E, L.MOD).H(P, (L.INT, 5)).uu();
+		t = t/**/		.n(E, L.LT).H(P, (L.INT, 6)).u();
+		t = t/**/		.n(E, L.XOR).H(P, (L.INT, 7));
+		t = t/**/			.n(E, L.XORB).H(P, (L.INT, 8)).uuuuU();
 	}
 
 	[TestMethod]
@@ -299,10 +299,10 @@ public class TestSynter : IDisposable
 			1
 				- 2
 				*3+4");
-		t = t/**/	.h(B).H(Eh, (L.INT, 1));
-		t = t/**/		.n(N, L.SUB).H(Eh, (L.INT, 2)).u();
-		t = t/**/		.n(N, L.MUL).H(Eh, (L.INT, 3));
-		t = t/**/					.n(E, L.ADD).H(Eh, (L.INT, 4)).uuuuU();
+		t = t/**/	.h(B).H(P, (L.INT, 1));
+		t = t/**/		.n(N, L.SUB).H(P, (L.INT, 2)).u();
+		t = t/**/		.n(N, L.MUL).H(P, (L.INT, 3));
+		t = t/**/					.n(E, L.ADD).H(P, (L.INT, 4)).uuuuU();
 		t = Parse(@"
 			1
 				* 2
@@ -312,14 +312,14 @@ public class TestSynter : IDisposable
 				&& 6
 			7
 				- 8");
-		t = t/**/	.h(B).H(Eh, (L.INT, 1));
-		t = t/**/		.n(N, L.MUL).H(Eh, (L.INT, 2));
-		t = t/**/					.n(N, L.SUB).H(Eh, (L.INT, 3));
-		t = t/**/								.n(N, L.DIV).H(Eh, (L.INT, 4)).uu();
-		t = t/**/					.n(N, L.MOD).H(Eh, (L.INT, 5)).uu();
-		t = t/**/		.n(N, L.ANDB).H(Eh, (L.INT, 6)).uu();
-		t = t/**/	.n(B).H(Eh, (L.INT, 7));
-		t = t/**/		.n(N, L.SUB).H(Eh, (L.INT, 8)).uuuU();
+		t = t/**/	.h(B).H(P, (L.INT, 1));
+		t = t/**/		.n(N, L.MUL).H(P, (L.INT, 2));
+		t = t/**/					.n(N, L.SUB).H(P, (L.INT, 3));
+		t = t/**/								.n(N, L.DIV).H(P, (L.INT, 4)).uu();
+		t = t/**/					.n(N, L.MOD).H(P, (L.INT, 5)).uu();
+		t = t/**/		.n(N, L.ANDB).H(P, (L.INT, 6)).uu();
+		t = t/**/	.n(B).H(P, (L.INT, 7));
+		t = t/**/		.n(N, L.SUB).H(P, (L.INT, 8)).uuuU();
 	}
 
 	[TestMethod]
@@ -328,7 +328,7 @@ public class TestSynter : IDisposable
 		var t = Parse(@"
 			1
 				*");
-		t = t/**/	.h(B).H(Eh, (L.INT, 1));
+		t = t/**/	.h(B).H(P, (L.INT, 1));
 		t = t/**/		.n(N, L.MUL).H(S.line, err: 1).uuu();
 		t = t/**/.e().H(null, "nested binary block block", 3.6, 3.6, -1).uU();
 		t = Parse(@"
@@ -339,13 +339,13 @@ public class TestSynter : IDisposable
 				/ 4
 			-
 				5");
-		t = t/**/	.h(B).H(Eh, (L.INT, 1));
+		t = t/**/	.h(B).H(P, (L.INT, 1));
 		t = t/**/		.n(N, L.ADD).H(S.line, err: 1);
-		t = t/**/					.n(N).H(Eh, (L.INT, 2)).u();
-		t = t/**/					.n(N, L.MUL).H(Eh, (L.INT, 3)).uu();
-		t = t/**/		.n(N, L.DIV).H(Eh, (L.INT, 4)).uu();
+		t = t/**/					.n(N).H(P, (L.INT, 2)).u();
+		t = t/**/					.n(N, L.MUL).H(P, (L.INT, 3)).uu();
+		t = t/**/		.n(N, L.DIV).H(P, (L.INT, 4)).uu();
 		t = t/**/	.n(B).H(S.line, err: 1);
-		t = t/**/		.n(N).H(Eh, (L.INT, 5)).uuu();
+		t = t/**/		.n(N).H(P, (L.INT, 5)).uuu();
 		t = t/**/.e().H(null, "nested binary block block", 3.6, 4.1, -1);
 		t = t/**/	.N(null, "line expression", 7.4, 7.5, -1).uU();
 	}
@@ -354,26 +354,26 @@ public class TestSynter : IDisposable
 	public void Parenth()
 	{
 		var t = Parse(@"(1)");
-		t = t/**/	.h(B).H(Eh, (L.INT, 1)).uuU();
+		t = t/**/	.h(B).H(P, (L.INT, 1)).uuU();
 		t = Parse(@"-(-1)/(2*(3+4))");
-		t = t/**/	.h(B).h(E, L.NEGA).h(E, L.NEGA).H(Eh, (L.INT, 1)).uu();
-		t = t/**/		.n(E, L.DIV).H(Eh, (L.INT, 2));
-		t = t/**/			.n(E, L.MUL).H(Eh, (L.INT, 3));
-		t = t/**/				.n(E, L.ADD).H(Eh, (L.INT, 4)).uuuuuU();
+		t = t/**/	.h(B).h(E, L.NEGA).h(E, L.NEGA).H(P, (L.INT, 1)).uu();
+		t = t/**/		.n(E, L.DIV).H(P, (L.INT, 2));
+		t = t/**/			.n(E, L.MUL).H(P, (L.INT, 3));
+		t = t/**/				.n(E, L.ADD).H(P, (L.INT, 4)).uuuuuU();
 	}
 
 	[TestMethod]
 	public void RecoverParenth()
 	{
 		var t = Parse(@"(1");
-		t = t/**/	.h(B).H(Eh, (L.INT, 1)).N(S.exph, err: 1).uu();
+		t = t/**/	.h(B).H(P, (L.INT, 1)).N(S.phr, err: 1).uu();
 		t = t/**/.e().H(null, "parenth RP", 1.3, 1.3, -1).uU();
 		t = Parse(@"-(-1/(2+)3)/)");
-		t = t/**/	.h(B).h(E, L.NEGA).h(E, L.NEGA).H(Eh, (L.INT, 1)).u();
-		t = t/**/					.n(E, L.DIV).H(Eh, (L.INT, 2)).N(S.exph, err: 1);
-		t = t/**/								.n(I).H(Eh, (L.INT, 3)).uuu();
+		t = t/**/	.h(B).h(E, L.NEGA).h(E, L.NEGA).H(P, (L.INT, 1)).u();
+		t = t/**/					.n(E, L.DIV).H(P, (L.INT, 2)).N(S.phr, err: 1);
+		t = t/**/								.n(I).H(P, (L.INT, 3)).uuu();
 		t = t/**/		.N(S.line, err: 1).uu();
-		t = t/**/.e().H(S.exph, "arithmetic expression", 1.9, 1.10m, -1);
+		t = t/**/.e().H(S.phr, "arithmetic expression", 1.9, 1.10m, -1);
 		t = t/**/	.N(S.line, "arithmetic expression", 1.13, 1.14, -1).uU();
 	}
 
@@ -381,12 +381,12 @@ public class TestSynter : IDisposable
 	public void Prefix()
 	{
 		var t = Parse(@"1- -2");
-		t = t/**/	.h(B).H(Eh, (L.INT, 1));
+		t = t/**/	.h(B).H(P, (L.INT, 1));
 		t = t/**/		.n(E, d: L.SUB);
-		t = t/**/			.h(E, L.NEGA).H(Eh, (L.INT, 2)).uuuuU();
+		t = t/**/			.h(E, L.NEGA).H(P, (L.INT, 2)).uuuuU();
 		t = Parse(@"1--2");
-		t = t/**/	.h(B).H(Eh, (L.INT, 1));
-		t = t/**/		.n(I).h(E, L.NOTB).H(Eh, (L.INT, 2)).uuuu();
+		t = t/**/	.h(B).H(P, (L.INT, 1));
+		t = t/**/		.n(I).h(E, L.NOTB).H(P, (L.INT, 2)).uuuu();
 		t = t/**/.e(-3).H(null, L.NOTB, 1.2, 1.4, -3).uU();
 	}
 
@@ -394,101 +394,101 @@ public class TestSynter : IDisposable
 	public void Input1()
 	{
 		var t = Parse(@"a,1,2");
-		t = t/**/	.h(B).H(Eh, (L.NAME, "a"));
-		t = t/**/		.n(I).H(Eh, (L.INT, 1)).u().n(I).H(Eh, (L.INT, 2)).uuuU();
+		t = t/**/	.h(B).H(P, (L.NAME, "a"));
+		t = t/**/		.n(I).H(P, (L.INT, 1)).u().n(I).H(P, (L.INT, 2)).uuuU();
 		t = Parse(@"a, 1 * 2");
-		t = t/**/	.h(B).H(Eh, (L.NAME, "a"));
-		t = t/**/		.n(I).H(Eh, (L.INT, 1)).n(E, L.MUL).H(Eh, (L.INT, 2)).uuuuU();
+		t = t/**/	.h(B).H(P, (L.NAME, "a"));
+		t = t/**/		.n(I).H(P, (L.INT, 1)).n(E, L.MUL).H(P, (L.INT, 2)).uuuuU();
 		t = Parse(@"0 * a, 1 * 2, 3, 4 == 5");
-		t = t/**/	.h(B).H(Eh, (L.INT, "0")).n(E, L.MUL);
-		t = t/**/			.H(Eh, (L.NAME, "a"));
-		t = t/**/			.n(I).H(Eh, (L.INT, 1)).n(E, L.MUL).H(Eh, (L.INT, 2)).uu();
-		t = t/**/			.n(I).H(Eh, (L.INT, 3)).u();
-		t = t/**/			.n(I).H(Eh, (L.INT, 4)).n(E, L.EQ).H(Eh, (L.INT, 5)).uuuuuU();
+		t = t/**/	.h(B).H(P, (L.INT, "0")).n(E, L.MUL);
+		t = t/**/			.H(P, (L.NAME, "a"));
+		t = t/**/			.n(I).H(P, (L.INT, 1)).n(E, L.MUL).H(P, (L.INT, 2)).uu();
+		t = t/**/			.n(I).H(P, (L.INT, 3)).u();
+		t = t/**/			.n(I).H(P, (L.INT, 4)).n(E, L.EQ).H(P, (L.INT, 5)).uuuuuU();
 	}
 
 	[TestMethod]
 	public void Input2()
 	{
 		var t = Parse(@"a 1 2");
-		t = t/**/	.h(B).H(Eh, (L.NAME, "a"));
-		t = t/**/		.n(I).H(Eh, (L.INT, 1)).u().n(I).H(Eh, (L.INT, 2)).uuuU();
+		t = t/**/	.h(B).H(P, (L.NAME, "a"));
+		t = t/**/		.n(I).H(P, (L.INT, 1)).u().n(I).H(P, (L.INT, 2)).uuuU();
 		t = Parse(@"a 1 * 2");
-		t = t/**/	.h(B).H(Eh, (L.NAME, "a"));
-		t = t/**/		.n(I).H(Eh, (L.INT, 1)).u().n(E, L.MUL).H(Eh, (L.INT, 2)).uuuU();
+		t = t/**/	.h(B).H(P, (L.NAME, "a"));
+		t = t/**/		.n(I).H(P, (L.INT, 1)).u().n(E, L.MUL).H(P, (L.INT, 2)).uuuU();
 		t = Parse(@"0 * a 1 * 2 3 4 == 5");
-		t = t/**/	.h(B).H(Eh, (L.INT, "0"));
-		t = t/**/		.n(E, L.MUL).H(Eh, (L.NAME, "a")).n(I).H(Eh, (L.INT, 1)).uu();
-		t = t/**/		.n(E, L.MUL).H(Eh, (L.INT, 2));
-		t = t/**/					.n(I).H(Eh, (L.INT, 3)).u().n(I).H(Eh, (L.INT, 4)).uu();
-		t = t/**/		.n(E, L.EQ).H(Eh, (L.INT, 5)).uuuU();
+		t = t/**/	.h(B).H(P, (L.INT, "0"));
+		t = t/**/		.n(E, L.MUL).H(P, (L.NAME, "a")).n(I).H(P, (L.INT, 1)).uu();
+		t = t/**/		.n(E, L.MUL).H(P, (L.INT, 2));
+		t = t/**/					.n(I).H(P, (L.INT, 3)).u().n(I).H(P, (L.INT, 4)).uu();
+		t = t/**/		.n(E, L.EQ).H(P, (L.INT, 5)).uuuU();
 	}
 
 	[TestMethod]
 	public void Input3()
 	{
 		var t = Parse(@"a 1,2 3");
-		t = t/**/	.h(B).H(Eh, (L.NAME, "a"));
-		t = t/**/		.n(I).H(Eh, (L.INT, 1)).u();
-		t = t/**/		.n(I).H(Eh, (L.INT, 2)).n(I).H(Eh, (L.INT, 3)).uuuuU();
+		t = t/**/	.h(B).H(P, (L.NAME, "a"));
+		t = t/**/		.n(I).H(P, (L.INT, 1)).u();
+		t = t/**/		.n(I).H(P, (L.INT, 2)).n(I).H(P, (L.INT, 3)).uuuuU();
 		t = Parse(@"a,1 2,3");
-		t = t/**/	.h(B).H(Eh, (L.NAME, "a"));
-		t = t/**/		.n(I).H(Eh, (L.INT, 1)).n(I).H(Eh, (L.INT, 2)).uu();
-		t = t/**/		.n(I).H(Eh, (L.INT, 3)).uuuU();
+		t = t/**/	.h(B).H(P, (L.NAME, "a"));
+		t = t/**/		.n(I).H(P, (L.INT, 1)).n(I).H(P, (L.INT, 2)).uu();
+		t = t/**/		.n(I).H(P, (L.INT, 3)).uuuU();
 		t = Parse(@"0 * a 1 2,3 * b 4,5");
-		t = t/**/	.h(B).H(Eh, (L.INT, "0")).n(E, L.MUL);
-		t = t/**/			.H(Eh, (L.NAME, "a"));
-		t = t/**/			.n(I).H(Eh, (L.INT, 1)).u().n(I).H(Eh, (L.INT, 2)).u();
-		t = t/**/			.n(I).H(Eh, (L.INT, 3)).n(E, L.MUL);
-		t = t/**/						.H(Eh, (L.NAME, "b")).n(I).H(Eh, (L.INT, 4)).uuu();
-		t = t/**/			.n(I).H(Eh, (L.INT, 5)).uuuuU();
+		t = t/**/	.h(B).H(P, (L.INT, "0")).n(E, L.MUL);
+		t = t/**/			.H(P, (L.NAME, "a"));
+		t = t/**/			.n(I).H(P, (L.INT, 1)).u().n(I).H(P, (L.INT, 2)).u();
+		t = t/**/			.n(I).H(P, (L.INT, 3)).n(E, L.MUL);
+		t = t/**/						.H(P, (L.NAME, "b")).n(I).H(P, (L.INT, 4)).uuu();
+		t = t/**/			.n(I).H(P, (L.INT, 5)).uuuuU();
 	}
 
 	[TestMethod]
 	public void Input4()
 	{
 		var t = Parse(@"a,");
-		t = t/**/	.h(B).H(Eh, (L.NAME, "a")).uuU();
+		t = t/**/	.h(B).H(P, (L.NAME, "a")).uuU();
 		t = Parse(@"a,1,");
-		t = t/**/	.h(B).H(Eh, (L.NAME, "a")).n(I).H(Eh, (L.INT, 1)).uuuU();
+		t = t/**/	.h(B).H(P, (L.NAME, "a")).n(I).H(P, (L.INT, 1)).uuuU();
 		t = Parse(@"a 1,");
-		t = t/**/	.h(B).H(Eh, (L.NAME, "a")).n(I).H(Eh, (L.INT, 1)).uuuU();
+		t = t/**/	.h(B).H(P, (L.NAME, "a")).n(I).H(P, (L.INT, 1)).uuuU();
 		t = Parse(@"(0 * (a) 1,2 3,)");
-		t = t/**/	.h(B).H(Eh, (L.INT, "0")).n(E, L.MUL);
-		t = t/**/			.H(Eh, (L.NAME, "a"));
-		t = t/**/			.n(I).H(Eh, (L.INT, 1)).u();
-		t = t/**/			.n(I).H(Eh, (L.INT, 2)).n(I).H(Eh, (L.INT, 3)).uuuuuU();
+		t = t/**/	.h(B).H(P, (L.INT, "0")).n(E, L.MUL);
+		t = t/**/			.H(P, (L.NAME, "a"));
+		t = t/**/			.n(I).H(P, (L.INT, 1)).u();
+		t = t/**/			.n(I).H(P, (L.INT, 2)).n(I).H(P, (L.INT, 3)).uuuuuU();
 	}
 
 	[TestMethod]
 	public void Postfix()
 	{
 		var t = Parse(@"0 == a, 1 * 2, 3, .d / 5, c .");
-		t = t/**/	.h(B).H(Eh, (L.INT, "0")).n(E, L.EQ);
-		t = t/**/			.H(Eh, (L.NAME, "a"));
-		t = t/**/			.n(I).H(Eh, (L.INT, 1)).n(E, L.MUL).H(Eh, (L.INT, 2)).uu();
-		t = t/**/			.n(I).H(Eh, (L.INT, 3)).u();
-		t = t/**/			.N(Eh, (L.RUN, "d"));
-		t = t/**/			.n(E, L.DIV).H(Eh, (L.INT, 5));
-		t = t/**/						.n(I).H(Eh, (L.NAME, "c")).N(Eh, L.RUN).uuuuuU();
+		t = t/**/	.h(B).H(P, (L.INT, "0")).n(E, L.EQ);
+		t = t/**/			.H(P, (L.NAME, "a"));
+		t = t/**/			.n(I).H(P, (L.INT, 1)).n(E, L.MUL).H(P, (L.INT, 2)).uu();
+		t = t/**/			.n(I).H(P, (L.INT, 3)).u();
+		t = t/**/			.N(P, (L.RUN, "d"));
+		t = t/**/			.n(E, L.DIV).H(P, (L.INT, 5));
+		t = t/**/						.n(I).H(P, (L.NAME, "c")).N(P, L.RUN).uuuuuU();
 		t = Parse(@"0 << a 1 * 2 3. 4 .d / 5 c .");
-		t = t/**/	.h(B).H(Eh, (L.INT, "0"));
-		t = t/**/		.n(E, L.SHL).H(Eh, (L.NAME, "a")).n(I).H(Eh, (L.INT, 1)).uu();
-		t = t/**/		.n(E, L.MUL).H(Eh, (L.INT, 2));
-		t = t/**/					.n(I).H(Eh, (L.INT, 3)).N(Eh, (L.RUND, "")).u();
-		t = t/**/					.n(I).H(Eh, (L.INT, 4)).u();
-		t = t/**/					.N(Eh, L.RUN).u();
-		t = t/**/		.n(E, L.DIV).H(Eh, (L.INT, 5)).n(I).H(Eh, (L.NAME, "c")).u();
-		t = t/**/					.N(Eh, L.RUN).uuuU();
+		t = t/**/	.h(B).H(P, (L.INT, "0"));
+		t = t/**/		.n(E, L.SHL).H(P, (L.NAME, "a")).n(I).H(P, (L.INT, 1)).uu();
+		t = t/**/		.n(E, L.MUL).H(P, (L.INT, 2));
+		t = t/**/					.n(I).H(P, (L.INT, 3)).N(P, (L.RUND, "")).u();
+		t = t/**/					.n(I).H(P, (L.INT, 4)).u();
+		t = t/**/					.N(P, L.RUN).u();
+		t = t/**/		.n(E, L.DIV).H(P, (L.INT, 5)).n(I).H(P, (L.NAME, "c")).u();
+		t = t/**/					.N(P, L.RUN).uuuU();
 		t = Parse(@"0 << a,1 * 2 3. 4 .d / 5 c .");
-		t = t/**/	.h(B).H(Eh, (L.INT, "0"));
-		t = t/**/		.n(E, L.SHL).H(Eh, (L.NAME, "a"));
-		t = t/**/					.n(I).H(Eh, (L.INT, 1));
-		t = t/**/					.n(E, L.MUL).H(Eh, (L.INT, 2));
-		t = t/**/								.n(I).H(Eh, (L.INT, 3)).N(Eh, (L.RUND, "")).u();
-		t = t/**/								.n(I).H(Eh, (L.INT, 4)).u();
-		t = t/**/								.N(Eh, L.RUN).u();
-		t = t/**/					.n(E, L.DIV).H(Eh, (L.INT, 5)).n(I).H(Eh, (L.NAME, "c")).u();
-		t = t/**/								.N(Eh, L.RUN).uuuuuU();
+		t = t/**/	.h(B).H(P, (L.INT, "0"));
+		t = t/**/		.n(E, L.SHL).H(P, (L.NAME, "a"));
+		t = t/**/					.n(I).H(P, (L.INT, 1));
+		t = t/**/					.n(E, L.MUL).H(P, (L.INT, 2));
+		t = t/**/								.n(I).H(P, (L.INT, 3)).N(P, (L.RUND, "")).u();
+		t = t/**/								.n(I).H(P, (L.INT, 4)).u();
+		t = t/**/								.N(P, L.RUN).u();
+		t = t/**/					.n(E, L.DIV).H(P, (L.INT, 5)).n(I).H(P, (L.NAME, "c")).u();
+		t = t/**/								.N(P, L.RUN).uuuuuU();
 	}
 }

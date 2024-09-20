@@ -17,7 +17,7 @@ public enum Syn : Nord
 {
 	__ = default,
 	qutum, Block, block, nestr, nests, Nest, nest, bin,
-	line, exp, exph, inp,
+	line, exp, phr, inp,
 }
 
 public class Synt : Synt<S, Synt>
@@ -45,8 +45,8 @@ public partial class Synter : Synter<L, S, Synt, Lexier>
 		.n(S.line, "line")._[S.exp, L.EOL].recover
 
 		.n(S.inp)
-				[S.exph, L.INP].clash // trailing comma
-				[S.exph, L.INP, .., S.exp].clash.syntLeft.label("serial input")
+				[S.phr, L.INP].clash // trailing comma
+				[S.phr, L.INP, .., S.exp].clash.syntLeft.label("serial input")
 		.n(S.exp, "expression", false)
 				[S.exp, L.BIN1, .., S.exp].clash.syntLeft.label("bin1 operator")
 				[S.exp, L.BIN2, .., S.exp].clash.syntLeft.label("bin2 operator")
@@ -59,16 +59,16 @@ public partial class Synter : Synter<L, S, Synt, Lexier>
 				[S.exp, L.BIN67, .., S.exp].clash.syntLeft.label("bitwise operator")
 				[S.exp, L.BIN7, .., S.exp].clash.syntLeft.label("bin7 operator")
 				[L.PRE, .., S.exp].clash.synt.label("prefix operator")
-				[S.exph].clash
-		.n(S.exph)
+				[S.phr].clash
+		.n(S.phr) // phrase
 				[S.inp].clash
 				[S.exp, L.POST, ..].clash.syntLeft.label("postfix operator")
 				[L.LIT, ..].clash.synt.label("literal")
 				[L.LP, .., S.exp, L.RP].clash.recover.label("parenth") // main lex for recovery
 		.n(S.inp)
 				[S.exp, S.exp].clash.syntLeft // higher than others for left associative
-		.n(S.exph)
-				[S.exph, L.POSTD, ..].clash.syntLeft.label("high postfix operator")
+		.n(S.phr)
+				[S.phr, L.POSTD, ..].clash.syntLeft.label("high postfix operator")
 		;
 		// make
 		var m = new SerMaker<L, S>(gram, LexIs.Ordin, NameOrd);

@@ -85,16 +85,16 @@ public enum Lex : int
 
 	// singles
 	INP = 16, QUO,
-	// singles of groups: bitwise, start, data, blank
+	// singles of groups: bitwise, proem, phrase, blank
 	ORB = Bin | QUO + 1 & 255, XORB,
-	LP = Start | XORB + 1 & 255, LSB, LCB,
-	RP = Data | LCB + 1 & 255, RSB, RCB,
+	LP = Proem | XORB + 1 & 255, LSB, LCB,
+	RP = Phr | LCB + 1 & 255, RSB, RCB,
 	EOL = Blank | RCB + 1 & 255, IND, DED, INDR, DEDR,
 	SP, COM, COMB, PATH, NUM,
 
 	// inside kinds
 	// literal
-	STR = Data | Kind | LIT << 8 | 1, STRB, NAME, HEX, INT, FLOAT,
+	STR = Phr | Kind | LIT << 8 | 1, STRB, NAME, HEX, INT, FLOAT,
 	// logical
 	OR = BinK | BIN3 << 8 | 1, XOR, AND,
 	// comparison
@@ -105,15 +105,15 @@ public enum Lex : int
 	// bitwise
 	SHL = BinK | BIN67 << 8 | 1, SHR, ANDB,
 	// prefix: logical, arithmetic, bitwise
-	NOT = Start | Kind | PRE << 8 | 1, POSI, NEGA, NOTB,
+	NOT = Proem | Kind | PRE << 8 | 1, POSI, NEGA, NOTB,
 	// postfix
-	RUN = Data | Kind | POST << 8 | 1,
+	RUN = Phr | Kind | POST << 8 | 1,
 	// dense postfix
 	RUND = POSTD << 8 | POST << 8 ^ RUN,
 
 	// groups 255<<16
-	Start  /**/= 0x_01_0000, // start of followings
-	Data  /**/= 0x_02_0000, // as data
+	Proem  /**/= 0x_01_0000, // proem
+	Phr    /**/= 0x_02_0000, // phrase
 	Bin    /**/= 0x_04_0000, // binary
 	Blank  /**/= 0x_80_0000, // blank
 	Kind   /**/= 0x800_0000, // kind 8<<24
@@ -249,13 +249,13 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 		Indent();
 		BinPre(key, f);
 		if (lexs[size - 1] is Lexi<L> p && p.to == f)
-			if (key.InKind(L.POST) && p.key.InGroup(L.Data))
-				// postfix follows datum densely, higher precedence
+			if (key.InKind(L.POST) && p.key.InGroup(L.Phr))
+				// postfix densely follows phrase, higher precedence
 				key = (L)((int)key ^ (int)L.POST << 8 | (int)L.POSTD << 8);
 			else if (key.InKind(L.LIT) && p.key.InKind(L.LIT))
 				base.Error(key, f, to, "literal can not densely follow literal");
-			else if (key.InKind(L.PRE) && !p.key.InGroup(L.Start | L.Blank))
-				base.Error(key, f, to, "prefix operator can densely follow start or blank only");
+			else if (key.InKind(L.PRE) && !p.key.InGroup(L.Proem | L.Blank))
+				base.Error(key, f, to, "prefix operator can densely follow proem or blank only");
 		base.Lexi(key, f, to, value);
 	}
 	protected override void Error(L key, int f, int to, object value)
@@ -373,7 +373,7 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 
 		case L.ADD:
 		case L.SUB:
-			if (lexs[size - 1].to < f || lexs[size - 1].key.InGroup(L.Start | L.Blank)) { // left not dense
+			if (lexs[size - 1].to < f || lexs[size - 1].key.InGroup(L.Proem | L.Blank)) { // left not dense
 				BinPre(key, f); // last binary
 				bin = key; binf = f; bint = to; // binary may be prefix
 				goto End;
