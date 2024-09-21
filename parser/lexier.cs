@@ -16,7 +16,7 @@ public partial struct Lexi<K> where K : struct
 {
 	public K key;
 	public int from, to; // read from loc to excluded loc
-	public int err; // lexis ~loc before this error found
+	public int err; // error merged into lexis at ~err: <0, no error: >=0
 	public object value;
 }
 

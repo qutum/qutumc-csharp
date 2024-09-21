@@ -23,7 +23,7 @@ public partial struct Lexi<K>
 	public override readonly string ToString() => $"{key}{(err < 0 ? "!" : "=")}{value}";
 
 	public readonly string Dumper(Func<object, object> dumper)
-		=> $"{key}{(err < 0 ? "!" : "=")}{dumper(value)}";
+		=> $"{key}{(err < 0 ? "!" : err > 0 ? "?" : "=")}{dumper(value)}";
 }
 
 public partial class Lexier<K> : LexerSeg<K, Lexi<K>>

@@ -21,7 +21,7 @@ public class TestLexier : IDisposable
 
 	public void Dispose() => env.Dispose();
 
-	readonly Lexier ler = new() { eor = false, errs = null };
+	readonly Lexier ler = new() { eorEol = false };
 
 	void Check(string read, string s)
 	{
@@ -29,7 +29,8 @@ public class TestLexier : IDisposable
 		using var __ = ler.Begin(new LerByte(Encoding.UTF8.GetBytes(read)));
 		while (ler.Next())
 			;
-		var ls = string.Join(" ", ler.Lexs(1, ler.Loc()).Select(t => t.Dumper(Dump)).ToArray());
+		var ls = string.Join(" ", ler.errs.Concat(ler.blanks ?? []).Concat(ler.Lexs(1, ler.Loc()))
+			.OrderBy(l => l.from).Select(t => t.Dumper(Dump)).ToArray());
 		env.WriteLine(ls);
 		AreEqual(s, ls);
 	}
@@ -38,12 +39,12 @@ public class TestLexier : IDisposable
 
 	void CheckSp(string read, string s)
 	{
-		ler.allBlank = true;
+		ler.blanks = [];
 		try {
 			Check(read, s);
 		}
 		finally {
-			ler.allBlank = false;
+			ler.blanks = null;
 		}
 	}
 
@@ -60,9 +61,9 @@ public class TestLexier : IDisposable
 	[TestMethod]
 	public void Comment()
 	{
-		CheckSp("\\##\\\\###\\ ", "COMB= SP=");
-		CheckSp("\\### \\# ###\\ ###\\ ab", "COMB= SP= COM=");
-		CheckSp("\\## \\## ##\\ ##\\ \nab", "COMB= SP= COM= EOL= NAME=ab");
+		CheckSp("\\##\\\\###\\ ", "COMB? SP?");
+		CheckSp("\\### \\# ###\\ ###\\ ab", "COMB? SP? COM?");
+		CheckSp("\\## \\## ##\\ ##\\ \nab", "COMB? SP? COM? EOL? NAME=ab");
 		Check("\\## \\## ##\\ ##\\ \nab", "NAME=ab");
 		Check("\\", "COMB!"); Check("\\\\", "COMB!");
 	}
@@ -71,17 +72,17 @@ public class TestLexier : IDisposable
 	public void Eol()
 	{
 		CheckSp("\\##\\\t \r\n\r\n\\##\\ \t \n",
-			@"COMB= SP= EOL!use LF \n eol instead of CRLF \r\n EOL= EOL= COMB= SP= EOL=");
+			@"COMB? SP? EOL!use LF \n eol instead of CRLF \r\n EOL? EOL? COMB? SP? EOL?");
 		Check("\\##\\\t \r\n\r\n\\##\\ \t \n", @"EOL!use LF \n eol instead of CRLF \r\n");
 	}
 
 	[TestMethod]
 	public void Indent1()
 	{
-		CheckSp("a \t", "NAME=a SP=");
-		CheckSp("\t    ", "SP!do not mix tabs and spaces for indent SP=");
-		CheckSp(" \n\t", "EOL= SP!do not mix tabs and spaces for indent SP=");
-		CheckSp("\t\n\t\t\t\n\t\n\t\n", "EOL= EOL= EOL= EOL=");
+		CheckSp("a \t", "NAME=a SP?");
+		CheckSp("\t    ", "SP? SP!do not mix tabs and spaces for indent");
+		CheckSp(" \n\t", "EOL? SP!do not mix tabs and spaces for indent SP?");
+		CheckSp("\t\n\t\t\t\n\t\n\t\n", "EOL? EOL? EOL? EOL?");
 	}
 
 	[TestMethod]
@@ -118,7 +119,7 @@ public class TestLexier : IDisposable
 	[TestMethod]
 	public void Indent4()
 	{
-		CheckSp("\t\t##\n\t\t\t##\n\t##", "INDR=8 COM= EOL= IND=12 COM= EOL= DED=12 DEDR=8 IND=4 COM= DED=4");
+		CheckSp("\t\t##\n\t\t\t##\n\t##", "COM? EOL? COM? EOL? COM?");
 		Check("\t\t##\n\t\t\t##\n\t##", "");
 		Check("""
 			a
@@ -157,8 +158,8 @@ public class TestLexier : IDisposable
 	[TestMethod]
 	public void Eor1()
 	{
-		CheckSp("a\t", "NAME=a SP=");
-		CheckSp("\ta\t", "IND=4 NAME=a SP= DED=4");
+		CheckSp("a\t", "NAME=a SP?");
+		CheckSp("\ta\t", "IND=4 NAME=a SP? DED=4");
 		CheckSp("a\n\t", "NAME=a EOL=");
 		CheckSp("\ta\n", "IND=4 NAME=a EOL= DED=4");
 		Check("a\t", "NAME=a");
@@ -170,13 +171,13 @@ public class TestLexier : IDisposable
 	[TestMethod]
 	public void Eor2()
 	{
-		ler.eor = true;
-		CheckSp("a\n", "NAME=a EOL= EOL=");
-		CheckSp("a\t", "NAME=a SP= EOL=");
+		ler.eorEol = true;
+		CheckSp("a\n", "NAME=a EOL= EOL?");
+		CheckSp("a\t", "NAME=a SP? EOL=");
 		CheckSp("\ta", "IND=4 NAME=a EOL= DED=4");
-		CheckSp("\ta\t", "IND=4 NAME=a SP= EOL= DED=4");
-		CheckSp("a\n\t", "NAME=a EOL= EOL=");
-		CheckSp("\ta\n", "IND=4 NAME=a EOL= EOL= DED=4");
+		CheckSp("\ta\t", "IND=4 NAME=a SP? EOL= DED=4");
+		CheckSp("a\n\t", "NAME=a EOL= EOL?");
+		CheckSp("\ta\n", "IND=4 NAME=a EOL= EOL? DED=4");
 		Check("a\n", "NAME=a EOL=");
 		Check("a\t", "NAME=a EOL=");
 		Check("\ta", "IND=4 NAME=a EOL= DED=4");
@@ -196,7 +197,7 @@ public class TestLexier : IDisposable
 	public void String1()
 	{
 		Check("\"abc  def\"", "STR=abc  def");
-		Check("\"a", "STR!"); Check("\"a\nb\"", "STR!eol unexpected STR=a EOL= NAME=b STR!");
+		Check("\"a", "STR!"); Check("\"a\nb\"", "STR=a STR!eol unexpected EOL= NAME=b STR!");
 		var s = string.Join("", Enumerable.Range(1000, 5000).ToArray());
 		CheckSp($"\"{s}\"", $"STR={s}");
 	}
@@ -207,7 +208,7 @@ public class TestLexier : IDisposable
 		Check(@"""\tabc\r\ndef""", "STR=\tabc\r\ndef");
 		Check(@"""\x09abc\x0d\x0adef""", "STR=\tabc\r\ndef");
 		Check(@"""abc\\\0\x7edef\""\u597d吗""", "STR=abc\\\0~def\"好吗");
-		Check(@"""\a\x0\uaa""", "STR!\\ STR!\\ STR!\\ STR=ax0uaa");
+		Check(@"""\a\x0\uaa""", "STR=ax0uaa STR!\\ STR!\\ STR!\\");
 	}
 
 	[TestMethod]
@@ -266,18 +267,18 @@ public class TestLexier : IDisposable
 	public void Path1()
 	{
 		Check("``", "NAME=,"); Check("`abc  def`", "NAME=abc  def,");
-		Check("`a", "NAME!"); Check("`a\nb`", "NAME!eol unexpected NAME=a, EOL= NAME=b NAME!");
+		Check("`a", "NAME!"); Check("`a\nb`", "NAME=a, NAME!eol unexpected EOL= NAME=b NAME!");
 		Check(@"`\tabc\`..\.\ndef.`", "NAME=\tabc`,,.\ndef,,");
 		Check(@"`..\x09abc\x0adef`", "NAME=,,\tabc\ndef,");
 		Check(@"`abc\\\0\x7edef\u597d吗\x2e`", "NAME=abc\\\0~def好吗.,");
-		Check(@"`1.2\a\x0\uaa`", "NAME!\\ NAME!\\ NAME!\\ NAME=1,2ax0uaa,");
+		Check(@"`1.2\a\x0\uaa`", "NAME=1,2ax0uaa, NAME!\\ NAME!\\ NAME!\\");
 	}
 
 	[TestMethod]
 	public void Path2()
 	{
 		Check(".``", "RUN=,");
-		Check(".`a\n", "NAME!eol unexpected RUN=a, EOL=");
+		Check(".`a\n", "RUN=a, NAME!eol unexpected EOL=");
 		Check(".`a`.b.`c`", "RUN=a, RUND=b RUND=c,");
 		Check("a .`b.b`.`c` .`d`.``", "NAME=a RUN=b,b, RUND=c, RUN=d, RUND=,");
 	}

@@ -17,7 +17,7 @@ using Nord = ushort;
 public partial class Synt<N, T> : LinkTree<T> where T : Synt<N, T>
 {
 	public N name;
-	public int from, to; // lexs from loc to loc excluded, for error may < 0
+	public int from, to; // lexs from loc to loc excluded, error lex: < 0
 	public sbyte err; // no error: 0, recovered: 1, error: -1, cyclic: -2, lex error: -3
 	public object info; // lexi, error info, error synt of recovery ...
 }

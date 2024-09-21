@@ -94,12 +94,12 @@ public partial class Synter : Synter<L, S, Synt, Lexier>
 
 	public override Synt Parse()
 	{
-		(ler.leadInd, ler.eor, ler.allBlank) = (false, true, false);
+		(ler.leadInd, ler.eorEol, ler.blanks) = (false, true, null);
 		var t = base.Parse();
 		// add error lexis
 		var errs = new Synt { err = -3, info = ler.errs.Count };
 		foreach (var (err, x) in ler.errs.Each())
-			errs.Add(new Synt {
+			errs.Add(new() {
 				from = ~x, to = ~x - 1, err = -3, info = err.key, dump = err.ToString()
 			});
 		return t.Append(errs.head?.up);
