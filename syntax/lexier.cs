@@ -194,37 +194,43 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 	public override void Clear()
 	{
 		base.Clear();
-		indb = ind = -1; indz = indf = indt = 0; inds[0] = 0;
+		indb = -1; inds[indz = 0] = 0;
+		base.Lexi(L.IND, 0, 0, inds[0]); Next(); // indent for lexs[size - 1]
+		sol = true; soi = false; ind = indf = indt = 0; // start of line
 		crlf = false; bin = default; path.Clear();
-		loc = 0; base.Lexi(L.EOL, 0, 0, null); // eol for lexs[size - 1]
 	}
 
 	void Blank(L key, int f, int to, object value) => blanks?.Add(
 		new() { key = key, from = f, to = to, value = value, err = size }); // merged into lexi at err
 
 	public const int IndMin = 2, IndrMin = 6;
+	bool sol, soi; // start of line, start line of indent
 	int indb; // indent byte, unknown: -1
 	int indz; // inds size excluding leading 0
-	int[] inds = new int[100]; // {0, indent column...}
+	int[] inds = new int[50]; // {0, indent column...}
 	int ind, indf, indt; // indent column 0 based, read from loc to excluded loc
 
 	void Indent(bool junct = false)
 	{
 		if (ind < 0)
 			return;
+		sol = false;
 		if (indz == 0 && leadInd)
 			inds[indz = 1] = 0;
-		var i = Array.BinarySearch(inds, 0, indz + 1, ind + IndMin); // indent with offset
+		var i = Array.BinarySearch(inds, 1, indz, ind + IndMin); // indent with offset
 		i ^= i >> 31; // >= 1
 		var c = ind - inds[i - 1];
 		// for i <= indz, drop these indents
-		for (var x = indz; x >= i; indz = --x)
+		if (i <= indz && inds[i - 1] == 0 || size == 1) // start line of leading indent
+			soi = true;
+		for (var x = indz; i <= x; indz = --x)
 			if (x > 1)
 				if (x > i || c < IndrMin)
 					base.Lexi(inds[x] - inds[x - 1] < IndrMin ? L.DED : L.DEDR,
 						indf, indf, inds[x]);
 				else { // INDR remains
 					base.Error(L.INDR, indf, indt, "indent-right expected same as upper lines");
+					inds[i] = ind;
 					goto Done;
 				}
 		// add indent
@@ -233,7 +239,7 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 				base.Lexi(c < IndrMin ? junct ? L.INDJ : L.IND : L.INDR, indf, indt, ind);
 			indz = i;
 			if (indz >= inds.Length) Array.Resize(ref inds, inds.Length << 1);
-			inds[i] = ind;
+			soi = true; inds[i] = ind;
 		}
 	Done: ind = -1;
 	}
@@ -248,16 +254,14 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 			base.Lexi(k, binf, bint, null);
 			After(k, binf, bint);
 		}
-		else if (right.InGroup(L.Junct)) {
-			int x = size - 1;
-			while (lexs[x].key is >= L.IND and <= L.DEDR) x--;
-			if (lexs[x].key == L.EOL) { // insert before junct
-				var i = ind;
-				Indent(); indent = false;
-				ind = Math.Max(i, 0) + 3; // between 2 and 4 column
-				indf = indt = f; Indent(true);
-				base.Lexi(L.LIT, f, f, null);
-			}
+		else if (sol && right.InGroup(L.Junct)) { // start of line, insert before junct
+			var i = ind;
+			Indent(); indent = false;
+			if (soi)
+				base.Lexi(L.EOL, f, f, null); // junct follows empty block
+			ind = Math.Max(i, 0) + 3; // between 2 and 4 column
+			indf = indt = f; Indent(true);
+			base.Lexi(L.LIT, f, f, null);
 		}
 		if (indent)
 			Indent();
@@ -284,7 +288,7 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 
 	protected override void Error(L key, int f, int to, object value)
 	{
-		Before(key, f);
+		Before(key, f, false);
 		_ = errs ?? throw null;
 		base.Error(key, f, to, value);
 	}
@@ -308,7 +312,7 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 	int bz; // buffer size
 	byte[] bs = new byte[4096]; // long read buffer
 	bool crlf; // \r\n found
-	bool sol; // line start
+	bool leadSp; // leading space
 	L bin; // binary, maybe prefix
 	int binf, bint; // binary, read from loc to excluded loc
 	int ni, nf, ne; // end of each number wad
@@ -328,26 +332,26 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 				crlf = true;
 			}
 			Before(key, from, false);
-			if (lexs[size - 1].key != L.EOL)
-				base.Lexi(key, from, to, null);
-			else // no EOL for empty line, so no empty indent block
+			if (sol) // no EOL for empty line, so no empty indent block
 				Blank(key, from, to, null);
-			ind = 0; indf = indt = to;
+			else
+				base.Lexi(key, from, to, null);
+			sol = true; soi = false; ind = 0; indf = indt = to; // start of line
 			goto End;
 
 		case L.SP:
 			if (wad == 1)
-				sol = f < 1 || read.Lex(f - 1) == '\n'; // maybe line start
-			if (sol)
+				leadSp = f < 1 || read.Lex(f - 1) == '\n'; // maybe leading space
+			if (leadSp)
 				if (indb < 0)
-					indb = read.Lex(f); // first line start, save the indent byte
+					indb = read.Lex(f); // first leading space, save the indent byte
 				else if (f < to && read.Lex(f) != indb) { // mix \s and \t
-					sol = false; // as not line start and indent unchanged
+					leadSp = false; // not leading and indent unchanged
 					Error(key, f, to, "do not mix tabs and spaces for indent"); // TODO omit this before COM ?
 				}
 			if (!end)
 				return;
-			if (sol) {
+			if (leadSp) {
 				ind = to - from << (indb == '\t' ? 2 : 0); // 4 column each \t
 				indf = from; indt = to;
 			}

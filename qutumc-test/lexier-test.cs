@@ -82,7 +82,7 @@ public class TestLexier : IDisposable
 		CheckSp("a \t", "NAME=a SP?");
 		CheckSp("\t    ", "SP? SP!do not mix tabs and spaces for indent");
 		CheckSp(" \n\t", "EOL? SP!do not mix tabs and spaces for indent SP?");
-		CheckSp("\t\n\t\t\t\n\t\n\t\n", "EOL? EOL? EOL? EOL?");
+		CheckSp("  \n      \n  \n  \n", "EOL? EOL? EOL? EOL?");
 	}
 
 	[TestMethod]
@@ -119,8 +119,8 @@ public class TestLexier : IDisposable
 	[TestMethod]
 	public void Indent4()
 	{
-		CheckSp("\t\t##\n\t\t\t##\n\t##", "COM? EOL? COM? EOL? COM?");
-		Check("\t\t##\n\t\t\t##\n\t##", "");
+		CheckSp("    ##\n      ##\n  ##", "COM? EOL? COM? EOL? COM?");
+		Check("    ##\n      ##\n  ##", "");
 		Check("""
 			a
 				|
@@ -145,27 +145,53 @@ public class TestLexier : IDisposable
 	[TestMethod]
 	public void Indent5()
 	{
-		Check("          a\n      b\n  c",
-			"INDR=10 NAME=a EOL= INDR!indent-right expected same as upper lines NAME=b EOL= DEDR=10 IND=2 NAME=c DED=2");
-		CheckSp("   a\n  b\n    c\n     d\n  e",
-			"IND=3 NAME=a EOL= NAME=b EOL= NAME=c EOL= IND=5 NAME=d EOL= DED=5 NAME=e DED=3");
+		Check("""
+		          a
+		      b
+		        c
+		  d
+		e
+		""", "INDR=10 NAME=a EOL= INDR!indent-right expected same as upper lines NAME=b EOL= IND=8 NAME=c EOL= DED=8 DEDR=6 IND=2 NAME=d EOL= DED=2 NAME=e");
+		CheckSp("""
+   		   a
+   		  b
+   		    c
+   		     d
+   		 e
+   		""", "IND=3 NAME=a EOL= NAME=b EOL= NAME=c EOL= IND=5 NAME=d EOL= DED=5 DED=3 NAME=e");
+	}
+
+	[TestMethod]
+	public void Indent6()
+	{
 		ler.leadInd = false;
-		Check("          a\n      b\n  c", "NAME=a EOL= NAME=b EOL= NAME=c");
-		CheckSp("   a\n  b\n    c\n     d\n  e",
-			"NAME=a EOL= NAME=b EOL= NAME=c EOL= IND=5 NAME=d EOL= DED=5 NAME=e");
+		Check("""
+		          a
+		      b
+		        c
+		  d
+		e
+		""", "NAME=a EOL= NAME=b EOL= IND=8 NAME=c EOL= DED=8 NAME=d EOL= NAME=e");
+		CheckSp("""
+   		   a
+   		  b
+   		    c
+   		     d
+   		 e
+   		""", "NAME=a EOL= NAME=b EOL= NAME=c EOL= IND=5 NAME=d EOL= DED=5 NAME=e");
 	}
 
 	[TestMethod]
 	public void Eor1()
 	{
-		CheckSp("a\t", "NAME=a SP?");
-		CheckSp("\ta\t", "IND=4 NAME=a SP? DED=4");
-		CheckSp("a\n\t", "NAME=a EOL=");
-		CheckSp("\ta\n", "IND=4 NAME=a EOL= DED=4");
-		Check("a\t", "NAME=a");
-		Check("\ta\t", "IND=4 NAME=a DED=4");
-		Check("a\n\t\t\n\t", "NAME=a EOL=");
-		Check("\ta\n\t\t\n", "IND=4 NAME=a EOL= DED=4");
+		CheckSp("a  ", "NAME=a SP?");
+		CheckSp("  a  ", "IND=2 NAME=a SP? DED=2");
+		CheckSp("a\n  ", "NAME=a EOL=");
+		CheckSp("  a\n", "IND=2 NAME=a EOL= DED=2");
+		Check("a  ", "NAME=a");
+		Check("  a  ", "IND=2 NAME=a DED=2");
+		Check("a\n    \n  ", "NAME=a EOL=");
+		Check("  a\n    \n", "IND=2 NAME=a EOL= DED=2");
 	}
 
 	[TestMethod]
@@ -173,17 +199,17 @@ public class TestLexier : IDisposable
 	{
 		ler.eorEol = true;
 		CheckSp("a\n", "NAME=a EOL= EOL?");
-		CheckSp("a\t", "NAME=a SP? EOL=");
-		CheckSp("\ta", "IND=4 NAME=a EOL= DED=4");
-		CheckSp("\ta\t", "IND=4 NAME=a SP? EOL= DED=4");
-		CheckSp("a\n\t", "NAME=a EOL= EOL?");
-		CheckSp("\ta\n", "IND=4 NAME=a EOL= EOL? DED=4");
+		CheckSp("a  ", "NAME=a SP? EOL=");
+		CheckSp("  a", "IND=2 NAME=a EOL= DED=2");
+		CheckSp("  a  ", "IND=2 NAME=a SP? EOL= DED=2");
+		CheckSp("a\n  ", "NAME=a EOL= EOL?");
+		CheckSp("  a\n", "IND=2 NAME=a EOL= EOL? DED=2");
 		Check("a\n", "NAME=a EOL=");
-		Check("a\t", "NAME=a EOL=");
-		Check("\ta", "IND=4 NAME=a EOL= DED=4");
-		Check("\ta\t", "IND=4 NAME=a EOL= DED=4");
-		Check("a\n\t\t\n\t", "NAME=a EOL=");
-		Check("\ta\n\t\t\n", "IND=4 NAME=a EOL= DED=4");
+		Check("a  ", "NAME=a EOL=");
+		Check("  a", "IND=2 NAME=a EOL= DED=2");
+		Check("  a  ", "IND=2 NAME=a EOL= DED=2");
+		Check("a\n    \n  ", "NAME=a EOL=");
+		Check("  a\n    \n", "IND=2 NAME=a EOL= DED=2");
 	}
 
 	[TestMethod]
@@ -378,7 +404,7 @@ public class TestLexier : IDisposable
 	public void BinaryPrefix()
 	{
 		Check("+-1 +a- b + 2-", "POSI= NEGA= INT=1 POSI= NAME=a SUB= NAME=b ADD= INT=2 SUB=");
-		Check("+\n1+- 2\\##\\+- a +", "INDJ=3 LIT= ADD= EOL= DED=3 INT=1 ADD= SUB= INT=2 POSI= SUB= NAME=a ADD=");
+		Check("+\n1+- 2\\##\\+- a +", "EOL= INDJ=3 LIT= ADD= EOL= DED=3 INT=1 ADD= SUB= INT=2 POSI= SUB= NAME=a ADD=");
 		Check("(+1 -)+2 +\n-3", "LP= POSI= INT=1 NEGA= RP= ADD= INT=2 ADD= EOL= NEGA= INT=3");
 	}
 
@@ -395,8 +421,6 @@ public class TestLexier : IDisposable
 		\##\*
 			4
 		""", "NAME=a EOL= COMB? INDJ=3 LIT= MUL= EOL= INT=4 DED=3");
-		CheckSp("\t* 1", "IND=4 INDJ=7 LIT= MUL= SP? INT=1 DED=7 DED=4");
-		Check("\t* 1\n* 2", "IND=4 INDJ=7 LIT= MUL= INT=1 EOL= DED=7 DED=4 INDJ=3 LIT= MUL= INT=2 DED=3");
 	}
 
 	[TestMethod]
@@ -414,6 +438,14 @@ public class TestLexier : IDisposable
 		1
 			- 2
 			*3
-		""", "INT=1 EOL= IND=4 INDJ=7 LIT= SUB= INT=2 EOL= DED=7 INDJ=7 LIT= MUL= INT=3 DED=7 DED=4");
+		""", "INT=1 EOL= IND=4 EOL= INDJ=7 LIT= SUB= INT=2 EOL= DED=7 INDJ=7 LIT= MUL= INT=3 DED=7 DED=4");
+	}
+
+	[TestMethod]
+	public void Junct3()
+	{
+		CheckSp("* 1", "EOL= INDJ=3 LIT= MUL= SP? INT=1 DED=3");
+		CheckSp("  * 1", "IND=2 EOL= INDJ=5 LIT= MUL= SP? INT=1 DED=5 DED=2");
+		Check("  * 1\n* 2", "IND=2 EOL= INDJ=5 LIT= MUL= INT=1 EOL= DED=5 DED=2 EOL= INDJ=3 LIT= MUL= INT=2 DED=3");
 	}
 }
