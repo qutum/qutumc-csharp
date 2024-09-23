@@ -123,23 +123,23 @@ public class TestLexier : IDisposable
 		Check("\t\t##\n\t\t\t##\n\t##", "");
 		Check("""
 			a
-				,
-		,
+				|
+		|
 			b
-					,
+					|
 					c
 		
-			,
+			|
 		d
-		""".Replace(",", ""), "IND=4 NAME=a EOL= NAME=b EOL= INDR=12 NAME=c EOL= DEDR=12 DED=4 NAME=d");
+		""".Replace("|", ""), "IND=4 NAME=a EOL= NAME=b EOL= INDR=12 NAME=c EOL= DEDR=12 DED=4 NAME=d");
 		Check("""
-				### ,
-			a ,
+				### |
+			a |
 		\##\  b
 				\###\	c
 		##
 					d
-		""".Replace(",", ""), "IND=4 NAME=a EOL= DED=4 NAME=b EOL= INDR=8 NAME=c EOL= IND=12 NAME=d DED=12 DEDR=8");
+		""".Replace("|", ""), "IND=4 NAME=a EOL= DED=4 NAME=b EOL= INDR=8 NAME=c EOL= IND=12 NAME=d DED=12 DEDR=8");
 	}
 
 	[TestMethod]

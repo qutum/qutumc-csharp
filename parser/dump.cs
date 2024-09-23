@@ -184,7 +184,7 @@ public partial class Synter<K, L, N, T, Ler>
 				_ = s - '\n' + Dumper(n) + " go " + g;
 			foreach (var (a, want) in f.recs ?? [])
 				_ = s - '\n' + "recover " + a + '_' + want + ' ' + alts[a];
-			return s.ToString();
+			return s;
 		}
 		if (dump > 0 && d is T t) {
 			StrMaker s = default;

@@ -200,7 +200,7 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 
 	public const int IndMin = 2, IndrMin = 6;
 	int indb; // indent byte, unknown: -1
-	int indz; // inds size
+	int indz; // inds size excluding leading 0
 	int[] inds = new int[100]; // {0, indent column...}
 	int ind, indf, indt; // indent column 0 based, read from loc to excluded loc
 
@@ -234,7 +234,7 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 	Done: ind = -1;
 	}
 
-	void Pending(L follow, int f, bool blank = false)
+	void Before(L follow, int f, bool blank = false)
 	{
 		if (bin != default) {
 			Indent();
@@ -243,7 +243,7 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 			base.Lexi(bin, binf, bint, null);
 			bin = default;
 		}
-		else if (!blank)
+		if (!blank)
 			Indent();
 	}
 
@@ -262,7 +262,7 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 	}
 	protected override void Error(L key, int f, int to, object value)
 	{
-		Pending(key, f);
+		Before(key, f);
 		_ = errs ?? throw null;
 		base.Error(key, f, to, value);
 	}
@@ -282,7 +282,7 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 		if (eorEol)
 			Wad(L.EOL, 1, ref end, to, to);
 		else
-			Pending(L.EOL, to, true);
+			Before(L.EOL, to, true);
 		ind = 0; indf = indt = to; Indent();
 	}
 
@@ -308,11 +308,10 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 				Error(key, f, to, @"use LF \n eol instead of CRLF \r\n");
 				crlf = true;
 			}
-			Pending(key, from, true);
-			if (lexs[size - 1].key != L.EOL) {
-				Indent(); base.Lexi(key, from, to, null);
-			}
-			else // empty line
+			Before(key, from, true);
+			if (lexs[size - 1].key != L.EOL)
+				base.Lexi(key, from, to, null);
+			else // no EOL for empty line, so no empty indent block
 				Blank(key, from, to, null);
 			ind = 0; indf = indt = to;
 			goto End;
@@ -378,7 +377,7 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 
 		case L.ADD:
 		case L.SUB:
-			Pending(key, f);
+			Before(key, f);
 			if (lexs[size - 1].to < f || lexs[size - 1].key.InGroup(L.Proem | L.Blank)) { // left not dense
 				bin = key; binf = f; bint = to; // binary may be prefix
 				goto End;

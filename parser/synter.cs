@@ -192,7 +192,7 @@ public partial class Synter<K, L, N, T, Ler>
 	{
 		var errs = new T { err = -1, info = 0 };
 		stack.Add(default);
-		StackPush(init, -1, null);
+		StackPush(init, ler.Loc(), null);
 	Read:
 		(int min, int loop) stuck = (stack.Count, 0);
 		var key = ler.Next() ? keyOrd(ler) : default;
@@ -240,6 +240,8 @@ public partial class Synter<K, L, N, T, Ler>
 		if (redu.err == 0)
 			redu.size = alt.size;
 		int loc = redu.size > 0 ? stack[^redu.size].loc : stack[^1].loc + 1;
+		if (redu.err > 0 && redu.info is T e && loc > e.from)
+			loc = e.from; // recovery synt.from
 		bool make = alt.synt > 0 || alt.synt == 0 && synt;
 		T t = make || redu.err > 0 ? new() { // for omitted recovery synt, append it
 			name = alt.name, from = loc, to = ler.Loc(), dump = dump >= 3 ? alt : alt.label,

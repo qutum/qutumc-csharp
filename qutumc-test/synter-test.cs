@@ -123,7 +123,10 @@ public class TestSynter : IDisposable
 		env.WriteLine(read);
 		ser.ler.Dispose();
 		ser.ler.Begin(new LerByte(Encoding.UTF8.GetBytes(read)));
-		return (ser.Parse().Dump(ser.Dumper), ser);
+		var t = ser.Parse();
+		if (ser.dump >= 2)
+			env.WriteLine(string.Join(' ', ser.ler.Lexs(1, ser.ler.Loc())));
+		return (t.Dump(ser.Dumper), ser);
 	}
 	public const S B = S.Block, N = S.nest, E = S.exp, P = S.phr, I = S.inp;
 
