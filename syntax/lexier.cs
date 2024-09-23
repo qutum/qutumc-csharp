@@ -90,7 +90,7 @@ public enum Lex : int
 	LP = Proem | XORB + 1 & 255, LSB, LCB,
 	RP = Phr | LCB + 1 & 255, RSB, RCB,
 	// singles of blank group
-	EOL = Blank | RCB + 1 & 255, IND, DED, INDR, DEDR,
+	EOL = Blank | RCB + 1 & 255, IND, DED, INDR, DEDR, INDJ,
 	SP, COM, COMB, PATH, NUM,
 
 	// inside kinds
@@ -108,14 +108,15 @@ public enum Lex : int
 	// prefix: logical, arithmetic, bitwise
 	NOT = Proem | Kind | PRE << 8 | 1, POSI, NEGA, NOTB,
 	// postfix
-	RUN = Phr | Kind | POST << 8 | 1,
+	RUN = Phr | Junct | Kind | POST << 8 | 1,
 	// dense postfix
 	RUND = POSTD << 8 | POST << 8 ^ RUN,
 
 	// groups 255<<16
 	Proem  /**/= 0x_01_0000, // proem
 	Phr    /**/= 0x_02_0000, // phrase
-	Bin    /**/= 0x_04_0000, // binary
+	Junct  /**/= 0x_04_0000, // junct
+	Bin    /**/= 0x_08_0000 | Junct, // binary
 	Blank  /**/= 0x_80_0000, // blank
 	Kind   /**/= 0x800_0000, // kind 8<<24
 	BinK   /**/= Bin | Kind, // binary kind
@@ -198,13 +199,16 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 		loc = 0; base.Lexi(L.EOL, 0, 0, null); // eol for lexs[size - 1]
 	}
 
+	void Blank(L key, int f, int to, object value) => blanks?.Add(
+		new() { key = key, from = f, to = to, value = value, err = size }); // merged into lexi at err
+
 	public const int IndMin = 2, IndrMin = 6;
 	int indb; // indent byte, unknown: -1
 	int indz; // inds size excluding leading 0
 	int[] inds = new int[100]; // {0, indent column...}
 	int ind, indf, indt; // indent column 0 based, read from loc to excluded loc
 
-	void Indent()
+	void Indent(bool junct = false)
 	{
 		if (ind < 0)
 			return;
@@ -226,7 +230,7 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 		// add indent
 		if (c >= IndMin) {
 			if (i > 1)
-				base.Lexi(c < IndrMin ? L.IND : L.INDR, indf, indt, ind);
+				base.Lexi(c < IndrMin ? junct ? L.INDJ : L.IND : L.INDR, indf, indt, ind);
 			indz = i;
 			if (indz >= inds.Length) Array.Resize(ref inds, inds.Length << 1);
 			inds[i] = ind;
@@ -234,22 +238,33 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 	Done: ind = -1;
 	}
 
-	void Before(L follow, int f, bool blank = false)
+	void Before(L right, int f, bool indent = true)
 	{
 		if (bin != default) {
-			Indent();
-			if (bint == f && !follow.InGroup(L.Blank)) // right dense, binary as prefix
-				bin = bin switch { L.ADD => L.POSI, L.SUB => L.NEGA, _ => throw new() };
-			base.Lexi(bin, binf, bint, null);
-			bin = default;
+			var k = bin; bin = default;
+			if (bint == f && !right.InGroup(L.Blank)) // right dense, binary as prefix
+				k = k switch { L.ADD => L.POSI, L.SUB => L.NEGA, _ => throw new() };
+			Before(k, binf);
+			base.Lexi(k, binf, bint, null);
+			After(k, binf, bint);
 		}
-		if (!blank)
+		else if (right.InGroup(L.Junct)) {
+			int x = size - 1;
+			while (lexs[x].key is >= L.IND and <= L.DEDR) x--;
+			if (lexs[x].key == L.EOL) { // insert before junct
+				var i = ind;
+				Indent(); indent = false;
+				ind = Math.Max(i, 0) + 3; // between 2 and 4 column
+				indf = indt = f; Indent(true);
+				base.Lexi(L.LIT, f, f, null);
+			}
+		}
+		if (indent)
 			Indent();
 	}
-
 	protected override void Lexi(L key, int f, int to, object value)
 	{
-		Pending(key, f);
+		Before(key, f);
 		var p = lexs[size - 1];
 		if (p.to == f) // dense
 			if (key.InKind(L.POST) && p.key.InGroup(L.Phr)) // postfix densely follows phrase, higher precedence
@@ -259,16 +274,20 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 			else if (key.InKind(L.PRE) && !p.key.InGroup(L.Proem | L.Blank))
 				base.Error(key, f, to, "prefix operator can densely follow proem or blank only");
 		base.Lexi(key, f, to, value);
+		After(key, f, to);
 	}
+	[System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE0060:Remove unused parameter")]
+	void After(L left, int f, int to)
+	{
+		Loc(); // stub for post lex process
+	}
+
 	protected override void Error(L key, int f, int to, object value)
 	{
 		Before(key, f);
 		_ = errs ?? throw null;
 		base.Error(key, f, to, value);
 	}
-	void Blank(L key, int f, int to, object value) => blanks?.Add(
-		new() { key = key, from = f, to = to, value = value, err = size }); // merged into lexi at err
-
 	protected override void WadErr(L key, int wad, bool end, int b, int f, int to)
 	{
 		if (key == L.PATH)
@@ -282,7 +301,7 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 		if (eorEol)
 			Wad(L.EOL, 1, ref end, to, to);
 		else
-			Before(L.EOL, to, true);
+			Before(L.EOL, to, false);
 		ind = 0; indf = indt = to; Indent();
 	}
 
@@ -308,7 +327,7 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 				Error(key, f, to, @"use LF \n eol instead of CRLF \r\n");
 				crlf = true;
 			}
-			Before(key, from, true);
+			Before(key, from, false);
 			if (lexs[size - 1].key != L.EOL)
 				base.Lexi(key, from, to, null);
 			else // no EOL for empty line, so no empty indent block
@@ -377,8 +396,9 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 
 		case L.ADD:
 		case L.SUB:
-			Before(key, f);
 			if (lexs[size - 1].to < f || lexs[size - 1].key.InGroup(L.Proem | L.Blank)) { // left not dense
+				if (bin != default)
+					Before(key, f);
 				bin = key; binf = f; bint = to; // binary may be prefix
 				goto End;
 			}

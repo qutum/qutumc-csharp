@@ -188,7 +188,7 @@ public partial class Synter<K, L, N, T, Ler>
 		}
 		if (dump > 0 && d is T t) {
 			StrMaker s = default;
-			if (t.from >= 0 && t.dump is not Dumps.Str && dump > 1) {
+			if (t.from >= 0 && t.dump is not Dumps.Str && dump >= 2) {
 				_ = (s = new()) + (t.dump ?? t.name.ToString()) + " :";
 				foreach (var l in ler.Lexs(t.from, t.to))
 					_ = s + ' ' + l;

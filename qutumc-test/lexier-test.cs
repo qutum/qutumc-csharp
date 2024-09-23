@@ -51,10 +51,10 @@ public class TestLexier : IDisposable
 	[TestMethod]
 	public void LexGroup()
 	{
-		AreEqual("Bin ORB XORB BinK OR XOR AND EQ UEQ LEQ GEQ LT GT ADD SUB MUL DIV MOD DIVF MODF SHL SHR ANDB",
+		AreEqual("Junct Bin ORB XORB RUN RUND BinK OR XOR AND EQ UEQ LEQ GEQ LT GT ADD SUB MUL DIV MOD DIVF MODF SHL SHR ANDB",
 			string.Join(" ", LexIs.OfGroup(Lex.Bin).Order()));
-		AreEqual("BIN3 BIN4 BIN53 BIN57 BIN67 "
-			+ "Bin ORB XORB BinK OR XOR AND EQ UEQ LEQ GEQ LT GT ADD SUB MUL DIV MOD DIVF MODF SHL SHR ANDB",
+		AreEqual("BIN3 BIN4 BIN53 BIN57 BIN67 POST POSTD "
+			+ "Junct Bin ORB XORB RUN RUND BinK OR XOR AND EQ UEQ LEQ GEQ LT GT ADD SUB MUL DIV MOD DIVF MODF SHL SHR ANDB",
 			string.Join(" ", LexIs.OfGroup(Lex.Bin, true).Order()));
 	}
 
@@ -277,9 +277,9 @@ public class TestLexier : IDisposable
 	[TestMethod]
 	public void Path2()
 	{
-		Check(".``", "RUN=,");
-		Check(".`a\n", "RUN=a, NAME!eol unexpected EOL=");
-		Check(".`a`.b.`c`", "RUN=a, RUND=b RUND=c,");
+		Check("a.``", "NAME=a RUND=,");
+		Check("a .`a\n", "NAME=a RUN=a, NAME!eol unexpected EOL=");
+		Check("a .`a`.b.`c`", "NAME=a RUN=a, RUND=b RUND=c,");
 		Check("a .`b.b`.`c` .`d`.``", "NAME=a RUN=b,b, RUND=c, RUN=d, RUND=,");
 	}
 
@@ -363,14 +363,14 @@ public class TestLexier : IDisposable
 	public void Symbol2()
 	{
 		Check("([{)]},", "LP= LSB= LCB= RP= RSB= RCB= INP=");
-		Check("*/%//%%", "MUL= DIV= MOD= DIVF= MODF=");
-		Check("<<>> ---&&++||", "SHL= SHR= NOTB= NEGA= ANDB= XORB= ORB=");
+		Check("!*/%//%%", "NOT= MUL= DIV= MOD= DIVF= MODF=");
+		Check("!<<>> ---&&++||", "NOT= SHL= SHR= NOTB= NEGA= ANDB= XORB= ORB=");
 	}
 
 	[TestMethod]
 	public void Symbol3()
 	{
-		Check("===/=<<=<=<>=>", "EQ= QUO= UEQ= SHL= QUO= LEQ= LT= GEQ= GT=");
+		Check("!/====<<=<=<>=>", "NOT= UEQ= EQ= QUO= SHL= QUO= LEQ= LT= GEQ= GT=");
 		Check("!!&!=|", "NOT= NOT= AND= XOR= OR=");
 	}
 
@@ -378,7 +378,42 @@ public class TestLexier : IDisposable
 	public void BinaryPrefix()
 	{
 		Check("+-1 +a- b + 2-", "POSI= NEGA= INT=1 POSI= NAME=a SUB= NAME=b ADD= INT=2 SUB=");
-		Check("+\n1+- 2\\##\\+- a +", "ADD= EOL= INT=1 ADD= SUB= INT=2 POSI= SUB= NAME=a ADD=");
+		Check("+\n1+- 2\\##\\+- a +", "INDJ=3 LIT= ADD= EOL= DED=3 INT=1 ADD= SUB= INT=2 POSI= SUB= NAME=a ADD=");
 		Check("(+1 -)+2 +\n-3", "LP= POSI= INT=1 NEGA= RP= ADD= INT=2 ADD= EOL= NEGA= INT=3");
+	}
+
+	[TestMethod]
+	public void Junct1()
+	{
+		CheckSp("""
+		a
+		*\##\1
+			4
+		""", "NAME=a EOL= INDJ=3 LIT= MUL= COMB? INT=1 EOL= INT=4 DED=3");
+		CheckSp("""
+		a
+		\##\*
+			4
+		""", "NAME=a EOL= COMB? INDJ=3 LIT= MUL= EOL= INT=4 DED=3");
+		CheckSp("\t* 1", "IND=4 INDJ=7 LIT= MUL= SP? INT=1 DED=7 DED=4");
+		Check("\t* 1\n* 2", "IND=4 INDJ=7 LIT= MUL= INT=1 EOL= DED=7 DED=4 INDJ=3 LIT= MUL= INT=2 DED=3");
+	}
+
+	[TestMethod]
+	public void Junct2()
+	{
+		Check("""
+		a
+		*1
+					2
+				3
+			4
+		5
+		""", "NAME=a EOL= INDJ=3 LIT= MUL= INT=1 EOL= INDR=12 INT=2 EOL= DEDR=12 IND=8 INT=3 EOL= DED=8 INT=4 EOL= DED=3 INT=5");
+		Check("""
+		1
+			- 2
+			*3
+		""", "INT=1 EOL= IND=4 INDJ=7 LIT= SUB= INT=2 EOL= DED=7 INDJ=7 LIT= MUL= INT=3 DED=7 DED=4");
 	}
 }
