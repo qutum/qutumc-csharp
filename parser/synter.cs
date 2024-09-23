@@ -250,9 +250,9 @@ public partial class Synter<K, L, N, T, Ler>
 		for (var i = redu.size - 1; i >= 0; i--) {
 			var (_, l, synt) = stack[^(redu.size - i)];
 			if (synt is T head)
-				if (!make // flatten synts of this alt
+				if (!make // flatten synts
 					|| alt.synt == 2 && i == 0) // lift first synt as prev
-					t = head.Append(t);
+					t = head.Append(t); // maybe slow if deep left recursive
 				else if (alt.synt == 3 && i == redu.size - 1) // lift last synt as next
 					t.Append(head);
 				else

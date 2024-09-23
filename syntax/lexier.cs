@@ -185,7 +185,6 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 	public static Kord Ordin(Lexier ler) => ler.lexs[ler.loc].key.Ordin();
 	public override bool Is(L key, L aim) => key.Is(aim);
 
-	public bool leadInd = true; // keep leading indent
 	public bool eorEol = true; // insert eol at eor
 	public List<Lexi<L>> blanks; // [blank except single eol and indent], merged into lexis at err
 
@@ -195,16 +194,16 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 	{
 		base.Clear();
 		indb = -1; inds[indz = 0] = 0;
-		base.Lexi(L.IND, 0, 0, inds[0]); Next(); // indent for lexs[size - 1]
-		sol = true; soi = false; ind = indf = indt = 0; // start of line
 		crlf = false; bin = default; path.Clear();
+		var end = true; Wad(L.EOL, 0, ref end, 0, 0); // eol at start of read
+		Next(); soi = true;
 	}
 
 	void Blank(L key, int f, int to, object value) => blanks?.Add(
 		new() { key = key, from = f, to = to, value = value, err = size }); // merged into lexi at err
 
 	public const int IndMin = 2, IndrMin = 6;
-	bool sol, soi; // start of line, start line of indent
+	bool sol, soi; // start of line before indent and dedent, start line of indent
 	int indb; // indent byte, unknown: -1
 	int indz; // inds size excluding leading 0
 	int[] inds = new int[50]; // {0, indent column...}
@@ -215,28 +214,24 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 		if (ind < 0)
 			return;
 		sol = false;
-		if (indz == 0 && leadInd)
-			inds[indz = 1] = 0;
 		var i = Array.BinarySearch(inds, 1, indz, ind + IndMin); // indent with offset
 		i ^= i >> 31; // >= 1
 		var c = ind - inds[i - 1];
 		// for i <= indz, drop these indents
-		if (i <= indz && inds[i - 1] == 0 || size == 1) // start line of leading indent
-			soi = true;
 		for (var x = indz; i <= x; indz = --x)
-			if (x > 1)
-				if (x > i || c < IndrMin)
-					base.Lexi(inds[x] - inds[x - 1] < IndrMin ? L.DED : L.DEDR,
-						indf, indf, inds[x]);
-				else { // INDR remains
-					base.Error(L.INDR, indf, indt, "indent-right expected same as upper lines");
-					inds[i] = ind;
-					goto Done;
-				}
+			if (x > i || c < IndrMin)
+				base.Lexi(inds[x] - inds[x - 1] < IndrMin ? L.DED : L.DEDR,
+					indf, indf, inds[x]);
+			else { // INDR remains
+				base.Error(L.INDR, indf, indt, "indent-right expected same as upper lines");
+				inds[i] = ind;
+				goto Done;
+			}
 		// add indent
 		if (c >= IndMin) {
-			if (i > 1)
-				base.Lexi(c < IndrMin ? junct ? L.INDJ : L.IND : L.INDR, indf, indt, ind);
+			if (soi) // no start line of indent, insert
+				base.Lexi(L.EOL, indf, indf, null);
+			base.Lexi(c < IndrMin ? junct ? L.INDJ : L.IND : L.INDR, indf, indt, ind);
 			indz = i;
 			if (indz >= inds.Length) Array.Resize(ref inds, inds.Length << 1);
 			soi = true; inds[i] = ind;
@@ -257,8 +252,6 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 		else if (sol && right.InGroup(L.Junct)) { // start of line, insert before junct
 			var i = ind;
 			Indent(); indent = false;
-			if (soi)
-				base.Lexi(L.EOL, f, f, null); // junct follows empty block
 			ind = Math.Max(i, 0) + 3; // between 2 and 4 column
 			indf = indt = f; Indent(true);
 			base.Lexi(L.LIT, f, f, null);
@@ -334,9 +327,11 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 			Before(key, from, false);
 			if (sol) // no EOL for empty line, so no empty indent block
 				Blank(key, from, to, null);
-			else
+			else {
 				base.Lexi(key, from, to, null);
-			sol = true; soi = false; ind = 0; indf = indt = to; // start of line
+				sol = true; soi = false;
+			}
+			ind = 0; indf = indt = to;
 			goto End;
 
 		case L.SP:

@@ -89,31 +89,34 @@ public class TestLexier : IDisposable
 	public void Indent2()
 	{
 		CheckSp("""
-			a
-			b
-					c
-						d
-					e
-				f
-		g
-		h
-		""", "IND=4 NAME=a EOL= NAME=b EOL= INDR=12 NAME=c EOL= IND=16 NAME=d EOL= DED=16 NAME=e EOL= DEDR=12 IND=8 NAME=f EOL= DED=8 DED=4 NAME=g EOL= NAME=h");
+				a
+				b
+						c
+							d
+						e
+					f
+			g
+			h
+			""",
+		"EOL= IND=4 NAME=a EOL= NAME=b EOL= INDR=12 NAME=c EOL= IND=16 NAME=d EOL= DED=16 NAME=e EOL= DEDR=12 IND=8 NAME=f EOL= DED=8 DED=4 NAME=g EOL= NAME=h");
 	}
 
 	[TestMethod]
 	public void Indent3()
 	{
-		CheckSp(" a", "NAME=a"); CheckSp("  a", "IND=2 NAME=a DED=2");
+		CheckSp(" a", "NAME=a");
+		CheckSp("  a", "EOL= IND=2 NAME=a DED=2");
 		CheckSp("""
-		  a
-		  b
-		        c
-		          d
-		        e
-		    f
-		g
-		h
-		""", "IND=2 NAME=a EOL= NAME=b EOL= INDR=8 NAME=c EOL= IND=10 NAME=d EOL= DED=10 NAME=e EOL= DEDR=8 IND=4 NAME=f EOL= DED=4 DED=2 NAME=g EOL= NAME=h");
+			  a
+			  b
+			        c
+			          d
+			        e
+			    f
+			g
+			h
+			""",
+		"EOL= IND=2 NAME=a EOL= NAME=b EOL= INDR=8 NAME=c EOL= IND=10 NAME=d EOL= DED=10 NAME=e EOL= DEDR=8 IND=4 NAME=f EOL= DED=4 DED=2 NAME=g EOL= NAME=h");
 	}
 
 	[TestMethod]
@@ -122,94 +125,70 @@ public class TestLexier : IDisposable
 		CheckSp("    ##\n      ##\n  ##", "COM? EOL? COM? EOL? COM?");
 		Check("    ##\n      ##\n  ##", "");
 		Check("""
-			a
-				|
-		|
-			b
+				a
 					|
-					c
-		
 			|
-		d
-		""".Replace("|", ""), "IND=4 NAME=a EOL= NAME=b EOL= INDR=12 NAME=c EOL= DEDR=12 DED=4 NAME=d");
+				b
+						|
+						c
+				|
+					|
+			d
+			""".Replace("|", ""),
+		"EOL= IND=4 NAME=a EOL= NAME=b EOL= INDR=12 NAME=c EOL= DEDR=12 DED=4 NAME=d");
 		Check("""
-				### |
-			a |
-		\##\  b
-				\###\	c
-		##
-					d
-		""".Replace("|", ""), "IND=4 NAME=a EOL= DED=4 NAME=b EOL= INDR=8 NAME=c EOL= IND=12 NAME=d DED=12 DEDR=8");
+					### |
+				a |
+			\##\  b
+					\###\	c
+			##
+						d
+			""".Replace("|", ""),
+		"EOL= IND=4 NAME=a EOL= DED=4 NAME=b EOL= INDR=8 NAME=c EOL= IND=12 NAME=d DED=12 DEDR=8");
 	}
 
 	[TestMethod]
 	public void Indent5()
 	{
 		Check("""
-		          a
-		      b
-		        c
-		  d
-		e
-		""", "INDR=10 NAME=a EOL= INDR!indent-right expected same as upper lines NAME=b EOL= IND=8 NAME=c EOL= DED=8 DEDR=6 IND=2 NAME=d EOL= DED=2 NAME=e");
+			          a
+			      b
+			        c
+			  d
+			e
+			""",
+		"EOL= INDR=10 NAME=a EOL= INDR!indent-right expected same as upper lines NAME=b EOL= IND=8 NAME=c EOL= DED=8 DEDR=6 IND=2 NAME=d EOL= DED=2 NAME=e");
 		CheckSp("""
-   		   a
-   		  b
-   		    c
-   		     d
-   		 e
-   		""", "IND=3 NAME=a EOL= NAME=b EOL= NAME=c EOL= IND=5 NAME=d EOL= DED=5 DED=3 NAME=e");
-	}
-
-	[TestMethod]
-	public void Indent6()
-	{
-		ler.leadInd = false;
-		Check("""
-		          a
-		      b
-		        c
-		  d
-		e
-		""", "NAME=a EOL= NAME=b EOL= IND=8 NAME=c EOL= DED=8 NAME=d EOL= NAME=e");
-		CheckSp("""
-   		   a
-   		  b
-   		    c
-   		     d
-   		 e
-   		""", "NAME=a EOL= NAME=b EOL= NAME=c EOL= IND=5 NAME=d EOL= DED=5 NAME=e");
+   			   a
+   			  b
+   			    c
+   			     d
+   			 e
+   			""",
+		"EOL= IND=3 NAME=a EOL= NAME=b EOL= NAME=c EOL= IND=5 NAME=d EOL= DED=5 DED=3 NAME=e");
 	}
 
 	[TestMethod]
 	public void Eor1()
 	{
 		CheckSp("a  ", "NAME=a SP?");
-		CheckSp("  a  ", "IND=2 NAME=a SP? DED=2");
+		CheckSp("a\n", "NAME=a EOL=");
 		CheckSp("a\n  ", "NAME=a EOL=");
-		CheckSp("  a\n", "IND=2 NAME=a EOL= DED=2");
-		Check("a  ", "NAME=a");
-		Check("  a  ", "IND=2 NAME=a DED=2");
-		Check("a\n    \n  ", "NAME=a EOL=");
-		Check("  a\n    \n", "IND=2 NAME=a EOL= DED=2");
+		CheckSp("1\n  a", "INT=1 EOL= IND=2 NAME=a DED=2");
+		CheckSp("1\n  a  ", "INT=1 EOL= IND=2 NAME=a SP? DED=2");
+		CheckSp("1\n  a\n", "INT=1 EOL= IND=2 NAME=a EOL= DED=2");
 	}
 
 	[TestMethod]
 	public void Eor2()
 	{
 		ler.eorEol = true;
-		CheckSp("a\n", "NAME=a EOL= EOL?");
 		CheckSp("a  ", "NAME=a SP? EOL=");
-		CheckSp("  a", "IND=2 NAME=a EOL= DED=2");
-		CheckSp("  a  ", "IND=2 NAME=a SP? EOL= DED=2");
+		CheckSp("a\n", "NAME=a EOL= EOL?");
 		CheckSp("a\n  ", "NAME=a EOL= EOL?");
-		CheckSp("  a\n", "IND=2 NAME=a EOL= EOL? DED=2");
-		Check("a\n", "NAME=a EOL=");
-		Check("a  ", "NAME=a EOL=");
-		Check("  a", "IND=2 NAME=a EOL= DED=2");
-		Check("  a  ", "IND=2 NAME=a EOL= DED=2");
-		Check("a\n    \n  ", "NAME=a EOL=");
-		Check("  a\n    \n", "IND=2 NAME=a EOL= DED=2");
+		CheckSp("1\n  a", "INT=1 EOL= IND=2 NAME=a EOL= DED=2");
+		CheckSp("1\n  a  ", "INT=1 EOL= IND=2 NAME=a SP? EOL= DED=2");
+		CheckSp("1\n  a\n", "INT=1 EOL= IND=2 NAME=a EOL= EOL? DED=2");
 	}
 
 	[TestMethod]
@@ -412,40 +391,44 @@ public class TestLexier : IDisposable
 	public void Junct1()
 	{
 		CheckSp("""
-		a
-		*\##\1
-			4
-		""", "NAME=a EOL= INDJ=3 LIT= MUL= COMB? INT=1 EOL= INT=4 DED=3");
+			a
+			*\##\1
+				4
+			""",
+		"NAME=a EOL= INDJ=3 LIT= MUL= COMB? INT=1 EOL= INT=4 DED=3");
 		CheckSp("""
-		a
-		\##\*
-			4
-		""", "NAME=a EOL= COMB? INDJ=3 LIT= MUL= EOL= INT=4 DED=3");
+			a
+			\##\*
+				4
+			""",
+		"NAME=a EOL= COMB? INDJ=3 LIT= MUL= EOL= INT=4 DED=3");
 	}
 
 	[TestMethod]
 	public void Junct2()
 	{
 		Check("""
-		a
-		*1
-					2
-				3
-			4
-		5
-		""", "NAME=a EOL= INDJ=3 LIT= MUL= INT=1 EOL= INDR=12 INT=2 EOL= DEDR=12 IND=8 INT=3 EOL= DED=8 INT=4 EOL= DED=3 INT=5");
+			a
+			*1
+						2
+					3
+				4
+			5
+			""",
+		"NAME=a EOL= INDJ=3 LIT= MUL= INT=1 EOL= INDR=12 INT=2 EOL= DEDR=12 IND=8 INT=3 EOL= DED=8 INT=4 EOL= DED=3 INT=5");
 		Check("""
-		1
-			- 2
-			*3
-		""", "INT=1 EOL= IND=4 EOL= INDJ=7 LIT= SUB= INT=2 EOL= DED=7 INDJ=7 LIT= MUL= INT=3 DED=7 DED=4");
+			1
+				- 2
+				*3
+			""",
+		"INT=1 EOL= IND=4 EOL= INDJ=7 LIT= SUB= INT=2 EOL= DED=7 INDJ=7 LIT= MUL= INT=3 DED=7 DED=4");
 	}
 
 	[TestMethod]
 	public void Junct3()
 	{
 		CheckSp("* 1", "EOL= INDJ=3 LIT= MUL= SP? INT=1 DED=3");
-		CheckSp("  * 1", "IND=2 EOL= INDJ=5 LIT= MUL= SP? INT=1 DED=5 DED=2");
-		Check("  * 1\n* 2", "IND=2 EOL= INDJ=5 LIT= MUL= INT=1 EOL= DED=5 DED=2 EOL= INDJ=3 LIT= MUL= INT=2 DED=3");
+		CheckSp("  * 1", "EOL= IND=2 EOL= INDJ=5 LIT= MUL= SP? INT=1 DED=5 DED=2");
+		Check("  * 1\n* 2", "EOL= IND=2 EOL= INDJ=5 LIT= MUL= INT=1 EOL= DED=5 DED=2 INDJ=3 LIT= MUL= INT=2 DED=3");
 	}
 }
