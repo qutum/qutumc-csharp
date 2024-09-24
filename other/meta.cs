@@ -55,7 +55,7 @@ sealed class MetaStr(string read) : LerStr(read)
 				'a' => CharSet.ALPHA,
 				'w' => CharSet.WORD,
 				'u' => "\x80",
-				_ => c < 129 ? CharSet.ONE[c] : c.ToString(),
+				_ => c < 129 ? CharSet.BYTE[c] : c.ToString(),
 			}
 		};
 	}
@@ -151,7 +151,7 @@ public static class MetaLex
 	{
 		var x = b.from;
 		if (gram[x] == '\\') { // escape bytes
-			es[ez++] = MetaStr.Unesc(gram, x, b.to, true).Mem();
+			es[ez++] = MetaStr.Unesc(gram, x, b.to, true).One();
 			x += 2;
 		}
 		// build range
@@ -180,7 +180,7 @@ public static class MetaLex
 			++x; // range ]
 		}
 		else // single byte
-			es[ez++] = CharSet.ONE[gram[x++]];
+			es[ez++] = CharSet.BYTE[gram[x++]];
 		// byte dup +
 		if (x < b.to)
 			es[ez++] = Range.All;

@@ -26,9 +26,6 @@ public static partial class Extension
 		for (var x = 0; x < s.Length; x++) yield return s.Span[x];
 	}
 
-	public static ReadOnlyMemory<char> Mem(this string s) => s.AsMemory();
-	public static ReadOnlyMemory<char> Mem(this string s, int from, int to) => s.AsMemory(from, to - from);
-
 	public static bool Adds<T>(this ISet<T> s, IEnumerable<T> add)
 	{
 		if (add == null) return false;

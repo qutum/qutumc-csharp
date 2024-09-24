@@ -153,7 +153,7 @@ public static class CharSet
 								I = new bool[129],  // grammer single, word or = or grammar op except [ ]
 								RI = new bool[129]; // default inclusive range
 	public static readonly string ALL, LINE, DEC, HEX, ALPHA, WORD, OP;
-	public static readonly string[] ONE; // [each byte]
+	public static readonly string[] BYTE; // [each byte]
 
 	public static readonly ReadOnlyMemory<char> All, Line, Dec, Hex, Alpha, Word, Op;
 
@@ -181,24 +181,26 @@ public static class CharSet
 		ALPHA = new string(all.Where(b => A[b]).Select(b => (char)b).ToArray());
 		WORD = new string(all.Where(b => W[b]).Select(b => (char)b).ToArray());
 		OP = new string(all.Where(b => O[b]).Select(b => (char)b).ToArray());
-		ONE = Enumerable.Range(0, 129).Select(b => new string((char)b, 1)).ToArray();
-		All = ALL.Mem();
-		Line = LINE.Mem();
-		Dec = DEC.Mem();
-		Hex = HEX.Mem();
-		Alpha = ALPHA.Mem();
-		Word = WORD.Mem();
-		Op = OP.Mem();
+		BYTE = Enumerable.Range(0, 129).Select(b => new string((char)b, 1)).ToArray();
+		All = ALL.One();
+		Line = LINE.One();
+		Dec = DEC.One();
+		Hex = HEX.One();
+		Alpha = ALPHA.One();
+		Word = WORD.One();
+		Op = OP.One();
 	}
 
+	public static ReadOnlyMemory<char> One(this string s)
+		=> s.AsMemory();
 	public static ReadOnlyMemory<char> Inc(this ReadOnlyMemory<char> inc, ReadOnlyMemory<char> more)
 		=> inc.Enum().Union(more.Enum()).ToArray().AsMemory();
 	public static ReadOnlyMemory<char> Inc(this ReadOnlyMemory<char> inc, string more)
-		=> Inc(inc, more.Mem());
+		=> Inc(inc, more.One());
 	public static ReadOnlyMemory<char> Exc(this ReadOnlyMemory<char> inc, ReadOnlyMemory<char> exc)
 		=> inc.Enum().Except(exc.Enum()).ToArray().AsMemory();
 	public static ReadOnlyMemory<char> Exc(this ReadOnlyMemory<char> inc, string exc)
-		=> Exc(inc, exc.Mem());
+		=> Exc(inc, exc.One());
 
 	public static string Unesc<K>(K k)
 	{

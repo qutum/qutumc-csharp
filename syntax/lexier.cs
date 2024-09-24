@@ -144,7 +144,7 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 		.k(L.RP).w[")"].k(L.RSB).w["]"].k(L.RCB).w["}"]
 
 		.k(L.EOL).w["\n"]["\r\n"]
-		.k(L.SP).w[" \t".Mem()] // [\s\t]  |+\s+|+\t+
+		.k(L.SP).w[" \t".One()] // [\s\t]  |+\s+|+\t+
 				.w[[]][" ", ..].loop["\t", ..].loop
 
 		.k(L.COM).w["##"] // ##  |[\A^\n]+
@@ -155,15 +155,15 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 		.k(L.STRB).w["\\", .., "\""] // \\+"  +"\\+|+"|+[\A^"]+
 					.w["\"", "\\", ..].loop["\""].loop[Set.All.Exc("\""), ..].loop
 		.k(L.STR).w["\""] // "  *"|\n|\r\n|+[\L^"\\]+|+\\[0tnr".`\\]|+\\x\x\x|+\\u\x\x\x\x
-				.redo["\"\n".Mem()]["\r\n"]
+				.redo["\"\n".One()]["\r\n"]
 					[Set.Line.Exc("\"\\"), ..].loop
-					["\\", "0tnr\".`\\".Mem()].loop
+					["\\", "0tnr\".`\\".One()].loop
 					["\\x", Set.Hex, Set.Hex].loop["\\u", Set.Hex, Set.Hex, Set.Hex, Set.Hex].loop
 
 		.k(L.PATH).w["`"][".`"] // .?`  *`|\n|\r\n|+.|+[\L^.`\\]+|+\\[0tnr".`\\]|+\\x\x\x|+\\u\x\x\x\x
-				.redo["`\n".Mem()]["\r\n"]["."].loop
+				.redo["`\n".One()]["\r\n"]["."].loop
 					[Set.Line.Exc(".`\\"), ..].loop
-					["\\", "0tnr\".`\\".Mem()].loop
+					["\\", "0tnr\".`\\".One()].loop
 					["\\x", Set.Hex, Set.Hex].loop["\\u", Set.Hex, Set.Hex, Set.Hex, Set.Hex].loop
 
 		.k(L.NAME).w[Set.Alpha.Inc("_")][Set.Alpha.Inc("_"), Set.Word, ..] // [\a_]\w*
@@ -178,8 +178,8 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 				.w[[]][Set.Dec, ..].loop["_", .., Set.Dec, ..].loop
 				.w[[]][".", Set.Dec, ..]
 				.w[[]]["_", .., Set.Dec, ..].loop
-				.w[[]]["eE".Mem(), Set.Dec, ..]["eE".Mem(), "+-".Mem(), Set.Dec, ..]
-				.w[[]]["fF".Mem()]
+				.w[[]]["eE".One(), Set.Dec, ..]["eE".One(), "+-".One(), Set.Dec, ..]
+				.w[[]]["fF".One()]
 	;
 
 	public static Kord Ordin(Lexier ler) => ler.lexs[ler.loc].key.Ordin();

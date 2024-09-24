@@ -326,7 +326,7 @@ public partial class Lexier<K> : LexerSeg<K, Lexi<K>> where K : struct
 						var bx = 0; // build units from contents
 						foreach (var c in a) {
 							for (int x = 0; x < c.str.Length; x++)
-								Byte(c.str.Mem(x, x + 1), ref u, k, wad, ++bx >= bz, ok,
+								Byte(c.str.AsMemory(x, 1), ref u, k, wad, ++bx >= bz, ok,
 									c.dup && x == c.str.Length - 1 ? dup : null);
 							if (c.inc.Length > 0)
 								Byte(c.inc, ref u, k, wad, ++bx >= bz, ok, c.dup ? dup : null);
