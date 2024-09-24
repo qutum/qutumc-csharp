@@ -16,8 +16,9 @@ using S = Syn;
 public enum Syn : Nord
 {
 	__ = default,
-	qutum, Block, block, nestr, nests, Nest, nest, bin,
-	line, exp, phr, inp,
+	qutum, Block, nestr, Nest, Junc,
+	block, nest, junc, line,
+	exp, phr, inp,
 }
 
 public class Synt : Synt<S, Synt>
@@ -30,19 +31,17 @@ public partial class Synter : Synter<L, S, Synt, Lexier>
 	{
 		// syntax grammar
 		var gram = new SynGram<L, S>()
-		.n(S.qutum)._[S.Block].synt
-		.n(S.Block)._[[]]._[S.Block, S.block].syntLeft
+		.n(S.qutum)._[S.block].synt
 
-		.n(S.block)._[S.line, S.nestr, S.nests]
-		.n(S.nestr)._[[]]._[L.INDR, S.Nest, L.DEDR].synt
-		.n(S.nests)._[[]]._[L.IND, S.Nest, L.DED]
-		.n(S.Nest).__[S.nest]._[S.Nest, S.nest]
+		.n(S.Block)._[S.line, S.nestr, S.Nest, S.Junc]
+		.n(S.Nest).__[L.IND, S.nest, L.DED]._[[]]
+		.n(S.Junc).__[S.junc, S.Junc]._[[]]
 
-		.n(S.nest)._[S.block].synt
-					[S.bin, .., S.block].synt.label("nested binary block")
-		.n(S.bin).__.Alts(L.Bin)
-
-		.n(S.line, "line")._[S.exp, L.EOL].recover
+		.n(S.block)._[S.Block, S.block].syntRight._[[]]
+		.n(S.nest).__[S.Block, S.nest].syntRight._[[]]
+		.n(S.nestr)._[L.INDR, S.block, L.DEDR].synt._[[]] // nest of rightmost
+		.n(S.junc).__[L.INDJ, S.Block, S.block, L.DED].synt
+		.n(S.line).__[S.exp, L.EOL].recover.label("line")
 
 		.n(S.inp)
 				[S.phr, L.INP].clash // trailing comma
@@ -94,7 +93,7 @@ public partial class Synter : Synter<L, S, Synt, Lexier>
 
 	public override Synt Parse()
 	{
-		(ler.leadInd, ler.eorEol, ler.blanks) = (false, true, null);
+		ler.eorEol = true; ler.blanks = null;
 		var t = base.Parse();
 		// add error lexis
 		var errs = new Synt { err = -3, info = ler.errs.Count };

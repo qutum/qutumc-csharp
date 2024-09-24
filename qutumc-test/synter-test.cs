@@ -107,6 +107,13 @@ file static class Extension
 	public static Ser uuuuuU(this Ser s) => U(u(u(u(u(u(s))))));
 
 	public static Ser e(this Ser s, int err = -1) => n(s, err: err);
+
+	public static Ser hJh(this Ser s,
+		S? name = null, object d = null, Dec? from = null, Dec? to = null, int err = 0)
+		=> s.h(S.junc).H(S.phr).n(name, d, from, to, err);
+	public static Ser nJh(this Ser s,
+		S? name = null, object d = null, Dec? from = null, Dec? to = null, int err = 0)
+		=> s.n(S.junc).H(S.phr).n(name, d, from, to, err);
 }
 
 [TestClass]
@@ -124,57 +131,96 @@ public class TestSynter : IDisposable
 		ser.ler.Dispose();
 		ser.ler.Begin(new LerByte(Encoding.UTF8.GetBytes(read)));
 		var t = ser.Parse();
-		if (ser.dump >= 2)
+		if (ser.dump >= 4)
 			env.WriteLine(string.Join(' ', ser.ler.Lexs(1, ser.ler.Loc())));
 		return (t.Dump(ser.Dumper), ser);
 	}
-	public const S B = S.Block, N = S.nest, E = S.exp, P = S.phr, I = S.inp;
+	public const S B = S.block, Nr = S.nestr, N = S.nest, E = S.exp, P = S.phr, I = S.inp;
 
 	[TestMethod]
-	public void Blocks()
+	public void Block()
 	{
 		var t = Parse("").Eq(S.qutum).U();
-		t = Parse(@"
+		t = Parse("""
 			1
-			2");
-		t = t/**/	.h(B).H(P, (L.INT, 1)).u();
-		t = t/**/	.n(B).H(P, (L.INT, 2)).uuU();
-		t = Parse(@"
-				1
-		\##\ 2
-		3
-	\##\ 4
-	5
-6");
+			2
+			 \##\ 3
+			""");
 		t = t/**/	.h(B).H(P, (L.INT, 1)).u();
 		t = t/**/	.n(B).H(P, (L.INT, 2)).u();
-		t = t/**/	.n(B).H(P, (L.INT, 3)).u();
-		t = t/**/	.n(B).H(P, (L.INT, 4)).u();
-		t = t/**/	.n(B).H(P, (L.INT, 5)).u();
-		t = t/**/	.n(B).H(P, (L.INT, 6)).uuU();
+		t = t/**/	.n(B).H(P, (L.INT, 3)).uuU();
 	}
 
 	[TestMethod]
-	public void Nested()
+	public void BlockRecovery()
+	{
+		var t = Parse("""
+					1
+				\##\ 2
+			""");
+		t = t/**/	.h(B).H(S.line, err: 1);
+		t = t/**/		.n(Nr).h(B).H(P, (L.INT, 1)).uu();
+		t = t/**/		.n(N).H(P, (L.INT, 2)).uuu();
+		t = t/**/.e().H(null, "line expression", 1.1, 1.1, -1).uU();
+	}
+
+	[TestMethod]
+	public void Junction()
 	{
 		ser.dump = 3;
-		var t = Parse(@"
+		var t = Parse("""
+			1
+			+ 2
+			/ 3
+			4
+			5
+			*6
+			""");
+		t = t/**/	.h(B).H(P, (L.INT, 1));
+		t = t/**/		.nJh(E, L.ADD).H(P, (L.INT, 2)).uu();
+		t = t/**/		.nJh(E, L.DIV).H(P, (L.INT, 3)).uuu();
+		t = t/**/	.n(B).H(P, (L.INT, 4)).u();
+		t = t/**/	.n(B).H(P, (L.INT, 5));
+		t = t/**/		.nJh(E, L.MUL).H(P, (L.INT, 6)).uuuuU();
+	}
+
+	[TestMethod]
+	public void JunctionRecover()
+	{
+		var t = Parse("""
+			+ 2
+			/ 3
+			4
+			""");
+		t = t/**/	.h(B).H(S.line, err: 1);
+		t = t/**/	.nJh(E, L.ADD).H(P, (L.INT, 2)).uu();
+		t = t/**/	.nJh(E, L.DIV).H(P, (L.INT, 3)).uuu();
+		t = t/**/	.n(B).H(P, (L.INT, 4)).uu();
+		t = t/**/.e().H(null, "line expression", 1.1, 1.1, -1).uU();
+	}
+
+	[TestMethod]
+	public void NestBlock()
+	{
+		var t = Parse("""
 			1
 				2
 					3
-				4");
+				4
+			""");
 		t = t/**/	.h(B).H(P, (L.INT, 1));
 		t = t/**/		.n(N).H(P, (L.INT, 2));
 		t = t/**/			.n(N).H(P, (L.INT, 3)).uu();
 		t = t/**/		.n(N).H(P, (L.INT, 4)).uuuU();
-		t = Parse(@"
+		t = Parse("""
 			1
 				2
 				3
 					4
 						5
 					6
-			7");
+			7
+			""");
 		t = t/**/	.h(B).H(P, (L.INT, 1));
 		t = t/**/		.n(N).H(P, (L.INT, 2)).u();
 		t = t/**/		.n(N).H(P, (L.INT, 3));
@@ -185,95 +231,174 @@ public class TestSynter : IDisposable
 	}
 
 	[TestMethod]
-	public void RecoverNested()
+	public void NestJunc()
 	{
-		var t = Parse(@"
+		var t = Parse("""
 			1
-				)
-				2");
+				2
+				/ 3
+				4
+			5
+			""");
 		t = t/**/	.h(B).H(P, (L.INT, 1));
-		t = t/**/		.n(N).H(S.line, err: 1).u();
-		t = t/**/		.n(N).H(P, (L.INT, 2)).uuu();
-		t = t/**/.e().H(null, "line expression", 3.5, 3.6, -1).uU();
+		t = t/**/		.n(N).H(P, (L.INT, 2));
+		t = t/**/			.nJh(E, L.DIV).H(P, (L.INT, 3)).uuu();
+		t = t/**/		.n(N).H(P, (L.INT, 4)).uu();
+		t = t/**/	.n(B).H(P, (L.INT, 5)).uuU();
+		t = Parse("""
+			1
+				2
+				/ 3
+				4
+			+	-5
+					6
+				* 7
+				8
+			9
+			""");
+		t = t/**/	.h(B).H(P, (L.INT, 1));
+		t = t/**/		.n(N).H(P, (L.INT, 2));
+		t = t/**/			.nJh(E, L.DIV).H(P, (L.INT, 3)).uuu();
+		t = t/**/		.n(N).H(P, (L.INT, 4)).u();
+		t = t/**/		.nJh(E, L.ADD).h(E, L.NEGA).H(P, (L.INT, 5)).uu();
+		t = t/**/			.n(N).H(P, (L.INT, 6)).u();
+		t = t/**/			.nJh(E, L.MUL).H(P, (L.INT, 7)).uu();
+		t = t/**/			.n(B).H(P, (L.INT, 8)).uuu();
+		t = t/**/	.n(B).H(P, (L.INT, 9)).uuU();
 	}
 
 	[TestMethod]
-	public void NestedRight()
+	public void NestRecover()
 	{
-		ser.dump = 3;
-		var t = Parse(@"
+		var t = Parse("""
+			1
+				)
+					]
+				2
+			""");
+		t = t/**/	.h(B).H(P, (L.INT, 1));
+		t = t/**/		.n(N).H(S.line, err: 1);
+		t = t/**/			.n(N).H(S.line, err: 1).uu();
+		t = t/**/		.n(N).H(P, (L.INT, 2)).uuu();
+		t = t/**/.e().H(null, "line expression", 2.2, 2.3, -1);
+		t = t/**/	.N(null, "line expression", 3.3, 3.4, -1).uU();
+		ser.dump = 4;
+		t = Parse("""
+			1
+				- 2
+				3
+			""");
+		t = t/**/	.h(B).H(P, (L.INT, 1));
+		t = t/**/		.n(N).H(S.line, err: 1);
+		t = t/**/			.nJh(E, L.SUB).H(P, (L.INT, 2)).uuu();
+		t = t/**/		.n(N).H(P, (L.INT, 3)).uuu();
+		t = t/**/.e().H(null, "line expression", 2.2, 2.2, -1).uU();
+	}
+
+	[TestMethod]
+	public void NestRight()
+	{
+		var t = Parse("""
 			1
 					2
 						3
-					4");
+					4
+			""");
 		t = t/**/	.h(B).H(P, (L.INT, 1));
-		t = t/**/		.n(S.nestr).h(N);
-		t = t/**/					.H(P, (L.INT, 2));
-		t = t/**/					.n(N).H(P, (L.INT, 3)).uu();
-		t = t/**/				.n(N).H(P, (L.INT, 4)).uuuuU();
-		t = Parse(@"
+		t = t/**/		.n(Nr).h(B);
+		t = t/**/				.H(P, (L.INT, 2));
+		t = t/**/				.n(N).H(P, (L.INT, 3)).uu();
+		t = t/**/			.n(B).H(P, (L.INT, 4)).uuuuU();
+		t = Parse("""
 			1
 						2
 								3
 					4
-				5");
+				5
+			""");
 		t = t/**/	.h(B).H(P, (L.INT, 1));
-		t = t/**/		.n(S.nestr).h(N).H(P, (L.INT, 2));
-		t = t/**/						.n(S.nestr).h(N).H(P, (L.INT, 3)).uuu();
-		t = t/**/				.n(N).H(P, (L.INT, 4)).uu();
+		t = t/**/		.n(Nr).h(B).H(P, (L.INT, 2));
+		t = t/**/					.n(Nr).h(B).H(P, (L.INT, 3)).uuu();
+		t = t/**/				.n(B).H(P, (L.INT, 4)).uu();
 		t = t/**/		.n(N).H(P, (L.INT, 5)).uuu();
-		t = t/**/.e(-3).H(null, L.INDR, 5.1, 5.6, -3).uU();
+		t = t/**/.e(-3).H(null, L.INDR, 4.1, 4.3, -3).uU();
 	}
 
 	[TestMethod]
-	public void RecoverLine()
+	public void NestRightJunc()
 	{
-		var t = Parse(@"
+		var t = Parse("""
+			1
+					2
+					/ 3
+					4
+				5
+				*6
+			""");
+		t = t/**/	.h(B).H(P, (L.INT, 1));
+		t = t/**/		.n(Nr).h(B).H(P, (L.INT, 2));
+		t = t/**/					.nJh(E, L.DIV).H(P, (L.INT, 3)).uuu();
+		t = t/**/				.n(B).H(P, (L.INT, 4)).uu();
+		t = t/**/		.n(N).H(P, (L.INT, 5));
+		t = t/**/			.nJh(E, L.MUL).H(P, (L.INT, 6)).uuuuuU();
+		t = Parse("""
+			1
+			+	a
+						2
+						/ 3
+						4
+					5
+					*6
+				/7
+			""");
+		t = t/**/	.h(B).H(P, (L.INT, 1));
+		t = t/**/		.nJh(E, L.ADD).H(P, (L.NAME, "a")).u();
+		t = t/**/			.n(Nr).h(B).H(P, (L.INT, 2));
+		t = t/**/						.nJh(E, L.DIV).H(P, (L.INT, 3)).uuu();
+		t = t/**/					.n(B).H(P, (L.INT, 4)).uu();
+		t = t/**/			.n(N).H(P, (L.INT, 5));
+		t = t/**/				.nJh(E, L.MUL).H(P, (L.INT, 6)).uuu();
+		t = t/**/			.nJh(E, L.DIV).H(P, (L.INT, 7)).uu().uuuU();
+	}
+
+	[TestMethod]
+	public void LineRecover()
+	{
+		var t = Parse("""
 			1 *>
-						2");
+						2
+			""");
 		t = t/**/	.h(B).H(P, (L.INT, 1)).N(S.line, err: 1);
-		t = t/**/		.n(S.nestr).h(N).H(P, (L.INT, 2)).uuuu();
-		t = t/**/.e().H(null, "arithmetic expression", 2.7, 2.8, -1).uU();
+		t = t/**/		.n(Nr).h(B).H(P, (L.INT, 2)).uuuu();
+		t = t/**/.e().H(null, "arithmetic expression", 1.4, 1.5, -1).uU();
 	}
 
 	[TestMethod]
-	public void RecoverExp()
+	public void Prefix()
 	{
-		var t = Parse(@"
-			1
-				!3/
-					- 4-
-				5");
+		var t = Parse(@"1- -2");
 		t = t/**/	.h(B).H(P, (L.INT, 1));
-		t = t/**/		.n(N).h(E, L.NOT).H(P, (L.INT, 3)).u();
-		t = t/**/			.N(S.line, err: 1);
-		t = t/**/			.n(N, L.SUB).H(P, (L.INT, 4)).N(S.line, err: 1).uu();
-		t = t/**/		.n(N).H(P, (L.INT, 5)).uuu();
-		t = t/**/.e().H(null, "arithmetic expression", 3.8, 4.1, -1);
-		t = t/**/	.N(null, "arithmetic expression", 4.10m, 5.1, -1).uU();
+		t = t/**/		.n(E, d: L.SUB);
+		t = t/**/			.h(E, L.NEGA).H(P, (L.INT, 2)).uuuuU();
+		t = Parse(@"1--2");
+		t = t/**/	.h(B).H(P, (L.INT, 1));
+		t = t/**/		.n(I).h(E, L.NOTB).H(P, (L.INT, 2)).uuuu();
+		t = t/**/.e(-3).H(null, L.NOTB, 1.2, 1.4, -3).uU();
 	}
 
 	[TestMethod]
-	public void PrefixNested()
+	public void PrefixJunc()
 	{
-		var t = Parse(@"
+		var t = Parse("""
 			1
-				--2
-				- 3");
+				+2
+			--3
+			- -4
+			""");
 		t = t/**/	.h(B).H(P, (L.INT, 1));
-		t = t/**/		.n(N).h(E, L.NOTB).H(P, (L.INT, 2)).uu();
-		t = t/**/		.n(N, L.SUB).H(P, (L.INT, 3)).uuuU();
-		t = Parse(@"
-			1
-				- -2
-					* !3
-				/ +4");
-		t = t/**/	.h(B).H(P, (L.INT, 1));
-		t = t/**/		.n(N, L.SUB);
-		t = t/**/			.h(E, L.NEGA).H(P, (L.INT, 2)).u();
-		t = t/**/			.n(N, L.MUL).h(E, L.NOT).H(P, (L.INT, 3)).uuu();
-		t = t/**/		.n(N, L.DIV);
-		t = t/**/			.h(E, L.POSI).H(P, (L.INT, 4)).uuuuU();
+		t = t/**/		.n(N).h(E, L.POSI).H(P, (L.INT, 2)).uuu();
+		t = t/**/	.n(B).h(E, L.NOTB).H(P, (L.INT, 3)).u();
+		t = t/**/		.nJh(E, L.SUB).h(E, L.NEGA).H(P, (L.INT, 4)).uuuuuU();
 	}
 
 	[TestMethod]
@@ -296,59 +421,62 @@ public class TestSynter : IDisposable
 	}
 
 	[TestMethod]
-	public void BinaryNested()
+	public void BinaryJunc()
 	{
-		var t = Parse(@"
+		var t = Parse("""
 			1
-				- 2
-				*3+4");
+			- 2
+			*3+4
+			""");
 		t = t/**/	.h(B).H(P, (L.INT, 1));
-		t = t/**/		.n(N, L.SUB).H(P, (L.INT, 2)).u();
-		t = t/**/		.n(N, L.MUL).H(P, (L.INT, 3));
-		t = t/**/					.n(E, L.ADD).H(P, (L.INT, 4)).uuuuU();
-		t = Parse(@"
+		t = t/**/		.nJh(E, L.SUB).H(P, (L.INT, 2)).uu();
+		t = t/**/		.nJh(E, L.MUL).H(P, (L.INT, 3));
+		t = t/**/					.n(E, L.ADD).H(P, (L.INT, 4)).uuuuuU();
+		t = Parse("""
 			1
-				* 2
-					- 3
-						/ 4
-					% 5
-				&& 6
+			*	2
+				-	3
+					/ 4
+				%	5
+			&&	6
 			7
-				- 8");
+			-	8
+			""");
 		t = t/**/	.h(B).H(P, (L.INT, 1));
-		t = t/**/		.n(N, L.MUL).H(P, (L.INT, 2));
-		t = t/**/					.n(N, L.SUB).H(P, (L.INT, 3));
-		t = t/**/								.n(N, L.DIV).H(P, (L.INT, 4)).uu();
-		t = t/**/					.n(N, L.MOD).H(P, (L.INT, 5)).uu();
-		t = t/**/		.n(N, L.ANDB).H(P, (L.INT, 6)).uu();
+		t = t/**/		.nJh(E, L.MUL).H(P, (L.INT, 2)).u();
+		t = t/**/				.nJh(E, L.SUB).H(P, (L.INT, 3)).u();
+		t = t/**/						.nJh(E, L.DIV).H(P, (L.INT, 4)).uuu();
+		t = t/**/				.nJh(E, L.MOD).H(P, (L.INT, 5)).uuu();
+		t = t/**/		.nJh(E, L.ANDB).H(P, (L.INT, 6)).uuu();
 		t = t/**/	.n(B).H(P, (L.INT, 7));
-		t = t/**/		.n(N, L.SUB).H(P, (L.INT, 8)).uuuU();
+		t = t/**/		.nJh(E, L.SUB).H(P, (L.INT, 8)).uuuuU();
 	}
 
 	[TestMethod]
-	public void RecoverBinNest()
+	public void BinaryJuncRecover()
 	{
+		ser.dump = 2;
 		var t = Parse(@"
 			1
-				*");
+			*");
 		t = t/**/	.h(B).H(P, (L.INT, 1));
-		t = t/**/		.n(N, L.MUL).H(S.line, err: 1).uuu();
-		t = t/**/.e().H(null, "nested binary block block", 3.6, 3.6, -1).uU();
+		t = t/**/		.nJh(E, L.MUL).H(S.line, err: 1).uuu();
+		t = t/**/.e().H(null, "binary junction expression", 3.5, 3.5, -1).uU();
 		t = Parse(@"
 			1
 				+
 					2
-					*3
-				/ 4
+					*3/
+				/ 4-
 			-
-				5");
+				!5+");
 		t = t/**/	.h(B).H(P, (L.INT, 1));
-		t = t/**/		.n(N, L.ADD).H(S.line, err: 1);
-		t = t/**/					.n(N).H(P, (L.INT, 2)).u();
-		t = t/**/					.n(N, L.MUL).H(P, (L.INT, 3)).uu();
-		t = t/**/		.n(N, L.DIV).H(P, (L.INT, 4)).uu();
+		t = t/**/		.n(B, L.ADD).H(S.line, err: 1);
+		t = t/**/					.n(B).H(P, (L.INT, 2)).u();
+		t = t/**/					.n(B, L.MUL).H(P, (L.INT, 3)).uu();
+		t = t/**/		.n(B, L.DIV).H(P, (L.INT, 4)).uu();
 		t = t/**/	.n(B).H(S.line, err: 1);
-		t = t/**/		.n(N).H(P, (L.INT, 5)).uuu();
+		t = t/**/		.n(B).H(P, (L.INT, 5)).uuu();
 		t = t/**/.e().H(null, "nested binary block block", 3.6, 4.1, -1);
 		t = t/**/	.N(null, "line expression", 7.4, 7.5, -1).uU();
 	}
@@ -366,7 +494,7 @@ public class TestSynter : IDisposable
 	}
 
 	[TestMethod]
-	public void RecoverParenth()
+	public void ParenthRecover()
 	{
 		var t = Parse(@"(1");
 		t = t/**/	.h(B).H(P, (L.INT, 1)).N(S.phr, err: 1).uu();
@@ -378,19 +506,6 @@ public class TestSynter : IDisposable
 		t = t/**/		.N(S.line, err: 1).uu();
 		t = t/**/.e().H(S.phr, "arithmetic expression", 1.9, 1.10m, -1);
 		t = t/**/	.N(S.line, "arithmetic expression", 1.13, 1.14, -1).uU();
-	}
-
-	[TestMethod]
-	public void Prefix()
-	{
-		var t = Parse(@"1- -2");
-		t = t/**/	.h(B).H(P, (L.INT, 1));
-		t = t/**/		.n(E, d: L.SUB);
-		t = t/**/			.h(E, L.NEGA).H(P, (L.INT, 2)).uuuuU();
-		t = Parse(@"1--2");
-		t = t/**/	.h(B).H(P, (L.INT, 1));
-		t = t/**/		.n(I).h(E, L.NOTB).H(P, (L.INT, 2)).uuuu();
-		t = t/**/.e(-3).H(null, L.NOTB, 1.2, 1.4, -3).uU();
 	}
 
 	[TestMethod]
