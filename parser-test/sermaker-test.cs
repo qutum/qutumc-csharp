@@ -313,6 +313,20 @@ public class TestSerMaker : IDisposable
 	}
 
 	[TestMethod]
+	public void Clash8()
+	{
+		NewMer(new Gram().n("S")["B"]
+			.n("B")["b", .., "B"].syntRight[[]]
+			.n("b")["a", "J"]
+			.n("j")['(', .., "b", "B", ')'].synt
+			.n("J")["j", "J"][[]]
+			.n("a")['1', ..].synt['2', ..].synt['3', ..].synt['4', ..].synt['5', ..].synt
+		);
+		mer.Firsts(); mer.Forms();
+		AreEqual(null, mer.Clashs());
+	}
+
+	[TestMethod]
 	public void ClashTigerF332()
 	{
 		NewMer(new Gram()

@@ -178,11 +178,19 @@ public partial class SerMaker<K, N>
 	Loop: foreach (var ((a, want), (heads, clo)) in Is) {
 			if (want >= a.Count || a[want] is not N name)
 				continue;
-			var (e, f) = want + 1 >= a.Count ? (false, heads)
-						: a[want + 1] is K k ? (false, [k]) : First((N)a[want + 1]);
+			bool empty = true; IEnumerable<K> h = null;
+			for (var w = want + 1; empty; w++)
+				if (w >= a.Count)
+					(empty, h) = (false, h?.Concat(heads) ?? heads);
+				else if (a[w] is K k)
+					(empty, h) = (false, h?.Append(k) ?? [k]);
+				else {
+					(empty, var f) = First((N)a[w]);
+					h = h?.Concat(f) ?? f;
+				}
 			var loop = false;
 			foreach (var A in prods[Name(name)])
-				loop |= AddItem(Is, A, 0, e && heads.Count > 0 ? [.. f, .. heads] : f, clo + 1);
+				loop |= AddItem(Is, A, 0, h, clo + 1);
 			if (loop)
 				goto Loop;
 		}
@@ -253,7 +261,7 @@ public partial class SerMaker<K, N>
 					f.goKs[kx] = ok.go;
 					ok.keys.Add(keys[kx]);
 				}
-				// solve
+				// try to solve
 				else {
 					short go = No;
 					if (c.redus.All(a => alts[a].clash != 0)) {
@@ -308,16 +316,15 @@ public partial class SerMaker<K, N>
 		foreach (var f in forms) {
 			void Compact<O>(O[] os, short[] gs, ref SynForm.S<O> Gs) where O : IBinaryInteger<O>
 			{ // TODO better compact
-				int z;
-				if ((z = int.CreateTruncating(os[^1])) < compact
-					|| (z = gs.Count(m => m != No)) >= int.CreateTruncating(os[^1]) >>> 3) {
+				int z = int.CreateTruncating(os[^1]), gz;
+				if (z < compact || (gz = gs.Count(m => m != No)) >= z >>> 3) {
 					Gs.s = new short[z + 1];
 					Array.Fill(Gs.s, No);
 					foreach (var (g, x) in gs.Each())
 						Gs.s[int.CreateTruncating(os[x])] = g;
 				}
 				else {
-					(Gs.s, Gs.x) = (new short[z], new O[z]);
+					(Gs.s, Gs.x) = (new short[gz], new O[gz]);
 					for (int X = 0, x = 0; x < os.Length; x++)
 						if (gs[x] != No)
 							(Gs.s[X], Gs.x[X++]) = (gs[x], os[x]);
@@ -432,8 +439,6 @@ public partial class SerMaker<K, N>
 					else if (!k.Equals(kk))
 						throw new($"{p.name}.{pax} lexic key {k} confused with {kk}");
 				// clash
-				if (a.clash != 0 && a.Count == 0)
-					throw new($"{p.name}.{pax} clash but empty");
 				if (a.clash < 0 && (ax == 0 || alts[ax - 1].clash == 0))
 					throw new($"{p.name}.{pax} no previous clash");
 				if (a.clash < 0)
