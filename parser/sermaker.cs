@@ -382,7 +382,7 @@ public partial class SerMaker<K, N>
 			if (es.IndexOf(e) < 0)
 				es.Add(e);
 		}
-		StrMaker err = new();
+		StrMake err = new();
 		for (int x = 0; x < es.Count; x++)
 			err += x == ErrZ ? ErrEtc : err - ErrMore + err.F(Err, es[x].a, es[x].b, es[x].c);
 		if (err.Size > 0)

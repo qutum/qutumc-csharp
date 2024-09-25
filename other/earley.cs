@@ -424,7 +424,7 @@ public class Earley<K, L, N, T, Ler>
 	public string Dump(object d)
 	{
 		if (d is T t)
-			return (ler as Lexier<K>)?.LineCol(t.from, t.to) is var (fl, fc, tl, tc)
+			return (ler as LexierBuf<K>)?.LineCol(t.from, t.to) is var (fl, fc, tl, tc)
 				? t.Dumper($"{fl}.{fc}", $"{tl}.{tc}") : t.ToString();
 		return dumper?.Invoke(d) ?? Esc(d);
 	}

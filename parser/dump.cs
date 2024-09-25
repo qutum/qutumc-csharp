@@ -20,13 +20,15 @@ using Nord = ushort;
 
 public partial struct Lexi<K>
 {
-	public override readonly string ToString() => $"{key}{(err < 0 ? "!" : "=")}{value}";
+	public override readonly string ToString() =>
+		$"{key}{(err < 0 ? "!" : err > 0 ? "?" : value != null ? "=" : "")}{value}";
 
-	public readonly string Dumper(Func<object, object> dumper)
-		=> $"{key}{(err < 0 ? "!" : err > 0 ? "?" : "=")}{dumper(value)}";
+	public readonly string Dumper(Func<object, object> dumper) =>
+		new StrMake(out var s) + key + (err < 0 ? "!" : err > 0 ? "?" : value != null ? "=" : "")
+		+ (value != null ? s + dumper(value) : s);
 }
 
-public partial class Lexier<K> : LexerSeg<K, Lexi<K>>
+public partial class Lexier<K>
 {
 	static void Dump(Unit u, string pre, Dictionary<Unit, bool> us = null)
 	{
@@ -94,7 +96,7 @@ public partial class Synt<N, T>
 {
 	public object dump;
 
-	public string Dumper(StrMaker s, Func<Synt<N, T>, object> dumper = null) =>
+	public string Dumper(StrMake s, Func<Synt<N, T>, object> dumper = null) =>
 		(s.s != null ? s : (s = new()) + from + ':' + to)
 		+ (err > 0 ? "!!" : err < 0 ? "!" : "")
 		+ (info is Synt<N, T> or null ? s : s + ' ' + info) + " : " + (dump ?? name)
@@ -109,7 +111,7 @@ public partial class SynAlt<N>
 
 	public override string ToString() => dump as string ?? (string)
 		(dump is Func<string> d ? dump = d() : dump is Func<object, string> dd ? dump = dd(this)
-		: dump?.ToString() ?? label ?? "alt " + name);
+		: dump?.ToString() ?? label ?? name + " alt");
 }
 
 [DebuggerTypeProxy(typeof(Dumps.Form))]
@@ -174,7 +176,7 @@ public partial class Synter<K, L, N, T, Ler>
 		if (d is Kord key) return key == default ? "eor" : CharSet.Unesc(key);
 		if (d is Nord name) return CharSet.Unesc((char)name);
 		if (d is SynForm f) {
-			StrMaker s = new(); short r;
+			StrMake s = new(); short r;
 			if (dumper != Dumper)
 				s += dumper(d);
 			if (f.other != No)
@@ -189,7 +191,7 @@ public partial class Synter<K, L, N, T, Ler>
 			return s;
 		}
 		if (dump > 0 && d is T t) {
-			StrMaker s = default;
+			StrMake s = default;
 			if (t.from >= 0 && t.dump is not Dumps.Str && dump >= 2) {
 				_ = (s = new()) + (t.dump ?? t.name.ToString()) + " :";
 				foreach (var l in ler.Lexs(t.from, t.to))
@@ -197,7 +199,7 @@ public partial class Synter<K, L, N, T, Ler>
 				t.dump = (Dumps.Str)(string)s;
 				s.s.Clear();
 			}
-			return (ler as Lexier<K>)?.LineCol(t.from, t.to) is var (fl, fc, tl, tc)
+			return (ler as LexierBuf<K>)?.LineCol(t.from, t.to) is var (fl, fc, tl, tc)
 				? t.Dumper((s.s != null ? s : new()) + fl + '.' + fc + ':' + tl + '.' + tc, Dumper)
 				: t.Dumper(s, Dumper);
 		}
@@ -211,7 +213,7 @@ public partial class SynGram<K, N>
 	{
 		public override string ToString()
 		{
-			var s = new StrMaker() + name + " =";
+			var s = new StrMake() + name + " =";
 			foreach (var c in this)
 				s = s + ' ' + SerMaker<K, N>.Dumper_(c);
 			return s + "  " + clash switch { 0 => "", 1 => "<", > 1 => ">", _ => "^" }
@@ -225,9 +227,9 @@ public partial class SerMaker<K, N>
 {
 	public static string Dumper_(object d)
 	{
-		StrMaker s = default;
+		StrMake s = default;
 		if (d is K key) return key.Equals(default(K)) ? "eor" : CharSet.Unesc(key);
-		if (d is (IEnumerable<K> keys2, StrMaker s2))
+		if (d is (IEnumerable<K> keys2, StrMake s2))
 			(d, s) = (keys2, s2);
 		if (d is IEnumerable<K> keys) {
 			var ss = s.s == null; if (ss) s = new();
@@ -241,7 +243,7 @@ public partial class SerMaker<K, N>
 	public string Dumper(object d)
 	{
 		if (d is SynForm f) {
-			StrMaker s = new();
+			StrMake s = new();
 			foreach (var ((a, want), (heads, clo)) in forms[f.index].Is)
 				_ = s - '\n' + want + "_ " + a.ToString() + "  " + Dumper_((heads, s)) + "  ~" + clo;
 			return s;

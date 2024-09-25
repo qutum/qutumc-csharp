@@ -43,13 +43,13 @@ public sealed partial class SynForm
 		public O[] x; // compact: { ordinals ... }, normal: null
 
 		public readonly short this[O ord] {
-			get => x == null ? int.CreateTruncating(ord) is int y && y < s.Length ? s[y] : No
+			get => x == null ? int.CreateTruncating(ord) is var y && y < s.Length ? s[y] : No
 				: x.Length switch {
 					1 => x[0] == ord ? s[0] : No,
 					2 => x[0] == ord ? s[0] : x[1] == ord ? s[1] : No,
 					3 => x[0] == ord ? s[0] : x[1] == ord ? s[1] : x[2] == ord ? s[2] : No,
 					4 => x[0] == ord ? s[0] : x[1] == ord ? s[1] : x[2] == ord ? s[2] : x[3] == ord ? s[3] : No,
-					_ => Array.BinarySearch(x, ord) is int z and >= 0 ? s[z] : No
+					_ => Array.BinarySearch(x, ord) is var z and >= 0 ? s[z] : No
 				};
 		}
 		internal const short No = -1;
@@ -303,8 +303,8 @@ public partial class Synter<K, L, N, T, Ler>
 				if (rec.want == 0)
 					return (-1, 0, null); // can not recover, reject
 			}
-			else if (Array.BinarySearch(recKs, key) is int kx and >= 0
-					&& recCs[kx][^1] is int cx and > 0)
+			else if (Array.BinarySearch(recKs, key) is var kx and >= 0
+					&& recCs[kx][^1] is var cx and > 0)
 				foreach (var (a, want) in stack[cx].form.recs)
 					if (alts[(rec = (cx, a, want)).a].rec == kx) // latest alt due to reversed index
 						break;

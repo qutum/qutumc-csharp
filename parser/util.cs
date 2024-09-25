@@ -192,23 +192,23 @@ public partial class LinkTree<T> : IEnumerable<T> where T : LinkTree<T>
 
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE0250:Make struct 'readonly'")]
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE0251:Make member 'readonly'")]
-public struct StrMaker
+public struct StrMake
 {
 	internal readonly StringBuilder s;
 
-	public StrMaker() => s = new();
-	public StrMaker(out StrMaker s) => s = this;
-	public static implicit operator StrMaker(string s) => new StrMaker() + s;
-	public static implicit operator string(StrMaker s) => s.ToString();
+	public StrMake() => s = new();
+	public StrMake(out StrMake s) : this() => s = this;
+	public static implicit operator StrMake(string s) => new StrMake() + s;
+	public static implicit operator string(StrMake s) => s.ToString();
 
-	public static StrMaker operator +(StrMaker s, object d)
+	public static StrMake operator +(StrMake s, object d)
 	{
-		if (d is not StrMaker m) s.s.Append(d);
+		if (d is not StrMake m) s.s.Append(d);
 		else if (m.s != s.s) s.s.Append(m.s);
 		return s;
 	}
-	public static StrMaker operator -(StrMaker s, object d) => s.s.Length > 0 ? s + d : s;
-	public StrMaker F(string format, params object[] args)
+	public static StrMake operator -(StrMake s, object d) => s.s.Length > 0 ? s + d : s;
+	public StrMake F(string format, params object[] args)
 	{
 		s.AppendFormat(format, args); return this;
 	}

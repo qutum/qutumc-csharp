@@ -140,7 +140,6 @@ public class TestSynter : IDisposable
 	[TestMethod]
 	public void Block()
 	{
-		ser.dump = 4;
 		var t = Parse("").Eq(S.qutum).U();
 		t = Parse("""
 			1
@@ -168,7 +167,6 @@ public class TestSynter : IDisposable
 	[TestMethod]
 	public void Junction()
 	{
-		ser.dump = 3;
 		var t = Parse("""
 			1
 			+ 2
@@ -283,7 +281,6 @@ public class TestSynter : IDisposable
 		t = t/**/		.n(N).H(P, (L.INT, 2)).uuu();
 		t = t/**/.e().H(null, "line expression", 2.2, 2.3, -1);
 		t = t/**/	.N(null, "line expression", 3.3, 3.4, -1).uU();
-		ser.dump = 4;
 		t = Parse("""
 			1
 				- 2
@@ -456,7 +453,7 @@ public class TestSynter : IDisposable
 	[TestMethod]
 	public void BinaryJuncRecover()
 	{
-		ser.dump = 2;
+		ser.dump = 3;
 		var t = Parse(@"
 			1
 			*");
