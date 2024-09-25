@@ -40,7 +40,7 @@ public partial class Lexier
 			using (var env = EnvWriter.Use())
 				env.WriteLine(G.Dumper());
 		return string.Join(" ",
-			(all ? errs.Concat(blanks ?? []).Concat(lexs.Seg(1, loc)).OrderBy(l => l.from)
+			(all ? errs.Concat(lexs.Seg(1, loc)).Concat(blanks ?? []).OrderBy(l => l.from)
 				: (IEnumerable<Lexi<L>>)lexs.Seg(1, loc))
 			.Select(t => t.Dumper(Dumper)).ToArray());
 	}

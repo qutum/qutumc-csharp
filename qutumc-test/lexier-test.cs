@@ -50,10 +50,10 @@ public class TestLexier : IDisposable
 	[TestMethod]
 	public void LexGroup()
 	{
-		AreEqual("Junct Bin ORB XORB RUN RUND BinK OR XOR AND EQ UEQ LEQ GEQ LT GT ADD SUB MUL DIV MOD DIVF MODF SHL SHR ANDB",
+		AreEqual("Junct LSB Bin ORB XORB RUN RUND BinK OR XOR AND EQ UEQ LEQ GEQ LT GT ADD SUB MUL DIV MOD DIVF MODF SHL SHR ANDB",
 			string.Join(" ", LexIs.OfGroup(Lex.Bin).Order()));
 		AreEqual("BIN3 BIN4 BIN53 BIN57 BIN67 POST POSTD "
-			+ "Junct Bin ORB XORB RUN RUND BinK OR XOR AND EQ UEQ LEQ GEQ LT GT ADD SUB MUL DIV MOD DIVF MODF SHL SHR ANDB",
+			+ "Junct LSB Bin ORB XORB RUN RUND BinK OR XOR AND EQ UEQ LEQ GEQ LT GT ADD SUB MUL DIV MOD DIVF MODF SHL SHR ANDB",
 			string.Join(" ", LexIs.OfGroup(Lex.Bin, true).Order()));
 	}
 
@@ -115,7 +115,7 @@ public class TestLexier : IDisposable
 	[TestMethod]
 	public void Indent3()
 	{
-//		CheckSp(" a", "NAME=a EOL=");
+		CheckSp(" a", "NAME=a EOL=");
 		CheckSp("  a", "EOL= IND=2 NAME=a EOL= DED=2");
 		CheckSp("""
 			  a
@@ -384,18 +384,29 @@ public class TestLexier : IDisposable
 			*\##\1
 				4
 			""",
-		"NAME=a EOL= MUL= COMB? EOL= INDJ=3 INT=1 EOL= INT=4 DED=3");
+		"NAME=a EOL= INDJ=3 MUL= EOL= COMB? INT=1 EOL= INT=4 EOL= DED=3");
 		CheckSp("""
 			a
-			\##\*
-				1
-				*4
+			 *
+			##
+			    1
+			    *4
 			""",
-		"NAME=a EOL= COMB? MUL= EOL? EOL= INDJ=3 INT=1 EOL= MUL= EOL= INDJ=7 INT=4 DED=7 DED=3");
+		"NAME=a EOL= INDJ=4 MUL= EOL= EOL? COM? EOL? INT=1 EOL= INDJ=7 MUL= EOL= INT=4 EOL= DED=7 DED=4");
 	}
 
 	[TestMethod]
 	public void Junct2()
+	{
+		CheckSp("* 1", "EOL= INDJ=3 MUL= EOL= SP? INT=1 EOL= DED=3");
+		CheckSp("  * 1", "EOL= IND=2 EOL= INDJ=5 MUL= EOL= SP? INT=1 EOL= DED=5 DED=2");
+		CheckSp("  * 1\n* 2", "EOL= IND=2 EOL= INDJ=5 MUL= EOL= SP? INT=1 EOL= DED=5 DED=2 INDJ=3 MUL= EOL= SP? INT=2 EOL= DED=3");
+		CheckSp("+\n1", "EOL= INDJ=3 ADD= EOL= EOL? DED=3 INT=1 EOL=");
+		CheckSp("*\n1", "EOL= INDJ=3 MUL= EOL= EOL? DED=3 INT=1 EOL=");
+	}
+
+	[TestMethod]
+	public void Junct3()
 	{
 		Check("""
 			1
@@ -403,25 +414,34 @@ public class TestLexier : IDisposable
 				. /2
 				3
 			""",
-		"INT=1 EOL= IND=4 EOL= SUB= EOL= INDJ=7 MUL= INT=2 EOL= DED=7 RUN= EOL= INDJ=7 DIV= INT=2 EOL= DED=7 INT=3 DED=4");
+		"INT=1 EOL= IND=4 EOL= INDJ=7 SUB= EOL= MUL= INT=2 EOL= DED=7 INDJ=7 RUN= EOL= DIV= INT=2 EOL= DED=7 INT=3 EOL= DED=4");
 		Check("""
 			a
 			*1
 						2
 					3
-				*4
+				*
+						4
 			5
 			""",
-		"NAME=a EOL= MUL= EOL= INDJ=3 INT=1 EOL= INDR=12 INT=2 EOL= DEDR=12 IND=8 INT=3 EOL= DED=8 MUL= EOL= INDJ=7 INT=4 EOL= DED=7 DED=3 INT=5");
+		"NAME=a EOL= INDJ=3 MUL= EOL= INT=1 EOL= INDR=12 INT=2 EOL= DEDR=12 IND=8 INT=3 EOL= DED=8 INDJ=7 MUL= EOL= EOL= IND=12 INT=4 EOL= DED=12 DED=7 DED=3 INT=5 EOL=");
 	}
 
 	[TestMethod]
-	public void Junct3()
+	public void Junct4()
 	{
-		//CheckSp("* 1", "EOL= MUL= SP? EOL= INDJ=3 INT=1 DED=3");
-		//CheckSp("  * 1", "EOL= IND=2 EOL= MUL= SP? EOL= INDJ=5 INT=1 DED=5 DED=2");
-		//CheckSp("  * 1\n* 2", "EOL= IND=2 EOL= MUL= SP? EOL= INDJ=5 INT=1 EOL= DED=5 DED=2 MUL= SP? EOL= INDJ=3 INT=2 DED=3");
-		CheckSp("+\n1", "EOL= ADD= EOL? EOL= INDJ=3 EOL= DED=3 INT=1");
-		CheckSp("*\n1", "EOL= MUL= EOL? EOL= INDJ=3 EOL= DED=3 INT=1");
+		Check("""
+			1
+			[a]
+				*2
+			""",
+		"INT=1 EOL= INDJ=3 LSB= NAME=a RSB= EOL= INDJ=7 MUL= EOL= INT=2 EOL= DED=7 DED=3");
+		Check(""""
+			1
+			..
+				*2
+			"""",
+		"INT=1 EOL= INDJ=3 RUN= RUN= EOL= EOL= INDJ=7 MUL= EOL= INT=2 EOL= DED=7 DED=3");
+		CheckSp("..........", "EOL INDJ=3 RUN RUN RUN RUN RUN RUN RUN RUN RUN RUN EOL DED=3 EOL?");
 	}
 }

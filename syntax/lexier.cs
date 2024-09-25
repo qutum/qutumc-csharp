@@ -43,7 +43,7 @@ public static class LexIs
 		foreach (var key in Enum.GetValues<L>())
 			if (key.InGroup(g)) {
 				yield return key;
-				if (kinds && key.InKind() is byte k and > 0)
+				if (kinds && key.InKind() is var k and > 0)
 					ks.Add((L)k);
 			}
 		if (kinds)
@@ -85,13 +85,12 @@ public enum Lex : int
 
 	// singles
 	INP = 16, QUO,
-	// singles of groups: junct, bitwise, proem, phrase
-	JUN = Junct | QUO + 1 & 255,
-	ORB = Bin | JUN + 1 & 255, XORB,
-	LP = Proem | XORB + 1 & 255, LSB, LCB,
-	RP = Phr | LCB + 1 & 255, RSB, RCB,
+	// singles of groups: bitwise, proem, phrase
+	ORB = Bin | QUO + 1 & 255, XORB,
+	LP = Proem | XORB + 1 & 255, LCB, LSB = Junct | LCB + 1,
+	RP = Phr | LCB + 1 & 255, RCB, RSB,
 	// singles of blank group
-	EOL = Blank | RCB + 1 & 255, IND, DED, INDR, DEDR, INDJ,
+	EOL = Blank | RCB + 1 & 255, IND, INDR, DED, DEDR, INDJ,
 	SP, COM, COMB, PATH, NUM,
 
 	// inside kinds
@@ -196,43 +195,43 @@ public sealed partial class Lexier : LexierBuf<L>
 		G.lines = lines; G.errs = errs; G.blanks = blanks;
 		base.Dispose(); G.Dispose();
 		errs.Clear();
-		inds[indz = 0] = 0;
 	}
 	public IDisposable Begin(Lexer<byte, byte> read)
 	{
 		Dispose();
 		G.Begin(read); G.Next(); gloc = G.Loc();
-		Add(L.IND, 0, 0, 0); loc = 0; // whole read is indent 0
+		Add(L.IND, 0, 0, inds[indz = 0] = 0); // whole read is indent 0
+		soi = size; loc = 0;
 		return this;
 	}
 
 	readonly LexierGet G;
 	int gloc;
-	int indz; // inds size excluding leading 0
+	int indz; // inds size from 1
 	int[] inds = new int[50]; // {0, indent column...}
+	int soi; // start loc of indent
 
 	public override bool Next()
 	{
 		if (loc.IncLess(size)) return true;
 		var siz = size;
 	Next:
-		if (!G.Next() && gloc >= G.Loc())
+		if (siz < size || G.Get(ref gloc, out var ok) is var (k, f, to, v) && !ok)
 			return loc < size;
-		G.Get(gloc);
-		var (k, f, to, v) = (G.lex.key, G.lex.from, G.lex.to, G.lex.value);
+
 		switch (k) {
 
-		case L.EOL:
-			if (G.left.key is L.EOL or L.IND)
-				G.Blank(k, f, to, null); // no eol for empty line, so no empty indent block
-			else {
-				Add(G.lex);
-				if (G.right.key == default) // eor
-					Indent(0, to, to);
-			}
+		case default(L):
+			Indent(0, G.left.to, G.left.to); // eor
+			break;
+		case L.IND:
 			break;
 
-		case L.IND:
+		case L.EOL:
+			if (Left.key is >= L.EOL and <= L.INDR)
+				G.Blank(k, f, to, null); // no eol for empty line, so no empty indent block
+			else
+				Add(G.lex);
 			break;
 
 		case L.ADD:
@@ -248,9 +247,6 @@ public sealed partial class Lexier : LexierBuf<L>
 			Lexi(k, f, to, v);
 			break;
 		}
-		gloc++;
-		if (siz < size)
-			return loc < size;
 		goto Next;
 	}
 
@@ -271,7 +267,19 @@ public sealed partial class Lexier : LexierBuf<L>
 			else if (k.InKind(L.PRE) && !Left.key.InGroup(L.Proem | L.Blank))
 				G.Error(k, f, to, "prefix operator can densely follow proem or blank only");
 
-		Add(k, f, to, v);
+		// junct at start of line
+		if (G.left.key is L.EOL or L.IND && k.InGroup(L.Junct)) {
+			Indent((G.left.key == L.IND ? (int)G.left.value : 0) + 3, f, f, true); // between 2 and 4 column
+			do
+				Add(k, f, to, v);
+			while (G.right.key.InKind(L.POST) // multi post as junct
+				&& ((k, f, to, v) = G.Get(ref gloc, out var _)) is var _);
+			if (!k.InGroup(L.Proem))
+				Add(L.EOL, to, to, null);
+			soi = size; // start loc of junct indent
+		}
+		else
+			Add(k, f, to, v);
 	}
 	void Add(L k, int f, int to, object v) => Add(new() { key = k, from = f, to = to, value = v });
 
@@ -293,30 +301,15 @@ public sealed partial class Lexier : LexierBuf<L>
 			}
 		// add indent
 		if (c >= IndMin) {
-			if (Left.key is L.IND or L.INDR) // indent at start of indent, insert eol
+			if (soi == size) // indent at start of indent, insert eol
 				Add(L.EOL, f, f, null);
 			Add(c < IndrMin ? junct ? L.INDJ : L.IND : L.INDR, f, to, ind);
 			indz = i;
 			if (indz >= inds.Length) Array.Resize(ref inds, inds.Length << 1);
 			inds[i] = ind;
+			soi = size;
 		}
 	}
-
-	//void Before(L right, int f, int to, bool indent = true)
-	//{
-	//	if (sol && right.InGroup(L.Junct)) { // junct at start of line
-	//		var i = ind;
-	//		Indent(); indent = false;
-	//		if (soi) // insert empty line before start line of indent
-	//			base.Lexi(L.EOL, f, f, null);
-	//		ind = Math.Max(i, 0) + 3; // between 2 and 4 column, only one junct per line
-	//		soi = false; indf = indt = to; indj = true;
-	//	}
-	//{
-	//	var Sol = sol; sol = false;
-	//	if (Sol && left.InGroup(L.Junct)) // after junct
-	//		base.Lexi(L.EOL, to, to, null);
-	//}
 
 	Lexi<L> Left => lexs[size - 1];
 
@@ -336,16 +329,18 @@ internal sealed class LexierGet : Lexier<L>, Lexer<L, Lexi<L>>
 	{
 		base.Dispose();
 		lexs = new Lexi<L>[buf + 1];
-		lexs[^2] = lexs[^1] = new() { key = L.EOL }; // eol at start of read
+		lexs[^1].key = L.EOL; // eol at start of read
 		crlf = false; indb = -1; path.Clear();
 	}
 
-	public Lexi<L> left2, left, lex, right;
-	public void Get(int l)
+	public Lexi<L> left, lex, right;
+	public (L k, int f, int to, object v) Get(ref int l, out bool ok)
 	{
-		left2 = lexs[l - 2 & buf]; left = lexs[l - 1 & buf];
-		lex = lexs[l & buf];
-		right = lexs[l + 1 & buf];
+		ok = Next() || l < loc;
+		if (!ok)
+			return default;
+		left = lexs[l - 1 & buf]; lex = lexs[l++ & buf]; right = lexs[l & buf];
+		return (lex.key, lex.from, lex.to, lex.value);
 	}
 
 	protected override void Add(Lexi<L> lexi) => lexs[size++ & buf] = lexi;
@@ -363,7 +358,7 @@ internal sealed class LexierGet : Lexier<L>, Lexer<L, Lexi<L>>
 	{
 		if (size == 0 || lexs[size - 1 & buf].key != L.EOL)
 			Lexi(L.EOL, to, to, null); // eol at end of read
-		lexs[size & buf] = default;
+		Lexi(default, to, to, null);
 	}
 
 	int bz; // buffer size
