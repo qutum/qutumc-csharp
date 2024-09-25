@@ -16,7 +16,7 @@ public partial struct Lexi<K> where K : struct
 {
 	public K key;
 	public int from, to; // read from loc to excluded loc
-	public int err; // error merged into lexis at ~err: <0, no error: >=0
+	public int err; // error: <0, no error: >=0
 	public object value;
 }
 
@@ -69,7 +69,7 @@ public class LexGram<K> where K : struct
 
 // lexic parser
 // K for lexic key i.e lexeme
-public partial class Lexier<K> : LexerSeg<K, Lexi<K>> where K : struct
+public partial class Lexier<K> : LexierBuf<K> where K : struct
 {
 	// each unit is just before next byte or after the last byte of wad
 	sealed class Unit
@@ -92,35 +92,27 @@ public partial class Lexier<K> : LexerSeg<K, Lexi<K>> where K : struct
 	protected Lexer<byte, byte> read;
 	int bz; // total bytes got
 	int bf, bt; // read from loc to excluded loc for each wad
-	readonly List<int> lines = []; // [0, loc of read after eol...]
 	readonly byte[] bytes = new byte[AltByteN + 1]; // {latest bytes}[read loc & AltByteN]
-
-	protected int size, loc; // lexs size, current loc
-	protected Lexi<K>[] lexs;
 	protected int from; // read loc for current lexi
-	public List<Lexi<K>> errs = []; // [error lexi]: not null, merge to lexs: null
 
 	public const int AltByteN = 15;
 
 	public virtual IDisposable Begin(Lexer<byte, byte> read)
 	{
-		Dispose(); Clear();
+		Dispose();
 		this.read = read;
 		return this;
 	}
 
 	// results keep available
-	public virtual void Dispose() { read?.Dispose(); read = null; }
-
-	public virtual void Clear()
+	public override void Dispose()
 	{
-		bz = bf = bt = 0;
-		lines.Clear(); lines.Add(0);
-		size = 0; loc = -1; lexs = [];
-		from = -1; errs?.Clear();
+		base.Dispose();
+		read?.Dispose(); read = null;
+		bz = bf = bt = 0; from = -1;
 	}
 
-	public bool Next()
+	public override bool Next()
 	{
 		if (loc.IncLess(size)) return true;
 		var u = begin;
@@ -203,26 +195,40 @@ public partial class Lexier<K> : LexerSeg<K, Lexi<K>> where K : struct
 		if (end) from = -1;
 	}
 
-	protected void Lexi(Lexi<K> lexi, bool err = false)
+	// from f loc of read to excluded loc
+	protected void Lexi(K key, int f, int to, object value)
+		=> Add(new() { key = key, from = f, to = to, value = value });
+	// from f loc of read to excluded loc
+	protected void Error(K key, int f, int to, object value)
 	{
-		if (err && errs != null)
-			errs.Add(lexi);
-		else {
-			if (size == lexs.Length) Array.Resize(ref lexs, Math.Max(lexs.Length << 1, 65536));
-			lexs[size++] = lexi;
-		}
+		var l = new Lexi<K> { key = key, from = f, to = to, value = value, err = -1 };
+		if (errs != null) errs.Add(l); else Add(l);
 	}
-
-	// from f loc of read to excluded loc
-	protected virtual void Lexi(K key, int f, int to, object value)
-		=> Lexi(new() { key = key, from = f, to = to, value = value });
-	// from f loc of read to excluded loc
-	protected virtual void Error(K key, int f, int to, object value)
-		=> Lexi(new() { key = key, from = f, to = to, value = value, err = ~size }, true);
 
 	// eor, read to excluded loc
 	protected virtual void Eor(int to) { }
+}
 
+public abstract class LexierBuf<K> : LexerSeg<K, Lexi<K>> where K : struct
+{
+	protected int size, loc; // lexs size, current loc
+	protected Lexi<K>[] lexs;
+	public List<int> lines = []; // [0, loc of read after eol...]
+	public List<Lexi<K>> errs = []; // [error lexi]: not null, merge to lexs: null
+
+	public virtual void Dispose()
+	{
+		size = 0; loc = -1; lexs = [];
+		lines.Clear(); lines.Add(0); errs?.Clear();
+	}
+
+	protected virtual void Add(Lexi<K> lex)
+	{
+		if (size == lexs.Length) Array.Resize(ref lexs, Math.Max(lexs.Length << 1, 65536));
+		lexs[size++] = lex;
+	}
+
+	public abstract bool Next();
 	public int Loc() => loc;
 	public Lexi<K> Lex() => lexs[loc];
 	public Lexi<K> Lex(int loc) => lexs.AsSpan(0, size)[loc];
@@ -245,14 +251,14 @@ public partial class Lexier<K> : LexerSeg<K, Lexi<K>> where K : struct
 	IEnumerable<Lexi<K>> Lexer<K, Lexi<K>>.Lexs(int from, int to) => Lexs(from, to);
 
 	public static IEnumerable<K> Keys_(string keys) => [Enum.Parse<K>(keys)];
-	public virtual IEnumerable<K> Keys(string keys) => Keys_(keys);
+	public IEnumerable<K> Keys(string keys) => Keys_(keys);
 
 	// first line and col are 1, col is byte index inside line
-	public (int line, int column) LineCol(int inputLoc)
+	public (int line, int column) LineCol(int readLoc)
 	{
-		var line = lines.BinarySearch(inputLoc);
+		var line = lines.BinarySearch(readLoc);
 		line = (line ^ line >> 31) + (~line >>> 31);
-		return (line, inputLoc - lines[line - 1] + 1);
+		return (line, readLoc - lines[line - 1] + 1);
 	}
 
 	// excluded to, ~from ~to for errs, first line and col are 1, col is byte index inside line
@@ -273,7 +279,10 @@ public partial class Lexier<K> : LexerSeg<K, Lexi<K>> where K : struct
 		var (fl, fc) = LineCol(bf); var (tl, tc) = LineCol(bt);
 		return (fl, fc, tl, tc);
 	}
+}
 
+public partial class Lexier<K>
+{
 	public Lexier(LexGram<K> grammar, bool dumpGram = false)
 		=> begin = new Build(this).Do(grammar, dumpGram);
 

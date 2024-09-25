@@ -58,6 +58,8 @@ public partial class Lexier<K> : LexerSeg<K, Lexi<K>>
 					goto Go;
 				}
 	}
+
+	public string Dumper() => string.Join(" ", lexs.Seg(0, loc).Select(t => t.ToString()).ToArray());
 }
 
 public partial class LinkTree<T>

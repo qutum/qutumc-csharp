@@ -4,7 +4,10 @@
 // Under the terms of the GNU General Public License version 3
 // http://qutum.com  http://qutum.cn
 //
+using qutum.parser;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace qutum.syntax;
 
@@ -27,6 +30,23 @@ public class Dumps
 		return ordins[o];
 	}
 	private static L[] ordins;
+}
+
+public partial class Lexier
+{
+	public string Dumper(bool all = true)
+	{
+		if (dump)
+			using (var env = EnvWriter.Use())
+				env.WriteLine(G.Dumper());
+		return string.Join(" ",
+			(all ? errs.Concat(blanks ?? []).Concat(lexs.Seg(1, loc)).OrderBy(l => l.from)
+				: (IEnumerable<Lexi<L>>)lexs.Seg(1, loc))
+			.Select(t => t.Dumper(Dumper)).ToArray());
+	}
+
+	public static string Dumper(object d)
+		=> d is object[] s ? string.Join(',', s) + "," : d?.ToString() ?? "";
 }
 
 public partial class Synter

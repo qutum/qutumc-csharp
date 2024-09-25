@@ -85,8 +85,9 @@ public enum Lex : int
 
 	// singles
 	INP = 16, QUO,
-	// singles of groups: bitwise, proem, phrase
-	ORB = Bin | QUO + 1 & 255, XORB,
+	// singles of groups: junct, bitwise, proem, phrase
+	JUN = Junct | QUO + 1 & 255,
+	ORB = Bin | JUN + 1 & 255, XORB,
 	LP = Proem | XORB + 1 & 255, LSB, LCB,
 	RP = Phr | LCB + 1 & 255, RSB, RCB,
 	// singles of blank group
@@ -123,7 +124,7 @@ public enum Lex : int
 }
 
 // lexic parser
-public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
+public sealed partial class Lexier : LexierBuf<L>
 {
 	static readonly LexGram<L> Grammar = new LexGram<L>()
 		.k(L.INP).w[","].k(L.QUO).w["="]
@@ -182,156 +183,211 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 				.w[[]]["fF".One()]
 	;
 
-	public static Kord Ordin(Lexier ler) => ler.lexs[ler.loc].key.Ordin();
-	public override bool Is(L key, L aim) => key.Is(aim);
-
-	public bool eorEol = true; // insert eol at eor
+	public const int IndMin = 2, IndrMin = 6;
 	public List<Lexi<L>> blanks; // [blank except single eol and indent], merged into lexis at err
+	public bool dump = false;
 
-	public Lexier() : base(Grammar) { }
+	public Lexier() { G = new(Grammar); }
 
-	public override void Clear()
+	// results keep available
+	public override void Dispose()
 	{
-		base.Clear();
-		indb = -1; inds[indz = 0] = 0;
-		crlf = false; bin = default; path.Clear();
-		var end = true; Wad(L.EOL, 0, ref end, 0, 0); // eol at start of read
-		Next(); soi = true;
+		G.buf = dump ? 65535 : 7;
+		G.lines = lines; G.errs = errs; G.blanks = blanks;
+		base.Dispose(); G.Dispose();
+		errs.Clear();
+		inds[indz = 0] = 0;
+	}
+	public IDisposable Begin(Lexer<byte, byte> read)
+	{
+		Dispose();
+		G.Begin(read); G.Next(); gloc = G.Loc();
+		Add(L.IND, 0, 0, 0); loc = 0; // whole read is indent 0
+		return this;
 	}
 
-	void Blank(L key, int f, int to, object value) => blanks?.Add(
-		new() { key = key, from = f, to = to, value = value, err = size }); // merged into lexi at err
-
-	public const int IndMin = 2, IndrMin = 6;
-	bool sol, soi; // start of line before indent and dedent, start line of indent
-	int indb; // indent byte, unknown: -1
+	readonly LexierGet G;
+	int gloc;
 	int indz; // inds size excluding leading 0
 	int[] inds = new int[50]; // {0, indent column...}
-	int ind, indf, indt; // indent column 0 based, read from loc to excluded loc
 
-	void Indent(bool junct = false)
+	public override bool Next()
 	{
-		if (ind < 0)
-			return;
-		sol = false;
+		if (loc.IncLess(size)) return true;
+		var siz = size;
+	Next:
+		if (!G.Next() && gloc >= G.Loc())
+			return loc < size;
+		G.Get(gloc);
+		var (k, f, to, v) = (G.lex.key, G.lex.from, G.lex.to, G.lex.value);
+		switch (k) {
+
+		case L.EOL:
+			if (G.left.key is L.EOL or L.IND)
+				G.Blank(k, f, to, null); // no eol for empty line, so no empty indent block
+			else {
+				Add(G.lex);
+				if (G.right.key == default) // eor
+					Indent(0, to, to);
+			}
+			break;
+
+		case L.IND:
+			break;
+
+		case L.ADD:
+		case L.SUB:
+			if ((Left.to < f || Left.key.InGroup(L.Proem | L.Blank))
+				&& to == G.right.from && !G.right.key.InGroup(L.Blank))
+				// left not dense and right dense, binary as prefix
+				k = k switch { L.ADD => L.POSI, L.SUB => L.NEGA, _ => throw new() };
+			Lexi(k, f, to, v);
+			break;
+
+		default:
+			Lexi(k, f, to, v);
+			break;
+		}
+		gloc++;
+		if (siz < size)
+			return loc < size;
+		goto Next;
+	}
+
+	void Lexi(L k, int f, int to, object v)
+	{
+		// indent at start of line
+		if (G.left.key == L.EOL)
+			Indent(0, f, f);
+		else if (G.left.key == L.IND)
+			Indent((int)G.left.value, G.left.from, G.left.to);
+
+		// left dense
+		if (Left.to == f)
+			if (k.InKind(L.POST) && Left.key.InGroup(L.Phr)) // postfix densely follows phrase, higher precedence
+				k = (L)((int)k ^ (int)L.POST << 8 | (int)L.POSTD << 8);
+			else if (k.InKind(L.LIT) && Left.key.InKind(L.LIT))
+				G.Error(k, f, to, "literal can not densely follow literal");
+			else if (k.InKind(L.PRE) && !Left.key.InGroup(L.Proem | L.Blank))
+				G.Error(k, f, to, "prefix operator can densely follow proem or blank only");
+
+		Add(k, f, to, v);
+	}
+	void Add(L k, int f, int to, object v) => Add(new() { key = k, from = f, to = to, value = v });
+
+	// indent column 0 based, read from loc to excluded loc
+	void Indent(int ind, int f, int to, bool junct = false)
+	{
 		var i = Array.BinarySearch(inds, 1, indz, ind + IndMin); // indent with offset
 		i ^= i >> 31; // >= 1
 		var c = ind - inds[i - 1];
 		// for i <= indz, drop these indents
 		for (var x = indz; i <= x; indz = --x)
 			if (x > i || c < IndrMin)
-				base.Lexi(inds[x] - inds[x - 1] < IndrMin ? L.DED : L.DEDR,
-					indf, indf, inds[x]);
-			else { // INDR remains
-				base.Error(L.INDR, indf, indt, "indent-right expected same as upper lines");
+				Add(inds[x] - inds[x - 1] < IndrMin ? L.DED : L.DEDR,
+					f, f, inds[x]);
+			else { // indent-right remains
+				G.Error(L.INDR, f, to, "indent-right expected same as upper lines");
 				inds[i] = ind;
-				goto Done;
+				return;
 			}
 		// add indent
 		if (c >= IndMin) {
-			if (soi) // no start line of indent, insert
-				base.Lexi(L.EOL, indf, indf, null);
-			base.Lexi(c < IndrMin ? junct ? L.INDJ : L.IND : L.INDR, indf, indt, ind);
+			if (Left.key is L.IND or L.INDR) // indent at start of indent, insert eol
+				Add(L.EOL, f, f, null);
+			Add(c < IndrMin ? junct ? L.INDJ : L.IND : L.INDR, f, to, ind);
 			indz = i;
 			if (indz >= inds.Length) Array.Resize(ref inds, inds.Length << 1);
-			soi = true; inds[i] = ind;
+			inds[i] = ind;
 		}
-	Done: ind = -1;
 	}
 
-	void Before(L right, int f, bool indent = true)
+	//void Before(L right, int f, int to, bool indent = true)
+	//{
+	//	if (sol && right.InGroup(L.Junct)) { // junct at start of line
+	//		var i = ind;
+	//		Indent(); indent = false;
+	//		if (soi) // insert empty line before start line of indent
+	//			base.Lexi(L.EOL, f, f, null);
+	//		ind = Math.Max(i, 0) + 3; // between 2 and 4 column, only one junct per line
+	//		soi = false; indf = indt = to; indj = true;
+	//	}
+	//{
+	//	var Sol = sol; sol = false;
+	//	if (Sol && left.InGroup(L.Junct)) // after junct
+	//		base.Lexi(L.EOL, to, to, null);
+	//}
+
+	Lexi<L> Left => lexs[size - 1];
+
+	public static Kord Ordin(Lexier ler) => ler.lexs[ler.loc].key.Ordin();
+	public override bool Is(L key, L aim) => key.Is(aim);
+}
+
+// lexic parser base
+internal sealed class LexierGet : Lexier<L>, Lexer<L, Lexi<L>>
+{
+	public int buf;
+	public List<Lexi<L>> blanks; // [blank except single eol and indent], merged into lexis at err
+
+	public LexierGet(LexGram<L> gram) : base(gram) { errs = null; }
+
+	public override void Dispose()
 	{
-		if (bin != default) {
-			var k = bin; bin = default;
-			if (bint == f && !right.InGroup(L.Blank)) // right dense, binary as prefix
-				k = k switch { L.ADD => L.POSI, L.SUB => L.NEGA, _ => throw new() };
-			Before(k, binf);
-			base.Lexi(k, binf, bint, null);
-			After(k, binf, bint);
-		}
-		else if (sol && right.InGroup(L.Junct)) { // start of line, insert before junct
-			var i = ind;
-			Indent(); indent = false;
-			ind = Math.Max(i, 0) + 3; // between 2 and 4 column
-			indf = indt = f; Indent(true);
-			base.Lexi(L.LIT, f, f, null);
-		}
-		if (indent)
-			Indent();
-	}
-	protected override void Lexi(L key, int f, int to, object value)
-	{
-		Before(key, f);
-		var p = lexs[size - 1];
-		if (p.to == f) // dense
-			if (key.InKind(L.POST) && p.key.InGroup(L.Phr)) // postfix densely follows phrase, higher precedence
-				key = (L)((int)key ^ (int)L.POST << 8 | (int)L.POSTD << 8);
-			else if (key.InKind(L.LIT) && p.key.InKind(L.LIT))
-				base.Error(key, f, to, "literal can not densely follow literal");
-			else if (key.InKind(L.PRE) && !p.key.InGroup(L.Proem | L.Blank))
-				base.Error(key, f, to, "prefix operator can densely follow proem or blank only");
-		base.Lexi(key, f, to, value);
-		After(key, f, to);
-	}
-	[System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE0060:Remove unused parameter")]
-	void After(L left, int f, int to)
-	{
-		Loc(); // stub for post lex process
+		base.Dispose();
+		lexs = new Lexi<L>[buf + 1];
+		lexs[^2] = lexs[^1] = new() { key = L.EOL }; // eol at start of read
+		crlf = false; indb = -1; path.Clear();
 	}
 
-	protected override void Error(L key, int f, int to, object value)
+	public Lexi<L> left2, left, lex, right;
+	public void Get(int l)
 	{
-		Before(key, f, false);
-		_ = errs ?? throw null;
-		base.Error(key, f, to, value);
-	}
-	protected override void WadErr(L key, int wad, bool end, int b, int f, int to)
-	{
-		if (key == L.PATH)
-			key = L.NAME;
-		base.WadErr(key, wad, end, b, f, to);
+		left2 = lexs[l - 2 & buf]; left = lexs[l - 1 & buf];
+		lex = lexs[l & buf];
+		right = lexs[l + 1 & buf];
 	}
 
+	protected override void Add(Lexi<L> lexi) => lexs[size++ & buf] = lexi;
+	public new void Error(L k, int f, int to, object value) => base.Error(k, f, to, value);
+	public void Blank(L k, int f, int to, object value) => blanks?.Add(
+		new() { key = k, from = f, to = to, value = value, err = 1 });
+
+	protected override void WadErr(L k, int wad, bool end, int b, int f, int to)
+	{
+		if (k == L.PATH)
+			k = L.NAME; // TODO
+		base.WadErr(k, wad, end, b, f, to);
+	}
 	protected override void Eor(int to)
 	{
-		var end = true;
-		if (eorEol)
-			Wad(L.EOL, 1, ref end, to, to);
-		else
-			Before(L.EOL, to, false);
-		ind = 0; indf = indt = to; Indent();
+		if (size == 0 || lexs[size - 1 & buf].key != L.EOL)
+			Lexi(L.EOL, to, to, null); // eol at end of read
+		lexs[size & buf] = default;
 	}
 
 	int bz; // buffer size
 	byte[] bs = new byte[4096]; // long read buffer
 	bool crlf; // \r\n found
 	bool leadSp; // leading space
-	L bin; // binary, maybe prefix
-	int binf, bint; // binary, read from loc to excluded loc
+	int indb; // indent byte, unknown: -1
 	int ni, nf, ne; // end of each number wad
 	readonly List<string> path = [];
 
-	protected override void Wad(L key, int wad, ref bool end, int f, int to)
+	protected override void Wad(L k, int wad, ref bool end, int f, int to)
 	{
 		object d = null;
 		if (from < 0) {
 			from = f; bz = 0; path.Clear();
 		}
-		switch (key) {
+		switch (k) {
 
 		case L.EOL:
 			if (!crlf && to == f + 2) { // \r\n found
-				Error(key, f, to, @"use LF \n eol instead of CRLF \r\n");
+				Error(k, f, to, @"use LF \n eol instead of CRLF \r\n");
 				crlf = true;
 			}
-			Before(key, from, false);
-			if (sol) // no EOL for empty line, so no empty indent block
-				Blank(key, from, to, null);
-			else {
-				base.Lexi(key, from, to, null);
-				sol = true; soi = false;
-			}
-			ind = 0; indf = indt = to;
+			Lexi(k, from, to, null);
 			goto End;
 
 		case L.SP:
@@ -342,21 +398,19 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 					indb = read.Lex(f); // first leading space, save the indent byte
 				else if (f < to && read.Lex(f) != indb) { // mix \s and \t
 					leadSp = false; // not leading and indent unchanged
-					Error(key, f, to, "do not mix tabs and spaces for indent"); // TODO omit this before COM ?
+					Error(k, f, to, "do not mix tabs and spaces for indent"); // TODO omit this before comment ?
 				}
 			if (!end)
 				return;
-			if (leadSp) {
-				ind = to - from << (indb == '\t' ? 2 : 0); // 4 column each \t
-				indf = from; indt = to;
-			}
+			if (leadSp)
+				Lexi(L.IND, from, to, to - from << (indb == '\t' ? 2 : 0)); // 4 column each \t
 			else
-				Blank(key, from, to, null);
+				Blank(k, from, to, null);
 			goto End;
 
 		case L.COM:
 			if (end)
-				Blank(key, from, to, null);
+				Blank(k, from, to, null);
 			goto End;
 
 		case L.COMB:
@@ -367,7 +421,7 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 			if (to - f != bz - from || read.Lex(f) != '#') // check end wad size
 				return;
 			end = true; bz = 0;
-			Blank(key, from, to, null);
+			Blank(k, from, to, null);
 			goto End;
 
 		case L.STRB:
@@ -385,7 +439,7 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 				return;
 			if (end) {
 				if (read.Lex(to - 1) == '\n') {
-					Error(key, f, to, "eol unexpected");
+					Error(k, f, to, "eol unexpected");
 					BackByte(to = f); // next lexi will be eol
 				}
 				break;
@@ -393,21 +447,11 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 			Read(f, to, bz); Unesc(f, to);
 			return; // inside string
 
-		case L.ADD:
-		case L.SUB:
-			if (lexs[size - 1].to < f || lexs[size - 1].key.InGroup(L.Proem | L.Blank)) { // left not dense
-				if (bin != default)
-					Before(key, f);
-				bin = key; binf = f; bint = to; // binary may be prefix
-				goto End;
-			}
-			break;
-
 		case L.HEX:
 			if (!end)
 				return;
 			bz = Read(from, to, 0);
-			key = L.INT; d = Hex(); // as INT
+			k = L.INT; d = Hex(); // as INT
 			break;
 
 		case L.NUM:
@@ -417,14 +461,14 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 			if (!end)
 				return;
 			bz = Read(from, to, 0);
-			d = Num(ref key);
+			d = Num(ref k);
 			break;
 
 		case L.NAME:
 		case L.RUN:
-			f = key == L.NAME ? from : from + 1;
+			f = k == L.NAME ? from : from + 1;
 			if (to - f > 40) {
-				Error(key, f, to, "too long");
+				Error(k, f, to, "too long");
 				to = f + 40;
 			}
 			bz = Read(f, to, 0);
@@ -447,7 +491,7 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 					Error(L.NAME, f, to, "eol unexpected");
 					BackByte(to = f); // next lexi will be eol
 				}
-				key = read.Lex(from) != '.' ? L.NAME : L.RUN;
+				k = read.Lex(from) != '.' ? L.NAME : L.RUN;
 				d = path.ToArray();
 				break;
 			}
@@ -458,7 +502,7 @@ public sealed class Lexier : Lexier<L>, Lexer<L, Lexi<L>>
 		}
 		if (!end)
 			return;
-		Lexi(key, from, to, d ?? (bz > 0 ? Encoding.UTF8.GetString(bs, 0, bz) : null));
+		Lexi(k, from, to, d ?? (bz > 0 ? Encoding.UTF8.GetString(bs, 0, bz) : null));
 	End: // lexi already made
 		from = -1;
 	}

@@ -35,7 +35,7 @@ public class TestLexier : IDisposable
 	{
 		using var __ = ler.Begin(new LerByte(read));
 		while (ler.Next()) ;
-		var ls = string.Join(" ", ler.Lexs(0, ler.Loc()).Select(t => t.ToString()).ToArray());
+		var ls = ler.Dumper();
 		env.WriteLine(ls);
 		AreEqual(s, ls);
 	}

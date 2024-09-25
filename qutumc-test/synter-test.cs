@@ -132,7 +132,7 @@ public class TestSynter : IDisposable
 		ser.ler.Begin(new LerByte(Encoding.UTF8.GetBytes(read)));
 		var t = ser.Parse();
 		if (ser.dump >= 4)
-			env.WriteLine(string.Join(' ', ser.ler.Lexs(1, ser.ler.Loc())));
+			env.WriteLine(ser.ler.Dumper(false));
 		return (t.Dump(ser.Dumper), ser);
 	}
 	public const S B = S.block, Nr = S.nestr, N = S.nest, E = S.exp, P = S.phr, I = S.inp;
@@ -140,6 +140,7 @@ public class TestSynter : IDisposable
 	[TestMethod]
 	public void Block()
 	{
+		ser.dump = 4;
 		var t = Parse("").Eq(S.qutum).U();
 		t = Parse("""
 			1

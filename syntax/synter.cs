@@ -93,7 +93,7 @@ public partial class Synter : Synter<L, S, Synt, Lexier>
 
 	public override Synt Parse()
 	{
-		ler.eorEol = true; ler.blanks = null;
+		ler.blanks = null;
 		var t = base.Parse();
 		// add error lexis
 		var errs = new Synt { err = -3, info = ler.errs.Count };
