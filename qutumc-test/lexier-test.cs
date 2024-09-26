@@ -403,6 +403,8 @@ public class TestLexier : IDisposable
 		CheckSp("  * 1\n* 2", "EOL IND=2 EOL INDJ=5 MUL EOL SP? INT=1 EOL DED=5 DED=2 INDJ=3 MUL EOL SP? INT=2 EOL DED=3");
 		CheckSp("+\n1", "EOL INDJ=3 ADD EOL EOL? DED=3 INT=1 EOL");
 		CheckSp("*\n1", "EOL INDJ=3 MUL EOL EOL? DED=3 INT=1 EOL");
+		CheckSp("*\n", "EOL INDJ=3 MUL EOL EOL? DED=3");
+		CheckSp("*", "EOL INDJ=3 MUL EOL DED=3 EOL?");
 	}
 
 	[TestMethod]

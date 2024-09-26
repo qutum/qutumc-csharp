@@ -16,8 +16,12 @@ using S = Syn;
 public enum Syn : Nord
 {
 	__ = default,
-	qutum, Block, nestr, Nest, Junc,
-	block, nest, junc, line,
+	qutum,
+	// serial blocks
+	Block, block, nest, jsb,
+	// inside block
+	line, with, nestr, nests, Junc, junc, jbin, jrsb, jpost,
+	// expression
 	exp, phr, inp,
 }
 
@@ -31,17 +35,26 @@ public partial class Synter : Synter<L, S, Synt, Lexier>
 	{
 		// syntax grammar
 		var gram = new SynGram<L, S>()
-		.n(S.qutum)._[S.block].synt
+		.n(S.qutum)._[S.Block].synt
+		.n(S.Block)._[S.block]._[[]]
+		.n(S.block)._[S.line, S.with, S.Block].syntRight.label("block")
+		.n(S.nest).__[S.line, S.with, S.nest].syntRight._[[]]
+		.n(S.jsb).___[S.jrsb, S.with, S.Block].syntRight
 
-		.n(S.Block)._[S.line, S.nestr, S.Nest, S.Junc]
-		.n(S.Nest).__[L.IND, S.nest, L.DED]._[[]]
+		.n(S.line).__[S.exp, L.EOL].recover.label("line")
+		.n(S.with).__[S.nestr, S.nests, S.Junc]
+		.n(S.nestr)._[L.INDR, S.nest, L.DEDR].synt._[[]] // rightmost nestings
+		.n(S.nests)._[L.IND, S.nest, L.DED]._[[]]
 		.n(S.Junc).__[S.junc, S.Junc]._[[]]
 
-		.n(S.block)._[S.Block, S.block].syntRight._[[]]
-		.n(S.nest).__[S.Block, S.nest].syntRight._[[]]
-		.n(S.nestr)._[L.INDR, S.block, L.DEDR].synt._[[]] // nest of rightmost
-		.n(S.junc).__[L.INDJ, S.Block, S.block, L.DED].synt
-		.n(S.line).__[S.exp, L.EOL].recover.label("line")
+		.n(S.jrsb).__[S.exp, L.RSB, L.EOL].recover.label("bracket junction")
+		.n(S.junc)
+				[L.INDJ, S.jbin, .., L.EOL, S.block, L.DED].recover.synt.label("junction")
+				[L.INDJ, L.LSB, .., L.RSB, L.EOL, S.block, L.DED].recover.synt.label("junction")
+				[L.INDJ, L.LSB, .., S.jsb, L.DED].synt
+				[L.INDJ, S.jpost, L.EOL, S.Block, L.DED].synt
+		.n(S.jbin).__.Alts(L.Bin)
+		.n(S.jpost)._[L.POST, ..].synt._[L.POST, .., S.jpost].syntRight
 
 		.n(S.inp)
 				[S.phr, L.INP].clash // trailing comma
@@ -63,7 +76,8 @@ public partial class Synter : Synter<L, S, Synt, Lexier>
 				[S.inp].clash
 				[S.exp, L.POST, ..].clash.syntLeft.label("postfix operator")
 				[L.LIT, ..].clash.synt.label("literal")
-				[L.LP, .., S.exp, L.RP].clash.recover.label("parenth") // main lex for recovery
+				[L.LP, .., S.exp, L.RP].clash.recover.label("parenth") // main lexs for recovery
+				[L.LSB, .., S.exp, L.RSB].clash.recover.label("square bracket") // main lexs for recovery
 		.n(S.inp)
 				[S.exp, S.exp].clash.syntLeft // higher than others for left associative
 		.n(S.phr)
