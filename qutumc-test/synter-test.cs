@@ -110,9 +110,7 @@ file static class Extension
 
 	public static Ser nr(this Ser s) => s.n(S.nestr);
 	public static Ser j(this Ser s, object d = null, Dec? from = null, Dec? to = null, int err = 0)
-		=> s.n(S.junc, d, from, to, err).h(S.block);
-	public static Ser jsb(this Ser s, Dec? from = null, Dec? to = null, int err = 0)
-		=> s.n(S.junc, L.LSB, from, to, err).h(S.jsb);
+		=> s.n(S.junc, d, from, to, err).h(L.LSB.Equals(d) ? S.jsb : S.block);
 }
 
 [TestClass]
@@ -440,15 +438,18 @@ public class TestSynter : IDisposable
 			.a. .b
 				2
 			. 3
-				4
+				. 4
+				5
 			""");
 		t = t/**/	.h(B).H(P, (L.INT, 1));
 		t = t/**/		.n(J).H(S.jpost, (L.RUN, "a"));
 		t = t/**/			.N(S.jpost, (L.RUN, "")).N(S.jpost, (L.RUN, "b"));
 		t = t/**/			.n(B).H(P, (L.INT, 2)).uu();
 		t = t/**/		.n(J).H(S.jpost, (L.RUN, ""));
-		t = t/**/			.n(B).H(P, (L.INT, 3)).u();
-		t = t/**/			.n(B).H(P, (L.INT, 4)).uuuuU();
+		t = t/**/			.n(B).H(P, (L.INT, 3));
+		t = t/**/				.n(J).H(S.jpost, (L.RUN, ""));
+		t = t/**/					.n(B).H(P, (L.INT, 4)).uuu();
+		t = t/**/			.n(B).H(P, (L.INT, 5)).uuuuU();
 	}
 
 	[TestMethod]
@@ -469,8 +470,8 @@ public class TestSynter : IDisposable
 		t = t/**/				.n(J).H(S.jpost, (L.RUN, "c"));
 		t = t/**/					.n(B).H(S.line, err: 1);
 		t = t/**/						.n(J).H(S.jpost, (L.RUN, "")).uuuu().uuu();
-		t = t/**/.e().H(null, "junction block", 2.8, 2.9, -1);
-		t = t/**/	.N(null, "junction block", 5.3, 5.3, -1).uU();
+		t = t/**/.e().H(null, "block line", 2.8, 2.9, -1);
+		t = t/**/	.N(null, "block line", 5.3, 5.3, -1).uU();
 	}
 
 	[TestMethod]
@@ -582,6 +583,62 @@ public class TestSynter : IDisposable
 		t = t/**/		.N(S.line, err: 1).uu();
 		t = t/**/.e().H(S.phr, "arithmetic expression", 1.9, 1.10m, -1);
 		t = t/**/	.N(S.line, "arithmetic expression", 1.13, 1.14, -1).uU();
+	}
+
+	[TestMethod]
+	public void BracketJunc()
+	{
+		var t = Parse("""
+			1
+			[2]
+				3
+				*4
+				5
+			[6]
+			""");
+		t = t/**/	.h(B).H(P, (L.INT, 1));
+		t = t/**/		.j(L.LSB).H(P, (L.INT, 2)).u();
+		t = t/**/			.n(B).H(P, (L.INT, 3));
+		t = t/**/				.j(L.MUL).H(P, (L.INT, 4)).uuu();
+		t = t/**/			.n(B).H(P, (L.INT, 5)).uu();
+		t = t/**/		.j(L.LSB).H(P, (L.INT, 6)).uuuuU();
+	}
+
+	[TestMethod]
+	public void BracketJuncRecover()
+	{
+		var t = Parse("""
+			1
+			[
+			[]
+			2
+			""");
+		t = t/**/	.h(B).H(P, (L.INT, 1));
+		t = t/**/		.j(L.LSB).H(S.jrsb, err: 1).uu();
+		t = t/**/		.j(L.LSB).H(S.jrsb, err: 1).uuu();
+		t = t/**/	.n(B).H(P, (L.INT, 2)).uu();
+		t = t/**/.e().H(null, "bracket junction expression", 2.2, 3.1, -1);
+		t = t/**/	.N(null, "bracket junction expression", 3.2, 3.3, -1).uU();
+		t = Parse("""
+			1
+			[2] 3
+				[4] /5
+			[6
+				[] 7
+				8
+			""");
+		t = t/**/	.h(B).H(P, (L.INT, 1));
+		t = t/**/		.j(L.LSB).H(P, (L.INT, 2));
+		t = t/**/				.N(S.jrsb, err: 1);
+		t = t/**/				.j(L.LSB).H(P, (L.INT, 4));
+		t = t/**/						.N(S.jrsb, err: 1).uuuu();
+		t = t/**/		.j(L.LSB).H(P, (L.INT, 6)).N(S.jrsb, err: 1);
+		t = t/**/				.j(L.LSB).H(S.jrsb, err: 1).uuu();
+		t = t/**/			.n(B).H(P, (L.INT, 8)).uuuu();
+		t = t/**/.e().H(null, "bracket junction EOL", 2.5, 2.6, -1);
+		t = t/**/	.N(null, "bracket junction EOL", 3.6, 3.7, -1);
+		t = t/**/	.N(null, "bracket junction RSB", 4.3, 5.1, -1);
+		t = t/**/	.N(null, "bracket junction expression", 5.3, 5.4, -1).uU();
 	}
 
 	[TestMethod]

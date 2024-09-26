@@ -47,13 +47,12 @@ public partial class Synter : Synter<L, S, Synt, Lexier>
 		.n(S.nests)._[L.IND, S.nest, L.DED]._[[]]
 		.n(S.Junc).__[S.junc, S.Junc]._[[]]
 
-		.n(S.jrsb).__[S.exp, L.RSB, L.EOL].recover.label("bracket junction")
 		.n(S.junc)
 				[L.INDJ, S.jbin, .., L.EOL, S.block, L.DED].recover.synt.label("junction")
-				[L.INDJ, L.LSB, .., L.RSB, L.EOL, S.block, L.DED].recover.synt.label("junction")
 				[L.INDJ, L.LSB, .., S.jsb, L.DED].synt
 				[L.INDJ, S.jpost, L.EOL, S.Block, L.DED].synt
 		.n(S.jbin).__.Alts(L.Bin)
+		.n(S.jrsb).__[S.exp, L.RSB, L.EOL].recover.label("bracket junction")
 		.n(S.jpost)._[L.POST, ..].synt._[L.POST, .., S.jpost].syntRight
 
 		.n(S.inp)
