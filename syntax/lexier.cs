@@ -41,7 +41,7 @@ public static class LexIs
 	{
 		HashSet<L> ks = kinds ? [] : null;
 		foreach (var key in Enum.GetValues<L>())
-			if (key.InGroup(g)) {
+			if (key.InGroupAll(g)) {
 				yield return key;
 				if (kinds && key.InKind() is var k and > 0)
 					ks.Add((L)k);
@@ -55,6 +55,7 @@ public static class LexIs
 	public static bool IsKind(this L aim) => (ushort)aim is > 0 and < 16;
 	public static bool IsSingle(this L aim) => (ushort)aim is >= 16 and <= 255;
 	public static bool InGroup(this L key, L aim) => (int)(key & aim) << 8 != 0;
+	public static bool InGroupAll(this L key, L aim) => (int)(key & aim) == (int)aim;
 	public static byte InKind(this L key) => (byte)((ushort)key >> 8);
 	public static bool InKind(this L key, L aim) => (byte)((int)key >> ((int)key >> 24)) == (byte)aim;
 
@@ -88,9 +89,9 @@ public enum Lex : int
 	// singles of groups: bitwise, proem, phrase
 	ORB = Bin | QUO + 1 & 255, XORB,
 	LP = Proem | XORB + 1 & 255, LCB, LSB = Junct | LCB + 1,
-	RP = Phr | LCB + 1 & 255, RCB, RSB,
+	RP = Phr | LSB + 1 & 255, RCB, RSB,
 	// singles of blank group
-	EOL = Blank | RCB + 1 & 255, IND, INDR, DED, DEDR, INDJ,
+	EOL = Blank | RSB + 1 & 255, IND, INDR, DED, DEDR, INDJ,
 	SP, COM, COMB, PATH, NUM,
 
 	// inside kinds
