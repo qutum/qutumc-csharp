@@ -583,6 +583,18 @@ public class TestSynter : IDisposable
 		t = t/**/		.N(S.line, err: 1).uu();
 		t = t/**/.e().H(S.phr, "arithmetic expression", 1.9, 1.10m, -1);
 		t = t/**/	.N(S.line, "arithmetic expression", 1.13, 1.14, -1).uU();
+		t = Parse(@"( 1*[ 2 / [(3+4] - 5");
+		t = t/**/	.h(B).H(P, (L.INT, 1));
+		t = t/**/		.n(E, L.MUL).h(S.squ, err: 1);
+		t = t/**/				.H(P, (L.INT, 2));
+		t = t/**/				.n(E, L.DIV).h(S.squ).H(P, (L.INT, 3));
+		t = t/**/									.n(E, L.ADD).H(P, (L.INT, 4)).u();
+		t = t/**/									.N(P, err: 1).uu();
+		t = t/**/				.n(E, L.SUB).H(P, (L.INT, 5)).uuu();
+		t = t/**/		.N(P, err: 1).uu();
+		t = t/**/.e().H(null, "parenth RP", 1.16, 1.16, -1);
+		t = t/**/	.N(null, "square bracket RSB", 1.21, 1.21, -1);
+		t = t/**/	.N(null, "parenth RP", 1.21, 1.21, -1).uU();
 	}
 
 	[TestMethod]
@@ -614,8 +626,8 @@ public class TestSynter : IDisposable
 			2
 			""");
 		t = t/**/	.h(B).H(P, (L.INT, 1));
-		t = t/**/		.j(L.LSB).H(S.jrsb, err: 1).uu();
-		t = t/**/		.j(L.LSB).H(S.jrsb, err: 1).uuu();
+		t = t/**/		.j(L.LSB).H(S.Jsqu, err: 1).uu();
+		t = t/**/		.j(L.LSB).H(S.Jsqu, err: 1).uuu();
 		t = t/**/	.n(B).H(P, (L.INT, 2)).uu();
 		t = t/**/.e().H(null, "bracket junction expression", 2.2, 3.1, -1);
 		t = t/**/	.N(null, "bracket junction expression", 3.2, 3.3, -1).uU();
@@ -629,11 +641,11 @@ public class TestSynter : IDisposable
 			""");
 		t = t/**/	.h(B).H(P, (L.INT, 1));
 		t = t/**/		.j(L.LSB).H(P, (L.INT, 2));
-		t = t/**/				.N(S.jrsb, err: 1);
+		t = t/**/				.N(S.Jsqu, err: 1);
 		t = t/**/				.j(L.LSB).H(P, (L.INT, 4));
-		t = t/**/						.N(S.jrsb, err: 1).uuuu();
-		t = t/**/		.j(L.LSB).H(P, (L.INT, 6)).N(S.jrsb, err: 1);
-		t = t/**/				.j(L.LSB).H(S.jrsb, err: 1).uuu();
+		t = t/**/						.N(S.Jsqu, err: 1).uuuu();
+		t = t/**/		.j(L.LSB).H(P, (L.INT, 6)).N(S.Jsqu, err: 1);
+		t = t/**/				.j(L.LSB).H(S.Jsqu, err: 1).uuu();
 		t = t/**/			.n(B).H(P, (L.INT, 8)).uuuu();
 		t = t/**/.e().H(null, "bracket junction EOL", 2.5, 2.6, -1);
 		t = t/**/	.N(null, "bracket junction EOL", 3.6, 3.7, -1);

@@ -18,11 +18,11 @@ public enum Syn : Nord
 	__ = default,
 	qutum,
 	// block serie
-	Block, block, nest, jsb,
+	Block, block, nest, jsqu,
 	// inside block
-	line, with, nestr, nests, Junc, junc, jbin, jrsb, jpost,
+	line, with, nestr, nests, Junc, junc, jbin, Jsqu, jpost,
 	// expression
-	exp, phr, inp,
+	exp, phr, inp, squ,
 }
 
 public class Synt : Synt<S, Synt>
@@ -39,7 +39,7 @@ public partial class Synter : Synter<L, S, Synt, Lexier>
 		.n(S.Block)._[S.block]._[[]]
 		.n(S.block)._[S.line, S.with, S.Block].syntRight.label("block")
 		.n(S.nest).__[S.line, S.with, S.nest].syntRight._[[]]
-		.n(S.jsb).___[S.jrsb, S.with, S.Block].syntRight.syntName(S.block)
+		.n(S.jsqu).__[S.Jsqu, S.with, S.Block].syntRight.syntName(S.block)
 
 		.n(S.line).__[S.exp, L.EOL].recover.label("line")
 		.n(S.with).__[S.nestr, S.nests, S.Junc]
@@ -49,10 +49,10 @@ public partial class Synter : Synter<L, S, Synt, Lexier>
 
 		.n(S.junc)
 				[L.INDJ, S.jbin, .., L.EOL, S.block, L.DED].recover.synt.label("junction")
-				[L.INDJ, L.LSB, .., S.jsb, L.DED].synt
+				[L.INDJ, L.LSB, .., S.jsqu, L.DED].synt
 				[L.INDJ, S.jpost, L.EOL, S.Block, L.DED].synt
 		.n(S.jbin).__.Alts(L.Bin)
-		.n(S.jrsb).__[S.exp, L.RSB, L.EOL].recover.label("bracket junction")
+		.n(S.Jsqu).___[S.exp, L.RSB, L.EOL].recover.label("bracket junction")
 		.n(S.jpost)._[L.POST, ..].synt._[L.POST, .., S.jpost].syntRight
 
 		.n(S.inp)
@@ -75,8 +75,10 @@ public partial class Synter : Synter<L, S, Synt, Lexier>
 				[S.inp].clash
 				[S.exp, L.POST, ..].clash.syntLeft.label("postfix operator")
 				[L.LIT, ..].clash.synt.label("literal")
-				[L.LP, .., S.exp, L.RP].clash.recover.label("parenth") // main lexs for recovery
-				[L.LSB, .., S.exp, L.RSB].clash.recover.label("square bracket") // main lexs for recovery
+				[L.LP, .., S.exp, L.RP].clash.recover.label("parenth") // main lex for recovery
+				[S.squ]
+		.n(S.squ)
+				[L.LSB, .., S.exp, L.RSB].clash.recover.synt.label("square bracket") // main lex for recovery
 		.n(S.inp)
 				[S.exp, S.exp].clash.syntLeft // higher than others for left associative
 		.n(S.phr)

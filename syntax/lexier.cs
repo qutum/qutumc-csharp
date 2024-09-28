@@ -15,23 +15,37 @@ using Kord = char;
 using L = Lex;
 using Set = CharSet;
 
-/*	EXC		!	not
-	QUO		"	string
-	HASH	#
+/*	EXC		!	NOT
+	QUO		"	STR?
+	NUM		#	COM (HASH)
 	DOL		$
-	AMP		&	and
-	APO		'	string?
-	COM		,	input
-	DOT		.	run
+	PER		%	MOD
+	AMP		&	AND
+	APO		'	STR?
+	LP		(	LP
+	RP		)	RP
+	AST		*	MUL
+	PLUS	+	ADD,POSI
+	COM		,	INP
+	HYP		-	SUB,NEGA
+	DOT		.	RUN
+	SLA		/	DIV
 	COL		:
 	SCOL	;
+	LT		<	LT
 	EQ		=	quote
+	GT		>	GT
 	QUE		?
 	AT		@
-	BSL		\	byte block
+	LSB		[	LSB
+	BSLA	\	byte block
+	RSB		]	RSB
 	HAT		^
-	BAPO	`	path
-	VER		|	or
+	UND		_	NAME
+	BAPO	`	PATH
+	LCB		{	LCB
+	VER		|	OR
+	RCB		}	RCB
 	TIL		~
 */
 
