@@ -31,8 +31,8 @@ public sealed partial class SynAlt<N>
 	public N name;
 	public short size;
 	public short lex; // save main lex at this index to synt.info, no save: <0
-	public sbyte synt; // make synt: as synter: 0, omit: -1, make: 1, lift left: 2, lift right: 3
 	public sbyte rec; // at recovery key ordinal index, or 0
+	public sbyte synt; // make synt: as synter: 0, omit: -1, make: 1, lift left: 2, lift right: 3
 	public string label;
 }
 public sealed partial class SynForm

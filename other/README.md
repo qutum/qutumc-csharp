@@ -12,7 +12,7 @@ http://qutum.com  http://qutum.cn
 
 语法解析器，输入指定`Lexer`，基于earley算法，输出语法树
 
-支持量词、greedy串联贪婪匹配、优先分支、语法树节点保留或穿透、寻找前方词或从当前位置错误恢复
+支持量词、greedy串联贪婪匹配、优先分支、语法树节点保留或穿透、从错误位置或寻找后方词恢复
 
 ## qutum.parser.earley.EarleyStr
 

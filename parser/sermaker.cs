@@ -28,11 +28,11 @@ public partial class SynGram<K, N>
 	{
 		internal short index; // index of whole grammar alts
 		public N name;
-		public short clash; // reject: 0, solve 1: 1, solve 2: 2
-							// as same rule and index as previous one: ~actual alt index
 		public short lex = -1; // save main lex at this index to synt.info, no save: <0
-		public sbyte synt; // make synt: as synter: 0, omit: -1, make: 1, lift left: 2, lift right: 3
+		public short clash; // reject: 0, left: 1, right: 2
+							// solve and index as same as previous one: ~actual alt index
 		public bool rec; // whether recover this alt for error, after main lex if any
+		public sbyte synt; // make synt: as synter: 0, omit: -1, make: 1, lift left: 2, lift right: 3
 		public string label;
 	}
 
@@ -242,9 +242,9 @@ public partial class SerMaker<K, N>
 	}
 
 	// phase 3: find clashes and solve them
-	// solve 1: shift or reduce the latest index alt, reduce the same index (left associative)
-	// solve 2: shift or reduce the latest index alt, shift the same index (right associative)
-	// all clashing alts should be clashable
+	// left: shift or reduce the latest index alt, reduce the same index (left associative)
+	// right: shift or reduce the latest index alt, shift the same index (right associative)
+	// all clashing alts not be rejected
 	public Dictionary<Clash, (HashSet<K> keys, short go)> Clashs(bool detail = true)
 	{
 		Dictionary<Clash, (HashSet<K> keys, short go)> clashs = [];
@@ -338,7 +338,7 @@ public partial class SerMaker<K, N>
 		return (As, Fs, recKs);
 	}
 
-	public static int ErrZ = 3;
+	public static int ErrZ = 2; // etc excluded
 	public static string Err = "{0} wants {1}", ErrMore = " and\n", ErrEtc = " ...";
 	public static string ErrEor = "want end of read";
 
@@ -443,11 +443,6 @@ public partial class SerMaker<K, N>
 					throw new($"{p.name}.{pax} no previous clash");
 				if (a.clash < 0)
 					a.clash = alts[ax - 1].clash < 0 ? alts[ax - 1].clash : (short)~(ax - 1);
-				// synt
-				if (a.synt == 2 && (a.Count == 0 || a[0] is not N))
-					throw new($"{p.name}.{pax} leftmost not name");
-				if (a.synt == 3 && (a.Count == 0 || a[^1] is not N))
-					throw new($"{p.name}.{pax} rightmost not name");
 				// recover
 				if (a.rec && ax == 0)
 					throw new($"initial {p.name}.{pax} recovery");
@@ -456,6 +451,11 @@ public partial class SerMaker<K, N>
 						recs.Add(keyOrd(k));
 					else
 						throw new($"{p.name}.{pax} no final lexic key");
+				// synt
+				if (a.synt == 2 && (a.Count == 0 || a[0] is not N))
+					throw new($"{p.name}.{pax} leftmost not name");
+				if (a.synt == 3 && (a.Count == 0 || a[^1] is not N))
+					throw new($"{p.name}.{pax} rightmost not name");
 				alts[a.index = ax++] = a;
 				if (np != p)
 					np.Add(a); // append alterns to same name production
