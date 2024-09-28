@@ -33,6 +33,7 @@ public partial class SynGram<K, N>
 							// solve and index as same as previous one: ~actual alt index
 		public bool rec; // whether recover this alt for error, after main lex if any
 		public sbyte synt; // make synt: as synter: 0, omit: -1, make: 1, lift left: 2, lift right: 3
+		public N syntN; // synt name: not default, same as name: default
 		public string label;
 	}
 
@@ -50,7 +51,7 @@ public partial class SynGram<K, N>
 			foreach (var c in cons)
 				if (c is Range)
 					a.lex = a.lex < 0 ? (short)(a.Count - 1)
-						: throw new($"{a.name}.{p.Count - 1} lex {a.lex}");
+						: throw new($"{p.name}.{p.Count - 1} lex {a.lex}");
 				else if (c is N or K)
 					a.Add(c);
 				else
@@ -65,6 +66,7 @@ public partial class SynGram<K, N>
 	public SynGram<K, N> syntLeft { get { prods[^1][^1].synt = 2; return this; } }
 	public SynGram<K, N> syntRight { get { prods[^1][^1].synt = 3; return this; } }
 	public SynGram<K, N> syntOmit { get { prods[^1][^1].synt = -1; return this; } }
+	public SynGram<K, N> syntName(N n) { prods[^1][^1].syntN = n; return this; }
 	public SynGram<K, N> recover { get { prods[^1][^1].rec = true; return this; } }
 	public SynGram<K, N> label(string w) { prods[^1][^1].label = w.ToString(); return this; }
 	public SynGram<K, N> labelNo { get { prods[^1][^1].label = null; return this; } }
@@ -308,6 +310,7 @@ public partial class SerMaker<K, N>
 				name = a.name, size = checked((short)a.Count), lex = a.lex,
 #pragma warning disable CS8974 // Converting method group to non-delegate type
 				synt = a.synt, label = a.label, dump = a.ToString,
+				syntN = EqualityComparer<N>.Default.Equals(a.syntN, default) ? a.name : a.syntN,
 				// final key index in recovery keys
 				rec = (sbyte)(a.rec ? Array.BinarySearch(recKs, keyOrd((K)a[^1])) : 0),
 			};
@@ -402,8 +405,8 @@ public partial class SerMaker<K, N>
 				throw new($"duplicate ordinal of {ns[nameOrd(p.name)]} and {p.name}");
 		nameOs = [.. ns.Keys];
 		names = [.. ns.Values];
-		if (nameOs[0] == 0)
-			throw new($"name ordinal 0");
+		if (nameOs[0] == default)
+			throw new($"default name ordinal");
 		var accept = gram.prods[0].name;
 
 		SortedDictionary<Kord, K> ks = new() { [keyOrd(default)] = default };

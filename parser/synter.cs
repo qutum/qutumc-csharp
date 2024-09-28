@@ -33,6 +33,7 @@ public sealed partial class SynAlt<N>
 	public short lex; // save main lex at this index to synt.info, no save: <0
 	public sbyte rec; // at recovery key ordinal index, or 0
 	public sbyte synt; // make synt: as synter: 0, omit: -1, make: 1, lift left: 2, lift right: 3
+	public N syntN; // synt name
 	public string label;
 }
 public sealed partial class SynForm
@@ -244,7 +245,7 @@ public partial class Synter<K, L, N, T, Ler>
 			loc = e.from; // recovery synt.from
 		bool make = alt.synt > 0 || alt.synt == 0 && synt;
 		T t = make || redu.err > 0 ? new() { // for omitted recovery synt, append it
-			name = alt.name, from = loc, to = ler.Loc(), dump = dump >= 3 ? alt : alt.label,
+			name = alt.syntN, from = loc, to = ler.Loc(), dump = dump >= 3 ? alt : alt.label,
 			err = redu.err, info = redu.info,
 		} : null;
 		for (var i = redu.size - 1; i >= 0; i--) {

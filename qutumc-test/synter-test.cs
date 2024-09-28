@@ -110,7 +110,7 @@ file static class Extension
 
 	public static Ser nr(this Ser s) => s.n(S.nestr);
 	public static Ser j(this Ser s, object d = null, Dec? from = null, Dec? to = null, int err = 0)
-		=> s.n(S.junc, d, from, to, err).h(L.LSB.Equals(d) ? S.jsb : S.block);
+		=> s.n(S.junc, d, from, to, err).h(S.block);
 }
 
 [TestClass]

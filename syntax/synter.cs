@@ -17,7 +17,7 @@ public enum Syn : Nord
 {
 	__ = default,
 	qutum,
-	// serial blocks
+	// block serie
 	Block, block, nest, jsb,
 	// inside block
 	line, with, nestr, nests, Junc, junc, jbin, jrsb, jpost,
@@ -39,7 +39,7 @@ public partial class Synter : Synter<L, S, Synt, Lexier>
 		.n(S.Block)._[S.block]._[[]]
 		.n(S.block)._[S.line, S.with, S.Block].syntRight.label("block")
 		.n(S.nest).__[S.line, S.with, S.nest].syntRight._[[]]
-		.n(S.jsb).___[S.jrsb, S.with, S.Block].syntRight
+		.n(S.jsb).___[S.jrsb, S.with, S.Block].syntRight.syntName(S.block)
 
 		.n(S.line).__[S.exp, L.EOL].recover.label("line")
 		.n(S.with).__[S.nestr, S.nests, S.Junc]
