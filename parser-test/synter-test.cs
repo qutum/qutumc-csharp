@@ -84,7 +84,7 @@ static class Extension
 [TestClass]
 public class TestSynter : IDisposable
 {
-	readonly EnvWriter env = EnvWriter.Begin();
+	readonly EnvWriter env = EnvWriter.Use();
 
 	public void Dispose() => env.Dispose();
 

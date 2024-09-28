@@ -71,7 +71,7 @@ static class TestExtension
 [TestClass]
 public class TestParserEarley : IDisposable
 {
-	readonly EnvWriter env = EnvWriter.Begin();
+	readonly EnvWriter env = EnvWriter.Use();
 
 	public void Dispose() => env.Dispose();
 

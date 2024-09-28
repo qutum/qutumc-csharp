@@ -15,7 +15,7 @@ static class Qutumc
 {
 	static void Main(string[] args)
 	{
-		using var env = EnvWriter.Begin(true);
+		using var env = EnvWriter.Use(true);
 		try {
 			string file;
 			if (args.Length > 0)

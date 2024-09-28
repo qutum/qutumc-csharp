@@ -18,7 +18,7 @@ namespace qutum.test.syntax;
 [TestClass]
 public class TestLexier : IDisposable
 {
-	readonly EnvWriter env = EnvWriter.Begin();
+	readonly EnvWriter env = EnvWriter.Use();
 
 	public void Dispose() => env.Dispose();
 

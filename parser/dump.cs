@@ -47,7 +47,7 @@ public partial class Lexier<K>
 		foreach (var n in u.next.Where(n => n != null).Distinct()) {
 			var s = u.next.Select((nn, b) => nn != n ? null : CharSet.Unesc((byte)b))
 				.Where(x => x != null);
-			using var _ = EnvWriter.Use("  ");
+			using var _ = EnvWriter.Indent("  ");
 			if (n == u)
 				env.WriteLine($"+ < {string.Join(' ', s)}");
 			else
@@ -73,14 +73,14 @@ public partial class LinkTree<T>
 		string noInd = up == null && after == 0 ? "" : null;
 		var t = head;
 		for (; t != null && (dumpOrder == 0 ? t == head : dumpOrder < 0); t = t.next)
-			using (var env = EnvWriter.Use(noInd ?? (first ? "  " : "| ")))
+			using (var env = EnvWriter.Indent(noInd ?? (first ? "  " : "| ")))
 				t.Dump(dumper, -1);
-		using (var env = noInd != null ? EnvWriter.Use(noInd, "   ") : EnvWriter.Use(
+		using (var env = noInd != null ? EnvWriter.Indent(noInd, "   ") : EnvWriter.Indent(
 				after > 0 ? first ? "- " : "\\ " : last ? "- " : "/ ",
 				t != null ? last ? "  |  " : "| |  " : last ? "     " : "|    "))
 			env.WriteLine(dumper?.Invoke(this) ?? this);
 		for (; t != null; t = t.next)
-			using (var env = EnvWriter.Use(noInd ?? (last ? "  " : "| ")))
+			using (var env = EnvWriter.Indent(noInd ?? (last ? "  " : "| ")))
 				t.Dump(dumper, 1);
 		if (up == null && prev == null)
 			for (t = next; t != null; t = t.next)
@@ -265,7 +265,7 @@ public partial class SerMaker<K, N>
 			foreach (var ((c, (keys, go)), cx) in clashs.Each(1)) {
 				env.Write(cx + (go == No ? "  : " : " :: "));
 				env.WriteLine(Dumper(keys));
-				using var _ = EnvWriter.Use("\t\t");
+				using var _ = EnvWriter.Indent("\t\t");
 				foreach (var a in c.redus)
 					env.WriteLine($"{(a == SynForm.Redu(go) ? "REDU" : "redu")} {a}  {alts[a]}");
 				foreach (var a in c.shifts ?? [])

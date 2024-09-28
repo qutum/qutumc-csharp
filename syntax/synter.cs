@@ -20,7 +20,7 @@ public enum Syn : Nord
 	// block serie
 	Block, block, nest, jsqu,
 	// inside block
-	line, with, nestr, nests, Junc, junc, jbin, Jsqu, jpost,
+	sen, with, nestr, nests, Junc, junc, jbin, Jsqu, jpost,
 	// expression
 	exp, phr, inp, squ,
 }
@@ -37,11 +37,11 @@ public partial class Synter : Synter<L, S, Synt, Lexier>
 		var gram = new SynGram<L, S>()
 		.n(S.qutum)._[S.Block].synt
 		.n(S.Block)._[S.block]._[[]]
-		.n(S.block)._[S.line, S.with, S.Block].syntRight.label("block")
-		.n(S.nest).__[S.line, S.with, S.nest].syntRight._[[]]
+		.n(S.block)._[S.sen, S.with, S.Block].syntRight.label("block")
+		.n(S.nest).__[S.sen, S.with, S.nest].syntRight._[[]]
 		.n(S.jsqu).__[S.Jsqu, S.with, S.Block].syntRight.syntName(S.block)
 
-		.n(S.line).__[S.exp, L.EOL].recover.label("line")
+		.n(S.sen, "sentence")._[S.exp, L.EOL].recover
 		.n(S.with).__[S.nestr, S.nests, S.Junc]
 		.n(S.nestr)._[L.INDR, S.nest, L.DEDR].synt._[[]] // rightmost nestings
 		.n(S.nests)._[L.IND, S.nest, L.DED]._[[]]

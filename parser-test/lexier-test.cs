@@ -19,7 +19,7 @@ namespace qutum.test.parser;
 [TestClass]
 public class TestLexier : IDisposable
 {
-	readonly EnvWriter env = EnvWriter.Begin();
+	readonly EnvWriter env = EnvWriter.Use();
 
 	public void Dispose() => env.Dispose();
 

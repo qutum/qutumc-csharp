@@ -224,20 +224,20 @@ public class EnvWriter : IndWriter, IDisposable
 	static readonly EnvWriter env = new();
 	bool pressKey;
 
-	public static EnvWriter Begin(bool pressKey = false)
+	public static EnvWriter Use(bool pressKey)
 	{
 		env.pressKey = pressKey;
+		return Use();
+	}
+	public new static EnvWriter Use()
+	{
 		if (env.output == null) {
 			Console.OutputEncoding = new UTF8Encoding(false, false);
 			env.output = Console.Out;
 			Console.SetOut(env);
 		}
-		return env;
+		return (EnvWriter)((IndWriter)env).Use();
 	}
-
-	public static EnvWriter Use() => (EnvWriter)env.Indent("");
-
-	public static EnvWriter Use(string ind = "\t", string ind2 = null) => (EnvWriter)env.Indent(ind, ind2);
 
 	protected override void Dispose(bool _)
 	{
@@ -255,6 +255,9 @@ public class EnvWriter : IndWriter, IDisposable
 		}
 		base.Dispose(true);
 	}
+
+	public new static EnvWriter Indent(string ind = "\t", string ind2 = null)
+		=> (EnvWriter)((IndWriter)env).Indent(ind, ind2);
 
 	protected override void Print(ReadOnlyMemory<char>? s)
 	{
@@ -275,7 +278,7 @@ public class IndWriter(TextWriter output) : StringWriter, IDisposable
 	protected readonly List<(string ind, string ind2)> indents = [];
 	protected bool lineStart = true;
 
-	public IndWriter Indent() => Indent("");
+	public IndWriter Use() => Indent("");
 	public IndWriter Indent(string ind = "\t", string ind2 = null)
 	{
 		indents.Add((ind ?? throw new ArgumentNullException(nameof(ind)), ind2));
@@ -320,65 +323,32 @@ public class IndWriter(TextWriter output) : StringWriter, IDisposable
 	protected virtual void Print(ReadOnlyMemory<char>? s) => output.Write(s);
 	protected virtual void Print() => output.Flush();
 
-	public override void WriteLine()
-	{
-		base.WriteLine(); Flush();
-	}
+	public override void WriteLine() { base.WriteLine(); Flush(); }
 
-	public override void WriteLine(bool value)
-	{
-		base.WriteLine(value); Flush();
-	}
+	public override void WriteLine(bool value) { base.WriteLine(value); Flush(); }
 
-	public override void WriteLine(char value)
-	{
-		base.WriteLine(value); Flush();
-	}
+	public override void WriteLine(char value) { base.WriteLine(value); Flush(); }
 
-	public override void WriteLine(char[] buffer)
-	{
-		base.WriteLine(buffer); Flush();
-	}
+	public override void WriteLine(char[] buffer) { base.WriteLine(buffer); Flush(); }
 
 	public override void WriteLine(char[] buffer, int index, int size)
 	{
 		base.WriteLine(buffer, index, size); Flush();
 	}
 
-	public override void WriteLine(decimal value)
-	{
-		base.WriteLine(value); Flush();
-	}
+	public override void WriteLine(decimal value) { base.WriteLine(value); Flush(); }
 
-	public override void WriteLine(double value)
-	{
-		base.WriteLine(value); Flush();
-	}
+	public override void WriteLine(double value) { base.WriteLine(value); Flush(); }
 
-	public override void WriteLine(int value)
-	{
-		base.WriteLine(value); Flush();
-	}
+	public override void WriteLine(int value) { base.WriteLine(value); Flush(); }
 
-	public override void WriteLine(long value)
-	{
-		base.WriteLine(value); Flush();
-	}
+	public override void WriteLine(long value) { base.WriteLine(value); Flush(); }
 
-	public override void WriteLine(object value)
-	{
-		base.WriteLine(value); Flush();
-	}
+	public override void WriteLine(object value) { base.WriteLine(value); Flush(); }
 
-	public override void WriteLine(float value)
-	{
-		base.WriteLine(value); Flush();
-	}
+	public override void WriteLine(float value) { base.WriteLine(value); Flush(); }
 
-	public override void WriteLine(string value)
-	{
-		base.WriteLine(value); Flush();
-	}
+	public override void WriteLine(string value) { base.WriteLine(value); Flush(); }
 
 	public override void WriteLine(string format, object arg0)
 	{
@@ -400,23 +370,11 @@ public class IndWriter(TextWriter output) : StringWriter, IDisposable
 		base.WriteLine(format, arg); Flush();
 	}
 
-	public override void WriteLine(uint value)
-	{
-		base.WriteLine(value); Flush();
-	}
+	public override void WriteLine(uint value) { base.WriteLine(value); Flush(); }
 
-	public override void WriteLine(ulong value)
-	{
-		base.WriteLine(value); Flush();
-	}
+	public override void WriteLine(ulong value) { base.WriteLine(value); Flush(); }
 
-	public override void WriteLine(ReadOnlySpan<char> buffer)
-	{
-		base.WriteLine(buffer); Flush();
-	}
+	public override void WriteLine(ReadOnlySpan<char> buffer) { base.WriteLine(buffer); Flush(); }
 
-	public override void WriteLine(StringBuilder value)
-	{
-		base.WriteLine(value); Flush();
-	}
+	public override void WriteLine(StringBuilder value) { base.WriteLine(value); Flush(); }
 }

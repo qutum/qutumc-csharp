@@ -116,7 +116,7 @@ file static class Extension
 [TestClass]
 public class TestSynter : IDisposable
 {
-	readonly EnvWriter env = EnvWriter.Begin();
+	readonly EnvWriter env = EnvWriter.Use();
 
 	public void Dispose() => env.Dispose();
 
@@ -155,10 +155,10 @@ public class TestSynter : IDisposable
 					1
 				\##\ 2
 			""");
-		t = t/**/	.h(B).H(S.line, err: 1);
+		t = t/**/	.h(B).H(S.sen, err: 1);
 		t = t/**/		.nr().h(N).H(P, (L.INT, 1)).uu();
 		t = t/**/		.n(N).H(P, (L.INT, 2)).uuu();
-		t = t/**/.e().H(null, "block line", 1.1, 1.1, -1).uU();
+		t = t/**/.e().H(null, "block sentence", 1.1, 1.1, -1).uU();
 	}
 
 	[TestMethod]
@@ -188,11 +188,11 @@ public class TestSynter : IDisposable
 			/ 3
 			4
 			""");
-		t = t/**/	.h(B).H(S.line, err: 1);
+		t = t/**/	.h(B).H(S.sen, err: 1);
 		t = t/**/		.j(L.ADD).H(P, (L.INT, 2)).uu();
 		t = t/**/		.j(L.DIV).H(P, (L.INT, 3)).uuu();
 		t = t/**/	.n(B).H(P, (L.INT, 4)).uu();
-		t = t/**/.e().H(null, "block line", 1.1, 1.1, -1).uU();
+		t = t/**/.e().H(null, "block sentence", 1.1, 1.1, -1).uU();
 	}
 
 	[TestMethod]
@@ -273,11 +273,11 @@ public class TestSynter : IDisposable
 				2
 			""");
 		t = t/**/	.h(B).H(P, (L.INT, 1));
-		t = t/**/		.n(N).H(S.line, err: 1);
-		t = t/**/			.n(N).H(S.line, err: 1).uu();
+		t = t/**/		.n(N).H(S.sen, err: 1);
+		t = t/**/			.n(N).H(S.sen, err: 1).uu();
 		t = t/**/		.n(N).H(P, (L.INT, 2)).uuu();
-		t = t/**/.e().H(null, "line expression", 2.2, 2.3, -1);
-		t = t/**/	.N(null, "line expression", 3.3, 3.4, -1).uU();
+		t = t/**/.e().H(null, "sentence expression", 2.2, 2.3, -1);
+		t = t/**/	.N(null, "sentence expression", 3.3, 3.4, -1).uU();
 		t = Parse("""
 			1
 				-
@@ -285,11 +285,11 @@ public class TestSynter : IDisposable
 				3
 			""");
 		t = t/**/	.h(B).H(P, (L.INT, 1));
-		t = t/**/		.n(N).H(S.line, err: 1);
-		t = t/**/			.j(L.SUB).H(S.line, err: 1);
+		t = t/**/		.n(N).H(S.sen, err: 1);
+		t = t/**/			.j(L.SUB).H(S.sen, err: 1);
 		t = t/**/					.n(N).H(P, (L.INT, 2)).uuuu();
 		t = t/**/		.n(N).H(P, (L.INT, 3)).uuu();
-		t = t/**/.e().H(null, "line expression", 2.2, 2.2, -1);
+		t = t/**/.e().H(null, "sentence expression", 2.2, 2.2, -1);
 		t = t/**/	.N(null, "junction block", 3.1, 3.1, -1).uU();
 	}
 
@@ -365,7 +365,7 @@ public class TestSynter : IDisposable
 			1 *>
 						2
 			""");
-		t = t/**/	.h(B).H(P, (L.INT, 1)).N(S.line, err: 1);
+		t = t/**/	.h(B).H(P, (L.INT, 1)).N(S.sen, err: 1);
 		t = t/**/		.nr().h(N).H(P, (L.INT, 2)).uuuu();
 		t = t/**/.e().H(null, "arithmetic expression", 1.4, 1.5, -1).uU();
 	}
@@ -465,13 +465,13 @@ public class TestSynter : IDisposable
 		t = t/**/	.h(B).H(P, (L.INT, 1));
 		t = t/**/		.n(J).H(S.jpost, (L.RUN, "a"));
 		t = t/**/			.N(S.jpost, (L.RUN, "")).N(S.jpost, (L.RUN, "b"));
-		t = t/**/			.n(B).H(S.line, err: 1).u();
+		t = t/**/			.n(B).H(S.sen, err: 1).u();
 		t = t/**/			.n(B).H(P, (L.INT, 3));
 		t = t/**/				.n(J).H(S.jpost, (L.RUN, "c"));
-		t = t/**/					.n(B).H(S.line, err: 1);
+		t = t/**/					.n(B).H(S.sen, err: 1);
 		t = t/**/						.n(J).H(S.jpost, (L.RUN, "")).uuuu().uuu();
-		t = t/**/.e().H(null, "block line", 2.8, 2.9, -1);
-		t = t/**/	.N(null, "block line", 5.3, 5.3, -1).uU();
+		t = t/**/.e().H(null, "block sentence", 2.8, 2.9, -1);
+		t = t/**/	.N(null, "block sentence", 5.3, 5.3, -1).uU();
 	}
 
 	[TestMethod]
@@ -545,13 +545,13 @@ public class TestSynter : IDisposable
 				!&5
 			""");
 		t = t/**/	.h(B).H(P, (L.INT, 1));
-		t = t/**/		.n(N).H(S.line, err: 1);
-		t = t/**/			.j(L.ADD).H(S.line, err: 1);
-		t = t/**/					.j(L.MUL).H(P, (L.INT, 2)).N(S.line, err: 1).uuu();
+		t = t/**/		.n(N).H(S.sen, err: 1);
+		t = t/**/			.j(L.ADD).H(S.sen, err: 1);
+		t = t/**/					.j(L.MUL).H(P, (L.INT, 2)).N(S.sen, err: 1).uuu();
 		t = t/**/				.n(B).H(P, (L.INT, 3)).uu();
-		t = t/**/			.j(L.DIV).H(P, (L.INT, 4)).N(S.line, err: 1).uuu();
-		t = t/**/		.j(L.SUB).H(S.line, err: 1).uuuu();
-		t = t/**/.e().H(null, "line expression", 2.2, 2.2, -1);
+		t = t/**/			.j(L.DIV).H(P, (L.INT, 4)).N(S.sen, err: 1).uuu();
+		t = t/**/		.j(L.SUB).H(S.sen, err: 1).uuuu();
+		t = t/**/.e().H(null, "sentence expression", 2.2, 2.2, -1);
 		t = t/**/	.N(null, "junction block", 3.3, 3.3, -1);
 		t = t/**/	.N(null, "arithmetic operator expression", 3.6, 4.1, -1);
 		t = t/**/	.N(null, "arithmetic operator expression", 5.6, 6.1, -1);
@@ -580,9 +580,9 @@ public class TestSynter : IDisposable
 		t = t/**/	.h(B).h(E, L.NEGA).h(E, L.NEGA).H(P, (L.INT, 1)).u();
 		t = t/**/					.n(E, L.DIV).H(P, (L.INT, 2)).N(S.phr, err: 1);
 		t = t/**/								.n(I).H(P, (L.INT, 3)).uuu();
-		t = t/**/		.N(S.line, err: 1).uu();
+		t = t/**/		.N(S.sen, err: 1).uu();
 		t = t/**/.e().H(S.phr, "arithmetic expression", 1.9, 1.10m, -1);
-		t = t/**/	.N(S.line, "arithmetic expression", 1.13, 1.14, -1).uU();
+		t = t/**/	.N(S.sen, "arithmetic expression", 1.13, 1.14, -1).uU();
 		t = Parse(@"( 1*[ 2 / [(3+4] - 5");
 		t = t/**/	.h(B).H(P, (L.INT, 1));
 		t = t/**/		.n(E, L.MUL).h(S.squ, err: 1);
