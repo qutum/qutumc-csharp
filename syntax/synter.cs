@@ -52,7 +52,7 @@ public partial class Synter : Synter<L, S, Synt, Lexier>
 				[L.INDJ, L.LSB, .., S.jsqu, L.DED].synt
 				[L.INDJ, S.jpost, L.EOL, S.Block, L.DED].synt
 		.n(S.jbin).__.Alts(L.Bin)
-		.n(S.Jsqu).___[S.exp, L.RSB, L.EOL].recover.label("bracket junction")
+		.n(S.Jsqu).__[S.exp, L.RSB, L.EOL].recover.label("bracket junction")
 		.n(S.jpost)._[L.POST, ..].synt._[L.POST, .., S.jpost].syntRight
 
 		.n(S.inp)
@@ -73,10 +73,11 @@ public partial class Synter : Synter<L, S, Synt, Lexier>
 				[S.phr].clash
 		.n(S.phr) // phrase
 				[S.inp].clash
+				[S.squ].clash
 				[S.exp, L.POST, ..].clash.syntLeft.label("postfix operator")
 				[L.LIT, ..].clash.synt.label("literal")
 				[L.LP, .., S.exp, L.RP].clash.recover.label("parenth") // main lex for recovery
-				[S.squ]
+				[S.exp, S.squ].clash
 		.n(S.squ)
 				[L.LSB, .., S.exp, L.RSB].clash.recover.synt.label("square bracket") // main lex for recovery
 		.n(S.inp)

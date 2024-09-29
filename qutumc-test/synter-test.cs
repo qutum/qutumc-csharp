@@ -508,7 +508,7 @@ public class TestSynter : IDisposable
 		t = Parse("""
 			1
 			*	2
-				-	3
+				,	3
 					/ 4
 				%	5
 			&&	6
@@ -517,7 +517,7 @@ public class TestSynter : IDisposable
 			""");
 		t = t/**/	.h(B).H(P, (L.INT, 1));
 		t = t/**/		.j(L.MUL).H(P, (L.INT, 2));
-		t = t/**/				.j(L.SUB).H(P, (L.INT, 3));
+		t = t/**/				.j(L.INP).H(P, (L.INT, 3));
 		t = t/**/						.j(L.DIV).H(P, (L.INT, 4)).uuuu();
 		t = t/**/				.j(L.MOD).H(P, (L.INT, 5)).uuuu();
 		t = t/**/		.j(L.ANDB).H(P, (L.INT, 6)).uuu();

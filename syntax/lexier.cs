@@ -99,9 +99,9 @@ public enum Lex : int
 	POSTD, // dense postfix operators
 
 	// singles
-	INP = 16, QUO,
-	// singles of groups: bitwise, proem, phrase
-	ORB = Bin | QUO + 1 & 255, XORB,
+	QUO = 16,
+	// singles of groups: binary, proem, phrase
+	INP = Bin | QUO + 1 & 255, ORB, XORB,
 	LP = Proem | XORB + 1 & 255, LCB, LSB = Junct | LCB + 1,
 	RP = Phr | LSB + 1 & 255, RCB, RSB,
 	// singles of blank group
