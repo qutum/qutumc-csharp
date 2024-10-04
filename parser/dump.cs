@@ -225,6 +225,8 @@ public partial class SynGram<K, N>
 
 public partial class SerMaker<K, N>
 {
+	public bool dump = true;
+
 	public static string Dumper_(object d)
 	{
 		StrMake s = default;
@@ -244,7 +246,7 @@ public partial class SerMaker<K, N>
 	{
 		if (d is SynForm f) {
 			StrMake s = new();
-			foreach (var ((a, want), (heads, clo)) in forms[f.index].Is)
+			foreach (var (a, want, heads, clo, _) in forms[f.index].Is)
 				_ = s - '\n' + want + "_ " + a.ToString() + "  " + Dumper_((heads, s)) + "  ~" + clo;
 			return s;
 		}

@@ -83,7 +83,6 @@ public partial class SynGram<K, N>
 // N for syntax name i.e synteme
 public partial class SerMaker<K, N>
 {
-	public bool dump = true;
 	public int compact = 50;
 
 	readonly Func<K, Kord> keyOrd; // ordinal from 1, default for eor: 0
@@ -100,7 +99,6 @@ public partial class SerMaker<K, N>
 	readonly SynGram<K, N>.Prod[] prods; // at name ordinal index
 	readonly SynGram<K, N>.Alt[] alts;
 	readonly (bool empty, HashSet<K> first)[] firsts; // at name ordinal index
-	readonly List<Form> forms = [];
 
 	// phase 1: find possible first key of each name
 	public void Firsts()
@@ -123,9 +121,15 @@ public partial class SerMaker<K, N>
 	}
 	public (bool empty, IEnumerable<K> first) First(N name) => firsts[Name(name)];
 
-	class Items : Dictionary<(SynGram<K, N>.Alt alt, short want),
-		(HashSet<K> heads, int clo)> // lookaheads including eor
-	{ }
+	class Items : List<(
+		SynGram<K, N>.Alt alt,
+		short want,
+		HashSet<K> heads, // lookaheads including eor
+		int clo,
+		bool cloHeads // use heads for closure
+		)>
+	{
+	}
 	[System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2231:Overload operator equals")]
 	public struct Clash
 	{
@@ -149,19 +153,25 @@ public partial class SerMaker<K, N>
 	}
 	const short No = -1;
 
-	static bool AddItem(Items Is, SynGram<K, N>.Alt alt, short want, IEnumerable<K> heads, int clo)
+	readonly List<Form> forms = [];
+	readonly Dictionary<(SynGram<K, N>.Alt, short), int> addItems = [];
+	readonly List<int> addHeads = [];
+	readonly Dictionary<object, short> addGos = [];
+
+	int AddItem(Items Is, SynGram<K, N>.Alt alt, short want, IEnumerable<K> heads, int clo)
 	{
-		if (Is.TryGetValue((alt, want), out var hs))
-			return hs.heads.Adds(heads);
-		Is[(alt, want)] = ([.. heads], clo);
-		return true;
+		if (addItems.TryGetValue((alt, want), out var x))
+			return Is[x].heads.Adds(heads) && Is[x].cloHeads ? x : -1;
+		addItems[(alt, want)] = Is.Count;
+		Is.Add((alt, want, [.. heads], clo, false));
+		return -1;
 	}
 	short AddForm(Items Is)
 	{
 		foreach (var f in forms)
 			if (f.Is.Count == Is.Count) {
-				foreach (var (i, h) in Is)
-					if (!f.Is.TryGetValue(i, out var fh) || !fh.heads.SetEquals(h.heads))
+				foreach (var (fi, i) in f.Is.Zip(Is))
+					if (fi.alt != i.alt || fi.want != i.want || !fi.heads.SetEquals(i.heads))
 						goto No;
 				return f.index; No:;
 			}
@@ -177,50 +187,53 @@ public partial class SerMaker<K, N>
 	// make a whole items
 	Items Closure(Items Is)
 	{
-	Loop: foreach (var ((a, want), (heads, clo)) in Is) {
+		for (var x = 0; x < Is.Count + addHeads.Count; x++) {
+			var y = x < Is.Count ? x : addHeads[x - Is.Count];
+			var (a, want, heads, clo, ch) = Is[y];
 			if (want >= a.Count || a[want] is not N name)
 				continue;
 			bool empty = true; IEnumerable<K> h = null;
 			for (var w = want + 1; empty; w++)
 				if (w >= a.Count)
-					(empty, h) = (false, h?.Concat(heads) ?? heads);
+					(empty, h, ch) = (false, h?.Concat(heads) ?? heads, true);
 				else if (a[w] is K k)
 					(empty, h) = (false, h?.Append(k) ?? [k]);
 				else {
 					(empty, var f) = First((N)a[w]);
 					h = h?.Concat(f) ?? f;
 				}
-			var loop = false;
+			if (ch)
+				Is[y] = (a, want, heads, clo, ch);
 			foreach (var A in prods[Name(name)])
-				loop |= AddItem(Is, A, 0, h, clo + 1);
-			if (loop)
-				goto Loop;
+				if ((y = AddItem(Is, A, 0, h, clo + 1)) >= 0)
+					addHeads.Add(y);
 		}
+		addItems.Clear(); addHeads.Clear();
 		return Is;
 	}
 
 	// make shifting or pushing between forms
 	void ShiftPush(Form f)
 	{
-		Dictionary<object, short> tos = [];
-		foreach (var ((a, want), _) in f.Is) {
+		foreach (var (a, want, _, _, _) in f.Is) {
 			if (want >= a.Count)
 				continue;
-			if (!tos.TryGetValue(a[want], out var to)) {
+			if (!addGos.TryGetValue(a[want], out var go)) {
 				Items js = [];
-				foreach (var ((A, W), (heads, _)) in f.Is) {
+				foreach (var (A, W, heads, _, _) in f.Is) {
 					if (W < A.Count && A[W].Equals(a[want]))
-						AddItem(js, A, (short)(W + 1), heads, 0);
+						AddItem(js, A, (short)(W + 1), heads, 1);
 				}
-				tos.Add(a[want], to = AddForm(Closure(js)));
+				addGos.Add(a[want], go = AddForm(Closure(js)));
 			}
 			if (a[want] is K k) {
-				f.clashs[Key(k)].shift = to;
+				f.clashs[Key(k)].shift = go;
 				(f.clashs[Key(k)].shifts ??= []).Add(a.index);
 			}
 			else
-				f.goNs[Name((N)a[want])] = to;
+				f.goNs[Name((N)a[want])] = go;
 		}
+		addGos.Clear();
 	}
 
 	// phase 2: make all transition forms
@@ -228,14 +241,15 @@ public partial class SerMaker<K, N>
 	{
 		if (forms.Count > 0)
 			return;
-		Items init = new() { [(alts[0], 0)] = ([default], 0) };
+		Items init = [];
+		AddItem(init, alts[0], 0, [default], 1);
 		AddForm(Closure(init));
 		for (var x = 0; x < forms.Count; x++) {
 			if (x >= 32767) throw new("too many forms");
 			ShiftPush(forms[x]);
 		}
 		foreach (var f in forms)
-			foreach (var ((a, want), (heads, _)) in f.Is)
+			foreach (var (a, want, heads, _, _) in f.Is)
 				if (want >= a.Count) // alt could be reduced
 					foreach (var head in heads)
 						(f.clashs[Key(head)].redus ??= []).Add(a.index);
@@ -357,7 +371,7 @@ public partial class SerMaker<K, N>
 
 		// recover alts
 		List<(short, short)> recs = [];
-		foreach (var ((a, want), _) in f.Is)
+		foreach (var (a, want, _, _, _) in f.Is)
 			if (a.rec && want > a.lex && want < a.Count) // usually useless before main lex
 				recs.Add((a.index, want));
 		recs.Sort(); recs.Reverse(); // reduce the latest alt of same recovery key
@@ -366,7 +380,7 @@ public partial class SerMaker<K, N>
 
 		// error infos
 		List<(bool label, int clo, int half, int ax, bool n, object need)> ws = [];
-		foreach (var ((a, want), (_, c)) in f.Is)
+		foreach (var (a, want, _, c, _) in f.Is)
 			if (want < a.Count && want != a.lex) // main lex is usually for distinct alts of same name
 				ws.Add((a.label != null, -c, want + want - a.Count, a.index, a[want] is N, a[want]));
 		ws.Sort();
