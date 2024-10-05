@@ -230,13 +230,16 @@ public partial class SerMaker<K, N>
 	public static string Dumper_(object d)
 	{
 		StrMake s = default;
-		if (d is K key) return key.Equals(default(K)) ? "eor" : CharSet.Unesc(key);
+		if (d is SynGram<K, N>.Con con)
+			d = con.K ? con.k : con.n;
+		if (d is K key)
+			return key.Equals(default(K)) ? "eor" : CharSet.Unesc(key);
 		if (d is (IEnumerable<K> keys2, StrMake s2))
 			(d, s) = (keys2, s2);
 		if (d is IEnumerable<K> keys) {
 			var ss = s.s == null; if (ss) s = new();
-			foreach (var k in keys)
-				_ = s - ' ' + (k.Equals(default(K)) ? "eor" : CharSet.Unesc(k));
+			foreach (var K in keys)
+				_ = s - ' ' + (K.Equals(default(K)) ? "eor" : CharSet.Unesc(K));
 			return ss ? s : null;
 		}
 		return d.ToString();
@@ -247,7 +250,7 @@ public partial class SerMaker<K, N>
 		if (d is SynForm f) {
 			StrMake s = new();
 			foreach (var (a, want, heads, clo) in forms[f.index].Is)
-				_ = s - '\n' + want + "_ " + a + "  " + Dumper_((KeySet(heads), s)) + "  ~" + clo;
+				_ = s - '\n' + want + "_ " + a + "  " + Dumper_((KeySet(heads), s)) + "  :" + clo;
 			return s;
 		}
 		return Dumper_(d);
@@ -266,7 +269,7 @@ public partial class SerMaker<K, N>
 						: $"unsolved clashes: {clashs.Count} (besides {solvez} solved)");
 			foreach (var ((c, (keys, go)), cx) in clashs.Each(1)) {
 				env.Write(cx + (go == No ? "  : " : " :: "));
-				env.WriteLine(Dumper(KeySet(keys)));
+				env.WriteLine(Dumper_(KeySet(keys)));
 				using var _ = EnvWriter.Indent("\t\t");
 				foreach (var a in c.redus)
 					env.WriteLine($"{(a == SynForm.Redu(go) ? "REDU" : "redu")} {a}  {alts[a]}");

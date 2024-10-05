@@ -38,28 +38,28 @@ public class LexGram<K> where K : struct
 		// match to loop wad
 		public bool loop;
 	}
-	public class Con
+	public struct Con
 	{
 		// byte sequence
-		public string str = "";
-		// inclusive range of one byte
-		public ReadOnlyMemory<char> inc;
-		// duplicate last byte of sequence, or duplicate inclusive range
+		public string str;
+		// one byte range
+		public ReadOnlyMemory<char> one;
+		// duplicate last byte of sequence, or duplicate one byte of range
 		public bool dup;
 	}
 
 	public LexGram<K> k(K key) { prods.Add(new() { key = key }); return this; }
 	public LexGram<K> w { get { prods[^1].Add([]); return this; } }
 	public LexGram<K> redo { get { prods[^1].Add(new() { redo = true }); return this; } }
-	// string : byte sequence, ReadOnlyMemory<char> : inclusive range, .. : duplicate
+	// string : byte sequence, ReadOnlyMemory<char> : one byte range, .. : duplicate
 	public LexGram<K> this[params object[] cons] {
 		get {
 			Alt a = [];
 			prods[^1][^1].Add(a);
 			foreach (var c in cons)
-				if (c is Range) a[^1].dup = true;
+				if (c is Range) a[^1] = a[^1] with { dup = true };
 				else if (c is string str) a.Add(new() { str = str });
-				else if (c is ReadOnlyMemory<char> inc) a.Add(new() { inc = inc });
+				else if (c is ReadOnlyMemory<char> one) a.Add(new() { str = "", one = one });
 				else throw new($"wrong altern content {c?.GetType()}");
 			return this;
 		}
@@ -323,7 +323,7 @@ public partial class Lexier<K>
 					// build alt
 					var Aus = w.Select((a, alt) => {
 						++alt;
-						var bz = a.Sum(b => b.str.Length + (b.inc.Length > 0 ? 1 : 0));
+						var bz = a.Sum(b => b.str.Length + (b.one.Length > 0 ? 1 : 0));
 						if (a.Count == 0 ? alt > 1 : bz == 0)
 							throw new($"No byte in {k}.{wad}.{alt}");
 						if (bz > AltByteN)
@@ -337,8 +337,8 @@ public partial class Lexier<K>
 							for (int x = 0; x < c.str.Length; x++)
 								Byte(c.str.AsMemory(x, 1), ref u, k, wad, ++bx >= bz, ok,
 									c.dup && x == c.str.Length - 1 ? dup : null);
-							if (c.inc.Length > 0)
-								Byte(c.inc, ref u, k, wad, ++bx >= bz, ok, c.dup ? dup : null);
+							if (c.one.Length > 0)
+								Byte(c.one, ref u, k, wad, ++bx >= bz, ok, c.dup ? dup : null);
 						}
 						return u; // the last unit of this alt
 					}).Where(u => u.next != null).ToArray();

@@ -198,11 +198,11 @@ public static class MetaLex
 				env.Write(wad.redo ? "\n  .redo" : "\n  .w");
 				foreach (var alt in wad) {
 					env.Write("[");
-					foreach (var elem in alt) {
-						if (elem.inc.Length > 0) env.Write($"[{elem.inc}]");
-						else env.Write($"\"{elem.str}\"");
-						if (elem.dup) env.Write(",..");
-						if (elem != alt[^1]) env.Write(",");
+					foreach (var (c, cx) in alt.Each()) {
+						if (c.one.Length > 0) env.Write($"[{c.one}]");
+						else env.Write($"\"{c.str}\"");
+						if (c.dup) env.Write(",..");
+						if (cx < alt.Count - 1) env.Write(",");
 					}
 					env.Write(alt.loop ? "].loop" : "]");
 				}

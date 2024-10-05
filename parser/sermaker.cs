@@ -23,8 +23,7 @@ public partial class SynGram<K, N>
 		public string label = label;
 		public bool labelYes = labelYes;
 	}
-	// { K or N ... }
-	public partial class Alt : List<object>
+	public partial class Alt : List<Con>
 	{
 		internal short index; // index of whole grammar alts
 		public N name;
@@ -35,6 +34,17 @@ public partial class SynGram<K, N>
 		public sbyte synt; // make synt: as synter: 0, omit: -1, make: 1, lift left: 2, lift right: 3
 		public N syntN; // synt name: not default, same as name: default
 		public string label;
+	}
+	public readonly struct Con
+	{
+		public readonly int nx; // key: ~ordinal index, name: ordinal index
+		public readonly K k;
+		public readonly N n;
+
+		public Con(int x, K k) => (nx, this.k) = (~x, k);
+		public Con(int x, N n) => (nx, this.n) = (x, n);
+		public readonly bool K => nx < 0;
+		public readonly int kx => ~nx;
 	}
 
 	public SynGram<K, N> n(N name, string label = null, bool labelYes = true)
@@ -52,8 +62,10 @@ public partial class SynGram<K, N>
 				if (c is Range)
 					a.lex = a.lex < 0 ? (short)(a.Count - 1)
 						: throw new($"{p.name}.{p.Count - 1} lex {a.lex}");
-				else if (c is N or K)
-					a.Add(c);
+				else if (c is K k)
+					a.Add(new(0, k));
+				else if (c is N n)
+					a.Add(new(0, n));
 				else
 					throw new($"wrong altern content {c?.GetType()}");
 			return this;
@@ -93,7 +105,7 @@ public partial class SerMaker<K, N>
 	readonly N[] names; // at name ordinal index
 	readonly Kord[] recKs; // { recovery key ordinal ... }
 
-	private int Key(K k) => Array.BinarySearch(keyOs, keyOrd(k));
+	private int Key(K k, Kord[] os) => Array.BinarySearch(os, keyOrd(k));
 	private int Name(N n) => Array.BinarySearch(nameOs, nameOrd(n));
 
 	readonly SynGram<K, N>.Prod[] prods; // at name ordinal index
@@ -111,8 +123,8 @@ public partial class SerMaker<K, N>
 				var nf = firsts[nx].first.Use(keys.Length);
 				foreach (var a in p) {
 					foreach (var c in a) {
-						var (ce, cf) = c is K k ? (false, BitSet.One(keys.Length, Key(k)))
-							: firsts[Name((N)c)];
+						var (ce, cf) = c.K ? (false, BitSet.One(keys.Length, c.kx))
+							: firsts[c.nx];
 						loop |= nf.Or(cf);
 						if (!ce)
 							goto A;
@@ -125,10 +137,10 @@ public partial class SerMaker<K, N>
 			var fs = firstAs[x] = new (bool, BitSet)[a.Count + 1];
 			fs[^1].empty = true;
 			for (var w = a.Count - 1; w > 0; w--)
-				if (a[w] is K k)
-					fs[w] = (false, BitSet.One(keys.Length, Key(k)));
+				if (a[w].K)
+					fs[w] = (false, BitSet.One(keys.Length, a[w].kx));
 				else {
-					var (e, f) = firsts[Name((N)a[w])];
+					var (e, f) = firsts[a[w].nx];
 					fs[w] = !e ? (e, f) : (fs[w + 1].empty, f.NewOr(fs[w + 1].first, true));
 				}
 		}
@@ -208,10 +220,10 @@ public partial class SerMaker<K, N>
 		for (var x = 0; x < Is.Count + addHeads.Count; x++) {
 			var y = x < Is.Count ? x : addHeads[x - Is.Count];
 			var (a, want, heads, clo) = Is[y];
-			if (want >= a.Count || a[want] is not N name)
+			if (want >= a.Count || a[want].K)
 				continue;
 			var (e, f) = firstAs[a.index][want + 1];
-			foreach (var A in prods[Name(name)])
+			foreach (var A in prods[a[want].nx])
 				if ((y = AddItem(Is, A, 0, f, e ? heads : default, clo + 1)) >= 0)
 					addHeads.Add(y);
 		}
@@ -233,13 +245,12 @@ public partial class SerMaker<K, N>
 				}
 				addGos.Add(a[want], go = AddForm(Closure(js)));
 			}
-			if (a[want] is K k) {
-				var kx = Key(k);
-				f.clashs[kx].shift = go;
-				f.clashs[Key(k)].shifts.Use(alts.Length).Or(a.index);
+			if (a[want].K) {
+				f.clashs[a[want].kx].shift = go;
+				f.clashs[a[want].kx].shifts.Use(alts.Length).Or(a.index);
 			}
 			else
-				f.goNs[Name((N)a[want])] = go;
+				f.goNs[a[want].nx] = go;
 		}
 		addGos.Clear();
 	}
@@ -250,7 +261,7 @@ public partial class SerMaker<K, N>
 		if (forms.Count > 0)
 			return;
 		Items init = [];
-		AddItem(init, alts[0], 0, BitSet.One(keys.Length, Key(default)), default, 1);
+		AddItem(init, alts[0], 0, BitSet.One(keys.Length, default), default, 1);
 		AddForm(Closure(init));
 		for (var x = 0; x < forms.Count; x++) {
 			if (x >= 32767) throw new("too many forms");
@@ -334,7 +345,7 @@ public partial class SerMaker<K, N>
 				synt = a.synt, label = a.label, dump = a.ToString,
 				syntN = EqualityComparer<N>.Default.Equals(a.syntN, default) ? a.name : a.syntN,
 				// final key index in recovery keys
-				rec = (sbyte)(a.rec ? Array.BinarySearch(recKs, keyOrd((K)a[^1])) : 0),
+				rec = (sbyte)(a.rec ? Key(a[^1].k, recKs) : 0),
 			};
 		// synter forms
 		var Fs = new SynForm[forms.Count];
@@ -387,22 +398,22 @@ public partial class SerMaker<K, N>
 			F.recs = [.. recs];
 
 		// error infos
-		List<(bool label, int clo, int half, int ax, bool n, object need)> ws = [];
+		List<(bool label, int clo, int half, int ax, SynGram<K, N>.Con)> ws = [];
 		foreach (var (a, want, _, c) in f.Is)
 			if (want < a.Count && want != a.lex) // main lex is usually for distinct alts of same name
-				ws.Add((a.label != null, -c, want + want - a.Count, a.index, a[want] is N, a[want]));
+				ws.Add((a.label != null, -c, want + want - a.Count, a.index, a[want]));
 		ws.Sort();
 		// only few infos, reverse
 		List<(string a, string b, (string, int, int, int) c)> es = [];
 		bool label = false, debug = Err.Contains("{2}");
 		int cloMax = int.MinValue;
 		for (int x = 1; x <= ws.Count && es.Count <= ErrZ; x++) {
-			var (lab, clo, half, ax, _, need) = ws[^x];
+			var (lab, clo, half, ax, con) = ws[^x];
 			if (lab != (label |= lab)) continue;
 			if (clo < (cloMax = int.Max(cloMax, clo))) continue;
 			// label or name wants name or key, no duplicate
 			var e = (alts[ax].label ?? prods[Name(alts[ax].name)].label ?? alts[ax].name.ToString(),
-				need is N n ? prods[Name(n)].label ?? n.ToString() : Dumper(need),
+				con.K ? Dumper(con) : prods[con.nx].label ?? con.n.ToString(),
 				debug ? (lab ? "l" : "", clo, half, ax) : default);
 			if (es.IndexOf(e) < 0)
 				es.Add(e);
@@ -451,18 +462,18 @@ public partial class SerMaker<K, N>
 				if (a.Count == 0 && ax == 0)
 					throw new($"initial {p.name}.{pax} emppty");
 				foreach (var c in a)
-					if (c is not K k) {
-						if (accept.Equals(c))
-							throw new($"initial name {accept} in {p.name}.{pax} ");
-						else if (Name((N)c) < 0)
-							throw new($"name {c} in {p.name}.{pax} not found");
+					if (c.K) {
+						if ((ko = keyOrd(c.k)) == default)
+							throw new($"end of read in {p.name}.{pax}");
+						else if (!ks.TryGetValue(ko, out var kk))
+							ks[ko] = c.k;
+						else if (!c.k.Equals(kk))
+							throw new($"{p.name}.{pax} lexic key {c.k} confused with {kk}");
 					}
-					else if ((ko = keyOrd(k)) == default)
-						throw new($"end of read in {p.name}.{pax}");
-					else if (!ks.TryGetValue(ko, out var kk))
-						ks[ko] = k;
-					else if (!k.Equals(kk))
-						throw new($"{p.name}.{pax} lexic key {k} confused with {kk}");
+					else if (accept.Equals(c.n))
+						throw new($"initial name {accept} in {p.name}.{pax} ");
+					else if (Name(c.n) < 0)
+						throw new($"name {c} in {p.name}.{pax} not found");
 				// clash
 				if (a.clash < 0 && (ax == 0 || alts[ax - 1].clash == 0))
 					throw new($"{p.name}.{pax} no previous clash");
@@ -472,14 +483,14 @@ public partial class SerMaker<K, N>
 				if (a.rec && ax == 0)
 					throw new($"initial {p.name}.{pax} recovery");
 				if (a.rec)
-					if (a.Count > 0 && a[^1] is K k)
-						recs.Add(keyOrd(k));
+					if (a.Count > 0 && a[^1].K)
+						recs.Add(keyOrd(a[^1].k));
 					else
 						throw new($"{p.name}.{pax} no final lexic key");
 				// synt
-				if (a.synt == 2 && (a.Count == 0 || a[0] is not N))
+				if (a.synt == 2 && (a.Count == 0 || a[0].K))
 					throw new($"{p.name}.{pax} leftmost not name");
-				if (a.synt == 3 && (a.Count == 0 || a[^1] is not N))
+				if (a.synt == 3 && (a.Count == 0 || a[^1].K))
 					throw new($"{p.name}.{pax} rightmost not name");
 				alts[a.index = ax++] = a;
 				if (np != p)
@@ -498,6 +509,9 @@ public partial class SerMaker<K, N>
 			throw new($"recovery keys size {recs.Count}");
 		recKs = [.. recs];
 		// others
+		foreach (var a in alts)
+			for (var x = 0; x < a.Count; x++)
+				a[x] = a[x].K ? new(Key(a[x].k, keyOs), a[x].k) : new(Name(a[x].n), a[x].n);
 		firsts = new (bool, BitSet)[names.Length];
 		firstAs = new (bool, BitSet)[alts.Length][];
 	}
