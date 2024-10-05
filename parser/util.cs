@@ -190,6 +190,65 @@ public partial class LinkTree<T> : IEnumerable<T> where T : LinkTree<T>
 	}
 }
 
+public struct BitSet : IEnumerable<int>
+{
+	public ulong[] bits;
+
+	public BitSet Use(int size)
+	{
+		bits ??= new ulong[(size + 63) >> 6]; return this;
+	}
+	public readonly BitSet Or(int x)
+	{
+		bits[x >> 6] |= 1UL << (x & 63); return this;
+	}
+	public readonly bool Or(BitSet s)
+	{
+		if (bits == s.bits) return false;
+		var z = s.bits?.Length ?? 0;
+		if (bits.Length < z) throw new("lack of size");
+		var more = false;
+		for (var x = 0; x < z; x++)
+			more |= bits[x] != (bits[x] |= s.bits[x]);
+		return more;
+	}
+	public readonly BitSet NewOr(BitSet s, bool may = false)
+	{
+		if (may && (bits == s.bits || s.bits.Length == 0))
+			return this;
+		var p = bits; var q = s.bits; int y = bits.Length, z = s.bits.Length;
+		if (y > z)
+			(p, q, y, z) = (q, p, z, y);
+		var copy = new BitSet { bits = new ulong[z] };
+		for (var x = 0; x < y; x++)
+			copy.bits[x] = p[x] | q[x];
+		for (var x = y; x < z; x++)
+			copy.bits[x] = q[x];
+		return copy;
+	}
+	public readonly bool Same(BitSet s)
+	{
+		if (bits == s.bits) return true;
+		if (bits.Length != s.bits.Length) return false;
+		for (var x = 0; x < bits.Length; x++)
+			if (bits[x] != s.bits[x])
+				return false;
+		return true;
+	}
+	public static readonly BitSet None = new() { bits = [] };
+	public static BitSet One(int size, int x) => new BitSet().Use(size).Or(x);
+
+	public readonly IEnumerator<int> GetEnumerator()
+	{
+		for (int x = 0, y = 0; x < bits.Length; x++, y = 0)
+			for (ulong b = bits[x]; b != 0; b >>= 1, y++)
+				if ((b & 1ul) != 0)
+					yield return x << 6 | y;
+
+	}
+	readonly IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+}
+
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE0250:Make struct 'readonly'")]
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE0251:Make member 'readonly'")]
 public struct StrMake

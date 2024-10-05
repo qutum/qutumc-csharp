@@ -98,35 +98,52 @@ public partial class SerMaker<K, N>
 
 	readonly SynGram<K, N>.Prod[] prods; // at name ordinal index
 	readonly SynGram<K, N>.Alt[] alts;
-	readonly (bool empty, HashSet<K> first)[] firsts; // at name ordinal index
+	readonly (bool empty, BitSet first)[] firsts; // at name ordinal index
+	readonly (bool empty, BitSet first)[][] firstAs; // at alt index and want
 
-	// phase 1: find possible first key of each name
+	// phase 1: find first keys of each name and each alt want
 	public void Firsts()
 	{
-		if (firsts[0].first != null)
+		if (firstAs[0] != null)
 			return;
 		for (bool loop = true; !(loop = !loop);)
 			foreach (var (p, nx) in prods.Each()) {
-				var nf = firsts[nx].first ??= [];
+				var nf = firsts[nx].first.Use(keys.Length);
 				foreach (var a in p) {
 					foreach (var c in a) {
-						var (cempty, cf) = c is K k ? (false, [k]) : First((N)c);
-						loop |= nf.Adds(cf);
-						if (!cempty)
+						var (ce, cf) = c is K k ? (false, BitSet.One(keys.Length, Key(k)))
+							: firsts[Name((N)c)];
+						loop |= nf.Or(cf);
+						if (!ce)
 							goto A;
 					}
 					_ = firsts[nx].empty || (loop = firsts[nx].empty = true); A:;
 				}
 			}
+		for (var x = 0; x < firstAs.Length; x++) {
+			var a = alts[x];
+			var fs = firstAs[x] = new (bool, BitSet)[a.Count + 1];
+			fs[^1] = (true, BitSet.None);
+			for (var w = a.Count - 1; w > 0; w--)
+				if (a[w] is K k)
+					fs[w] = (false, BitSet.One(keys.Length, Key(k)));
+				else {
+					var (e, f) = firsts[Name((N)a[w])];
+					fs[w] = !e ? (e, f) : (fs[w + 1].empty, f.NewOr(fs[w + 1].first, true));
+				}
+		}
 	}
-	public (bool empty, IEnumerable<K> first) First(N name) => firsts[Name(name)];
+	public (bool empty, IEnumerable<K> first) First(N name)
+	{
+		var (e, f) = firsts[Name(name)];
+		return (e, f.Select(k => keys[k]));
+	}
 
 	class Items : List<(
 		SynGram<K, N>.Alt alt,
 		short want,
-		HashSet<K> heads, // lookaheads including eor
-		int clo,
-		bool cloHeads // use heads for closure
+		BitSet heads, // lookaheads including eor
+		int clo
 		)>
 	{
 	}
@@ -158,12 +175,13 @@ public partial class SerMaker<K, N>
 	readonly List<int> addHeads = [];
 	readonly Dictionary<object, short> addGos = [];
 
-	int AddItem(Items Is, SynGram<K, N>.Alt alt, short want, IEnumerable<K> heads, int clo)
+	int AddItem(Items Is, SynGram<K, N>.Alt alt, short want, BitSet heads1, BitSet heads2, int clo)
 	{
 		if (addItems.TryGetValue((alt, want), out var x))
-			return Is[x].heads.Adds(heads) && Is[x].cloHeads ? x : -1;
+			return (Is[x].heads.Or(heads1) | Is[x].heads.Or(heads2))
+				&& firstAs[alt.index][want + 1].empty ? x : -1;
 		addItems[(alt, want)] = Is.Count;
-		Is.Add((alt, want, [.. heads], clo, false));
+		Is.Add((alt, want, heads1.NewOr(heads2), clo));
 		return -1;
 	}
 	short AddForm(Items Is)
@@ -171,7 +189,7 @@ public partial class SerMaker<K, N>
 		foreach (var f in forms)
 			if (f.Is.Count == Is.Count) {
 				foreach (var (fi, i) in f.Is.Zip(Is))
-					if (fi.alt != i.alt || fi.want != i.want || !fi.heads.SetEquals(i.heads))
+					if (fi.alt != i.alt || fi.want != i.want || !fi.heads.Same(i.heads))
 						goto No;
 				return f.index; No:;
 			}
@@ -189,23 +207,12 @@ public partial class SerMaker<K, N>
 	{
 		for (var x = 0; x < Is.Count + addHeads.Count; x++) {
 			var y = x < Is.Count ? x : addHeads[x - Is.Count];
-			var (a, want, heads, clo, ch) = Is[y];
+			var (a, want, heads, clo) = Is[y];
 			if (want >= a.Count || a[want] is not N name)
 				continue;
-			bool empty = true; IEnumerable<K> h = null;
-			for (var w = want + 1; empty; w++)
-				if (w >= a.Count)
-					(empty, h, ch) = (false, h?.Concat(heads) ?? heads, true);
-				else if (a[w] is K k)
-					(empty, h) = (false, h?.Append(k) ?? [k]);
-				else {
-					(empty, var f) = First((N)a[w]);
-					h = h?.Concat(f) ?? f;
-				}
-			if (ch)
-				Is[y] = (a, want, heads, clo, ch);
+			var (e, f) = firstAs[a.index][want + 1];
 			foreach (var A in prods[Name(name)])
-				if ((y = AddItem(Is, A, 0, h, clo + 1)) >= 0)
+				if ((y = AddItem(Is, A, 0, f, e ? heads : BitSet.None, clo + 1)) >= 0)
 					addHeads.Add(y);
 		}
 		addItems.Clear(); addHeads.Clear();
@@ -215,14 +222,14 @@ public partial class SerMaker<K, N>
 	// make shifting or pushing between forms
 	void ShiftPush(Form f)
 	{
-		foreach (var (a, want, _, _, _) in f.Is) {
+		foreach (var (a, want, _, _) in f.Is) {
 			if (want >= a.Count)
 				continue;
 			if (!addGos.TryGetValue(a[want], out var go)) {
 				Items js = [];
-				foreach (var (A, W, heads, _, _) in f.Is) {
+				foreach (var (A, W, heads, _) in f.Is) {
 					if (W < A.Count && A[W].Equals(a[want]))
-						AddItem(js, A, (short)(W + 1), heads, 1);
+						AddItem(js, A, (short)(W + 1), heads, BitSet.None, 1);
 				}
 				addGos.Add(a[want], go = AddForm(Closure(js)));
 			}
@@ -242,17 +249,17 @@ public partial class SerMaker<K, N>
 		if (forms.Count > 0)
 			return;
 		Items init = [];
-		AddItem(init, alts[0], 0, [default], 1);
+		AddItem(init, alts[0], 0, BitSet.One(keys.Length, Key(default)), BitSet.None, 1);
 		AddForm(Closure(init));
 		for (var x = 0; x < forms.Count; x++) {
 			if (x >= 32767) throw new("too many forms");
 			ShiftPush(forms[x]);
 		}
 		foreach (var f in forms)
-			foreach (var (a, want, heads, _, _) in f.Is)
+			foreach (var (a, want, heads, _) in f.Is)
 				if (want >= a.Count) // alt could be reduced
 					foreach (var head in heads)
-						(f.clashs[Key(head)].redus ??= []).Add(a.index);
+						(f.clashs[head].redus ??= []).Add(a.index);
 		if (dump)
 			Dump(forms);
 	}
@@ -371,7 +378,7 @@ public partial class SerMaker<K, N>
 
 		// recover alts
 		List<(short, short)> recs = [];
-		foreach (var (a, want, _, _, _) in f.Is)
+		foreach (var (a, want, _, _) in f.Is)
 			if (a.rec && want > a.lex && want < a.Count) // usually useless before main lex
 				recs.Add((a.index, want));
 		recs.Sort(); recs.Reverse(); // reduce the latest alt of same recovery key
@@ -380,7 +387,7 @@ public partial class SerMaker<K, N>
 
 		// error infos
 		List<(bool label, int clo, int half, int ax, bool n, object need)> ws = [];
-		foreach (var (a, want, _, c, _) in f.Is)
+		foreach (var (a, want, _, c) in f.Is)
 			if (want < a.Count && want != a.lex) // main lex is usually for distinct alts of same name
 				ws.Add((a.label != null, -c, want + want - a.Count, a.index, a[want] is N, a[want]));
 		ws.Sort();
@@ -490,6 +497,7 @@ public partial class SerMaker<K, N>
 			throw new($"recovery keys size {recs.Count}");
 		recKs = [.. recs];
 		// others
-		firsts = new (bool, HashSet<K>)[names.Length];
+		firsts = new (bool, BitSet)[names.Length];
+		firstAs = new (bool, BitSet)[alts.Length][];
 	}
 }
