@@ -193,10 +193,11 @@ public partial class LinkTree<T> : IEnumerable<T> where T : LinkTree<T>
 public struct BitSet : IEnumerable<int>
 {
 	public ulong[] bits;
+	public readonly int size => bits?.Length ?? 0;
 
-	public BitSet Use(int size)
+	public BitSet Use(int max)
 	{
-		bits ??= new ulong[(size + 63) >> 6]; return this;
+		bits ??= new ulong[(max + 63) >> 6]; return this;
 	}
 	public readonly BitSet Or(int x)
 	{
@@ -205,18 +206,22 @@ public struct BitSet : IEnumerable<int>
 	public readonly bool Or(BitSet s)
 	{
 		if (bits == s.bits) return false;
-		var z = s.bits?.Length ?? 0;
-		if (bits.Length < z) throw new("lack of size");
 		var more = false;
-		for (var x = 0; x < z; x++)
+		for (int z = s.size, x = 0; x < z; x++)
 			more |= bits[x] != (bits[x] |= s.bits[x]);
 		return more;
 	}
+	public readonly BitSet Or(IEnumerable<int> s)
+	{
+		foreach (var x in s ?? [])
+			Or(x);
+		return this;
+	}
 	public readonly BitSet NewOr(BitSet s, bool may = false)
 	{
-		if (may && (bits == s.bits || s.bits.Length == 0))
+		var p = bits; var q = s.bits; int y = size, z = s.size;
+		if (may ? p == q || z == 0 : y == 0 && z == 0)
 			return this;
-		var p = bits; var q = s.bits; int y = bits.Length, z = s.bits.Length;
 		if (y > z)
 			(p, q, y, z) = (q, p, z, y);
 		var copy = new BitSet { bits = new ulong[z] };
@@ -229,22 +234,33 @@ public struct BitSet : IEnumerable<int>
 	public readonly bool Same(BitSet s)
 	{
 		if (bits == s.bits) return true;
-		if (bits.Length != s.bits.Length) return false;
+		if (size != s.size) return false;
 		for (var x = 0; x < bits.Length; x++)
 			if (bits[x] != s.bits[x])
 				return false;
 		return true;
 	}
-	public static readonly BitSet None = new() { bits = [] };
 	public static BitSet One(int size, int x) => new BitSet().Use(size).Or(x);
 
-	public readonly IEnumerator<int> GetEnumerator()
+	public readonly int Min()
 	{
 		for (int x = 0, y = 0; x < bits.Length; x++, y = 0)
 			for (ulong b = bits[x]; b != 0; b >>= 1, y++)
-				if ((b & 1ul) != 0)
-					yield return x << 6 | y;
-
+				if ((b & 1ul) != 0) return x << 6 | y;
+		return int.MaxValue;
+	}
+	public readonly int Max()
+	{
+		for (int x = size - 1, y = 63; x >= 0; x--, y = 63)
+			for (ulong b = bits[x]; b != 0; b <<= 1, y--)
+				if ((long)b < 0) return x << 6 | y;
+		return int.MinValue;
+	}
+	public readonly IEnumerator<int> GetEnumerator()
+	{
+		for (int x = 0, y = 0; x < size; x++, y = 0)
+			for (ulong b = bits[x]; b != 0; b >>= 1, y++)
+				if ((b & 1ul) != 0) yield return x << 6 | y;
 	}
 	readonly IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 }

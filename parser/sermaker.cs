@@ -123,7 +123,7 @@ public partial class SerMaker<K, N>
 		for (var x = 0; x < firstAs.Length; x++) {
 			var a = alts[x];
 			var fs = firstAs[x] = new (bool, BitSet)[a.Count + 1];
-			fs[^1] = (true, BitSet.None);
+			fs[^1].empty = true;
 			for (var w = a.Count - 1; w > 0; w--)
 				if (a[w] is K k)
 					fs[w] = (false, BitSet.One(keys.Length, Key(k)));
@@ -136,8 +136,9 @@ public partial class SerMaker<K, N>
 	public (bool empty, IEnumerable<K> first) First(N name)
 	{
 		var (e, f) = firsts[Name(name)];
-		return (e, f.Select(k => keys[k]));
+		return (e, KeySet(f));
 	}
+	public IEnumerable<K> KeySet(BitSet s) => s.Select(kx => keys[kx]);
 
 	class Items : List<(
 		SynGram<K, N>.Alt alt,
@@ -151,14 +152,13 @@ public partial class SerMaker<K, N>
 	public struct Clash
 	{
 		internal short shift; // shift to form index if shifts not null
-		public HashSet<short> redus; // alt index, no reduce: null
-		public HashSet<short> shifts; // alt index, no shift: null
-		public override readonly int GetHashCode() =>
-			HashCode.Combine(shifts?.Count == 1 ? shifts.First() : shifts?.Count,
-				redus?.Count == 1 ? redus.First() : redus.Count);
-		public override readonly bool Equals(object o) => o is Clash c
-			&& (redus?.SetEquals(c.redus) ?? c.redus == null)
-			&& (shifts?.SetEquals(c.shifts) ?? c.shifts == null);
+		public BitSet redus; // alt index, no reduce: null
+		public BitSet shifts; // alt index, no shift: null
+		public override readonly int GetHashCode() => HashCode.Combine(
+			shifts.bits?[0] ?? 0, shifts.bits?[^1] ?? 0,
+			redus.bits?[0] ?? 0, redus.bits?[^1] ?? 0);
+		public override readonly bool Equals(object o) =>
+			o is Clash c && redus.Same(c.redus) && shifts.Same(c.shifts);
 	}
 	struct Form
 	{
@@ -212,7 +212,7 @@ public partial class SerMaker<K, N>
 				continue;
 			var (e, f) = firstAs[a.index][want + 1];
 			foreach (var A in prods[Name(name)])
-				if ((y = AddItem(Is, A, 0, f, e ? heads : BitSet.None, clo + 1)) >= 0)
+				if ((y = AddItem(Is, A, 0, f, e ? heads : default, clo + 1)) >= 0)
 					addHeads.Add(y);
 		}
 		addItems.Clear(); addHeads.Clear();
@@ -229,13 +229,14 @@ public partial class SerMaker<K, N>
 				Items js = [];
 				foreach (var (A, W, heads, _) in f.Is) {
 					if (W < A.Count && A[W].Equals(a[want]))
-						AddItem(js, A, (short)(W + 1), heads, BitSet.None, 1);
+						AddItem(js, A, (short)(W + 1), heads, default, 1);
 				}
 				addGos.Add(a[want], go = AddForm(Closure(js)));
 			}
 			if (a[want] is K k) {
-				f.clashs[Key(k)].shift = go;
-				(f.clashs[Key(k)].shifts ??= []).Add(a.index);
+				var kx = Key(k);
+				f.clashs[kx].shift = go;
+				f.clashs[Key(k)].shifts.Use(alts.Length).Or(a.index);
 			}
 			else
 				f.goNs[Name((N)a[want])] = go;
@@ -249,7 +250,7 @@ public partial class SerMaker<K, N>
 		if (forms.Count > 0)
 			return;
 		Items init = [];
-		AddItem(init, alts[0], 0, BitSet.One(keys.Length, Key(default)), BitSet.None, 1);
+		AddItem(init, alts[0], 0, BitSet.One(keys.Length, Key(default)), default, 1);
 		AddForm(Closure(init));
 		for (var x = 0; x < forms.Count; x++) {
 			if (x >= 32767) throw new("too many forms");
@@ -259,7 +260,7 @@ public partial class SerMaker<K, N>
 			foreach (var (a, want, heads, _) in f.Is)
 				if (want >= a.Count) // alt could be reduced
 					foreach (var head in heads)
-						(f.clashs[head].redus ??= []).Add(a.index);
+						f.clashs[head].redus.Use(alts.Length).Or(a.index);
 		if (dump)
 			Dump(forms);
 	}
@@ -268,29 +269,29 @@ public partial class SerMaker<K, N>
 	// left: shift or reduce the latest index alt, reduce the same index (left associative)
 	// right: shift or reduce the latest index alt, shift the same index (right associative)
 	// all clashing alts not be rejected
-	public Dictionary<Clash, (HashSet<K> keys, short go)> Clashs(bool detail = true)
+	public Dictionary<Clash, (BitSet keys, short go)> Clashs(bool detail = true)
 	{
-		Dictionary<Clash, (HashSet<K> keys, short go)> clashs = [];
+		Dictionary<Clash, (BitSet keys, short go)> clashs = [];
 		foreach (var f in forms)
 			foreach (var (c, kx) in f.clashs.Each())
 				// shift without clash
-				if (c.redus == null)
-					f.goKs[kx] = c.shifts == null ? No : c.shift;
+				if (c.redus.size == 0)
+					f.goKs[kx] = c.shifts.size == 0 ? No : c.shift;
 				// reduce without clash
-				else if (c.shifts == null && c.redus.Count == 1)
-					f.goKs[kx] = SynForm.Redu(c.redus.First());
+				else if (c.shifts.size == 0 && c.redus.Max() is int r && r == c.redus.Min()) // one redu
+					f.goKs[kx] = SynForm.Redu(r);
 				// already solved
 				else if (clashs.TryGetValue(c, out var ok)) {
 					f.goKs[kx] = ok.go;
-					ok.keys.Add(keys[kx]);
+					ok.keys.Or(kx);
 				}
 				// try to solve
 				else {
 					short go = No;
 					if (c.redus.All(a => alts[a].clash != 0)) {
 						int A(int a) => alts[a].clash < 0 ? ~alts[a].clash : a;
-						int r = c.redus.Max(), ra = A(r);
-						if (c.shifts == null)
+						r = c.redus.Max(); int ra = A(r);
+						if (c.shifts.size == 0)
 							go = SynForm.Redu(r); // reduce
 						else {
 							int ia = A(c.shifts.Max()), ic = alts[ia].clash;
@@ -302,7 +303,7 @@ public partial class SerMaker<K, N>
 						}
 					}
 					f.goKs[kx] = go;
-					clashs[c] = ([keys[kx]], go);
+					clashs[c] = (BitSet.One(keys.Length, kx), go);
 				}
 		// solved
 		var solvez = 0;
@@ -317,7 +318,7 @@ public partial class SerMaker<K, N>
 
 	// phase all and final: make all data for synter
 	public (SynAlt<N>[] alts, SynForm[] forms, Kord[] recKs)
-		Make(out Dictionary<Clash, (HashSet<K> keys, short go)> clashs)
+		Make(out Dictionary<Clash, (BitSet keys, short go)> clashs)
 	{
 		Firsts();
 		Forms();
@@ -394,11 +395,11 @@ public partial class SerMaker<K, N>
 		// only few infos, reverse
 		List<(string a, string b, (string, int, int, int) c)> es = [];
 		bool label = false, debug = Err.Contains("{2}");
-		int closu = int.MinValue;
+		int cloMax = int.MinValue;
 		for (int x = 1; x <= ws.Count && es.Count <= ErrZ; x++) {
 			var (lab, clo, half, ax, _, need) = ws[^x];
 			if (lab != (label |= lab)) continue;
-			if (clo < (closu = Math.Max(closu, clo))) continue;
+			if (clo < (cloMax = int.Max(cloMax, clo))) continue;
 			// label or name wants name or key, no duplicate
 			var e = (alts[ax].label ?? prods[Name(alts[ax].name)].label ?? alts[ax].name.ToString(),
 				need is N n ? prods[Name(n)].label ?? n.ToString() : Dumper(need),

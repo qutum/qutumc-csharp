@@ -224,7 +224,7 @@ public abstract class LexierBuf<K> : LexerSeg<K, Lexi<K>> where K : struct
 
 	protected virtual void Add(Lexi<K> lex)
 	{
-		if (size == lexs.Length) Array.Resize(ref lexs, Math.Max(lexs.Length << 1, 65536));
+		if (size == lexs.Length) Array.Resize(ref lexs, int.Max(lexs.Length << 1, 65536));
 		lexs[size++] = lex;
 	}
 
@@ -269,12 +269,12 @@ public abstract class LexierBuf<K> : LexerSeg<K, Lexi<K>> where K : struct
 		int bf, bt;
 		if (from >= 0) {
 			bf = from < size ? Lex(from).from : Lex(from - 1).to;
-			bt = from < to ? Math.Max(Lex(to - 1).to, bf) : bf;
+			bt = from < to ? int.Max(Lex(to - 1).to, bf) : bf;
 		}
 		else {
 			from = ~from; to = ~to;
 			bf = from < errs.Count ? errs[from].from : errs[from - 1].to;
-			bt = from < to ? Math.Max(errs[to - 1].to, bf) : bf;
+			bt = from < to ? int.Max(errs[to - 1].to, bf) : bf;
 		}
 		var (fl, fc) = LineCol(bf); var (tl, tc) = LineCol(bt);
 		return (fl, fc, tl, tc);

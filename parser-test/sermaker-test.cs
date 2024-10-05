@@ -16,30 +16,6 @@ namespace qutum.test.parser;
 
 using Gram = SynGram<char, string>;
 
-file static class Extension
-{
-	public static void Eq(this (bool empty, IEnumerable<char> first) test, bool empty, string first)
-	{
-		AreEqual(empty, test.empty);
-		AreEqual(first, string.Join(" ", test.first.Order()));
-	}
-
-	public static void Eq(this Dictionary<SerMaker<char, string>.Clash, (HashSet<char> ks, short m)> tests,
-		params (HashSet<char>, short[] redus, short[] shifts)[] aims)
-	{
-		AreEqual(tests.Count, aims.Length);
-		foreach (var (ks, redus, shifts) in aims) {
-			IsTrue(tests.TryGetValue(new() {
-				redus = redus.Select(a => (short)(a ^ a >> 15)).ToHashSet(),
-				shifts = shifts?.Select(a => (short)(a ^ a >> 15)).ToHashSet()
-			}, out var t));
-			IsTrue(ks.SetEquals(t.ks));
-			AreEqual(shifts?.Min() < 0 ? 0 : redus.Min() < 0 ? SynForm.Redu(~redus.Min()) : -1,
-				Math.Min((int)t.m, 0));
-		}
-	}
-}
-
 [TestClass]
 public class TestSerMaker : IDisposable
 {
@@ -53,6 +29,29 @@ public class TestSerMaker : IDisposable
 	public void NewMer(Gram gram)
 	{
 		mer = new(gram, k => k, n => n[0]);
+	}
+
+	public static void Eq((bool empty, IEnumerable<char> first) test, bool empty, string first)
+	{
+		AreEqual(empty, test.empty);
+		AreEqual(first, string.Join(" ", test.first.Order()));
+	}
+
+	public void ClashEq(params (HashSet<char>, short[] redus, short[] shifts)[] aims)
+	{
+		var tests = mer.Clashs();
+		AreEqual(tests.Count, aims.Length);
+		var bz = tests.First().Key.redus.bits.Length;
+		foreach (var (keys, redus, shifts) in aims) {
+			IsTrue(tests.TryGetValue(new() {
+				redus = new BitSet { bits = new ulong[bz] }.Or(redus.Select(a => a ^ a >> 15)),
+				shifts = shifts == null ? default
+					: new BitSet { bits = new ulong[bz] }.Or(shifts.Select(a => a ^ a >> 15))
+			}, out var t));
+			IsTrue(keys.SetEquals(mer.KeySet(t.keys)));
+			AreEqual(shifts?.Min() < 0 ? 0 : redus.Min() < 0 ? SynForm.Redu(~redus.Min()) : -1,
+				int.Min(t.go, 0));
+		}
 	}
 
 	public void NewSer(bool recover = false)
@@ -72,9 +71,9 @@ public class TestSerMaker : IDisposable
 			.n("X")["Y"]['a']
 		);
 		mer.Firsts();
-		mer.First("X").Eq(true, "a c");
-		mer.First("Y").Eq(true, "c");
-		mer.First("Z").Eq(false, "a c d");
+		Eq(mer.First("X"), true, "a c");
+		Eq(mer.First("Y"), true, "c");
+		Eq(mer.First("Z"), false, "a c d");
 	}
 
 	[TestMethod]
@@ -89,12 +88,12 @@ public class TestSerMaker : IDisposable
 			.n("F")['a']['1']['(', "E", ')']
 		);
 		mer.Firsts();
-		mer.First("S").Eq(false, "( 1 a");
-		mer.First("E").Eq(false, "( 1 a");
-		mer.First("e").Eq(true, "+ -");
-		mer.First("T").Eq(false, "( 1 a");
-		mer.First("t").Eq(true, "* /");
-		mer.First("F").Eq(false, "( 1 a");
+		Eq(mer.First("S"), false, "( 1 a");
+		Eq(mer.First("E"), false, "( 1 a");
+		Eq(mer.First("e"), true, "+ -");
+		Eq(mer.First("T"), false, "( 1 a");
+		Eq(mer.First("t"), true, "* /");
+		Eq(mer.First("F"), false, "( 1 a");
 	}
 
 	[TestMethod]
@@ -102,19 +101,19 @@ public class TestSerMaker : IDisposable
 	{
 		NewMer(new Gram().n("S")["E"].n("E")['i']["E", "E"]['j']);
 		mer.Firsts(); mer.Forms();
-		mer.Clashs().Eq(
+		ClashEq(
 			(['i'], [2], [1]),
 			(['j'], [2], [3])
 		);
 		NewMer(new Gram().n("S")["E"].n("E")['i']["E", "E"]['j'].clash);
 		mer.Firsts(); mer.Forms();
-		mer.Clashs().Eq(
+		ClashEq(
 			(['i'], [2], [1]),
 			(['j'], [2], [3])
 		);
 		NewMer(new Gram().n("S")["E"].n("E")['i'].clash["E", "E"].clash['j'].clash);
 		mer.Firsts(); mer.Forms();
-		mer.Clashs().Eq(
+		ClashEq(
 			(['i'], [~2], [1]),
 			(['j'], [2], [~3])
 		);
@@ -129,7 +128,7 @@ public class TestSerMaker : IDisposable
 					['x'].clash
 		);
 		mer.Firsts(); mer.Forms();
-		mer.Clashs().Eq(
+		ClashEq(
 			(['+'], [1], [~2]),
 			(['+'], [~2], [2]),
 			(['x'], [1], [~3]),
@@ -141,7 +140,7 @@ public class TestSerMaker : IDisposable
 					["E", '+', "E"].clash
 		);
 		mer.Firsts(); mer.Forms();
-		mer.Clashs().Eq(
+		ClashEq(
 			(['+'], [2], [~3]),
 			(['+'], [~3], [3]),
 			(['x'], [~2], [1]),
@@ -159,7 +158,7 @@ public class TestSerMaker : IDisposable
 					['a']['b']
 		);
 		mer.Firsts(); mer.Forms();
-		mer.Clashs().Eq(
+		ClashEq(
 			([','], [~1], [1]),
 			([','], [~2], [1]),
 			([','], [~3], [1]),
@@ -183,7 +182,7 @@ public class TestSerMaker : IDisposable
 					['a']
 		);
 		mer.Firsts(); mer.Forms();
-		mer.Clashs().Eq(
+		ClashEq(
 			([','], [~1], [1]),
 			([','], [~2], [1]),
 			([','], [~3], [1]),
@@ -202,7 +201,7 @@ public class TestSerMaker : IDisposable
 					['a']
 		);
 		mer.Firsts(); mer.Forms();
-		mer.Clashs().Eq( // no way
+		ClashEq( // no way
 			([','], [4], [1]),
 			(['+'], [4], [2]),
 			(['^'], [4], [3])
@@ -220,7 +219,7 @@ public class TestSerMaker : IDisposable
 					['a']
 		);
 		mer.Firsts(); mer.Forms();
-		mer.Clashs().Eq(
+		ClashEq(
 			(['?', ':'], [1], [~1]),
 			(['?'], [~2], [1]),
 			(['?'], [~3], [1]),
@@ -245,7 +244,7 @@ public class TestSerMaker : IDisposable
 					['a']
 		);
 		mer.Firsts(); mer.Forms();
-		mer.Clashs().Eq(
+		ClashEq(
 			(['+'], [~1], [1]),
 			(['+'], [~2], [1]),
 			(['+'], [~3], [1]),
@@ -286,7 +285,7 @@ public class TestSerMaker : IDisposable
 					['a']['b']
 		);
 		mer.Firsts(); mer.Forms();
-		mer.Clashs().Eq(
+		ClashEq(
 			([','], [1], [~4]),
 			([','], [2], [~4]),
 			([','], [3], [~4]),
@@ -305,7 +304,7 @@ public class TestSerMaker : IDisposable
 			.n("E")['a']['b']
 		);
 		mer.Firsts(); mer.Forms();
-		mer.Clashs().Eq( // no way
+		ClashEq( // no way
 			([','], [1], [2]),
 			(['+'], [1], [3]),
 			(['^'], [1], [4])
@@ -339,7 +338,7 @@ public class TestSerMaker : IDisposable
 			.n("L")["S"]["L", ';', "S"]
 		);
 		mer.Firsts(); mer.Forms();
-		mer.Clashs().Eq((['|'], [4], [~5]));
+		ClashEq((['|'], [4], [~5]));
 	}
 
 	[TestMethod]
@@ -356,7 +355,7 @@ public class TestSerMaker : IDisposable
 			.n("D")['i'].clash
 		);
 		mer.Firsts(); mer.Forms();
-		mer.Clashs().Eq(
+		ClashEq(
 			(['|'], [~4], [4]),
 			(['|'], [~5], [4]),
 			(['&'], [4], [~5]),

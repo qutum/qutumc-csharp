@@ -247,7 +247,7 @@ public partial class SerMaker<K, N>
 		if (d is SynForm f) {
 			StrMake s = new();
 			foreach (var (a, want, heads, clo) in forms[f.index].Is)
-				_ = s - '\n' + want + "_ " + a.ToString() + "  " + Dumper_((heads, s)) + "  ~" + clo;
+				_ = s - '\n' + want + "_ " + a + "  " + Dumper_((KeySet(heads), s)) + "  ~" + clo;
 			return s;
 		}
 		return Dumper_(d);
@@ -259,18 +259,18 @@ public partial class SerMaker<K, N>
 			using (var env = EnvWriter.Use())
 				env.WriteLine($"forms: {forms.Count} (max {(
 					forms.Select(f => f.Is.Count).Max())} items)");
-		else if (d is (Dictionary<Clash, (HashSet<K> keys, short go)> clashs,
+		else if (d is (Dictionary<Clash, (BitSet keys, short go)> clashs,
 				bool detail, int solvez)) {
 			using var env = EnvWriter.Use();
 			env.WriteLine(detail ? $"clashes: {clashs.Count} ({solvez} solved)"
 						: $"unsolved clashes: {clashs.Count} (besides {solvez} solved)");
 			foreach (var ((c, (keys, go)), cx) in clashs.Each(1)) {
 				env.Write(cx + (go == No ? "  : " : " :: "));
-				env.WriteLine(Dumper(keys));
+				env.WriteLine(Dumper(KeySet(keys)));
 				using var _ = EnvWriter.Indent("\t\t");
 				foreach (var a in c.redus)
 					env.WriteLine($"{(a == SynForm.Redu(go) ? "REDU" : "redu")} {a}  {alts[a]}");
-				foreach (var a in c.shifts ?? [])
+				foreach (var a in c.shifts)
 					env.WriteLine($"{(go > No ? "SHIFT" : "shift")} {a}  {alts[a]}");
 			}
 		}
