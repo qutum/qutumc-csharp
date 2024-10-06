@@ -115,7 +115,7 @@ public partial class Synter : Synter<L, S, Synt, Lexier>
 		var errs = new Synt { err = -3, info = ler.errs.Count };
 		foreach (var (err, x) in ler.errs.Each())
 			errs.Add(new() {
-				from = ~x, to = ~x - 1, err = -3, info = err.key, dump = err.ToString()
+				j = (~x, ~(x + 1)), err = -3, info = err.key, dump = err.ToString()
 			});
 		return t.Append(errs.head?.up);
 	}

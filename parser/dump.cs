@@ -97,7 +97,7 @@ public partial class Synt<N, T>
 	public object dump;
 
 	public string Dumper(StrMake s, Func<Synt<N, T>, object> dumper = null) =>
-		(s.s != null ? s : (s = new()) + from + ':' + to)
+		(s.s != null ? s : (s = new()) + j.on + ':' + j.via)
 		+ (err > 0 ? "!!" : err < 0 ? "!" : "")
 		+ (info is Synt<N, T> or null ? s : s + ' ' + info) + " : " + (dump ?? name)
 		+ (info is Synt<N, T> t ? s + '\n' + (dumper?.Invoke(t) ?? t) : s);
@@ -192,15 +192,15 @@ public partial class Synter<K, L, N, T, Ler>
 		}
 		if (dump > 0 && d is T t) {
 			StrMake s = default;
-			if (t.from >= 0 && t.dump is not Dumps.Str && dump >= 2) {
+			if (t.j.on >= 0 && t.dump is not Dumps.Str && dump >= 2) {
 				_ = (s = new()) + (t.dump ?? t.name.ToString()) + " :";
-				foreach (var lex in ler.Lexs((t.from, t.to)))
+				foreach (var lex in ler.Lexs(t.j))
 					_ = s + ' ' + lex;
 				t.dump = (Dumps.Str)(string)s;
 				s.s.Clear();
 			}
-			return t.Dumper((ler as LexierBuf<K>)?.LineCol((t.from, t.to)) is var (l, c)
-				? (s.s != null ? s : new()) + l.on + '.' + c.on + ':' + l.via + '.' + c.via
+			return t.Dumper((ler as LexierBuf<K>)?.LineCol(t.j) is var (l, c)
+				? (s.s != null ? s : new()) + l.on + '.' + c.on + ':' + l.to + '.' + c.via
 				: s, Dumper);
 		}
 		return d.ToString();

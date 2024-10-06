@@ -15,7 +15,7 @@ namespace qutum.parser;
 public partial struct Lexi<K> where K : struct
 {
 	public K key;
-	public Jov jov; // read jot loc
+	public Jov j; // read jot loc, error: <0
 	public int err; // error: <0, no error: >=0
 	public object value;
 }
@@ -198,11 +198,11 @@ public partial class Lexier<K> : LexierBuf<K> where K : struct
 
 	// from f loc of read to excluded loc
 	protected void Lexi(K key, Jov j, object value)
-		=> Add(new() { key = key, jov = j, value = value });
+		=> Add(new() { key = key, j = j, value = value });
 	// from f loc of read to excluded loc
 	protected void Error(K key, Jov j, object value)
 	{
-		var l = new Lexi<K> { key = key, jov = j, value = value, err = -1 };
+		var l = new Lexi<K> { key = key, j = j, value = value, err = -1 };
 		if (errs != null) errs.Add(l); else Add(l);
 	}
 
@@ -262,23 +262,23 @@ public abstract class LexierBuf<K> : LexerSeg<K, Lexi<K>> where K : struct
 		return (line, readLoc - lines[line - 1] + 1);
 	}
 
-	// excluded to, ~from ~to for errs, first line and col are 1, col is byte index inside line
-	public (Jov line, Jov col) LineCol(Jov readJot)
+	// ~error, first line and column are 1, column is byte index inside line
+	public (Jot line, Jov col) LineCol(Jov readJot)
 	{
 		if (size == 0)
 			return ((1, 1), (1, 1));
 		var (on, via) = readJot; int bo, bv;
 		if (on >= 0) {
-			bo = on < size ? Lex(on).jov.on : Lex(on - 1).jov.via;
-			bv = on < via ? int.Max(Lex(via - 1).jov.via, bo) : bo;
+			bo = on < size ? Lex(on).j.on : Lex(on - 1).j.via;
+			bv = on < via ? int.Max(Lex(via - 1).j.via, bo) : bo;
 		}
 		else {
 			on = ~on; via = ~via;
-			bo = on < errs.Count ? errs[on].jov.on : errs[on - 1].jov.via;
-			bv = on < via ? int.Max(errs[via - 1].jov.via, bo) : bo;
+			bo = on < errs.Count ? errs[on].j.on : errs[on - 1].j.via;
+			bv = on < via ? int.Max(errs[via - 1].j.via, bo) : bo;
 		}
-		var (lo, co) = LineCol(bo); var (lv, cv) = LineCol(bv);
-		return ((lo, lv), (co, cv));
+		var (lo, co) = LineCol(bo); var (lt, cv) = LineCol(bv);
+		return ((lo, lt), (co, cv));
 	}
 }
 

@@ -237,7 +237,7 @@ public sealed partial class Lexier : LexierBuf<L>
 		switch (k) {
 
 		case default(L):
-			Indent(0, (G.left.jov.via, G.left.jov.via)); // eor
+			Indent(0, (G.left.j.via, G.left.j.via)); // eor
 			break;
 		case L.IND:
 			break;
@@ -251,8 +251,8 @@ public sealed partial class Lexier : LexierBuf<L>
 
 		case L.ADD:
 		case L.SUB:
-			if ((Left.jov.via < j.on || Left.key.InGroup(L.Proem | L.Blank))
-				&& j.via == G.right.jov.on && !G.right.key.InGroup(L.Blank))
+			if ((Left.j.via < j.on || Left.key.InGroup(L.Proem | L.Blank))
+				&& j.via == G.right.j.on && !G.right.key.InGroup(L.Blank))
 				// left not dense and right dense, binary as prefix
 				k = k switch { L.ADD => L.POSI, L.SUB => L.NEGA, _ => throw new() };
 			Lexi(k, j, v);
@@ -271,10 +271,10 @@ public sealed partial class Lexier : LexierBuf<L>
 		if (G.left.key == L.EOL)
 			Indent(0, (j.on, j.on));
 		else if (G.left.key == L.IND)
-			Indent((int)G.left.value, G.left.jov);
+			Indent((int)G.left.value, G.left.j);
 
 		// left dense
-		if (Left.jov.via == j.on)
+		if (Left.j.via == j.on)
 			if (k.InKind(L.POST) && Left.key.InGroup(L.Phr)) // postfix densely follows phrase, higher precedence
 				k = (L)((int)k ^ (int)L.POST << 8 | (int)L.POSTD << 8);
 			else if (k.InKind(L.LIT) && Left.key.InKind(L.LIT))
@@ -296,7 +296,7 @@ public sealed partial class Lexier : LexierBuf<L>
 		else
 			Add(k, j, v);
 	}
-	void Add(L k, Jov j, object v) => Add(new() { key = k, jov = j, value = v });
+	void Add(L k, Jov j, object v) => Add(new() { key = k, j = j, value = v });
 
 	// indent column 0 based, read from loc to excluded loc
 	void Indent(int ind, Jov j, bool junct = false)
@@ -355,13 +355,13 @@ internal sealed class LexierGet : Lexier<L>, Lexer<L, Lexi<L>>
 		if (!ok)
 			return default;
 		left = lexs[l - 1 & buf]; lex = lexs[l++ & buf]; right = lexs[l & buf];
-		return (lex.key, lex.jov, lex.value);
+		return (lex.key, lex.j, lex.value);
 	}
 
 	protected override void Add(Lexi<L> lexi) => lexs[size++ & buf] = lexi;
 	public new void Error(L k, Jov j, object value) => base.Error(k, j, value);
 	public void Blank(L k, Jov j, object value) => blanks?.Add(
-		new() { key = k, jov = j, value = value, err = 1 });
+		new() { key = k, j = j, value = value, err = 1 });
 
 	protected override void WadErr(L k, int wad, bool end, int b, Jov j)
 	{

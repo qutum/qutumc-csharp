@@ -17,7 +17,7 @@ using Nord = ushort;
 public partial class Synt<N, T> : LinkTree<T> where T : Synt<N, T>
 {
 	public N name;
-	public int from, to; // lexs from loc to loc excluded, error lex: < 0
+	public Jov j; // lexs jot loc, error lex: < 0
 	public sbyte err; // no error: 0, recovered: 1, error: -1, cyclic: -2, lex error: -3
 	public object info; // lexi, error info, error synt of recovery ...
 }
@@ -241,11 +241,11 @@ public partial class Synter<K, L, N, T, Ler>
 		if (redu.err == 0)
 			redu.size = alt.size;
 		int loc = redu.size > 0 ? stack[^redu.size].loc : stack[^1].loc + 1;
-		if (redu.err > 0 && redu.info is T e && loc > e.from)
-			loc = e.from; // recovery synt.from
+		if (redu.err > 0 && redu.info is T e && loc > e.j.on)
+			loc = e.j.on; // recovery synt start
 		bool make = alt.synt > 0 || alt.synt == 0 && synt;
 		T t = make || redu.err > 0 ? new() { // for omitted recovery synt, append it
-			name = alt.syntN, from = loc, to = ler.Loc(), dump = dump >= 3 ? alt : alt.label,
+			name = alt.syntN, j = (loc, ler.Loc()), dump = dump >= 3 ? alt : alt.label,
 			err = redu.err, info = redu.info,
 		} : null;
 		for (var i = redu.size - 1; i >= 0; i--) {
@@ -274,7 +274,7 @@ public partial class Synter<K, L, N, T, Ler>
 				return (0, 0, null);
 			}
 		T e = new() {
-			from = ler.Loc(), to = ler.Loc() + (key != default ? 1 : 0), err = -1,
+			j = (ler.Loc(), ler.Loc() + (key != default ? 1 : 0)), err = -1,
 			info = (int)errs.info == 100 ? "more than 100 errors ..."
 				: form.err ?? (go < No ? SerMaker<K, N>.ErrEor : "unknown error"),
 		};
@@ -286,7 +286,7 @@ public partial class Synter<K, L, N, T, Ler>
 		// want a recovery key right now, fake it
 		if (key != default && (rec = Fake(key, -1, stack.Count - 1)).cx > 0) {
 			go = SynForm.Redu(rec.a);
-			e.to = e.from;
+			e.j.via = e.j.on;
 			return (1, rec.want, e); // recover
 		}
 		// recovery stack

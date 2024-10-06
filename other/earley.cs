@@ -19,12 +19,12 @@ using EarleyChar = Earley<char, char, string, EsynStr, LerStr>;
 public class Esyn<N, T> : LinkTree<T> where T : Esyn<N, T>
 {
 	public N name;
-	public int from, to; // lexs from loc to loc excluded, for error may < 0
+	public Jov j; // lexs jot loc, for error may < 0
 	public int err; // no error: 0, error: -1, error step: > 0, recovered: -4
 	public object info; // error lex, expected alt hint/name or K, or recovered prod hint/name or K
 	public string dump;
 
-	public string Dumper(object f, object t) => $"{f ?? from}:{t ?? to}{(
+	public string Dumper(object on, object via) => $"{on ?? j.on}:{via ?? j.via}{(
 		err == 0 ? info != null ? " " + info : "" : err < -1 ? "!!" : "!"
 		)} {dump ?? (err == 0 ? null : info) ?? name}";
 	public override string ToString() => Dumper(null, null);
@@ -104,12 +104,13 @@ public class Earley<K, L, N, T, Ler>
 	struct Match
 	{
 		internal Alt a;
-		internal int from, to, step; // empty (always predicted): from==to (step could be 0 in quantifier)
+		internal Jov j;
+		internal int step; // empty (always predicted): j.size==0 (step could be 0 in quantifier)
 		internal int prev; // complete or option: >=0, predict: >=-1, shift: see code, repeat: kept
 		internal int tail; // alt: >=0, predict: -1, shift: -2, option: -3, repeat: kept, recover: -4
 
 		public override readonly string ToString()
-			=> $"{from}:{to}{(a.s[step].p != null ? "'" : "#")}{step}" +
+			=> $"{j.on}:{j.via}{(a.s[step].p != null ? "'" : "#")}{step}" +
 			$"{(tail >= 0 ? "^" : tail == -1 ? "p" : tail == -2 ? "s" : tail == -3 ? "?" : "r")} {a}";
 	}
 
@@ -149,7 +150,7 @@ public class Earley<K, L, N, T, Ler>
 			lexm.Add(0);
 		var from0 = lexz;
 		foreach (var x in begin.alts)
-			Add(x, from0, from0, 0, -1, -1);
+			Add(x, (from0, from0), 0, -1, -1);
 		err = null;
 		if (rec == 0) rec = -1;
 		int shift = 0;
@@ -173,7 +174,7 @@ public class Earley<K, L, N, T, Ler>
 		completez = matchz;
 		for (int x = lexm[lexz]; x < matchz; x++) {
 			var m = matchs[x];
-			if (Eq.Equals(m.a.name, begin.name) && m.from == from0 && m.a.s[m.step].p == null)
+			if (Eq.Equals(m.a.name, begin.name) && m.j.on == from0 && m.a.s[m.step].p == null)
 				return x;
 		}
 		err ??= new T();
@@ -200,9 +201,9 @@ public class Earley<K, L, N, T, Ler>
 			var m = matchs[x];
 			if (m.a.s[m.step].p is Prod p)
 				foreach (var alt in p.alts)
-					back = Add(alt, lexz, lexz, 0, x, -1) | back;
+					back = Add(alt, (lexz, lexz), 0, x, -1) | back;
 			if (((int)m.a.s[m.step].q & 1) == 0)
-				back = Add(m.a, m.from, m.to, m.step + 1, x, -3) | back; // m.to == loc
+				back = Add(m.a, m.j, m.step + 1, x, -3) | back; // m.to == loc
 		}
 		return back;
 	}
@@ -212,12 +213,12 @@ public class Earley<K, L, N, T, Ler>
 		bool back = false;
 		for (int x = lexm[lexz]; x < matchz; x++) {
 			var m = matchs[x];
-			if ((x >= empty || m.from == lexz) && m.a.s[m.step].p == null)
-				for (int px = lexm[m.from], py = m.from < lexz ? lexm[m.from + 1] : matchz;
+			if ((x >= empty || m.j.on == lexz) && m.a.s[m.step].p == null)
+				for (int px = lexm[m.j.on], py = m.j.on < lexz ? lexm[m.j.on + 1] : matchz;
 						px < py; px++) {
 					var pm = matchs[px];
 					if (pm.a.s[pm.step].p is Prod p && Eq.Equals(p.name, m.a.name))
-						back = Add(pm.a, pm.from, pm.to, pm.step + 1, px, x) | back; // pm.to <= loc
+						back = Add(pm.a, pm.j, pm.step + 1, px, x) | back; // pm.to <= loc
 				}
 		}
 		return back;
@@ -234,21 +235,21 @@ public class Earley<K, L, N, T, Ler>
 		for (int x = lexm[lexz], y = lexm[++lexz]; x < y; x++) {
 			var m = matchs[x];
 			if (m.a.s[m.step].p is K k && ler.Is(k))
-				Add(m.a, m.from, m.to, m.step + 1, // m.to < loc
+				Add(m.a, m.j, m.step + 1, // m.to < loc
 					m.tail != -2 || m.a.lex ? x : m.prev, -2);
 		}
 		return matchz - lexm[lexz];
 	}
 
-	bool Add(Alt a, int from, int pto, int step, int prev, int tail)
+	bool Add(Alt a, Jov pj, int step, int prev, int tail)
 	{
 		var u = new Match {
-			a = a, from = from, to = lexz, step = step, prev = prev, tail = tail
+			a = a, j = (pj.on, lexz), step = step, prev = prev, tail = tail
 		};
 		if (a.prior && (tail >= 0 || tail == -2) && a.s[step].p == null)
 			for (int x = lexm[lexz]; x < matchz; x++) {
 				var m = matchs[x];
-				if (!m.a.prior && m.from == from && m.a.s[m.step].p == null
+				if (!m.a.prior && m.j.on == pj.on && m.a.s[m.step].p == null
 						&& Eq.Equals(m.a.name, a.name)) {
 					matchs[x] = u;
 					return true;
@@ -256,18 +257,18 @@ public class Earley<K, L, N, T, Ler>
 			}
 		for (int x = lexm[lexz]; x < matchz; x++) {
 			var m = matchs[x];
-			if (m.a == a && m.from == from && m.step == step) {
+			if (m.a == a && m.j.on == pj.on && m.step == step) {
 				if (a.greedy == 0 && !greedy || m.tail == -1 || u.tail == -1
 					|| m.prev == prev && m.tail == tail)
 					return false;
 				bool set = false; var w = u;
 				for (int mp = m.prev, wp = w.prev; ;) {
 					Debug.Assert(m.tail != -1 && w.tail != -1);
-					int y = (m.to - matchs[mp].to) - (w.to - matchs[wp].to);
+					int y = (m.j.via - matchs[mp].j.via) - (w.j.via - matchs[wp].j.via);
 					if (y != 0) set = y < 0 == a.greedy >= 0;
 					if (mp == wp)
 						break;
-					y = matchs[mp].to - matchs[wp].to;
+					y = matchs[mp].j.via - matchs[wp].j.via;
 					if (y >= 0)
 						mp = (m = matchs[mp]).tail != -1 ? m.prev : -1;
 					if (y <= 0)
@@ -276,7 +277,7 @@ public class Earley<K, L, N, T, Ler>
 				if (set) {
 					matchs[x] = u;
 					if (x + 1 < matchz && x + 1 != prev
-						&& (m = matchs[x + 1]).a == a && m.from == from
+						&& (m = matchs[x + 1]).a == a && m.j.on == pj.on
 						&& m.step == --u.step && (int)a.s[m.step].q > 1)
 						matchs[x + 1] = u;
 				}
@@ -285,7 +286,7 @@ public class Earley<K, L, N, T, Ler>
 		}
 		if (matchz + 2 > matchs.Length) Array.Resize(ref matchs, matchs.Length << 1);
 		matchs[matchz++] = u;
-		if (pto < lexz && step > 0 && (int)a.s[--u.step].q > 1)
+		if (pj.via < lexz && step > 0 && (int)a.s[--u.step].q > 1)
 			matchs[matchz++] = u; // prev and tail kept
 		if (step > 0 && a.recover >= 0)
 			recm[reca.IndexOf(a)] = step <= a.recover ? matchz - 1 : -1;
@@ -302,7 +303,7 @@ public class Earley<K, L, N, T, Ler>
 				continue;
 			var m = matchs[x]; var pair = 0;
 			if (m.a.s[m.a.recover].p is K k)
-				for (int y = m.to; y <= lexz - 2; y++)
+				for (int y = m.j.via; y <= lexz - 2; y++)
 					if (ler.Is(y, k))
 						if (pair == 0) {
 							recm[ax] = -1; // closed
@@ -317,7 +318,7 @@ public class Earley<K, L, N, T, Ler>
 						goto Cont;
 					}
 			if (m.a.s[m.a.recover].p is K k2 ? pair == 0 && (eor || ler.Is(k2))
-				: m.step == m.a.recover && (eor || m.to == lexz - 1))
+				: m.step == m.a.recover && (eor || m.j.via == lexz - 1))
 				if (max < 0
 					|| m.a.prior && !matchs[max].a.prior
 					|| m.a.prior == matchs[max].a.prior && x > max)
@@ -329,7 +330,7 @@ public class Earley<K, L, N, T, Ler>
 			if (m.a.s[m.a.recover].p is Prod) {
 				--lexz; shift = -2;
 			}
-			Add(m.a, m.from, m.to, m.a.recover + 1, max, -4);
+			Add(m.a, m.j, m.a.recover + 1, max, -4);
 		}
 		return completez < matchz;
 	}
@@ -337,12 +338,10 @@ public class Earley<K, L, N, T, Ler>
 	T Accepted(int match, T up, ref bool omitSelf)
 	{
 		var m = matchs[match];
-		if (m.from == m.to && m.step == 0 && m.a.s.Length > 1)
+		if (m.j.size == 0 && m.step == 0 && m.a.s.Length > 1)
 			return null;
 		T t = (m.a.synt == 0 ? tree : m.a.synt > 0) ? null : up;
-		t ??= new T {
-			name = m.a.name, from = m.from, to = m.to
-		};
+		t ??= new T { name = m.a.name, j = m.j };
 		bool omitSub = false;
 		for (var mp = m; mp.tail != -1; mp = matchs[mp.prev])
 			if (mp.tail >= 0)
@@ -351,15 +350,15 @@ public class Earley<K, L, N, T, Ler>
 				else
 					Accepted(mp.tail, t, ref omitSub);
 			else if (mp.tail == -2 && mp.a.lex)
-				t.info = ler.Lex(mp.to - 1);
+				t.info = ler.Lex(mp.j.via - 1);
 			else if (mp.tail == -4) {
 				Debug.Assert(mp.a == m.a);
 				omitSelf = omitSub = m.a.synt == 1;
 				var p = m.a.s[mp.step - 1].p;
 				t.AddHead(new T {
-					name = m.a.name, from = mp.from, to = mp.to, err = -4, info = m.a.hint,
+					name = m.a.name, j = mp.j, err = -4, info = m.a.hint,
 					dump = dump < 2 ? null : $"{m.a.name} :: recover " +
-						$"{(p is Prod pp ? pp.name : p)} at {Dump(ler.Lex(mp.to - 1))}",
+						$"{(p is Prod pp ? pp.name : p)} at {Dump(ler.Lex(mp.j.via - 1))}",
 				});
 			}
 		if (t != up) {
@@ -382,7 +381,7 @@ public class Earley<K, L, N, T, Ler>
 	{
 		var from = lexm[lexz] < matchz ? lexz : lexz - 1;
 		var t = new T {
-			name = begin.name, from = from, to = lexz, err = -1,
+			name = begin.name, j = (from, lexz), err = -1,
 			info = from < lexz ? (object)ler.Lex(from) : null
 		};
 		var errs = new bool[matchz];
@@ -403,7 +402,7 @@ public class Earley<K, L, N, T, Ler>
 					: dump <= 2 ? $"{Esc(exp)} expected for {d}"
 					: $"{Esc(exp)} expected for {d}!{m.step} {Dump(m, true)}";
 				t.AddHead(new T {
-					name = m.a.name, from = m.from, to = m.to,
+					name = m.a.name, j = m.j,
 					err = m.step, info = exp, dump = d
 				});
 			}
@@ -419,13 +418,13 @@ public class Earley<K, L, N, T, Ler>
 	{
 		return dump <= 0 || dump == 1 && !leaf ? null :
 			(dump <= 2 ? m.a.hint ?? m.a.name.ToString() : m.a.ToString())
-				+ $" :: {Dump(ler.Lexs((m.from, m.to)))}";
+				+ $" :: {Dump(ler.Lexs(m.j))}";
 	}
 	public string Dump(object d)
 	{
 		if (d is T t)
-			return (ler as LexierBuf<K>)?.LineCol((t.from, t.to)) is var (l, c)
-				? t.Dumper($"{l.on}.{c.on}", $"{l.via}.{c.via}") : t.ToString();
+			return (ler as LexierBuf<K>)?.LineCol(t.j) is var (l, c)
+				? t.Dumper($"{l.on}.{c.on}", $"{l.to}.{c.via}") : t.ToString();
 		return dumper?.Invoke(d) ?? Esc(d);
 	}
 
@@ -525,7 +524,7 @@ public class Earley<K, L, N, T, Ler>
 		// \ prod ...
 		var prods = top.Where(t => t.name == "prod");
 		var names = prods.ToDictionary(
-			p => p.head.dump = meta.ler.Lexs((p.head.from, p.head.to)),
+			p => p.head.dump = meta.ler.Lexs(p.head.j),
 			p => new Prod { name = Name(p.head.dump) }
 		);
 
@@ -535,11 +534,11 @@ public class Earley<K, L, N, T, Ler>
 			var As = p.Where(t => t.name == "alt").Prepend(p).Select(ta => {
 				// prod name or keys or quantifier ...
 				var s = ta.Where(t => t.name is "sym" or "con").SelectMany(t =>
-					t.name == "sym" ? gram[t.from] == '?' ? [Opt]
-						: gram[t.from] == '*' ? [Any] : gram[t.from] == '+' ? [More]
-						: ler.Keys(MetaStr.Unesc(gram, t.from, t.to)).Cast<object>()
+					t.name == "sym" ? gram[t.j.on] == '?' ? [Opt]
+						: gram[t.j.on] == '*' ? [Any] : gram[t.j.on] == '+' ? [More]
+						: ler.Keys(MetaStr.Unesc(gram, t.j)).Cast<object>()
 					// for word, search product names first, then lexer keys
-					: names.TryGetValue(t.dump = meta.ler.Lexs((t.from, t.to)), out Prod p)
+					: names.TryGetValue(t.dump = meta.ler.Lexs(t.j), out Prod p)
 						? [p] : ler.Keys(t.dump).Cast<object>())
 					.Append(null)
 					.ToArray();
@@ -556,15 +555,15 @@ public class Earley<K, L, N, T, Ler>
 				bool pr = false, l = false, e = false; sbyte g = 0, st = 0; EsynStr r = null, d = null;
 				foreach (var h in t) {
 					if (h.name == "hintp") pr = true;
-					if (h.name == "hintg") g = (sbyte)(gram[h.from] == '*' ? 1 : -1);
+					if (h.name == "hintg") g = (sbyte)(gram[h.j.on] == '*' ? 1 : -1);
 					if (h.name == "hintt")
-						st = (sbyte)(gram[h.from] == '-' ? -1 : h.from == h.to - 1 ? 2 : 1);
+						st = (sbyte)(gram[h.j.on] == '-' ? -1 : h.j.size == 1 ? 2 : 1);
 					if (h.name == "hintl") l = true;
 					if (h.name == "hinte") e = true;
 					if (h.name == "hintr") r = h;
 					if (h.name == "hintd") d = h;
 					if (h.name == "hintw") { // apply hints
-						var w = meta.ler.Lexs((h.from, h.to));
+						var w = meta.ler.Lexs(h.j);
 						for (; ax <= x; ax++) {
 							var a = As[ax];
 							a.prior = pr; a.greedy = g; a.synt = st; a.lex = l; a.errExpect = e;
@@ -577,10 +576,10 @@ public class Earley<K, L, N, T, Ler>
 										break;
 									}
 								if (a.recover > 0 && a.s[a.recover].p is K k) {
-									a.recPair = r.to - r.from == 1 ? k :
-										ler.Keys(MetaStr.Unesc(gram, r.from + 1, r.to)).First();
+									a.recPair = r.j.size == 1 ? k :
+										ler.Keys(MetaStr.Unesc(gram, (r.j.on + 1, r.j.via))).First();
 									a.recDeny = d == null ? k :
-										ler.Keys(MetaStr.Unesc(gram, d.from + 1, d.to)).First();
+										ler.Keys(MetaStr.Unesc(gram, (d.j.on + 1, d.j.via))).First();
 								}
 							}
 						}

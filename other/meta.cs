@@ -36,11 +36,11 @@ sealed class MetaStr(string read) : LerStr(read)
 		};
 
 	// for general grammar
-	internal static string Unesc(string s, int f, int t, bool lexer = false)
+	internal static string Unesc(string s, Jov j, bool lexer = false)
 	{
-		if (s[f] != '\\')
-			return s[f..t];
-		char c = s[++f];
+		if (s[j.on] != '\\')
+			return s[j.range];
+		char c = s[++j.on];
 		return c switch {
 			's' => " ",
 			't' => "\t",
@@ -116,13 +116,13 @@ public static class MetaLex
 		var es = new object[Lexier<K>.AltByteN << 1];
 		// build prod
 		foreach (var prod in top) {
-			var k = Keys(meta.ler.Lexs((prod.head.from, prod.head.to))).Single();
+			var k = Keys(meta.ler.Lexs(prod.head.j)).Single();
 			g.k(k);
 			// build wad
 			foreach (var (w, wad) in prod.Skip(1).Each(1)) {
 				if (w.head.name != "redo") // no backward cross wads
 					_ = g.w;
-				else if (gram[w.head.from] == '|') // empty alt
+				else if (gram[w.head.j.on] == '|') // empty alt
 					_ = g.w[[]];
 				else // shift byte and redo wad like the begin
 					_ = g.redo;
@@ -133,7 +133,7 @@ public static class MetaLex
 					var bz = bytes.Count();
 					if (bz > Lexier<K>.AltByteN)
 						throw new($"{k}.{wad}.{alt} exceeds {Lexier<K>.AltByteN} bytes :"
-							+ meta.ler.Lexs((a.from, a.to)));
+							+ meta.ler.Lexs(a.j));
 					var ez = 0;
 					foreach (var (b, bx) in bytes.Each())
 						Byte(gram, k, wad, alt, b, es, ref ez);
@@ -149,40 +149,40 @@ public static class MetaLex
 
 	static void Byte<K>(string gram, K k, int wad, int alt, EsynStr b, object[] es, ref int ez)
 	{
-		var x = b.from;
+		var x = b.j.on;
 		if (gram[x] == '\\') { // escape bytes
-			es[ez++] = MetaStr.Unesc(gram, x, b.to, true).One();
+			es[ez++] = MetaStr.Unesc(gram, (x, b.j.via), true).One();
 			x += 2;
 		}
 		// build range
 		else if (gram[x] == '[') {
 			++x;
 			Span<bool> rs = stackalloc bool[129]; bool inc = true;
-			if (x != b.head?.from) // inclusive range omitted, use default
+			if (x != b.head?.j.on) // inclusive range omitted, use default
 				CharSet.RI.CopyTo(rs);
 			foreach (var r in b) {
-				inc &= x == (x = r.from); // before ^
+				inc &= x == (x = r.j.on); // before ^
 				if (gram[x] == '\\')
-					foreach (var c in MetaStr.Unesc(gram, x, r.to, true))
+					foreach (var c in MetaStr.Unesc(gram, (x, r.j.via), true))
 						rs[c] = inc;
 				else
-					for (char c = gram[x], cc = gram[r.to - 1]; c <= cc; c++)
+					for (char c = gram[x], cc = gram[r.j.via - 1]; c <= cc; c++)
 						rs[c] = inc; // R-R
-				x = r.to;
+				x = r.j.via;
 			}
 			var s = new char[129];
 			int n = 0;
 			for (char y = '\0'; y <= 128; y++)
 				if (rs[y]) s[n++] = y;
 			if (n == 0)
-				throw new($"No byte in {k}.{wad} :{meta.ler.Lexs((b.from, b.to))}");
+				throw new($"No byte in {k}.{wad} :{meta.ler.Lexs(b.j)}");
 			es[ez++] = (ReadOnlyMemory<char>)s.AsMemory(0, n);
 			++x; // range ]
 		}
 		else // single byte
 			es[ez++] = CharSet.BYTE[gram[x++]];
 		// byte dup +
-		if (x < b.to)
+		if (x < b.j.via)
 			es[ez++] = Range.All;
 	}
 

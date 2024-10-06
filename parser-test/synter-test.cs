@@ -21,13 +21,13 @@ static class Extension
 {
 	[System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE0305:Simplify collection initialization")]
 	public static Ser Eq(this Ser s,
-		string name = null, int? from = null, int? to = null, object d = null, int err = 0)
+		string name = null, int? on = null, int? via = null, object d = null, int err = 0)
 	{
 		AreNotEqual(null, s.t);
 		AreEqual(err, s.t.err);
 		if (name != null) AreEqual(name, s.t.name);
-		if (from != null) AreEqual(from, s.t.from);
-		if (to != null) AreEqual(to, s.t.to);
+		if (on != null) AreEqual(on, s.t.j.on);
+		if (via != null) AreEqual(via, s.t.j.via);
 		if (err != 0 && d is string aim && s.t.info?.ToString() is string test) {
 			var ts = test.Split(SerMaker<char, string>.ErrMore);
 			var As = aim.Split("  ");
@@ -37,7 +37,7 @@ static class Extension
 				Fail($"Expected Error <{aim}> Actual <{test.Replace("\n", "  ")}>");
 		}
 		else if (d != null) AreEqual(d,
-			d is string && s.t.err == 0 ? s.s.ler.Lexs((s.t.from, s.t.to)) : s.t.info);
+			d is string && s.t.err == 0 ? s.s.ler.Lexs(s.t.j) : s.t.info);
 		return s;
 	}
 
