@@ -42,30 +42,30 @@ static class Extension
 	}
 
 	public static Ser h(this Ser s,
-		string name = null, int? from = null, int? to = null, object d = null, int err = 0)
-		=> (s.t.head, s.s).Eq(name, from, to, d, err).Vine();
+		string name = null, int? on = null, int? via = null, object d = null, int err = 0)
+		=> (s.t.head, s.s).Eq(name, on, via, d, err).Vine();
 	public static Ser t(this Ser s,
-		string name = null, int? from = null, int? to = null, object d = null, int err = 0)
-		=> (s.t.tail, s.s).Eq(name, from, to, d, err).Vine();
+		string name = null, int? on = null, int? via = null, object d = null, int err = 0)
+		=> (s.t.tail, s.s).Eq(name, on, via, d, err).Vine();
 	public static Ser n(this Ser s,
-		string name = null, int? from = null, int? to = null, object d = null, int err = 0)
-		=> (s.t.next, s.s).Eq(name, from, to, d, err).Vine();
+		string name = null, int? on = null, int? via = null, object d = null, int err = 0)
+		=> (s.t.next, s.s).Eq(name, on, via, d, err).Vine();
 	public static Ser p(this Ser s,
-		string name = null, int? from = null, int? to = null, object d = null, int err = 0)
-		=> (s.t.prev, s.s).Eq(name, from, to, d, err).Vine();
+		string name = null, int? on = null, int? via = null, object d = null, int err = 0)
+		=> (s.t.prev, s.s).Eq(name, on, via, d, err).Vine();
 
 	public static Ser H(this Ser s,
-		string name = null, int? from = null, int? to = null, object d = null, int err = 0)
-		=> (s.t.head, s.s).Eq(name, from, to, d, err).Leaf();
+		string name = null, int? on = null, int? via = null, object d = null, int err = 0)
+		=> (s.t.head, s.s).Eq(name, on, via, d, err).Leaf();
 	public static Ser T(this Ser s,
-		string name = null, int? from = null, int? to = null, object d = null, int err = 0)
-		=> (s.t.tail, s.s).Eq(name, from, to, d, err).Leaf();
+		string name = null, int? on = null, int? via = null, object d = null, int err = 0)
+		=> (s.t.tail, s.s).Eq(name, on, via, d, err).Leaf();
 	public static Ser N(this Ser s,
-		string name = null, int? from = null, int? to = null, object d = null, int err = 0)
-		=> (s.t.next, s.s).Eq(name, from, to, d, err).Leaf();
+		string name = null, int? on = null, int? via = null, object d = null, int err = 0)
+		=> (s.t.next, s.s).Eq(name, on, via, d, err).Leaf();
 	public static Ser P(this Ser s,
-		string name = null, int? from = null, int? to = null, object d = null, int err = 0)
-		=> (s.t.prev, s.s).Eq(name, from, to, d, err).Leaf();
+		string name = null, int? on = null, int? via = null, object d = null, int err = 0)
+		=> (s.t.prev, s.s).Eq(name, on, via, d, err).Leaf();
 
 	public static Ser Vine(this Ser s) { AreNotEqual(null, s.t.head); return s; }
 	public static Ser Leaf(this Ser s) { AreEqual(null, s.t.head); return s; }

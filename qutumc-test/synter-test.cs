@@ -30,14 +30,14 @@ file static class Extension
 
 	[System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE0305:Simplify collection initialization")]
 	public static Ser Eq(this Ser s,
-		S? name = null, object d = null, Dec? from = null, Dec? to = null, int err = 0)
+		S? name = null, object d = null, Dec? on = null, Dec? via = null, int err = 0)
 	{
 		AreNotEqual(null, s.t);
 		AreEqual(err, s.t.err);
 		if (name != null) AreEqual(name, s.t.name);
 		var (line, col) = s.s.ler.LineCol(s.t.j);
-		if (from != null) AreEqual($"{from?.d}", $"{line.on}.{col.on}");
-		if (to != null) AreEqual($"{to?.d}", $"{line.to}.{col.via}");
+		if (on != null) AreEqual($"{on?.d}", $"{line.on}.{col.on}");
+		if (via != null) AreEqual($"{via?.d}", $"{line.to}.{col.via}");
 		if (err != 0 && d is string aim && s.t.info?.ToString() is string test) {
 			var ts = test.Split(SerMaker<char, string>.ErrMore);
 			var As = aim.Split("  ");
@@ -68,30 +68,30 @@ file static class Extension
 	}
 
 	public static Ser h(this Ser s,
-		S? name = null, object d = null, Dec? from = null, Dec? to = null, int err = 0)
-		=> (s.t.head, s.s).Eq(name, d, from, to, err).Vine();
+		S? name = null, object d = null, Dec? on = null, Dec? via = null, int err = 0)
+		=> (s.t.head, s.s).Eq(name, d, on, via, err).Vine();
 	public static Ser t(this Ser s,
-		S? name = null, object d = null, Dec? from = null, Dec? to = null, int err = 0)
-		=> (s.t.tail, s.s).Eq(name, d, from, to, err).Vine();
+		S? name = null, object d = null, Dec? on = null, Dec? via = null, int err = 0)
+		=> (s.t.tail, s.s).Eq(name, d, on, via, err).Vine();
 	public static Ser n(this Ser s,
-		S? name = null, object d = null, Dec? from = null, Dec? to = null, int err = 0)
-		=> (s.t.next, s.s).Eq(name, d, from, to, err).Vine();
+		S? name = null, object d = null, Dec? on = null, Dec? via = null, int err = 0)
+		=> (s.t.next, s.s).Eq(name, d, on, via, err).Vine();
 	public static Ser p(this Ser s,
-		S? name = null, object d = null, Dec? from = null, Dec? to = null, int err = 0)
-		=> (s.t.prev, s.s).Eq(name, d, from, to, err).Vine();
+		S? name = null, object d = null, Dec? on = null, Dec? via = null, int err = 0)
+		=> (s.t.prev, s.s).Eq(name, d, on, via, err).Vine();
 
 	public static Ser H(this Ser s,
-		S? name = null, object d = null, Dec? from = null, Dec? to = null, int err = 0)
-		=> (s.t.head, s.s).Eq(name, d, from, to, err).Leaf();
+		S? name = null, object d = null, Dec? on = null, Dec? via = null, int err = 0)
+		=> (s.t.head, s.s).Eq(name, d, on, via, err).Leaf();
 	public static Ser T(this Ser s,
-		S? name = null, object d = null, Dec? from = null, Dec? to = null, int err = 0)
-		=> (s.t.tail, s.s).Eq(name, d, from, to, err).Leaf();
+		S? name = null, object d = null, Dec? on = null, Dec? via = null, int err = 0)
+		=> (s.t.tail, s.s).Eq(name, d, on, via, err).Leaf();
 	public static Ser N(this Ser s,
-		S? name = null, object d = null, Dec? from = null, Dec? to = null, int err = 0)
-		=> (s.t.next, s.s).Eq(name, d, from, to, err).Leaf();
+		S? name = null, object d = null, Dec? on = null, Dec? via = null, int err = 0)
+		=> (s.t.next, s.s).Eq(name, d, on, via, err).Leaf();
 	public static Ser P(this Ser s,
-		S? name = null, object d = null, Dec? from = null, Dec? to = null, int err = 0)
-		=> (s.t.prev, s.s).Eq(name, d, from, to, err).Leaf();
+		S? name = null, object d = null, Dec? on = null, Dec? via = null, int err = 0)
+		=> (s.t.prev, s.s).Eq(name, d, on, via, err).Leaf();
 
 	public static Ser Vine(this Ser s) { AreNotEqual(null, s.t.head); return s; }
 	public static Ser Leaf(this Ser s) { AreEqual(null, s.t.head); return s; }
@@ -109,8 +109,8 @@ file static class Extension
 	public static Ser e(this Ser s, int err = -1) => n(s, err: err);
 
 	public static Ser nr(this Ser s) => s.n(S.nestr);
-	public static Ser j(this Ser s, object d = null, Dec? from = null, Dec? to = null, int err = 0)
-		=> s.n(S.junc, d, from, to, err).h(S.block);
+	public static Ser j(this Ser s, object d = null, Dec? on = null, Dec? via = null, int err = 0)
+		=> s.n(S.junc, d, on, via, err).h(S.block);
 }
 
 [TestClass]

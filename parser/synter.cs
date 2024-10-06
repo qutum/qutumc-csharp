@@ -154,7 +154,7 @@ public partial class Synter<K, L, N, T, Ler>
 		return false;
 	}
 
-	// (form, lex loc i.e synt.from, synt or null for lex)
+	// (form, lex loc i.e synt start, synt or null for lex)
 	readonly List<(SynForm form, int loc, object synt)> stack = []; // index from 1
 	internal List<int>[] recCs; // { 0, recovery stack index... } of each recovery key
 
@@ -165,15 +165,15 @@ public partial class Synter<K, L, N, T, Ler>
 			foreach (var a in form.recs)
 				recCs[alts[a.alt].rec].Add(stack.Count - 1);
 	}
-	void StackPop(int from = 0, int size = 0)
+	void StackPop(int on = 0, int size = 0)
 	{
-		if (from == 0) from = stack.Count - size;
-		else if (size == 0) size = stack.Count - from;
-		stack.RemoveRange(from, size);
+		if (on == 0) on = stack.Count - size;
+		else if (size == 0) size = stack.Count - on;
+		stack.RemoveRange(on, size);
 		if (recCs != null)
 			foreach (var cs in recCs) {
 				var x = cs.Count;
-				for (; cs[x - 1] >= from; x--) ;
+				for (; cs[x - 1] >= on; x--) ;
 				cs.RemoveRange(x, cs.Count - x);
 			}
 	}
@@ -310,7 +310,7 @@ public partial class Synter<K, L, N, T, Ler>
 					if (alts[(rec = (cx, a, want)).a].rec == kx) // latest alt due to reversed index
 						break;
 		// recover
-		StackPop(from: rec.cx + 1);
+		StackPop(on: rec.cx + 1);
 		go = SynForm.Redu(rec.a);
 		e.name = alts[rec.a].name;
 		return (1, rec.want, e);

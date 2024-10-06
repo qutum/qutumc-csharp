@@ -148,9 +148,9 @@ public class Earley<K, L, N, T, Ler>
 	{
 		for (lexz = -1; lexz <= ler.Loc(); lexz++)
 			lexm.Add(0);
-		var from0 = lexz;
+		var on0 = lexz;
 		foreach (var x in begin.alts)
-			Add(x, (from0, from0), 0, -1, -1);
+			Add(x, (on0, on0), 0, -1, -1);
 		err = null;
 		if (rec == 0) rec = -1;
 		int shift = 0;
@@ -174,7 +174,7 @@ public class Earley<K, L, N, T, Ler>
 		completez = matchz;
 		for (int x = lexm[lexz]; x < matchz; x++) {
 			var m = matchs[x];
-			if (Eq.Equals(m.a.name, begin.name) && m.j.on == from0 && m.a.s[m.step].p == null)
+			if (Eq.Equals(m.a.name, begin.name) && m.j.on == on0 && m.a.s[m.step].p == null)
 				return x;
 		}
 		err ??= new T();
@@ -379,13 +379,13 @@ public class Earley<K, L, N, T, Ler>
 
 	T Rejected()
 	{
-		var from = lexm[lexz] < matchz ? lexz : lexz - 1;
+		var on = lexm[lexz] < matchz ? lexz : lexz - 1;
 		var t = new T {
-			name = begin.name, j = (from, lexz), err = -1,
-			info = from < lexz ? (object)ler.Lex(from) : null
+			name = begin.name, j = (on, lexz), err = -1,
+			info = on < lexz ? ler.Lex(on) : null
 		};
 		var errs = new bool[matchz];
-		for (int x = matchz - 1, y; (y = x) >= lexm[from]; x--) {
+		for (int x = matchz - 1, y; (y = x) >= lexm[on]; x--) {
 		Prev: var m = matchs[y]; var c = m.a.s[m.step];
 			if (c.p == null || errs[y])
 				continue;

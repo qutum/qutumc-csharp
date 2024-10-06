@@ -196,10 +196,7 @@ public partial class Lexier<K> : LexierBuf<K> where K : struct
 		if (end) lon = -1;
 	}
 
-	// from f loc of read to excluded loc
-	protected void Lexi(K key, Jov j, object value)
-		=> Add(new() { key = key, j = j, value = value });
-	// from f loc of read to excluded loc
+	protected void Lexi(K key, Jov j, object value) => Add(new() { key = key, j = j, value = value });
 	protected void Error(K key, Jov j, object value)
 	{
 		var l = new Lexi<K> { key = key, j = j, value = value, err = -1 };

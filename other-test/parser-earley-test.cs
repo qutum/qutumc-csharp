@@ -31,30 +31,30 @@ static class TestExtension
 	}
 
 	public static Ser h(this Ser s,
-		string name = null, int? from = null, int? to = null, object d = null, int err = 0)
-		=> (s.t.head, s.s).Eq(name, from, to, d, err);
+		string name = null, int? on = null, int? via = null, object d = null, int err = 0)
+		=> (s.t.head, s.s).Eq(name, on, via, d, err);
 	public static Ser t(this Ser s,
-		string name = null, int? from = null, int? to = null, object d = null, int err = 0)
-		=> (s.t.tail, s.s).Eq(name, from, to, d, err);
+		string name = null, int? on = null, int? via = null, object d = null, int err = 0)
+		=> (s.t.tail, s.s).Eq(name, on, via, d, err);
 	public static Ser n(this Ser s,
-		string name = null, int? from = null, int? to = null, object d = null, int err = 0)
-		=> (s.t.next, s.s).Eq(name, from, to, d, err);
+		string name = null, int? on = null, int? via = null, object d = null, int err = 0)
+		=> (s.t.next, s.s).Eq(name, on, via, d, err);
 	public static Ser p(this Ser s,
-		string name = null, int? from = null, int? to = null, object d = null, int err = 0)
-		=> (s.t.prev, s.s).Eq(name, from, to, d, err);
+		string name = null, int? on = null, int? via = null, object d = null, int err = 0)
+		=> (s.t.prev, s.s).Eq(name, on, via, d, err);
 
 	public static Ser H(this Ser s,
-		string name = null, int? from = null, int? to = null, object d = null, int err = 0)
-		=> h(s, name, from, to, d, err).Leaf();
+		string name = null, int? on = null, int? via = null, object d = null, int err = 0)
+		=> h(s, name, on, via, d, err).Leaf();
 	public static Ser T(this Ser s,
-		string name = null, int? from = null, int? to = null, object d = null, int err = 0)
-		=> t(s, name, from, to, d, err).Leaf();
+		string name = null, int? on = null, int? via = null, object d = null, int err = 0)
+		=> t(s, name, on, via, d, err).Leaf();
 	public static Ser N(this Ser s,
-		string name = null, int? from = null, int? to = null, object d = null, int err = 0)
-		=> n(s, name, from, to, d, err).Leaf();
+		string name = null, int? on = null, int? via = null, object d = null, int err = 0)
+		=> n(s, name, on, via, d, err).Leaf();
 	public static Ser P(this Ser s,
-		string name = null, int? from = null, int? to = null, object d = null, int err = 0)
-		=> p(s, name, from, to, d, err).Leaf();
+		string name = null, int? on = null, int? via = null, object d = null, int err = 0)
+		=> p(s, name, on, via, d, err).Leaf();
 
 	public static Ser Leaf(this Ser s) { AreEqual(null, s.t.head); return s; }
 	public static Ser u(this Ser s) { AreEqual(null, s.t.next); AreNotEqual(null, s.t.up); return (s.t.up, s.s); }
@@ -444,8 +444,8 @@ public class TestParserEarley : IDisposable
 		Parse("+").Eq(d: '+', err: -1).Leaf().U();
 		Parse("+0").Eq(d: '+', err: -1).Leaf().U();
 		Parse("+,+0").Eq(d: '+', err: -1).Leaf().U();
-		Parse("0+").h("S", 0, 1).N("S", err: -4).u().n(to: 2, err: -1).H("A", 0, 2, "M", 2).uU();
-		Parse("0*").h("S", 0, 1).N("S", err: -4).u().n(to: 2, err: -1).H("M", 0, 2, "V", 2).uU();
+		Parse("0+").h("S", 0, 1).N("S", err: -4).u().n(via: 2, err: -1).H("A", 0, 2, "M", 2).uU();
+		Parse("0*").h("S", 0, 1).N("S", err: -4).u().n(via: 2, err: -1).H("M", 0, 2, "V", 2).uU();
 		var t = Parse("0#&$");
 		t = t/**/	.h("S", 0, 1).N("S", 0, 4, err: -4).u();
 		t = t/**/.n("S", 1, 2, '#', -1);

@@ -298,7 +298,7 @@ public sealed partial class Lexier : LexierBuf<L>
 	}
 	void Add(L k, Jov j, object v) => Add(new() { key = k, j = j, value = v });
 
-	// indent column 0 based, read from loc to excluded loc
+	// indent column from 0
 	void Indent(int ind, Jov j, bool junct = false)
 	{
 		var i = Array.BinarySearch(inds, 1, indz, ind + IndMin); // indent with offset
