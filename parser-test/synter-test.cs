@@ -21,13 +21,13 @@ static class Extension
 {
 	[System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE0305:Simplify collection initialization")]
 	public static Ser Eq(this Ser s,
-		string name = null, int? on = null, int? via = null, object d = null, int err = 0)
+		string name = null, object d = null, Jov<int?> j = default, int err = 0)
 	{
 		AreNotEqual(null, s.t);
 		AreEqual(err, s.t.err);
 		if (name != null) AreEqual(name, s.t.name);
-		if (on != null) AreEqual(on, s.t.j.on);
-		if (via != null) AreEqual(via, s.t.j.via);
+		if (j.on != null) AreEqual(j.on, s.t.j.on);
+		if (j.via != null) AreEqual(j.via, s.t.j.via);
 		if (err != 0 && d is string aim && s.t.info?.ToString() is string test) {
 			var ts = test.Split(SerMaker<char, string>.ErrMore);
 			var As = aim.Split("  ");
@@ -42,30 +42,30 @@ static class Extension
 	}
 
 	public static Ser h(this Ser s,
-		string name = null, int? on = null, int? via = null, object d = null, int err = 0)
-		=> (s.t.head, s.s).Eq(name, on, via, d, err).Vine();
+		string name = null, object d = null, Jov<int?> j = default, int err = 0)
+		=> (s.t.head, s.s).Eq(name, d, j, err).Vine();
 	public static Ser t(this Ser s,
-		string name = null, int? on = null, int? via = null, object d = null, int err = 0)
-		=> (s.t.tail, s.s).Eq(name, on, via, d, err).Vine();
+		string name = null, object d = null, Jov<int?> j = default, int err = 0)
+		=> (s.t.tail, s.s).Eq(name, d, j, err).Vine();
 	public static Ser n(this Ser s,
-		string name = null, int? on = null, int? via = null, object d = null, int err = 0)
-		=> (s.t.next, s.s).Eq(name, on, via, d, err).Vine();
+		string name = null, object d = null, Jov<int?> j = default, int err = 0)
+		=> (s.t.next, s.s).Eq(name, d, j, err).Vine();
 	public static Ser p(this Ser s,
-		string name = null, int? on = null, int? via = null, object d = null, int err = 0)
-		=> (s.t.prev, s.s).Eq(name, on, via, d, err).Vine();
+		string name = null, object d = null, Jov<int?> j = default, int err = 0)
+		=> (s.t.prev, s.s).Eq(name, d, j, err).Vine();
 
 	public static Ser H(this Ser s,
-		string name = null, int? on = null, int? via = null, object d = null, int err = 0)
-		=> (s.t.head, s.s).Eq(name, on, via, d, err).Leaf();
+		string name = null, object d = null, Jov<int?> j = default, int err = 0)
+		=> (s.t.head, s.s).Eq(name, d, j, err).Leaf();
 	public static Ser T(this Ser s,
-		string name = null, int? on = null, int? via = null, object d = null, int err = 0)
-		=> (s.t.tail, s.s).Eq(name, on, via, d, err).Leaf();
+		string name = null, object d = null, Jov<int?> j = default, int err = 0)
+		=> (s.t.tail, s.s).Eq(name, d, j, err).Leaf();
 	public static Ser N(this Ser s,
-		string name = null, int? on = null, int? via = null, object d = null, int err = 0)
-		=> (s.t.next, s.s).Eq(name, on, via, d, err).Leaf();
+		string name = null, object d = null, Jov<int?> j = default, int err = 0)
+		=> (s.t.next, s.s).Eq(name, d, j, err).Leaf();
 	public static Ser P(this Ser s,
-		string name = null, int? on = null, int? via = null, object d = null, int err = 0)
-		=> (s.t.prev, s.s).Eq(name, on, via, d, err).Leaf();
+		string name = null, object d = null, Jov<int?> j = default, int err = 0)
+		=> (s.t.prev, s.s).Eq(name, d, j, err).Leaf();
 
 	public static Ser Vine(this Ser s) { AreNotEqual(null, s.t.head); return s; }
 	public static Ser Leaf(this Ser s) { AreEqual(null, s.t.head); return s; }
@@ -147,10 +147,10 @@ public class TestSynter : IDisposable
 		False("ab"); False("a+"); False("+b");
 		False("a+b+"); False("+a+b"); False("a++b");
 		var t = Parse("a+b+a");
-		t = t/**/.Eq("S", 0, 5).h("E");
-		t = t/**/				.H("T", 0, 1, d: 'a');
-		t = t/**/				.n("E", 2, 5, d: '+').H("T", 2, 3, d: 'b');
-		t = t/**/									.n("E").H("T", 4, 5, d: 'a').uuuuU();
+		t = t/**/.Eq("S", j: (0, 5)).h("E");
+		t = t/**/				.H("T", 'a', (0, 1));
+		t = t/**/				.n("E", '+', (2, 5)).H("T", 'b', (2, 3));
+		t = t/**/									.n("E").H("T", 'a', (4, 5)).uuuuU();
 	}
 
 	[TestMethod]
@@ -183,10 +183,10 @@ public class TestSynter : IDisposable
 		False("a*=*b"); False("*b=a*"); False("*a*=b");
 		False("a==b"); False("*a==*b");
 		var t = Parse("**a");
-		t = t/**/.Eq("Z", 0, 3).h("V", d: '*').h("V", d: '*').H("V", d: 'a').uuuU();
-		t = Parse("**b=***a").Eq("Z", 0, 8);
-		t = t/**/.h("S", d: '=').h("V", d: '*').h("V", d: '*').H("V", d: 'b').uu();
-		t = t/**/				.n("V", d: '*').h("V", d: '*').h("V", d: '*').H("V", d: 'a').uuuuuU();
+		t = t/**/.Eq("Z", j: (0, 3)).h("V", '*').h("V", '*').H("V", 'a').uuuU();
+		t = Parse("**b=***a").Eq("Z", j: (0, 8));
+		t = t/**/.h("S", '=').h("V", '*').h("V", '*').H("V", 'b').uu();
+		t = t/**/				.n("V", '*').h("V", '*').h("V", '*').H("V", 'a').uuuuuU();
 	}
 
 	[TestMethod]
@@ -219,18 +219,18 @@ public class TestSynter : IDisposable
 		False("(a"); False("b)"); False("a,"); False(",b");
 		False("(a,b))"); False("((a)"); False("(b,)");
 		False("((a,b)"); False("((a,(b,a)),b");
-		var t = Parse("((a,b),((a,(b,a)),b),(a,b))").Eq("Z", 0, 27);
-		t = t/**/.h("S", d: '(').h("L", d: ',');
-		t = t/**/	.h("L", d: ',').h("S", 1, 6, '(');
-		t = t/**/						.h("L", d: ',').H("S", d: 'a').N("S", d: 'b').uu();
-		t = t/**/			.n("S", 7, 20, '(');
-		t = t/**/				.h("L", d: ',').h("S", 8, 17, '(');
-		t = t/**/									.h("L", d: ',').H("S", d: 'a');
-		t = t/**/										.n("S", 11, 16, '(').h("L", d: ',');
-		t = t/**/											.H("S", d: 'b').N("S", d: 'a').uuuu();
-		t = t/**/								.N("S", d: 'b').uuu();
-		t = t/**/	.n("S", 21, 26, '(').h("L", d: ',');
-		t = t/**/						.H("S", d: 'a').N("S", d: 'b').uuuuuU();
+		var t = Parse("((a,b),((a,(b,a)),b),(a,b))").Eq("Z", j: (0, 27));
+		t = t/**/.h("S", '(').h("L", ',');
+		t = t/**/	.h("L", ',').h("S", '(', (1, 6));
+		t = t/**/						.h("L", ',').H("S", 'a').N("S", 'b').uu();
+		t = t/**/			.n("S", '(', (7, 20));
+		t = t/**/				.h("L", ',').h("S", '(', (8, 17));
+		t = t/**/									.h("L", ',').H("S", 'a');
+		t = t/**/										.n("S", '(', (11, 16)).h("L", ',');
+		t = t/**/											.H("S", 'b').N("S", 'a').uuuu();
+		t = t/**/								.N("S", 'b').uuu();
+		t = t/**/	.n("S", '(', (21, 26)).h("L", ',');
+		t = t/**/						.H("S", 'a').N("S", 'b').uuuuuU();
 	}
 
 	[TestMethod]
@@ -306,8 +306,8 @@ public class TestSynter : IDisposable
 		False("(b)a"); False("a*((b"); False("b+a)"); False("(a*)+b");
 		var t = Parse("a+b*((b*a+b)*b)");
 		t = t/**/.Eq(d: '+').H(d: 'a');
-		t = t/**/		.n("E", 2, 15, '*').H(d: 'b');
-		t = t/**/						.n("E", 5, 14, '*').h("E", 6, 11, '+');
+		t = t/**/		.n("E", '*', (2, 15)).H(d: 'b');
+		t = t/**/						.n("E", '*', (5, 14)).h("E", '+', (6, 11));
 		t = t/**/												.h(d: '*').H(d: 'b').N(d: 'a').u();
 		t = t/**/												.N(d: 'b').u();
 		t = t/**/											.N(d: 'b').uuuU();

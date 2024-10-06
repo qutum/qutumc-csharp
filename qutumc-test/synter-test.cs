@@ -30,14 +30,14 @@ file static class Extension
 
 	[System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE0305:Simplify collection initialization")]
 	public static Ser Eq(this Ser s,
-		S? name = null, object d = null, Dec? on = null, Dec? via = null, int err = 0)
+		S? name = null, object d = null, Jov<Dec?> j = default, int err = 0)
 	{
 		AreNotEqual(null, s.t);
 		AreEqual(err, s.t.err);
 		if (name != null) AreEqual(name, s.t.name);
 		var (line, col) = s.s.ler.LineCol(s.t.j);
-		if (on != null) AreEqual($"{on?.d}", $"{line.on}.{col.on}");
-		if (via != null) AreEqual($"{via?.d}", $"{line.to}.{col.via}");
+		if (j.on != null) AreEqual($"{j.on?.d}", $"{line.on}.{col.on}");
+		if (j.via != null) AreEqual($"{j.via?.d}", $"{line.to}.{col.via}");
 		if (err != 0 && d is string aim && s.t.info?.ToString() is string test) {
 			var ts = test.Split(SerMaker<char, string>.ErrMore);
 			var As = aim.Split("  ");
@@ -68,30 +68,30 @@ file static class Extension
 	}
 
 	public static Ser h(this Ser s,
-		S? name = null, object d = null, Dec? on = null, Dec? via = null, int err = 0)
-		=> (s.t.head, s.s).Eq(name, d, on, via, err).Vine();
+		S? name = null, object d = null, Jov<Dec?> j = default, int err = 0)
+		=> (s.t.head, s.s).Eq(name, d, j, err).Vine();
 	public static Ser t(this Ser s,
-		S? name = null, object d = null, Dec? on = null, Dec? via = null, int err = 0)
-		=> (s.t.tail, s.s).Eq(name, d, on, via, err).Vine();
+		S? name = null, object d = null, Jov<Dec?> j = default, int err = 0)
+		=> (s.t.tail, s.s).Eq(name, d, j, err).Vine();
 	public static Ser n(this Ser s,
-		S? name = null, object d = null, Dec? on = null, Dec? via = null, int err = 0)
-		=> (s.t.next, s.s).Eq(name, d, on, via, err).Vine();
+		S? name = null, object d = null, Jov<Dec?> j = default, int err = 0)
+		=> (s.t.next, s.s).Eq(name, d, j, err).Vine();
 	public static Ser p(this Ser s,
-		S? name = null, object d = null, Dec? on = null, Dec? via = null, int err = 0)
-		=> (s.t.prev, s.s).Eq(name, d, on, via, err).Vine();
+		S? name = null, object d = null, Jov<Dec?> j = default, int err = 0)
+		=> (s.t.prev, s.s).Eq(name, d, j, err).Vine();
 
 	public static Ser H(this Ser s,
-		S? name = null, object d = null, Dec? on = null, Dec? via = null, int err = 0)
-		=> (s.t.head, s.s).Eq(name, d, on, via, err).Leaf();
+		S? name = null, object d = null, Jov<Dec?> j = default, int err = 0)
+		=> (s.t.head, s.s).Eq(name, d, j, err).Leaf();
 	public static Ser T(this Ser s,
-		S? name = null, object d = null, Dec? on = null, Dec? via = null, int err = 0)
-		=> (s.t.tail, s.s).Eq(name, d, on, via, err).Leaf();
+		S? name = null, object d = null, Jov<Dec?> j = default, int err = 0)
+		=> (s.t.tail, s.s).Eq(name, d, j, err).Leaf();
 	public static Ser N(this Ser s,
-		S? name = null, object d = null, Dec? on = null, Dec? via = null, int err = 0)
-		=> (s.t.next, s.s).Eq(name, d, on, via, err).Leaf();
+		S? name = null, object d = null, Jov<Dec?> j = default, int err = 0)
+		=> (s.t.next, s.s).Eq(name, d, j, err).Leaf();
 	public static Ser P(this Ser s,
-		S? name = null, object d = null, Dec? on = null, Dec? via = null, int err = 0)
-		=> (s.t.prev, s.s).Eq(name, d, on, via, err).Leaf();
+		S? name = null, object d = null, Jov<Dec?> j = default, int err = 0)
+		=> (s.t.prev, s.s).Eq(name, d, j, err).Leaf();
 
 	public static Ser Vine(this Ser s) { AreNotEqual(null, s.t.head); return s; }
 	public static Ser Leaf(this Ser s) { AreEqual(null, s.t.head); return s; }
@@ -109,8 +109,8 @@ file static class Extension
 	public static Ser e(this Ser s, int err = -1) => n(s, err: err);
 
 	public static Ser nr(this Ser s) => s.n(S.nestr);
-	public static Ser j(this Ser s, object d = null, Dec? on = null, Dec? via = null, int err = 0)
-		=> s.n(S.junc, d, on, via, err).h(S.block);
+	public static Ser j(this Ser s, object d = null, Jov<Dec?> j = default, int err = 0)
+		=> s.n(S.junc, d, j, err).h(S.block);
 }
 
 [TestClass]
@@ -158,7 +158,7 @@ public class TestSynter : IDisposable
 		t = t/**/	.h(B).H(S.sen, err: 1);
 		t = t/**/		.nr().h(N).H(P, (L.INT, 1)).uu();
 		t = t/**/		.n(N).H(P, (L.INT, 2)).uuu();
-		t = t/**/.e().H(null, "block sentence", 1.1, 1.1, -1).uU();
+		t = t/**/.e().H(null, "block sentence", (1.1, 1.1), -1).uU();
 	}
 
 	[TestMethod]
@@ -192,7 +192,7 @@ public class TestSynter : IDisposable
 		t = t/**/		.j(L.ADD).H(P, (L.INT, 2)).uu();
 		t = t/**/		.j(L.DIV).H(P, (L.INT, 3)).uuu();
 		t = t/**/	.n(B).H(P, (L.INT, 4)).uu();
-		t = t/**/.e().H(null, "block sentence", 1.1, 1.1, -1).uU();
+		t = t/**/.e().H(null, "block sentence", (1.1, 1.1), -1).uU();
 	}
 
 	[TestMethod]
@@ -276,8 +276,8 @@ public class TestSynter : IDisposable
 		t = t/**/		.n(N).H(S.sen, err: 1);
 		t = t/**/			.n(N).H(S.sen, err: 1).uu();
 		t = t/**/		.n(N).H(P, (L.INT, 2)).uuu();
-		t = t/**/.e().H(null, "sentence expression", 2.2, 2.3, -1);
-		t = t/**/	.N(null, "sentence expression", 3.3, 3.4, -1).uU();
+		t = t/**/.e().H(null, "sentence expression", (2.2, 2.3), -1);
+		t = t/**/	.N(null, "sentence expression", (3.3, 3.4), -1).uU();
 		t = Parse("""
 			1
 				-
@@ -289,8 +289,8 @@ public class TestSynter : IDisposable
 		t = t/**/			.j(L.SUB).H(S.sen, err: 1);
 		t = t/**/					.n(N).H(P, (L.INT, 2)).uuuu();
 		t = t/**/		.n(N).H(P, (L.INT, 3)).uuu();
-		t = t/**/.e().H(null, "sentence expression", 2.2, 2.2, -1);
-		t = t/**/	.N(null, "junction block", 3.1, 3.1, -1).uU();
+		t = t/**/.e().H(null, "sentence expression", (2.2, 2.2), -1);
+		t = t/**/	.N(null, "junction block", (3.1, 3.1), -1).uU();
 	}
 
 	[TestMethod]
@@ -318,7 +318,7 @@ public class TestSynter : IDisposable
 		t = t/**/				.nr().h(N).H(P, (L.INT, 3)).uuu();
 		t = t/**/			.n(N).H(P, (L.INT, 4)).uu();
 		t = t/**/		.n(N).H(P, (L.INT, 5)).uuu();
-		t = t/**/.e(-3).H(null, L.INDR, 4.1, 4.3, -3).uU();
+		t = t/**/.e(-3).H(null, L.INDR, (4.1, 4.3), -3).uU();
 	}
 
 	[TestMethod]
@@ -367,7 +367,7 @@ public class TestSynter : IDisposable
 			""");
 		t = t/**/	.h(B).H(P, (L.INT, 1)).N(S.sen, err: 1);
 		t = t/**/		.nr().h(N).H(P, (L.INT, 2)).uuuu();
-		t = t/**/.e().H(null, "arithmetic expression", 1.4, 1.5, -1).uU();
+		t = t/**/.e().H(null, "arithmetic expression", (1.4, 1.5), -1).uU();
 	}
 
 	[TestMethod]
@@ -375,12 +375,12 @@ public class TestSynter : IDisposable
 	{
 		var t = Parse(@"1- -2");
 		t = t/**/	.h(B).H(P, (L.INT, 1));
-		t = t/**/		.n(E, d: L.SUB);
+		t = t/**/		.n(E, L.SUB);
 		t = t/**/			.h(E, L.NEGA).H(P, (L.INT, 2)).uuuuU();
 		t = Parse(@"1--2");
 		t = t/**/	.h(B).H(P, (L.INT, 1));
 		t = t/**/		.n(I).h(E, L.NOTB).H(P, (L.INT, 2)).uuuu();
-		t = t/**/.e(-3).H(null, L.NOTB, 1.2, 1.4, -3).uU();
+		t = t/**/.e(-3).H(null, L.NOTB, (1.2, 1.4), -3).uU();
 	}
 
 	[TestMethod]
@@ -470,8 +470,8 @@ public class TestSynter : IDisposable
 		t = t/**/				.n(J).H(S.jpost, (L.RUN, "c"));
 		t = t/**/					.n(B).H(S.sen, err: 1);
 		t = t/**/						.n(J).H(S.jpost, (L.RUN, "")).uuuu().uuu();
-		t = t/**/.e().H(null, "block sentence", 2.8, 2.9, -1);
-		t = t/**/	.N(null, "block sentence", 5.3, 5.3, -1).uU();
+		t = t/**/.e().H(null, "block sentence", (2.8, 2.9), -1);
+		t = t/**/	.N(null, "block sentence", (5.3, 5.3), -1).uU();
 	}
 
 	[TestMethod]
@@ -534,7 +534,7 @@ public class TestSynter : IDisposable
 			""");
 		t = t/**/	.h(B).H(P, (L.INT, 1));
 		t = t/**/		.N(J, err: 1).uu();
-		t = t/**/.e().H(null, "junction block", 2.2, 2.2, -1).uU();
+		t = t/**/.e().H(null, "junction block", (2.2, 2.2), -1).uU();
 		t = Parse("""
 			1
 				+
@@ -551,11 +551,11 @@ public class TestSynter : IDisposable
 		t = t/**/				.n(B).H(P, (L.INT, 3)).uu();
 		t = t/**/			.j(L.DIV).H(P, (L.INT, 4)).N(S.sen, err: 1).uuu();
 		t = t/**/		.j(L.SUB).H(S.sen, err: 1).uuuu();
-		t = t/**/.e().H(null, "sentence expression", 2.2, 2.2, -1);
-		t = t/**/	.N(null, "junction block", 3.3, 3.3, -1);
-		t = t/**/	.N(null, "arithmetic operator expression", 3.6, 4.1, -1);
-		t = t/**/	.N(null, "arithmetic operator expression", 5.6, 6.1, -1);
-		t = t/**/	.N(null, "prefix operator expression", 7.3, 7.4, -1).uU();
+		t = t/**/.e().H(null, "sentence expression", (2.2, 2.2), -1);
+		t = t/**/	.N(null, "junction block", (3.3, 3.3), -1);
+		t = t/**/	.N(null, "arithmetic operator expression", (3.6, 4.1), -1);
+		t = t/**/	.N(null, "arithmetic operator expression", (5.6, 6.1), -1);
+		t = t/**/	.N(null, "prefix operator expression", (7.3, 7.4), -1).uU();
 	}
 
 	[TestMethod]
@@ -575,14 +575,14 @@ public class TestSynter : IDisposable
 	{
 		var t = Parse(@"(1");
 		t = t/**/	.h(B).H(P, (L.INT, 1)).N(S.phr, err: 1).uu();
-		t = t/**/.e().H(null, "parenth RP", 1.3, 1.3, -1).uU();
+		t = t/**/.e().H(null, "parenth RP", (1.3, 1.3), -1).uU();
 		t = Parse(@"-(-1/(2+)3)/)");
 		t = t/**/	.h(B).h(E, L.NEGA).h(E, L.NEGA).H(P, (L.INT, 1)).u();
 		t = t/**/					.n(E, L.DIV).H(P, (L.INT, 2)).N(S.phr, err: 1);
 		t = t/**/								.n(I).H(P, (L.INT, 3)).uuu();
 		t = t/**/		.N(S.sen, err: 1).uu();
-		t = t/**/.e().H(S.phr, "arithmetic expression", 1.9, 1.10m, -1);
-		t = t/**/	.N(S.sen, "arithmetic expression", 1.13, 1.14, -1).uU();
+		t = t/**/.e().H(S.phr, "arithmetic expression", (1.9, 1.10m), -1);
+		t = t/**/	.N(S.sen, "arithmetic expression", (1.13, 1.14), -1).uU();
 		t = Parse(@"( 1*[ 2 / [(3+4] - 5");
 		t = t/**/	.h(B).H(P, (L.INT, 1));
 		t = t/**/		.n(E, L.MUL).h(S.squ, err: 1);
@@ -592,9 +592,9 @@ public class TestSynter : IDisposable
 		t = t/**/									.N(P, err: 1).uu();
 		t = t/**/				.n(E, L.SUB).H(P, (L.INT, 5)).uuu();
 		t = t/**/		.N(P, err: 1).uu();
-		t = t/**/.e().H(null, "parenth RP", 1.16, 1.16, -1);
-		t = t/**/	.N(null, "square bracket RSB", 1.21, 1.21, -1);
-		t = t/**/	.N(null, "parenth RP", 1.21, 1.21, -1).uU();
+		t = t/**/.e().H(null, "parenth RP", (1.16, 1.16), -1);
+		t = t/**/	.N(null, "square bracket RSB", (1.21, 1.21), -1);
+		t = t/**/	.N(null, "parenth RP", (1.21, 1.21), -1).uU();
 	}
 
 	[TestMethod]
@@ -629,8 +629,8 @@ public class TestSynter : IDisposable
 		t = t/**/		.j(L.LSB).H(S.Jsqu, err: 1).uu();
 		t = t/**/		.j(L.LSB).H(S.Jsqu, err: 1).uuu();
 		t = t/**/	.n(B).H(P, (L.INT, 2)).uu();
-		t = t/**/.e().H(null, "bracket junction expression", 2.2, 3.1, -1);
-		t = t/**/	.N(null, "bracket junction expression", 3.2, 3.3, -1).uU();
+		t = t/**/.e().H(null, "bracket junction expression", (2.2, 3.1), -1);
+		t = t/**/	.N(null, "bracket junction expression", (3.2, 3.3), -1).uU();
 		t = Parse("""
 			1
 			[2] 3
@@ -647,10 +647,10 @@ public class TestSynter : IDisposable
 		t = t/**/		.j(L.LSB).H(P, (L.INT, 6)).N(S.Jsqu, err: 1);
 		t = t/**/				.j(L.LSB).H(S.Jsqu, err: 1).uuu();
 		t = t/**/			.n(B).H(P, (L.INT, 8)).uuuu();
-		t = t/**/.e().H(null, "bracket junction EOL", 2.5, 2.6, -1);
-		t = t/**/	.N(null, "bracket junction EOL", 3.6, 3.7, -1);
-		t = t/**/	.N(null, "bracket junction RSB", 4.3, 5.1, -1);
-		t = t/**/	.N(null, "bracket junction expression", 5.3, 5.4, -1).uU();
+		t = t/**/.e().H(null, "bracket junction EOL", (2.5, 2.6), -1);
+		t = t/**/	.N(null, "bracket junction EOL", (3.6, 3.7), -1);
+		t = t/**/	.N(null, "bracket junction RSB", (4.3, 5.1), -1);
+		t = t/**/	.N(null, "bracket junction expression", (5.3, 5.4), -1).uU();
 	}
 
 	[TestMethod]

@@ -19,42 +19,42 @@ using Ser = (EsynStr t, EarleyStr s);
 static class TestExtension
 {
 	public static Ser Eq(this Ser s,
-		string name = null, int? on = null, int? via = null, object d = null, int err = 0)
+		string name = null, Jov<int?> j = default, object d = null, int err = 0)
 	{
 		AreNotEqual(null, s.t);
 		AreEqual(err, s.t.err);
 		if (name != null) AreEqual(name, s.t.name);
-		if (on != null) AreEqual(on, s.t.j.on);
-		if (via != null) AreEqual(via, s.t.j.via);
+		if (j.on != null) AreEqual(j.on, s.t.j.on);
+		if (j.via != null) AreEqual(j.via, s.t.j.via);
 		if (d != null) AreEqual(d, s.t.err == 0 ? s.s.ler.Lexs(s.t.j) : s.t.info);
 		return s;
 	}
 
 	public static Ser h(this Ser s,
-		string name = null, int? on = null, int? via = null, object d = null, int err = 0)
-		=> (s.t.head, s.s).Eq(name, on, via, d, err);
+		string name = null, Jov<int?> j = default, object d = null, int err = 0)
+		=> (s.t.head, s.s).Eq(name, j, d, err);
 	public static Ser t(this Ser s,
-		string name = null, int? on = null, int? via = null, object d = null, int err = 0)
-		=> (s.t.tail, s.s).Eq(name, on, via, d, err);
+		string name = null, Jov<int?> j = default, object d = null, int err = 0)
+		=> (s.t.tail, s.s).Eq(name, j, d, err);
 	public static Ser n(this Ser s,
-		string name = null, int? on = null, int? via = null, object d = null, int err = 0)
-		=> (s.t.next, s.s).Eq(name, on, via, d, err);
+		string name = null, Jov<int?> j = default, object d = null, int err = 0)
+		=> (s.t.next, s.s).Eq(name, j, d, err);
 	public static Ser p(this Ser s,
-		string name = null, int? on = null, int? via = null, object d = null, int err = 0)
-		=> (s.t.prev, s.s).Eq(name, on, via, d, err);
+		string name = null, Jov<int?> j = default, object d = null, int err = 0)
+		=> (s.t.prev, s.s).Eq(name, j, d, err);
 
 	public static Ser H(this Ser s,
-		string name = null, int? on = null, int? via = null, object d = null, int err = 0)
-		=> h(s, name, on, via, d, err).Leaf();
+		string name = null, Jov<int?> j = default, object d = null, int err = 0)
+		=> h(s, name, j, d, err).Leaf();
 	public static Ser T(this Ser s,
-		string name = null, int? on = null, int? via = null, object d = null, int err = 0)
-		=> t(s, name, on, via, d, err).Leaf();
+		string name = null, Jov<int?> j = default, object d = null, int err = 0)
+		=> t(s, name, j, d, err).Leaf();
 	public static Ser N(this Ser s,
-		string name = null, int? on = null, int? via = null, object d = null, int err = 0)
-		=> n(s, name, on, via, d, err).Leaf();
+		string name = null, Jov<int?> j = default, object d = null, int err = 0)
+		=> n(s, name, j, d, err).Leaf();
 	public static Ser P(this Ser s,
-		string name = null, int? on = null, int? via = null, object d = null, int err = 0)
-		=> p(s, name, on, via, d, err).Leaf();
+		string name = null, Jov<int?> j = default, object d = null, int err = 0)
+		=> p(s, name, j, d, err).Leaf();
 
 	public static Ser Leaf(this Ser s) { AreEqual(null, s.t.head); return s; }
 	public static Ser u(this Ser s) { AreEqual(null, s.t.next); AreNotEqual(null, s.t.up); return (s.t.up, s.s); }
@@ -160,7 +160,7 @@ public class TestParserEarley : IDisposable
 		NewSer("S=A B =start \n A=1|2 =A12 ==oh||no\n |3 =A3 \n B= =\tempty \n |4 =B4");
 		IsNull(Parse("").t.head);
 		IsNull(Parse("4").t.head);
-		Parse("15").H("S", 0, 1, "empty", 1);
+		Parse("15").H("S", (0, 1), "empty", 1);
 	}
 
 	[TestMethod]
@@ -270,13 +270,13 @@ public class TestParserEarley : IDisposable
 			Num   = Num Digi | Digi     = number
 			Digi  = 0|1|2|3|4|5|6|7|8|9 = digit
 			""");
-		Parse("(1+2*").H("Mul", 3, 5, "value", 2).uU();
-		Parse("(*1*2+3)*4").H("Value", 0, 1, "expression", 1).uU();
-		Parse("(1+2*3))*4").H("Mul", 0, 7, '*', 1).N("Expr", 0, 7, '+', 1).uU();
-		Parse("(1*2+3").H("Mul", 5, 6, '*', 1).N("Value", 0, 6, ')', 2)
-						.N("Expr", 1, 6, '+', 1).N("Num", 5, 6, "digit", 1).uU();
-		Parse("(1*2+)").H("Expr", 1, 5, "expression", 2).uU();
-		Parse("()").H("Value", 0, 1, "expression", 1).uU();
+		Parse("(1+2*").H("Mul", (3, 5), "value", 2).uU();
+		Parse("(*1*2+3)*4").H("Value", (0, 1), "expression", 1).uU();
+		Parse("(1+2*3))*4").H("Mul", (0, 7), '*', 1).N("Expr", (0, 7), '+', 1).uU();
+		Parse("(1*2+3").H("Mul", (5, 6), '*', 1).N("Value", (0, 6), ')', 2)
+						.N("Expr", (1, 6), '+', 1).N("Num", (5, 6), "digit", 1).uU();
+		Parse("(1*2+)").H("Expr", (1, 5), "expression", 2).uU();
+		Parse("()").H("Value", (0, 1), "expression", 1).uU();
 	}
 
 	[TestMethod]
@@ -374,10 +374,11 @@ public class TestParserEarley : IDisposable
 	{
 		NewSer("S=A B \n A=a P* \n B=P* b \n P=p|q");
 		True("ab"); True("apqb"); True("apqpqb");
-		Parse("apqpqpqb").H("A", 0, 1).n("B").H("P", 1).N().N().N().N().N("P", 6).uuU();
+		Parse("apqpqpqb").H("A", (0, 1)).n("B").H("P", (1, null)).N().N().N().N().N("P", (6, null)).uuU();
 		AreEqual(107, ser.matchz);
 		ser.greedy = true;
-		Parse("apqpqpqb").h("A").H("P", 1).N().N().N().N().N("P", 6).u().N("B", d: "b").uU();
+		Parse("apqpqpqb").h("A").H("P", (1, null)).N().N().N().N().N("P", (6, null)).u()
+			.N("B", d: "b").uU();
 		AreEqual(107, ser.matchz);
 	}
 
@@ -444,12 +445,12 @@ public class TestParserEarley : IDisposable
 		Parse("+").Eq(d: '+', err: -1).Leaf().U();
 		Parse("+0").Eq(d: '+', err: -1).Leaf().U();
 		Parse("+,+0").Eq(d: '+', err: -1).Leaf().U();
-		Parse("0+").h("S", 0, 1).N("S", err: -4).u().n(via: 2, err: -1).H("A", 0, 2, "M", 2).uU();
-		Parse("0*").h("S", 0, 1).N("S", err: -4).u().n(via: 2, err: -1).H("M", 0, 2, "V", 2).uU();
+		Parse("0+").h("S", (0, 1)).N("S", err: -4).u().n(j: (null, 2), err: -1).H("A", (0, 2), "M", 2).uU();
+		Parse("0*").h("S", (0, 1)).N("S", err: -4).u().n(j: (null, 2), err: -1).H("M", (0, 2), "V", 2).uU();
 		var t = Parse("0#&$");
-		t = t/**/	.h("S", 0, 1).N("S", 0, 4, err: -4).u();
-		t = t/**/.n("S", 1, 2, '#', -1);
-		t = t/**/	.h("M", 0, 1, '*', 1).N("A", 0, 1, '+', 1).N("S", 0, 1, ',', 1).uU();
+		t = t/**/	.h("S", (0, 1)).N("S", (0, 4), err: -4).u();
+		t = t/**/.n("S", (1, 2), '#', -1);
+		t = t/**/	.h("M", (0, 1), '*', 1).N("A", (0, 1), '+', 1).N("S", (0, 1), ',', 1).uU();
 	}
 
 	[TestMethod]
@@ -457,25 +458,25 @@ public class TestParserEarley : IDisposable
 	{
 		NewSer("S=A|S,A? =|\n A=M|A\\+M \n M=V|M\\*V \n V=0|1|2|3|4|5");
 		var t = Parse("0+,1*,2#");
-		t = t/**/	.h("S", 0, 7).h("S", 0, 4).h("S", d: "0");
-		t = t/**/								.N("S", 0, 3, err: -4).n("A", d: "1").u();
-		t = t/**/				.N("S", 0, 6, err: -4).n("A", d: "2").u();
-		t = t/**/	.N("S", 0, 8, err: -4).u();
-		t = t/**/.n("S", 2, 3, ',', -1);
-		t = t/**/	.H("A", 0, 2, "M", 2).u();
-		t = t/**/.n("S", 5, 6, ',', -1);
-		t = t/**/	.H("M", 3, 5, "V", 2).u();
-		t = t/**/.n("S", 7, 8, '#', -1);
-		t = t/**/	.H("M", 6, 7, '*', 1).N("A", 6, 7, '+', 1).N("S", 0, 7, ',', 1).uU();
+		t = t/**/	.h("S", (0, 7)).h("S", (0, 4)).h("S", d: "0");
+		t = t/**/								.N("S", (0, 3), err: -4).n("A", d: "1").u();
+		t = t/**/				.N("S", (0, 6), err: -4).n("A", d: "2").u();
+		t = t/**/	.N("S", (0, 8), err: -4).u();
+		t = t/**/.n("S", (2, 3), ',', -1);
+		t = t/**/	.H("A", (0, 2), "M", 2).u();
+		t = t/**/.n("S", (5, 6), ',', -1);
+		t = t/**/	.H("M", (3, 5), "V", 2).u();
+		t = t/**/.n("S", (7, 8), '#', -1);
+		t = t/**/	.H("M", (6, 7), '*', 1).N("A", (6, 7), '+', 1).N("S", (0, 7), ',', 1).uU();
 		t = Parse("0+1*2+");
-		t = t/**/	.h("S", 0, 5).h("A", 0, 5).u().N("S", 0, 6, err: -4).u();
-		t = t/**/.n("S", 6, 6, null, -1);
-		t = t/**/	.H("A", 0, 6, "M", 2).uU();
+		t = t/**/	.h("S", (0, 5)).h("A", (0, 5)).u().N("S", (0, 6), err: -4).u();
+		t = t/**/.n("S", (6, 6), null, -1);
+		t = t/**/	.H("A", (0, 6), "M", 2).uU();
 		t = Parse("0+1*2+,1");
-		t = t/**/	.h("S", 0, 5).h("A", 0, 5).u().N("S", 0, 7, err: -4);
-		t = t/**/	.n("A", 7, 8).u();
-		t = t/**/.n("S", 6, 7, ',', -1);
-		t = t/**/	.H("A", 0, 6, "M", 2).uU();
+		t = t/**/	.h("S", (0, 5)).h("A", (0, 5)).u().N("S", (0, 7), err: -4);
+		t = t/**/	.n("A", (7, 8)).u();
+		t = t/**/.n("S", (6, 7), ',', -1);
+		t = t/**/	.H("A", (0, 6), "M", 2).uU();
 	}
 
 	[TestMethod]
@@ -483,39 +484,39 @@ public class TestParserEarley : IDisposable
 	{
 		NewSer("S=A|S,A? =*|\n A=M|A\\+M \n M=V|M\\*V \n V=(A)|N =|\n N=0|1|2|3|4|5");
 		var t = Parse("()");
-		t = t/**/	.h("A").h("M").h("V").H("V", 0, 2, err: -4).uuuu();
-		t = t/**/.n("S", 1, 2, ')', -1);
-		t = t/**/	.H("V", 0, 1, "A", 1).uU();
+		t = t/**/	.h("A").h("M").h("V").H("V", (0, 2), err: -4).uuuu();
+		t = t/**/.n("S", (1, 2), ')', -1);
+		t = t/**/	.H("V", (0, 1), "A", 1).uU();
 		t = Parse("0+(),1");
 		t = t/**/	.h("S").h("A").h("A").h("M").u();
-		t = t/**/					.n("M").h("V").H("V", 2, 4, err: -4).uuuu();
+		t = t/**/					.n("M").h("V").H("V", (2, 4), err: -4).uuuu();
 		t = t/**/	.n("A").u();
-		t = t/**/.n("S", 3, 4, ')', -1);
-		t = t/**/	.H("V", 2, 3, "A", 1).uU();
+		t = t/**/.n("S", (3, 4), ')', -1);
+		t = t/**/	.H("V", (2, 3), "A", 1).uU();
 		t = Parse("0,1+(2*),3#");
-		t = t/**/	.h("S").h("S").h("S", 0, 1);
+		t = t/**/	.h("S").h("S").h("S", (0, 1));
 		t = t/**/				.n("A").h("A", d: "1");
-		t = t/**/						.n("M").h("V", 4, 8).h("A", d: "2");
-		t = t/**/											.N("V", 4, 8, err: -4).uuuu();
+		t = t/**/						.n("M").h("V", (4, 8)).h("A", d: "2");
+		t = t/**/											.N("V", (4, 8), err: -4).uuuu();
 		t = t/**/			.n("A", d: "3").u();
-		t = t/**/	.N("S", 0, 11, err: -4).u();
-		t = t/**/.n("S", 7, 8, ')', -1);
-		t = t/**/	.H("M", 5, 7, "V", 2).u();
-		t = t/**/.n("S", 10, 11, '#', -1);
-		t = t/**/	.H("M", 9, 10, '*', 1).N("A", 9, 10, '+', 1).N("S", 0, 10, ',', 1).uU();
+		t = t/**/	.N("S", (0, 11), err: -4).u();
+		t = t/**/.n("S", (7, 8), ')', -1);
+		t = t/**/	.H("M", (5, 7), "V", 2).u();
+		t = t/**/.n("S", (10, 11), '#', -1);
+		t = t/**/	.H("M", (9, 10), '*', 1).N("A", (9, 10), '+', 1).N("S", (0, 10), ',', 1).uU();
 		t = Parse("0,1+(2*)4,3+");
-		t = t/**/	.h("S").h("S").h("S", 0, 1);
+		t = t/**/	.h("S").h("S").h("S", (0, 1));
 		t = t/**/				.n("A").h("A", d: "1");
-		t = t/**/						.n("M").h("V", 4, 8).h("A", d: "2");
-		t = t/**/											.N("V", 4, 8, err: -4).uuuu();
-		t = t/**/			.N("S", 0, 10, err: -4).n("A", d: "3").u();
-		t = t/**/	.N("S", 0, 12, err: -4).u();
-		t = t/**/.n("S", 7, 8, ')', -1);
-		t = t/**/	.H("M", 5, 7, "V", 2).u();
-		t = t/**/.n("S", 8, 9, '4', -1);
-		t = t/**/	.H("M", 4, 8, '*', 1).N("A", 2, 8, '+', 1).N("S", 0, 8, ',', 1).u();
-		t = t/**/.n("S", 12, 12, null, -1);
-		t = t/**/	.H("A", 10, 12, "M", 2).uU();
+		t = t/**/						.n("M").h("V", (4, 8)).h("A", d: "2");
+		t = t/**/											.N("V", (4, 8), err: -4).uuuu();
+		t = t/**/			.N("S", (0, 10), err: -4).n("A", d: "3").u();
+		t = t/**/	.N("S", (0, 12), err: -4).u();
+		t = t/**/.n("S", (7, 8), ')', -1);
+		t = t/**/	.H("M", (5, 7), "V", 2).u();
+		t = t/**/.n("S", (8, 9), '4', -1);
+		t = t/**/	.H("M", (4, 8), '*', 1).N("A", (2, 8), '+', 1).N("S", (0, 8), ',', 1).u();
+		t = t/**/.n("S", (12, 12), null, -1);
+		t = t/**/	.H("A", (10, 12), "M", 2).uU();
 	}
 
 	[TestMethod]
@@ -524,23 +525,23 @@ public class TestParserEarley : IDisposable
 		NewSer("P=S+ \n S=V|{S+} =*|\n V=(N)|N =|\n N=0|1|2|3|4|5");
 		var t = Parse("{()");
 		t = t/**/	.h("S").h("S").h("V");
-		t = t/**/					.H("V", 1, 3, err: -4).uu();
-		t = t/**/			.N("S", 0, 3, err: -4).uu();
-		t = t/**/.n("P", 2, 3, ')', -1);
-		t = t/**/	.H("V", 1, 2, "N", 1).u();
-		t = t/**/.n("P", 3, 3, null, -1);
-		t = t/**/	.H("S", 0, 3, '}', 2).N("S", 0, 3, "S", 1).uU();
+		t = t/**/					.H("V", (1, 3), err: -4).uu();
+		t = t/**/			.N("S", (0, 3), err: -4).uu();
+		t = t/**/.n("P", (2, 3), ')', -1);
+		t = t/**/	.H("V", (1, 2), "N", 1).u();
+		t = t/**/.n("P", (3, 3), null, -1);
+		t = t/**/	.H("S", (0, 3), '}', 2).N("S", (0, 3), "S", 1).uU();
 		ser.recover = 1;
-		Parse("{{").Eq("P", 2, 2, null, -1).H("S", 1, 2, "S", 1).uU();
+		Parse("{{").Eq("P", (2, 2), null, -1).H("S", (1, 2), "S", 1).uU();
 		ser.recover = 2;
 		t = Parse("{(");
 		t = t/**/	.h("S").h("S").h("V");
-		t = t/**/					.H("V", 1, 2, err: -4).uu();
-		t = t/**/			.N("S", 0, 2, err: -4).uu();
-		t = t/**/.n("P", 2, 2, null, -1);
-		t = t/**/	.H("V", 1, 2, "N", 1).u();
-		t = t/**/.n("P", 2, 2, null, -1);
-		t = t/**/	.H("V", 1, 2, "N", 1).N("S", 0, 2, '}', 2).N("S", 0, 2, "S", 1).uU();
+		t = t/**/					.H("V", (1, 2), err: -4).uu();
+		t = t/**/			.N("S", (0, 2), err: -4).uu();
+		t = t/**/.n("P", (2, 2), null, -1);
+		t = t/**/	.H("V", (1, 2), "N", 1).u();
+		t = t/**/.n("P", (2, 2), null, -1);
+		t = t/**/	.H("V", (1, 2), "N", 1).N("S", (0, 2), '}', 2).N("S", (0, 2), "S", 1).uU();
 	}
 
 	[TestMethod]
@@ -548,8 +549,8 @@ public class TestParserEarley : IDisposable
 	{
 		NewSer("P=S+ \n S=V|{S+} =*|\n|\\0?\\0} =-| \n V=0|1|2|3|4|5");
 		var t = Parse("{{0}}}}{1}");
-		t = t/**/	.h("S", 0, 5, "{{0}}").h("S", 1, 4, "{0}").u();
-		t = t/**/	.N("S", 5, 6, err: -4).N("S", 6, 7, err: -4).n("S", 7, 10, "{1}").u();
-		t = t/**/.n("P", 5, 6, '}', -1).n("P", 6, 7, '}', -1).U();
+		t = t/**/	.h("S", (0, 5), "{{0}}").h("S", (1, 4), "{0}").u();
+		t = t/**/	.N("S", (5, 6), err: -4).N("S", (6, 7), err: -4).n("S", (7, 10), "{1}").u();
+		t = t/**/.n("P", (5, 6), '}', -1).n("P", (6, 7), '}', -1).U();
 	}
 }

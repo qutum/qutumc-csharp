@@ -44,6 +44,16 @@ public struct Jov(int on, int via)
 	public static implicit operator (int on, int via)(Jov j) => (j.on, j.via);
 	public static implicit operator Jov(Jot j) => (j.on, j.to + 1);
 }
+public struct Jot<T>
+{
+	public T on, to;
+	public static implicit operator Jot<T>((T on, T to) j) => new() { on = j.on, to = j.to };
+}
+public struct Jov<T>
+{
+	public T on, via;
+	public static implicit operator Jov<T>((T on, T via) j) => new() { on = j.on, via = j.via };
+}
 
 public static partial class Extension
 {
