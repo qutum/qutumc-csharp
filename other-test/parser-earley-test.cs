@@ -26,7 +26,7 @@ static class TestExtension
 		if (name != null) AreEqual(name, s.t.name);
 		if (from != null) AreEqual(from, s.t.from);
 		if (to != null) AreEqual(to, s.t.to);
-		if (d != null) AreEqual(d, s.t.err == 0 ? s.s.ler.Lexs(s.t.from, s.t.to) : s.t.info);
+		if (d != null) AreEqual(d, s.t.err == 0 ? s.s.ler.Lexs((s.t.from, s.t.to)) : s.t.info);
 		return s;
 	}
 

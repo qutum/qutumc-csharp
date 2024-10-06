@@ -15,7 +15,7 @@ namespace qutum.parser;
 public partial struct Lexi<K> where K : struct
 {
 	public K key;
-	public int from, to; // read from loc to excluded loc
+	public Jov jov; // read jot loc
 	public int err; // error: <0, no error: >=0
 	public object value;
 }
@@ -91,9 +91,9 @@ public partial class Lexier<K> : LexierBuf<K> where K : struct
 	int uid;
 	protected Lexer<byte, byte> read;
 	int bz; // total bytes got
-	int bf, bt; // read from loc to excluded loc for each wad
+	Jov bj; // read jot loc for each wad
 	readonly byte[] bytes = new byte[AltByteN + 1]; // {latest bytes}[read loc & AltByteN]
-	protected int from; // read loc for current lexi
+	protected int lon; // read loc for current lexi
 
 	public const int AltByteN = 15;
 
@@ -109,20 +109,20 @@ public partial class Lexier<K> : LexierBuf<K> where K : struct
 	{
 		base.Dispose();
 		read?.Dispose(); read = null;
-		bz = bf = bt = 0; from = -1;
+		bz = 0; bj = default; lon = -1;
 	}
 
 	public override bool Next()
 	{
 		if (loc.IncLess(size)) return true;
 		var u = begin;
-	Wad: bf = bt;
-	Next: if (bt >= bz)
+	Wad: bj.on = bj.via;
+	Next: if (bj.via >= bz)
 			if (read.Next()) {
 				if ((bytes[bz++ & AltByteN] = read.Lex()) == '\n')
 					lines.Add(bz);
 			}
-			else if (u == begin || bt > bz) {
+			else if (u == begin || bj.via > bz) {
 				if (bz >= 0) {
 					Eor(bz); // call only once
 					bz = -1;
@@ -131,9 +131,9 @@ public partial class Lexier<K> : LexierBuf<K> where K : struct
 			}
 			else // eor but lexi not end
 				goto Go;
-		var b = bytes[bt & AltByteN];
+		var b = bytes[bj.via & AltByteN];
 		if (u.next[b < 128 ? b : 128] is Unit v) { // one byte by one, even for utf
-			u = v; ++bt;
+			u = v; ++bj.via;
 			if (u.next != null)
 				goto Next;
 		}
@@ -141,17 +141,17 @@ public partial class Lexier<K> : LexierBuf<K> where K : struct
 		if (u.mode >= 0) { // failed to greedy
 			if (u.mode == 0)
 				BuildBack(u);
-			bt -= u.mode; u = u.go; go = u.go; // backward bytes directly
+			bj.via -= u.mode; u = u.go; go = u.go; // backward bytes directly
 		}
 		if (u.mode == -1) { // match a wad 
 			var e = go == begin;
-			Wad(u.key, u.wad, ref e, bf, bt);
+			Wad(u.key, u.wad, ref e, bj);
 			if (e) go = begin;
 		}
 		else { // error wad
-			WadErr(u.key, u.wad, go == begin || bt >= bz,
-				bt < bz ? bytes[bt & AltByteN] : -1, bf, bt);
-			++bt; // shift a byte
+			WadErr(u.key, u.wad, go == begin || bj.via >= bz,
+				bj.via < bz ? bytes[bj.via & AltByteN] : -1, bj);
+			++bj.via; // shift a byte
 		}
 		if (go == begin && loc < size)
 			return true;
@@ -168,40 +168,41 @@ public partial class Lexier<K> : LexierBuf<K> where K : struct
 		}
 	}
 
-	protected void BackByte(int to)
+	protected void BackByte(int via)
 	{
-		if (to < bz - AltByteN)
+		if (via < bz - AltByteN)
 			throw new("back too much bytes");
-		bt = to;
+		bj.via = via;
 	}
 
 	// make each wad of a lexi
-	protected virtual void Wad(K key, int wad, ref bool end, int f, int to)
+	protected virtual void Wad(K key, int wad, ref bool end, Jov j)
 	{
-		if (from < 0) from = f;
+		if (lon < 0) lon = j.on;
 		if (end) {
-			Span<byte> s = to - from <= 1024 ? stackalloc byte[to - from] : new byte[to - from];
-			read.Lexs(from, to, s);
-			Lexi(key, from, to, Encoding.UTF8.GetString(s));
-			from = -1;
+			Jov lj = (lon, j.via);
+			Span<byte> s = lj.size <= 1024 ? stackalloc byte[lj.size] : new byte[lj.size];
+			read.Lexs(lj, s);
+			Lexi(key, lj, Encoding.UTF8.GetString(s));
+			lon = -1;
 		}
 	}
 
 	// error wad. eor: Byte < 0
-	protected virtual void WadErr(K key, int wad, bool end, int Byte, int f, int to)
+	protected virtual void WadErr(K key, int wad, bool end, int Byte, Jov j)
 	{
-		if (from < 0) from = f;
-		Error(key, f, to, Byte >= 0 ? (char)Byte : null);
-		if (end) from = -1;
+		if (lon < 0) lon = j.on;
+		Error(key, j, Byte >= 0 ? (char)Byte : null);
+		if (end) lon = -1;
 	}
 
 	// from f loc of read to excluded loc
-	protected void Lexi(K key, int f, int to, object value)
-		=> Add(new() { key = key, from = f, to = to, value = value });
+	protected void Lexi(K key, Jov j, object value)
+		=> Add(new() { key = key, jov = j, value = value });
 	// from f loc of read to excluded loc
-	protected void Error(K key, int f, int to, object value)
+	protected void Error(K key, Jov j, object value)
 	{
-		var l = new Lexi<K> { key = key, from = f, to = to, value = value, err = -1 };
+		var l = new Lexi<K> { key = key, jov = j, value = value, err = -1 };
 		if (errs != null) errs.Add(l); else Add(l);
 	}
 
@@ -237,24 +238,24 @@ public abstract class LexierBuf<K> : LexerSeg<K, Lexi<K>> where K : struct
 	public bool Is(int loc, K aim) => Is(Lex(loc).key, aim);
 	public virtual bool Is(K key, K aim) => aim.Equals(key);
 
-	public Span<Lexi<K>> Lexs(int from, int to, Span<Lexi<K>> s)
+	public Span<Lexi<K>> Lexs(Jov j, Span<Lexi<K>> s)
 	{
-		if (from >= size || to > size) throw new IndexOutOfRangeException();
-		lexs.AsSpan(from, to - from).CopyTo(s);
+		if (j.on >= size || j.via > size) throw new IndexOutOfRangeException();
+		lexs.AsSpan(j.on, j.size).CopyTo(s);
 		return s;
 	}
-	public ArraySegment<Lexi<K>> Lexs(int from, int to)
+	public ArraySegment<Lexi<K>> Lexs(Jov j)
 	{
-		if (to > size) throw new IndexOutOfRangeException();
-		return lexs.Seg(from, to);
+		if (j.via > size) throw new IndexOutOfRangeException();
+		return lexs.Seg(j);
 	}
-	IEnumerable<Lexi<K>> Lexer<K, Lexi<K>>.Lexs(int from, int to) => Lexs(from, to);
+	IEnumerable<Lexi<K>> Lexer<K, Lexi<K>>.Lexs(Jov j) => Lexs(j);
 
 	public static IEnumerable<K> Keys_(string keys) => [Enum.Parse<K>(keys)];
 	public IEnumerable<K> Keys(string keys) => Keys_(keys);
 
-	// first line and col are 1, col is byte index inside line
-	public (int line, int column) LineCol(int readLoc)
+	// first line and column are 1, column is byte index inside line
+	public (int line, int col) LineCol(int readLoc)
 	{
 		var line = lines.BinarySearch(readLoc);
 		line = (line ^ line >> 31) + (~line >>> 31);
@@ -262,22 +263,22 @@ public abstract class LexierBuf<K> : LexerSeg<K, Lexi<K>> where K : struct
 	}
 
 	// excluded to, ~from ~to for errs, first line and col are 1, col is byte index inside line
-	public (int fromL, int fromC, int toL, int toC) LineCol(int from, int to)
+	public (Jov line, Jov col) LineCol(Jov readJot)
 	{
 		if (size == 0)
-			return (1, 1, 1, 1);
-		int bf, bt;
-		if (from >= 0) {
-			bf = from < size ? Lex(from).from : Lex(from - 1).to;
-			bt = from < to ? int.Max(Lex(to - 1).to, bf) : bf;
+			return ((1, 1), (1, 1));
+		var (on, via) = readJot; int bo, bv;
+		if (on >= 0) {
+			bo = on < size ? Lex(on).jov.on : Lex(on - 1).jov.via;
+			bv = on < via ? int.Max(Lex(via - 1).jov.via, bo) : bo;
 		}
 		else {
-			from = ~from; to = ~to;
-			bf = from < errs.Count ? errs[from].from : errs[from - 1].to;
-			bt = from < to ? int.Max(errs[to - 1].to, bf) : bf;
+			on = ~on; via = ~via;
+			bo = on < errs.Count ? errs[on].jov.on : errs[on - 1].jov.via;
+			bv = on < via ? int.Max(errs[via - 1].jov.via, bo) : bo;
 		}
-		var (fl, fc) = LineCol(bf); var (tl, tc) = LineCol(bt);
-		return (fl, fc, tl, tc);
+		var (lo, co) = LineCol(bo); var (lv, cv) = LineCol(bv);
+		return ((lo, lv), (co, cv));
 	}
 }
 

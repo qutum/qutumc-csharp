@@ -14,12 +14,43 @@ using System.Text;
 
 namespace qutum.parser;
 
+// jot of data to inclusive end, default size is 1
+public struct Jot
+{
+	public int on; // start on this index
+	public int to; // end to this inclusive index
+
+	public readonly int size => to - on + 1;
+	public readonly bool any => on <= to;
+	public readonly Range range => on..(to + 1);
+	public readonly void Deconstruct(out int on, out int to) => (on, to) = (this.on, this.to);
+
+	public static implicit operator Jot((int on, int to) j) => new() { on = j.on, to = j.to };
+	public static implicit operator (int on, int to)(Jot j) => (j.on, j.to);
+	public static implicit operator Jot(Jov j) => (j.on, j.via - 1);
+}
+// jot of data via exclusive end, default size is 0
+public struct Jov(int on, int via)
+{
+	public int on = on; // start on this index
+	public int via = via; // end via this exclusive index
+
+	public readonly int size => via - on;
+	public readonly bool any => on < via;
+	public readonly Range range => on..via;
+	public readonly void Deconstruct(out int on, out int via) => (on, via) = (this.on, this.via);
+
+	public static implicit operator Jov((int on, int via) j) => new() { on = j.on, via = j.via };
+	public static implicit operator (int on, int via)(Jov j) => (j.on, j.via);
+	public static implicit operator Jov(Jot j) => (j.on, j.to + 1);
+}
+
 public static partial class Extension
 {
 	public static bool IncLess(this ref int d, int z) => ++d < z || (d = z) < z;
 
 	public static ArraySegment<T> Seg<T>(this T[] s) => new(s);
-	public static ArraySegment<T> Seg<T>(this T[] s, int from, int to) => new(s, from, to - from);
+	public static ArraySegment<T> Seg<T>(this T[] s, Jov j) => new(s, j.on, j.size);
 
 	public static IEnumerable<T> Enum<T>(this ReadOnlyMemory<T> s)
 	{

@@ -23,10 +23,8 @@ public interface Lexer<K, L> : IDisposable
 	bool Is(int loc, K aim);
 	bool Is(K key, K aim);
 
-	// lexs from loc to loc excluded
-	Span<L> Lexs(int from, int to, Span<L> s);
-	// lexs from loc to loc excluded
-	IEnumerable<L> Lexs(int from, int to);
+	Span<L> Lexs(Jov j, Span<L> s);
+	IEnumerable<L> Lexs(Jov j);
 
 	// get single or several keys
 	IEnumerable<K> Keys(string keys);
@@ -34,8 +32,7 @@ public interface Lexer<K, L> : IDisposable
 
 public interface LexerSeg<K, L> : Lexer<K, L>
 {
-	// lexs from loc to loc excluded
-	new ArraySegment<L> Lexs(int from, int to);
+	new ArraySegment<L> Lexs(Jov j);
 }
 
 public class LerStr(string read) : Lexer<char, char>
@@ -54,12 +51,12 @@ public class LerStr(string read) : Lexer<char, char>
 	public virtual bool Is(int loc, char aim) => read[loc] == aim;
 	public virtual bool Is(char key, char aim) => key == aim;
 
-	public Span<char> Lexs(int from, int to, Span<char> s)
+	public Span<char> Lexs(Jov j, Span<char> s)
 	{
-		read.AsSpan(from, to - from).CopyTo(s); return s;
+		read.AsSpan(j.on, j.size).CopyTo(s); return s;
 	}
-	public string Lexs(int from, int to) => read[from..to];
-	IEnumerable<char> Lexer<char, char>.Lexs(int from, int to) => Lexs(from, to);
+	public string Lexs(Jov j) => read[j.range];
+	IEnumerable<char> Lexer<char, char>.Lexs(Jov j) => Lexs(j);
 
 	public IEnumerable<char> Keys(string keys) => keys;
 }
@@ -80,12 +77,12 @@ public class LerByte(byte[] read) : LexerSeg<byte, byte>
 	public virtual bool Is(int loc, byte aim) => read[loc] == aim;
 	public virtual bool Is(byte key, byte aim) => key == aim;
 
-	public Span<byte> Lexs(int from, int to, Span<byte> s)
+	public Span<byte> Lexs(Jov j, Span<byte> s)
 	{
-		read.AsSpan(from, to - from).CopyTo(s); return s;
+		read.AsSpan(j.on, j.size).CopyTo(s); return s;
 	}
-	public ArraySegment<byte> Lexs(int from, int to) => read.Seg(from, to);
-	IEnumerable<byte> Lexer<byte, byte>.Lexs(int from, int to) => Lexs(from, to);
+	public ArraySegment<byte> Lexs(Jov j) => read.Seg(j);
+	IEnumerable<byte> Lexer<byte, byte>.Lexs(Jov j) => Lexs(j);
 
 	public IEnumerable<byte> Keys(string keys) => keys.Select(k => (byte)k);
 }
@@ -106,12 +103,12 @@ public class LerByteSeg(ArraySegment<byte> read) : LexerSeg<byte, byte>
 	public virtual bool Is(int loc, byte aim) => read[loc] == aim;
 	public virtual bool Is(byte key, byte aim) => key == aim;
 
-	public Span<byte> Lexs(int from, int to, Span<byte> s)
+	public Span<byte> Lexs(Jov j, Span<byte> s)
 	{
-		read.AsSpan(from, to - from).CopyTo(s); return s;
+		read.AsSpan(j.on, j.size).CopyTo(s); return s;
 	}
-	public ArraySegment<byte> Lexs(int from, int to) => read.Slice(from, to - from);
-	IEnumerable<byte> Lexer<byte, byte>.Lexs(int from, int to) => Lexs(from, to);
+	public ArraySegment<byte> Lexs(Jov j) => read.Slice(j.on, j.size);
+	IEnumerable<byte> Lexer<byte, byte>.Lexs(Jov j) => Lexs(j);
 
 	public IEnumerable<byte> Keys(string keys) => keys.Select(k => (byte)k);
 }
@@ -132,11 +129,11 @@ public class LerByteList(List<byte> read) : Lexer<byte, byte>
 	public virtual bool Is(int loc, byte aim) => read[loc] == aim;
 	public virtual bool Is(byte key, byte aim) => key == aim;
 
-	public Span<byte> Lexs(int from, int to, Span<byte> s)
+	public Span<byte> Lexs(Jov j, Span<byte> s)
 	{
-		read.GetRange(from, to - from).CopyTo(s); return s;
+		read.GetRange(j.on, j.size).CopyTo(s); return s;
 	}
-	public IEnumerable<byte> Lexs(int from, int to) => read.GetRange(from, to - from);
+	public IEnumerable<byte> Lexs(Jov j) => read.GetRange(j.on, j.size);
 
 	public IEnumerable<byte> Keys(string keys) => keys.Select(k => (byte)k);
 }

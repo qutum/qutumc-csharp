@@ -116,7 +116,7 @@ public static class MetaLex
 		var es = new object[Lexier<K>.AltByteN << 1];
 		// build prod
 		foreach (var prod in top) {
-			var k = Keys(meta.ler.Lexs(prod.head.from, prod.head.to)).Single();
+			var k = Keys(meta.ler.Lexs((prod.head.from, prod.head.to))).Single();
 			g.k(k);
 			// build wad
 			foreach (var (w, wad) in prod.Skip(1).Each(1)) {
@@ -133,7 +133,7 @@ public static class MetaLex
 					var bz = bytes.Count();
 					if (bz > Lexier<K>.AltByteN)
 						throw new($"{k}.{wad}.{alt} exceeds {Lexier<K>.AltByteN} bytes :"
-							+ meta.ler.Lexs(a.from, a.to));
+							+ meta.ler.Lexs((a.from, a.to)));
 					var ez = 0;
 					foreach (var (b, bx) in bytes.Each())
 						Byte(gram, k, wad, alt, b, es, ref ez);
@@ -175,7 +175,7 @@ public static class MetaLex
 			for (char y = '\0'; y <= 128; y++)
 				if (rs[y]) s[n++] = y;
 			if (n == 0)
-				throw new($"No byte in {k}.{wad} :{meta.ler.Lexs(b.from, b.to)}");
+				throw new($"No byte in {k}.{wad} :{meta.ler.Lexs((b.from, b.to))}");
 			es[ez++] = (ReadOnlyMemory<char>)s.AsMemory(0, n);
 			++x; // range ]
 		}

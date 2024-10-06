@@ -35,9 +35,9 @@ file static class Extension
 		AreNotEqual(null, s.t);
 		AreEqual(err, s.t.err);
 		if (name != null) AreEqual(name, s.t.name);
-		var (fl, fc, tl, tc) = s.s.ler.LineCol(s.t.from, s.t.to);
-		if (from != null) AreEqual($"{from?.d}", $"{fl}.{fc}");
-		if (to != null) AreEqual($"{to?.d}", $"{tl}.{tc}");
+		var (line, col) = s.s.ler.LineCol((s.t.from, s.t.to));
+		if (from != null) AreEqual($"{from?.d}", $"{line.on}.{col.on}");
+		if (to != null) AreEqual($"{to?.d}", $"{line.via}.{col.via}");
 		if (err != 0 && d is string aim && s.t.info?.ToString() is string test) {
 			var ts = test.Split(SerMaker<char, string>.ErrMore);
 			var As = aim.Split("  ");
@@ -61,8 +61,8 @@ file static class Extension
 				ds[n++] = new() { key = l };
 			else
 				ds[n - 1].value = Ds[x];
-		AreEqual(s.s.dumper(ds.Seg(0, n)),
-			s.s.dumper(s.t.from >= 0 ? s.s.ler.Lexs(s.t.from, s.t.to)
+		AreEqual(s.s.dumper(ds.Seg((0, n))),
+			s.s.dumper(s.t.from >= 0 ? s.s.ler.Lexs((s.t.from, s.t.to))
 				: s.s.ler.errs.GetRange(~s.t.from, ~s.t.to - ~s.t.from).ToArray().Seg()));
 		return s;
 	}

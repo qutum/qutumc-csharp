@@ -61,7 +61,7 @@ public partial class Lexier<K>
 				}
 	}
 
-	public string Dumper() => string.Join(" ", lexs.Seg(0, loc).Select(t => t.ToString()).ToArray());
+	public string Dumper() => string.Join(" ", lexs.Seg((0, loc)).Select(t => t.ToString()).ToArray());
 }
 
 public partial class LinkTree<T>
@@ -194,14 +194,14 @@ public partial class Synter<K, L, N, T, Ler>
 			StrMake s = default;
 			if (t.from >= 0 && t.dump is not Dumps.Str && dump >= 2) {
 				_ = (s = new()) + (t.dump ?? t.name.ToString()) + " :";
-				foreach (var l in ler.Lexs(t.from, t.to))
-					_ = s + ' ' + l;
+				foreach (var lex in ler.Lexs((t.from, t.to)))
+					_ = s + ' ' + lex;
 				t.dump = (Dumps.Str)(string)s;
 				s.s.Clear();
 			}
-			return (ler as LexierBuf<K>)?.LineCol(t.from, t.to) is var (fl, fc, tl, tc)
-				? t.Dumper((s.s != null ? s : new()) + fl + '.' + fc + ':' + tl + '.' + tc, Dumper)
-				: t.Dumper(s, Dumper);
+			return t.Dumper((ler as LexierBuf<K>)?.LineCol((t.from, t.to)) is var (l, c)
+				? (s.s != null ? s : new()) + l.on + '.' + c.on + ':' + l.via + '.' + c.via
+				: s, Dumper);
 		}
 		return d.ToString();
 	}

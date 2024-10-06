@@ -419,13 +419,13 @@ public class Earley<K, L, N, T, Ler>
 	{
 		return dump <= 0 || dump == 1 && !leaf ? null :
 			(dump <= 2 ? m.a.hint ?? m.a.name.ToString() : m.a.ToString())
-				+ $" :: {Dump(ler.Lexs(m.from, m.to))}";
+				+ $" :: {Dump(ler.Lexs((m.from, m.to)))}";
 	}
 	public string Dump(object d)
 	{
 		if (d is T t)
-			return (ler as LexierBuf<K>)?.LineCol(t.from, t.to) is var (fl, fc, tl, tc)
-				? t.Dumper($"{fl}.{fc}", $"{tl}.{tc}") : t.ToString();
+			return (ler as LexierBuf<K>)?.LineCol((t.from, t.to)) is var (l, c)
+				? t.Dumper($"{l.on}.{c.on}", $"{l.via}.{c.via}") : t.ToString();
 		return dumper?.Invoke(d) ?? Esc(d);
 	}
 
@@ -525,7 +525,7 @@ public class Earley<K, L, N, T, Ler>
 		// \ prod ...
 		var prods = top.Where(t => t.name == "prod");
 		var names = prods.ToDictionary(
-			p => p.head.dump = meta.ler.Lexs(p.head.from, p.head.to),
+			p => p.head.dump = meta.ler.Lexs((p.head.from, p.head.to)),
 			p => new Prod { name = Name(p.head.dump) }
 		);
 
@@ -539,7 +539,7 @@ public class Earley<K, L, N, T, Ler>
 						: gram[t.from] == '*' ? [Any] : gram[t.from] == '+' ? [More]
 						: ler.Keys(MetaStr.Unesc(gram, t.from, t.to)).Cast<object>()
 					// for word, search product names first, then lexer keys
-					: names.TryGetValue(t.dump = meta.ler.Lexs(t.from, t.to), out Prod p)
+					: names.TryGetValue(t.dump = meta.ler.Lexs((t.from, t.to)), out Prod p)
 						? [p] : ler.Keys(t.dump).Cast<object>())
 					.Append(null)
 					.ToArray();
@@ -564,7 +564,7 @@ public class Earley<K, L, N, T, Ler>
 					if (h.name == "hintr") r = h;
 					if (h.name == "hintd") d = h;
 					if (h.name == "hintw") { // apply hints
-						var w = meta.ler.Lexs(h.from, h.to);
+						var w = meta.ler.Lexs((h.from, h.to));
 						for (; ax <= x; ax++) {
 							var a = As[ax];
 							a.prior = pr; a.greedy = g; a.synt = st; a.lex = l; a.errExpect = e;

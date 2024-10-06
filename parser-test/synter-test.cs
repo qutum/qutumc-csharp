@@ -37,7 +37,7 @@ static class Extension
 				Fail($"Expected Error <{aim}> Actual <{test.Replace("\n", "  ")}>");
 		}
 		else if (d != null) AreEqual(d,
-			d is string && s.t.err == 0 ? s.s.ler.Lexs(s.t.from, s.t.to) : s.t.info);
+			d is string && s.t.err == 0 ? s.s.ler.Lexs((s.t.from, s.t.to)) : s.t.info);
 		return s;
 	}
 
