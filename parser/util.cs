@@ -411,25 +411,25 @@ public class IndWriter(TextWriter output) : StringWriter, IDisposable
 	{
 		base.Flush();
 		foreach (var cs in GetStringBuilder().GetChunks()) {
-			int f = 0, t = 0;
-			while (t >= 0 && f < cs.Length) {
-				t = cs.Span[f..].IndexOfAny('\n', '\r');
-				if (t != 0) {
+			int x = 0, z = 0;
+			while (z >= 0 && x < cs.Length) {
+				z = cs.Span[x..].IndexOfAny('\n', '\r');
+				if (z != 0) {
 					if (lineStart) {
-						for (var x = 0; x < indents.Count; x++)
-							if (indents[x].ind?.Length > 0)
-								Print(indents[x].ind.AsMemory());
-						for (var x = 0; x < indents.Count; x++)
-							if (indents[x].ind2 != null)
-								indents[x] = (indents[x].ind2, null);
+						for (var y = 0; y < indents.Count; y++)
+							if (indents[y].ind?.Length > 0)
+								Print(indents[y].ind.AsMemory());
+						for (var y = 0; y < indents.Count; y++)
+							if (indents[y].ind2 != null)
+								indents[y] = (indents[y].ind2, null);
 					}
 					lineStart = false;
-					Print(t < 0 ? cs[f..] : cs.Slice(f, t));
+					Print(z < 0 ? cs[x..] : cs.Slice(x, z));
 				}
-				lineStart = t >= 0 && cs.Span[f + t] == '\n';
+				lineStart = z >= 0 && cs.Span[x + z] == '\n';
 				if (lineStart)
-					Print(cs.Slice(f + t, 1));
-				f += t + 1;
+					Print(cs.Slice(x + z, 1));
+				x += z + 1;
 			}
 		}
 		Print();

@@ -203,8 +203,8 @@ public partial class Lexier<K> : LexierBuf<K> where K : struct
 		if (errs != null) errs.Add(l); else Add(l);
 	}
 
-	// eor, read to excluded loc
-	protected virtual void Eor(int to) { }
+	// eor, read via exclusive loc
+	protected virtual void Eor(int via) { }
 }
 
 public abstract class LexierBuf<K> : LexerSeg<K, Lexi<K>> where K : struct

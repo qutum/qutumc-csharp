@@ -203,7 +203,7 @@ public class Earley<K, L, N, T, Ler>
 				foreach (var alt in p.alts)
 					back = Add(alt, (lexz, lexz), 0, x, -1) | back;
 			if (((int)m.a.s[m.step].q & 1) == 0)
-				back = Add(m.a, m.j, m.step + 1, x, -3) | back; // m.to == loc
+				back = Add(m.a, m.j, m.step + 1, x, -3) | back; // m.j.via == loc
 		}
 		return back;
 	}
@@ -218,7 +218,7 @@ public class Earley<K, L, N, T, Ler>
 						px < py; px++) {
 					var pm = matchs[px];
 					if (pm.a.s[pm.step].p is Prod p && Eq.Equals(p.name, m.a.name))
-						back = Add(pm.a, pm.j, pm.step + 1, px, x) | back; // pm.to <= loc
+						back = Add(pm.a, pm.j, pm.step + 1, px, x) | back; // pm.j.via <= loc
 				}
 		}
 		return back;
@@ -235,7 +235,7 @@ public class Earley<K, L, N, T, Ler>
 		for (int x = lexm[lexz], y = lexm[++lexz]; x < y; x++) {
 			var m = matchs[x];
 			if (m.a.s[m.step].p is K k && ler.Is(k))
-				Add(m.a, m.j, m.step + 1, // m.to < loc
+				Add(m.a, m.j, m.step + 1, // m.j.via < loc
 					m.tail != -2 || m.a.lex ? x : m.prev, -2);
 		}
 		return matchz - lexm[lexz];
