@@ -1,6 +1,6 @@
 <!--
-Copyright 2008-2024 Qianyan Cai  
-Under the terms of the GNU General Public License version 3  
+Copyright 2008-2025 Qianyan Cai
+Under the terms of the Creative Commons BY-SA 4.0 http://creativecommons.org/licenses/by-sa/4.0/deed.en
 http://qutum.com  http://qutum.cn
 -->
 
