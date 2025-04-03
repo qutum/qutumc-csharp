@@ -18,9 +18,9 @@ public enum Syn : Nord
 	__ = default,
 	qutum,
 	// block serie
-	Block, block, nest, jsqu,
+	Block, block, nook, jsqu,
 	// inside block
-	sen, with, nestr, nests, Junc, junc, jbin, Jsqu, jpost,
+	sen, with, nookr, nooks, Junc, junc, jbin, Jsqu, jpost,
 	// expression
 	exp, phr, inp, squ,
 }
@@ -38,13 +38,13 @@ public partial class Synter : Synter<L, S, Synt, Lexier>
 		.n(S.qutum)._[S.Block].synt
 		.n(S.Block)._[S.block]._[[]]
 		.n(S.block)._[S.sen, S.with, S.Block].syntRight.label("block")
-		.n(S.nest).__[S.sen, S.with, S.nest].syntRight._[[]]
+		.n(S.nook).__[S.sen, S.with, S.nook].syntRight._[[]]
 		.n(S.jsqu).__[S.Jsqu, S.with, S.Block].syntRight.asName(S.block)
 
 		.n(S.sen, "sentence")._[S.exp, L.EOL].recover
-		.n(S.with).__[S.nestr, S.nests, S.Junc]
-		.n(S.nestr)._[L.INDR, S.nest, L.DEDR].synt._[[]] // rightmost nestings
-		.n(S.nests)._[L.IND, S.nest, L.DED]._[[]]
+		.n(S.with).__[S.nookr, S.nooks, S.Junc]
+		.n(S.nookr)._[L.INDR, S.nook, L.DEDR].synt._[[]] // rightmost nooks
+		.n(S.nooks)._[L.IND, S.nook, L.DED]._[[]]
 		.n(S.Junc).__[S.junc, S.Junc]._[[]]
 
 		.n(S.junc)

@@ -108,7 +108,7 @@ file static class Extension
 
 	public static Ser e(this Ser s, int err = -1) => n(s, err: err);
 
-	public static Ser nr(this Ser s) => s.n(S.nestr);
+	public static Ser nr(this Ser s) => s.n(S.nookr);
 	public static Ser j(this Ser s, object d = null, Jov<Dec?> j = default, int err = 0)
 		=> s.n(S.junc, d, j, err).h(S.block);
 }
@@ -132,7 +132,7 @@ public class TestSynter : IDisposable
 			env.WriteLine(ser.ler.Dumper(false));
 		return (t.Dump(ser.Dumper), ser);
 	}
-	public const S B = S.block, N = S.nest, J = S.junc, E = S.exp, P = S.phr, I = S.inp;
+	public const S B = S.block, N = S.nook, J = S.junc, E = S.exp, P = S.phr, I = S.inp;
 
 	[TestMethod]
 	public void Block()
@@ -196,7 +196,7 @@ public class TestSynter : IDisposable
 	}
 
 	[TestMethod]
-	public void NestBlock()
+	public void NookBlock()
 	{
 		var t = Parse("""
 			1
@@ -227,7 +227,7 @@ public class TestSynter : IDisposable
 	}
 
 	[TestMethod]
-	public void NestJunc()
+	public void NookJunc()
 	{
 		var t = Parse("""
 			1
@@ -264,7 +264,7 @@ public class TestSynter : IDisposable
 	}
 
 	[TestMethod]
-	public void NestRecover()
+	public void NookRecover()
 	{
 		var t = Parse("""
 			1
@@ -294,7 +294,7 @@ public class TestSynter : IDisposable
 	}
 
 	[TestMethod]
-	public void NestRight()
+	public void NookRight()
 	{
 		var t = Parse("""
 			1
@@ -322,7 +322,7 @@ public class TestSynter : IDisposable
 	}
 
 	[TestMethod]
-	public void NestRightJunc()
+	public void NookRightJunc()
 	{
 		var t = Parse("""
 			1
