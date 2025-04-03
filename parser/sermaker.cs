@@ -32,7 +32,7 @@ public partial class SynGram<K, N>
 							// solve and index as same as previous one: ~actual alt index
 		public bool rec; // whether recover this alt for error, after main lex if any
 		public sbyte synt; // make synt: as synter: 0, omit: -1, make: 1, lift left: 2, lift right: 3
-		public N syntN; // synt name: not default, same as name: default
+		public N asName; // as name: not default, same as name: default
 		public string label;
 	}
 	public readonly struct Con
@@ -78,7 +78,7 @@ public partial class SynGram<K, N>
 	public SynGram<K, N> syntLeft { get { prods[^1][^1].synt = 2; return this; } }
 	public SynGram<K, N> syntRight { get { prods[^1][^1].synt = 3; return this; } }
 	public SynGram<K, N> syntOmit { get { prods[^1][^1].synt = -1; return this; } }
-	public SynGram<K, N> syntName(N n) { prods[^1][^1].syntN = n; return this; }
+	public SynGram<K, N> asName(N n) { prods[^1][^1].asName = n; return this; }
 	public SynGram<K, N> recover { get { prods[^1][^1].rec = true; return this; } }
 	public SynGram<K, N> label(string w) { prods[^1][^1].label = w.ToString(); return this; }
 	public SynGram<K, N> labelNo { get { prods[^1][^1].label = null; return this; } }
@@ -343,7 +343,7 @@ public partial class SerMaker<K, N>
 				name = a.name, size = checked((short)a.Count), lex = a.lex,
 #pragma warning disable CS8974 // Converting method group to non-delegate type
 				synt = a.synt, label = a.label, dump = a.ToString,
-				syntN = EqualityComparer<N>.Default.Equals(a.syntN, default) ? a.name : a.syntN,
+				syntName = EqualityComparer<N>.Default.Equals(a.asName, default) ? a.name : a.asName,
 				// final key index in recovery keys
 				rec = (sbyte)(a.rec ? Key(a[^1].k, recKs) : 0),
 			};

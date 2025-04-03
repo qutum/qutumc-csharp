@@ -373,13 +373,14 @@ public class TestSynter : IDisposable
 	[TestMethod]
 	public void Prefix()
 	{
-		var t = Parse(@"1- -2");
+		var t = Parse(@"1- -+2");
 		t = t/**/	.h(B).H(P, (L.INT, 1));
 		t = t/**/		.n(E, L.SUB);
-		t = t/**/			.h(E, L.NEGA).H(P, (L.INT, 2)).uuuuU();
-		t = Parse(@"1--2");
+		t = t/**/			.h(E, L.NEGA).h(E, L.POSI).H(P, (L.INT, 2)).uuuuuU();
+		t = Parse(@"1--+2");
 		t = t/**/	.h(B).H(P, (L.INT, 1));
-		t = t/**/		.n(I).h(E, L.NOTB).H(P, (L.INT, 2)).uuuu();
+		t = t/**/		.n(I);
+		t = t/**/			.h(E, L.NOTB).h(E, L.POSI).H(P, (L.INT, 2)).uu().uuu();
 		t = t/**/.e(-3).H(null, L.NOTB, (1.2, 1.4), -3).uU();
 	}
 

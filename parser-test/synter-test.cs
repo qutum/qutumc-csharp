@@ -97,7 +97,7 @@ public class TestSynter : IDisposable
 			size = (short)(a.Length - 2),
 			lex = (short)(a.IndexOfAny(keys, 2) - 2),
 			synt = a[1] switch { '+' => 1, '-' => -1, _ => 0 },
-			syntN = a[0..1],
+			syntName = a[0..1],
 		}).ToArray();
 		var Fs = new SynForm[forms.Length];
 		foreach (var (f, fx) in forms.Each())

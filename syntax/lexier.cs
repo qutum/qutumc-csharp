@@ -112,14 +112,14 @@ public enum Lex : int
 	// literal
 	STR = Phr | Kind | LIT << 8 | 1, STRB, NAME, HEX, INT, FLOAT,
 	// logical
-	OR = BinK | BIN3 << 8 | 1, XOR, AND,
+	OR = Bin | Kind | BIN3 << 8 | 1, XOR, AND,
 	// comparison
-	EQ = BinK | BIN4 << 8 | 1, UEQ, LEQ, GEQ, LT, GT,
+	EQ = Bin | Kind | BIN4 << 8 | 1, UEQ, LEQ, GEQ, LT, GT,
 	// arithmetic
-	ADD = BinK | BIN53 << 8 | 1, SUB,
-	MUL = BinK | BIN57 << 8 | 1, DIV, MOD, DIVF, MODF,
+	ADD = Bin | Kind | BIN53 << 8 | 1, SUB,
+	MUL = Bin | Kind | BIN57 << 8 | 1, DIV, MOD, DIVF, MODF,
 	// bitwise
-	SHL = BinK | BIN67 << 8 | 1, SHR, ANDB,
+	SHL = Bin | Kind | BIN67 << 8 | 1, SHR, ANDB,
 	// prefix: logical, arithmetic, bitwise
 	NOT = Proem | Kind | PRE << 8 | 1, POSI, NEGA, NOTB,
 	// postfix
@@ -134,7 +134,6 @@ public enum Lex : int
 	Bin    /**/= 0x_08_0000 | Junct, // binary
 	Blank  /**/= 0x_80_0000, // blank
 	Kind   /**/= 0x800_0000, // kind 8<<24
-	BinK   /**/= Bin | Kind, // binary kind
 }
 
 // lexic parser

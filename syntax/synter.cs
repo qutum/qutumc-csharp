@@ -9,8 +9,8 @@ using System;
 
 namespace qutum.syntax;
 
-using Nord = ushort;
 using L = Lex;
+using Nord = ushort;
 using S = Syn;
 
 public enum Syn : Nord
@@ -39,7 +39,7 @@ public partial class Synter : Synter<L, S, Synt, Lexier>
 		.n(S.Block)._[S.block]._[[]]
 		.n(S.block)._[S.sen, S.with, S.Block].syntRight.label("block")
 		.n(S.nest).__[S.sen, S.with, S.nest].syntRight._[[]]
-		.n(S.jsqu).__[S.Jsqu, S.with, S.Block].syntRight.syntName(S.block)
+		.n(S.jsqu).__[S.Jsqu, S.with, S.Block].syntRight.asName(S.block)
 
 		.n(S.sen, "sentence")._[S.exp, L.EOL].recover
 		.n(S.with).__[S.nestr, S.nests, S.Junc]
@@ -72,18 +72,18 @@ public partial class Synter : Synter<L, S, Synt, Lexier>
 				[L.PRE, .., S.exp].clash.synt.label("prefix operator")
 				[S.phr].clash
 		.n(S.phr) // phrase
-				[S.inp].clash
-				[S.squ].clash
 				[S.exp, L.POST, ..].clash.syntLeft.label("postfix operator")
+				[S.exp, S.squ].clash // postfix square
 				[L.LIT, ..].clash.synt.label("literal")
-				[L.LP, .., S.exp, L.RP].clash.recover.label("parenth") // main lex for recovery
-				[S.exp, S.squ].clash
-		.n(S.squ)
-				[L.LSB, .., S.exp, L.RSB].clash.recover.synt.label("square bracket") // main lex for recovery
+				[S.inp].clash
 		.n(S.inp)
-				[S.exp, S.exp].clash.syntLeft // higher than others for left associative
+				[S.exp, S.exp].clash.syntLeft // higher for left associative
 		.n(S.phr)
 				[S.phr, L.POSTD, ..].clash.syntLeft.label("high postfix operator")
+				[L.LP, .., S.exp, L.RP].clash.recover.label("parenth") // main lex for recovery
+				[S.squ].clash
+		.n(S.squ)
+				[L.LSB, .., S.exp, L.RSB].clash.recover.synt.label("square bracket") // main lex for recovery
 		;
 		// make
 		var m = new SerMaker<L, S>(gram, LexIs.Ordin, NameOrd);
