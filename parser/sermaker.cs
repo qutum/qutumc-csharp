@@ -160,6 +160,7 @@ public partial class SerMaker<K, N>
 		)>
 	{
 	}
+	[System.Diagnostics.CodeAnalysis.SuppressMessage("CodeQuality", "IDE0079:Remove unnecessary suppression")]
 	[System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2231:Overload operator equals")]
 	public struct Clash
 	{

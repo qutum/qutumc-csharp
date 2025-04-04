@@ -382,6 +382,7 @@ public class EnvWriter : IndWriter, IDisposable
 	}
 	protected override void Print() { base.Print(); if (Debugger.IsAttached) Debug.Flush(); }
 
+	[System.Diagnostics.CodeAnalysis.SuppressMessage("CodeQuality", "IDE0079:Remove unnecessary suppression")]
 	[System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability", "SYSLIB1054")]
 	[DllImport("kernel32.dll", SetLastError = false)]
 	static extern uint GetConsoleProcessList(uint[] procs, uint n);
