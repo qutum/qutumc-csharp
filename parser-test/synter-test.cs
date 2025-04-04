@@ -4,7 +4,6 @@
 // Under the terms of the GNU General Public License version 3
 // http://qutum.com  http://qutum.cn
 //
-#pragma warning disable IDE0059 // Unnecessary assignment
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using qutum.parser;
 using System;
@@ -15,20 +14,18 @@ namespace qutum.test.parser;
 
 using Kord = char;
 using Nord = ushort;
-using Ser = (SyntStr t, SynterStr s);
 
-static class Extension
+public readonly struct Ser(SyntStr t, SynterStr s)
 {
 	[System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE0305:Simplify collection initialization")]
-	public static Ser Eq(this Ser s,
-		string name = null, object d = null, Jov<int?> j = default, int err = 0)
+	public readonly Ser Eq(string name = null, object d = null, Jov<int?> j = default, int err = 0)
 	{
-		AreNotEqual(null, s.t);
-		AreEqual(err, s.t.err);
-		if (name != null) AreEqual(name, s.t.name);
-		if (j.on != null) AreEqual(j.on, s.t.j.on);
-		if (j.via != null) AreEqual(j.via, s.t.j.via);
-		if (err != 0 && d is string aim && s.t.info?.ToString() is string test) {
+		AreNotEqual(null, t);
+		AreEqual(err, t.err);
+		if (name != null) AreEqual(name, t.name);
+		if (j.on != null) AreEqual(j.on, t.j.on);
+		if (j.via != null) AreEqual(j.via, t.j.via);
+		if (err != 0 && d is string aim && t.info?.ToString() is string test) {
 			var ts = test.Split(SerMaker<char, string>.ErrMore);
 			var As = aim.Split("  ");
 			if ((As.Length < 3 ? ts.Length != As.Length : ts.Length < As.Length)
@@ -37,48 +34,32 @@ static class Extension
 				Fail($"Expected Error <{aim}> Actual <{test.Replace("\n", "  ")}>");
 		}
 		else if (d != null) AreEqual(d,
-			d is string && s.t.err == 0 ? s.s.ler.Lexs(s.t.j) : s.t.info);
-		return s;
+			d is string && t.err == 0 ? s.ler.Lexs(t.j) : t.info);
+		return this;
 	}
 
-	public static Ser h(this Ser s,
-		string name = null, object d = null, Jov<int?> j = default, int err = 0)
-		=> (s.t.head, s.s).Eq(name, d, j, err).Vine();
-	public static Ser t(this Ser s,
-		string name = null, object d = null, Jov<int?> j = default, int err = 0)
-		=> (s.t.tail, s.s).Eq(name, d, j, err).Vine();
-	public static Ser n(this Ser s,
-		string name = null, object d = null, Jov<int?> j = default, int err = 0)
-		=> (s.t.next, s.s).Eq(name, d, j, err).Vine();
-	public static Ser p(this Ser s,
-		string name = null, object d = null, Jov<int?> j = default, int err = 0)
-		=> (s.t.prev, s.s).Eq(name, d, j, err).Vine();
+	public Ser h(string name = null, object d = null, Jov<int?> j = default, int err = 0)
+		=> new Ser(t.head, s).Eq(name, d, j, err).Vine;
+	public Ser n(string name = null, object d = null, Jov<int?> j = default, int err = 0)
+		=> new Ser(t.next, s).Eq(name, d, j, err).Vine;
 
-	public static Ser H(this Ser s,
-		string name = null, object d = null, Jov<int?> j = default, int err = 0)
-		=> (s.t.head, s.s).Eq(name, d, j, err).Leaf();
-	public static Ser T(this Ser s,
-		string name = null, object d = null, Jov<int?> j = default, int err = 0)
-		=> (s.t.tail, s.s).Eq(name, d, j, err).Leaf();
-	public static Ser N(this Ser s,
-		string name = null, object d = null, Jov<int?> j = default, int err = 0)
-		=> (s.t.next, s.s).Eq(name, d, j, err).Leaf();
-	public static Ser P(this Ser s,
-		string name = null, object d = null, Jov<int?> j = default, int err = 0)
-		=> (s.t.prev, s.s).Eq(name, d, j, err).Leaf();
+	public Ser H(string name = null, object d = null, Jov<int?> j = default, int err = 0)
+		=> new Ser(t.head, s).Eq(name, d, j, err).Leaf;
+	public Ser N(string name = null, object d = null, Jov<int?> j = default, int err = 0)
+		=> new Ser(t.next, s).Eq(name, d, j, err).Leaf;
 
-	public static Ser Vine(this Ser s) { AreNotEqual(null, s.t.head); return s; }
-	public static Ser Leaf(this Ser s) { AreEqual(null, s.t.head); return s; }
-	public static Ser u(this Ser s) { AreEqual(null, s.t.next); AreNotEqual(null, s.t.up); return (s.t.up, s.s); }
-	public static Ser U(this Ser s) { AreEqual(null, s.t.next); AreEqual(null, s.t.up); return (s.t.up, s.s); }
-	public static Ser uu(this Ser s) => u(u(s));
-	public static Ser uU(this Ser s) => U(u(s));
-	public static Ser uuu(this Ser s) => u(u(u(s)));
-	public static Ser uuU(this Ser s) => U(u(u(s)));
-	public static Ser uuuu(this Ser s) => u(u(u(u(s))));
-	public static Ser uuuU(this Ser s) => U(u(u(u(s))));
-	public static Ser uuuuU(this Ser s) => U(u(u(u(u(s)))));
-	public static Ser uuuuuU(this Ser s) => U(u(u(u(u(u(s))))));
+	public readonly Ser Vine { get { AreNotEqual(null, t.head); return this; } }
+	public readonly Ser Leaf { get { AreEqual(null, t.head); return this; } }
+	public Ser u { get { AreEqual(null, t.next); AreNotEqual(null, t.up); return new Ser(t.up, s); } }
+	public Ser U { get { AreEqual(null, t.next); AreEqual(null, t.up); return new Ser(t.up, s); } }
+	public Ser uu => u.u;
+	public Ser uU => u.U;
+	public Ser uuu => u.u.u;
+	public Ser uuU => u.u.U;
+	public Ser uuuu => u.u.u.u;
+	public Ser uuuU => u.u.u.U;
+	public Ser uuuuU => u.u.u.u.U;
+	public Ser uuuuuU => u.u.u.u.u.U;
 }
 
 [TestClass]
@@ -90,7 +71,7 @@ public class TestSynter : IDisposable
 
 	internal SynterStr ser;
 
-	public void NewSer(string Alts, Kord[] keys, Nord[] names, (short[] goKs, short[] goNs)[] forms)
+	void NewSer(string Alts, Kord[] keys, Nord[] names, (short[] goKs, short[] goNs)[] forms)
 	{
 		var alts = Alts.Split('\n', ' ').Select(a => new SynAlt<string> {
 			name = a[0..1],
@@ -110,14 +91,13 @@ public class TestSynter : IDisposable
 			}
 		ser = new(name => name[0], alts, Fs) { dump = 3 };
 	}
-	public static short _ = -1;
-	public static short r0 = R(0), r1 = R(1), r2 = R(2), r3 = R(3), r4 = R(4),
-						r5 = R(5), r6 = R(6), r7 = R(7), r8 = R(8), r9 = R(9);
-	public static short R(int alt) => SynForm.Redu(alt);
+	const short _ = -1;
+	static readonly short r0 = R(0), r1 = R(1), r2 = R(2), r3 = R(3), r4 = R(4), r5 = R(5);
+	static short R(int alt) => SynForm.Redu(alt);
 
 	public void True(string read) => IsTrue(Begin(read).Check());
 	public void False(string read) => IsFalse(Begin(read).Check());
-	public Ser Parse(string read) => (Begin(read).Parse().Dump(), ser);
+	public Ser Parse(string read) => new(Begin(read).Parse().Dump(), ser);
 
 	private SynterStr Begin(string read)
 	{
@@ -146,11 +126,11 @@ public class TestSynter : IDisposable
 		False(""); False("c"); False("+");
 		False("ab"); False("a+"); False("+b");
 		False("a+b+"); False("+a+b"); False("a++b");
-		var t = Parse("a+b+a");
-		t = t/**/.Eq("S", j: (0, 5)).h("E");
-		t = t/**/				.H("T", 'a', (0, 1));
-		t = t/**/				.n("E", '+', (2, 5)).H("T", 'b', (2, 3));
-		t = t/**/									.n("E").H("T", 'a', (4, 5)).uuuuU();
+		var _ = Parse("a+b+a");
+		_ = _/**/.Eq("S", j: (0, 5)).h("E");
+		_ = _/**/				.H("T", 'a', (0, 1));
+		_ = _/**/				.n("E", '+', (2, 5)).H("T", 'b', (2, 3));
+		_ = _/**/									.n("E").H("T", 'a', (4, 5)).uuuuU;
 	}
 
 	[TestMethod]
@@ -182,11 +162,11 @@ public class TestSynter : IDisposable
 		False("*a="); False("a*="); False("=*b"); False("=b*");
 		False("a*=*b"); False("*b=a*"); False("*a*=b");
 		False("a==b"); False("*a==*b");
-		var t = Parse("**a");
-		t = t/**/.Eq("Z", j: (0, 3)).h("V", '*').h("V", '*').H("V", 'a').uuuU();
-		t = Parse("**b=***a").Eq("Z", j: (0, 8));
-		t = t/**/.h("S", '=').h("V", '*').h("V", '*').H("V", 'b').uu();
-		t = t/**/				.n("V", '*').h("V", '*').h("V", '*').H("V", 'a').uuuuuU();
+		var _ = Parse("**a");
+		_ = _/**/.Eq("Z", j: (0, 3)).h("V", '*').h("V", '*').H("V", 'a').uuuU;
+		_ = Parse("**b=***a").Eq("Z", j: (0, 8));
+		_ = _/**/.h("S", '=').h("V", '*').h("V", '*').H("V", 'b').uu;
+		_ = _/**/				.n("V", '*').h("V", '*').h("V", '*').H("V", 'a').uuuuuU;
 	}
 
 	[TestMethod]
@@ -219,18 +199,18 @@ public class TestSynter : IDisposable
 		False("(a"); False("b)"); False("a,"); False(",b");
 		False("(a,b))"); False("((a)"); False("(b,)");
 		False("((a,b)"); False("((a,(b,a)),b");
-		var t = Parse("((a,b),((a,(b,a)),b),(a,b))").Eq("Z", j: (0, 27));
-		t = t/**/.h("S", '(').h("L", ',');
-		t = t/**/	.h("L", ',').h("S", '(', (1, 6));
-		t = t/**/						.h("L", ',').H("S", 'a').N("S", 'b').uu();
-		t = t/**/			.n("S", '(', (7, 20));
-		t = t/**/				.h("L", ',').h("S", '(', (8, 17));
-		t = t/**/									.h("L", ',').H("S", 'a');
-		t = t/**/										.n("S", '(', (11, 16)).h("L", ',');
-		t = t/**/											.H("S", 'b').N("S", 'a').uuuu();
-		t = t/**/								.N("S", 'b').uuu();
-		t = t/**/	.n("S", '(', (21, 26)).h("L", ',');
-		t = t/**/						.H("S", 'a').N("S", 'b').uuuuuU();
+		var _ = Parse("((a,b),((a,(b,a)),b),(a,b))").Eq("Z", j: (0, 27));
+		_ = _/**/.h("S", '(').h("L", ',');
+		_ = _/**/	.h("L", ',').h("S", '(', (1, 6));
+		_ = _/**/						.h("L", ',').H("S", 'a').N("S", 'b').uu;
+		_ = _/**/			.n("S", '(', (7, 20));
+		_ = _/**/				.h("L", ',').h("S", '(', (8, 17));
+		_ = _/**/									.h("L", ',').H("S", 'a');
+		_ = _/**/										.n("S", '(', (11, 16)).h("L", ',');
+		_ = _/**/											.H("S", 'b').N("S", 'a').uuuu;
+		_ = _/**/								.N("S", 'b').uuu;
+		_ = _/**/	.n("S", '(', (21, 26)).h("L", ',');
+		_ = _/**/						.H("S", 'a').N("S", 'b').uuuuuU;
 	}
 
 	[TestMethod]
@@ -257,24 +237,24 @@ public class TestSynter : IDisposable
 		True("iiiaebec"); True("iiaeibec"); True("iiaebeic");
 		True("iaeiibec"); True("iaeibeic");
 		True("iiiaebecea"); True("iiaeibecea"); True("iaeiibecea"); True("iaeibeiaec");
-		var t = Parse("iiiaebec");
-		t = t/**/.h(d: 'i').h(d: 'i').h(d: 'i');
-		t = t/**/						.H(d: 'a').N(d: 'b').u();
-		t = t/**/					.N(d: 'c').uuuU();
-		t = Parse("iiaebeic");
-		t = t/**/.h(d: 'i').h(d: 'i');
-		t = t/**/				.H(d: 'a').N(d: 'b').u();
-		t = t/**/			.n(d: 'i').H(d: 'c').uuuU();
-		t = Parse("iiaeibecea");
-		t = t/**/.h(d: 'i').h(d: 'i');
-		t = t/**/				.H(d: 'a').n(d: 'i');
-		t = t/**/					.H(d: 'b').N(d: 'c').uu();
-		t = t/**/			.N(d: 'a').uuU();
-		t = Parse("iaeiibecea");
-		t = t/**/.h(d: 'i').H(d: 'a');
-		t = t/**/			.n(d: 'i').h(d: 'i');
-		t = t/**/						.H(d: 'b').N(d: 'c').u();
-		t = t/**/					.N(d: 'a').uuuU();
+		var _ = Parse("iiiaebec");
+		_ = _/**/.h(d: 'i').h(d: 'i').h(d: 'i');
+		_ = _/**/						.H(d: 'a').N(d: 'b').u;
+		_ = _/**/					.N(d: 'c').uuuU;
+		_ = Parse("iiaebeic");
+		_ = _/**/.h(d: 'i').h(d: 'i');
+		_ = _/**/				.H(d: 'a').N(d: 'b').u;
+		_ = _/**/			.n(d: 'i').H(d: 'c').uuuU;
+		_ = Parse("iiaeibecea");
+		_ = _/**/.h(d: 'i').h(d: 'i');
+		_ = _/**/				.H(d: 'a').n(d: 'i');
+		_ = _/**/					.H(d: 'b').N(d: 'c').uu;
+		_ = _/**/			.N(d: 'a').uuU;
+		_ = Parse("iaeiibecea");
+		_ = _/**/.h(d: 'i').H(d: 'a');
+		_ = _/**/			.n(d: 'i').h(d: 'i');
+		_ = _/**/						.H(d: 'b').N(d: 'c').u;
+		_ = _/**/					.N(d: 'a').uuuU;
 	}
 
 	[TestMethod]
@@ -304,12 +284,12 @@ public class TestSynter : IDisposable
 		True("(a)+(a*a)"); True("(b*(b))*b"); True("a+((b*a+b)*b)");
 		False("+"); False("a+"); False("*b"); False("a++b");
 		False("(b)a"); False("a*((b"); False("b+a)"); False("(a*)+b");
-		var t = Parse("a+b*((b*a+b)*b)");
-		t = t/**/.Eq(d: '+').H(d: 'a');
-		t = t/**/		.n("E", '*', (2, 15)).H(d: 'b');
-		t = t/**/						.n("E", '*', (5, 14)).h("E", '+', (6, 11));
-		t = t/**/												.h(d: '*').H(d: 'b').N(d: 'a').u();
-		t = t/**/												.N(d: 'b').u();
-		t = t/**/											.N(d: 'b').uuuU();
+		var _ = Parse("a+b*((b*a+b)*b)");
+		_ = _/**/.Eq(d: '+').H(d: 'a');
+		_ = _/**/		.n("E", '*', (2, 15)).H(d: 'b');
+		_ = _/**/						.n("E", '*', (5, 14)).h("E", '+', (6, 11));
+		_ = _/**/												.h(d: '*').H(d: 'b').N(d: 'a').u;
+		_ = _/**/												.N(d: 'b').u;
+		_ = _/**/											.N(d: 'b').uuuU;
 	}
 }

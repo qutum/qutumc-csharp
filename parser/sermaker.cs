@@ -52,7 +52,7 @@ public partial class SynGram<K, N>
 		prods.Add(new(name, label, labelYes)); return this;
 	}
 
-	// K : lexic key, N : syntax name, .. : last is main lex
+	// K : lexic key, N : syntax name, .. : previous is main lex
 	public SynGram<K, N> this[params object[] cons] {
 		get {
 			var p = prods[^1];
@@ -84,10 +84,10 @@ public partial class SynGram<K, N>
 	public SynGram<K, N> labelNo { get { prods[^1][^1].label = null; return this; } }
 	public SynGram<K, N> labelYes { get { prods[^1][^1].label = prods[^1].label; return this; } }
 	// for sourcecode format
-	public SynGram<K, N> _ { get => this; }
-	public SynGram<K, N> __ { get => this; }
-	public SynGram<K, N> ___ { get => this; }
-	public SynGram<K, N> ____ { get => this; }
+	public SynGram<K, N> _ => this;
+	public SynGram<K, N> __ => this;
+	public SynGram<K, N> ___ => this;
+	public SynGram<K, N> ____ => this;
 }
 
 // syntax parser maker

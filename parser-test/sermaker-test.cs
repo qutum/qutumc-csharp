@@ -4,7 +4,6 @@
 // Under the terms of the GNU General Public License version 3
 // http://qutum.com  http://qutum.cn
 //
-#pragma warning disable IDE0059 // Unnecessary assignment
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using qutum.parser;
 using System;
@@ -436,7 +435,7 @@ public class TestSerMaker : IDisposable
 			.n("B")['b', ..].synt
 		);
 		NewSer(); ser.ser.synt = false;
-		ser.Parse("ab").Eq("A", 'a').Leaf().N("B", 'b').U();
+		_ = ser.Parse("ab").Eq("A", 'a').Leaf.N("B", 'b').U;
 	}
 
 	[TestMethod]
@@ -455,24 +454,24 @@ public class TestSerMaker : IDisposable
 			.n("N")['1', ..]['2', ..]
 		);
 		NewSer();
-		var t = ser.Parse("a+1").Eq("S");
-		t = t/**/	.H("W", 'a');
-		t = t/**/	.n("E", '+').H("N", '1').uuU();
-		t = ser.Parse("a+1-b");
-		t = t/**/	.H("W", 'a');
-		t = t/**/	.n("E", '+').H("N", '1').u();
-		t = t/**/	.n("E", '-').H("W", 'b').uuU();
-		t = ser.Parse("2*b-b+1/a");
-		t = t/**/	.H("N", '2');
-		t = t/**/	.n("E", '*').H("W", 'b').u();
-		t = t/**/	.n("E", '-').H("W", 'b').u();
-		t = t/**/	.n("E", '+').H("N", '1').n("E", '/').H("W", 'a').uuuU();
-		t = ser.Parse("1+#a#1#b*2");
-		t = t/**/.H("N", '1').n("E", '+');
-		t = t/**/					.h("E", '#').H("W", 'a').u();
-		t = t/**/					.n("E", '#').H("N", '1').u();
-		t = t/**/					.n("E", '#').H("W", 'b').u();
-		t = t/**/					.n("E", '*').H("N", '2').uuuU();
+		var _ = ser.Parse("a+1").Eq("S");
+		_ = _/**/	.H("W", 'a');
+		_ = _/**/	.n("E", '+').H("N", '1').uuU;
+		_ = ser.Parse("a+1-b");
+		_ = _/**/	.H("W", 'a');
+		_ = _/**/	.n("E", '+').H("N", '1').u;
+		_ = _/**/	.n("E", '-').H("W", 'b').uuU;
+		_ = ser.Parse("2*b-b+1/a");
+		_ = _/**/	.H("N", '2');
+		_ = _/**/	.n("E", '*').H("W", 'b').u;
+		_ = _/**/	.n("E", '-').H("W", 'b').u;
+		_ = _/**/	.n("E", '+').H("N", '1').n("E", '/').H("W", 'a').uuuU;
+		_ = ser.Parse("1+#a#1#b*2");
+		_ = _/**/.H("N", '1').n("E", '+');
+		_ = _/**/					.h("E", '#').H("W", 'a').u;
+		_ = _/**/					.n("E", '#').H("N", '1').u;
+		_ = _/**/					.n("E", '#').H("W", 'b').u;
+		_ = _/**/					.n("E", '*').H("N", '2').uuuU;
 	}
 
 	[TestMethod]
@@ -483,7 +482,7 @@ public class TestSerMaker : IDisposable
 			.n("S")['a', ..]["S"].clash
 		);
 		NewSer();
-		ser.Parse("aa").Eq(err: -1).h(null, "cyclic grammar", (0, 1), -2).uU();
+		_ = ser.Parse("aa").Eq(err: -1).h(null, "cyclic grammar", (0, 1), -2).uU;
 	}
 
 	[TestMethod]
@@ -491,13 +490,13 @@ public class TestSerMaker : IDisposable
 	{
 		NewMer(new Gram().n("S")['a']);
 		NewSer();
-		ser.Parse("").H(null, "S a", (0, 0), -1).uU();
-		ser.Parse("b").H(null, "S a", (0, 1), -1).uU();
+		_ = ser.Parse("").H(null, "S a", (0, 0), -1).uU;
+		_ = ser.Parse("b").H(null, "S a", (0, 1), -1).uU;
 		NewMer(new Gram().n("Z")["S"].n("S")['a']['b']);
 		NewSer();
-		ser.Parse("").H(null, "Z S", (0, 0), -1).uU();
-		ser.Parse("c").H(null, "Z S", (0, 1), -1).uU();
-		ser.Parse("aa").H(null, "end of", (1, 2), -1).uU();
+		_ = ser.Parse("").H(null, "Z S", (0, 0), -1).uU;
+		_ = ser.Parse("c").H(null, "Z S", (0, 1), -1).uU;
+		_ = ser.Parse("aa").H(null, "end of", (1, 2), -1).uU;
 	}
 
 	[TestMethod]
@@ -514,20 +513,20 @@ public class TestSerMaker : IDisposable
 			.n("B")["E", '-', .., "E"].clash.label("subtraction")
 		);
 		NewSer();
-		ser.Parse("aa").H(null, "sentence ;", (1, 2), -1).uU();
-		ser.Parse("-a").H(null, "sentence expression  sentence sentence", (0, 1), -1).uU();
-		ser.Parse("a+").H(null, "addition expression", (2, 2), -1).uU();
-		ser.Parse("a++a").H(null, "addition expression", (2, 3), -1).uU();
-		ser.Parse("a+a--a").H(null, "subtraction expression", (4, 5), -1).uU();
-		ser.Parse(")").H(null, "sentence expression  sentence sentence", (0, 1), -1).uU();
-		ser.Parse("a)").H(null, "sentence ;", (1, 2), -1).uU();
-		ser.Parse("(a))").H(null, "sentence ;", (3, 4), -1).uU();
-		ser.Parse("(").H(null, "parenth expression", (1, 1), -1).uU();
-		ser.Parse("(a").H(null, "parenth )", (2, 2), -1).uU();
-		ser.Parse("(a;").H(null, "parenth )", (2, 3), -1).uU();
-		ser.Parse(";a").H(null, "sentence expression  sentence sentence", (0, 1), -1).uU();
-		ser.Parse("a;;").H(null, "sentence expression", (2, 3), -1).uU();
-		ser.Parse("(a;a)").H(null, "parenth )", (2, 3), -1).uU();
+		_ = ser.Parse("aa").H(null, "sentence ;", (1, 2), -1).uU;
+		_ = ser.Parse("-a").H(null, "sentence expression  sentence sentence", (0, 1), -1).uU;
+		_ = ser.Parse("a+").H(null, "addition expression", (2, 2), -1).uU;
+		_ = ser.Parse("a++a").H(null, "addition expression", (2, 3), -1).uU;
+		_ = ser.Parse("a+a--a").H(null, "subtraction expression", (4, 5), -1).uU;
+		_ = ser.Parse(")").H(null, "sentence expression  sentence sentence", (0, 1), -1).uU;
+		_ = ser.Parse("a)").H(null, "sentence ;", (1, 2), -1).uU;
+		_ = ser.Parse("(a))").H(null, "sentence ;", (3, 4), -1).uU;
+		_ = ser.Parse("(").H(null, "parenth expression", (1, 1), -1).uU;
+		_ = ser.Parse("(a").H(null, "parenth )", (2, 2), -1).uU;
+		_ = ser.Parse("(a;").H(null, "parenth )", (2, 3), -1).uU;
+		_ = ser.Parse(";a").H(null, "sentence expression  sentence sentence", (0, 1), -1).uU;
+		_ = ser.Parse("a;;").H(null, "sentence expression", (2, 3), -1).uU;
+		_ = ser.Parse("(a;a)").H(null, "parenth )", (2, 3), -1).uU;
 	}
 
 	[TestMethod]
@@ -539,19 +538,19 @@ public class TestSerMaker : IDisposable
 		);
 		NewSer(true);
 		ser.True("a;"); ser.True("b;a;"); ser.False("a;a");
-		ser.Parse("").H(null, "sen exp", (0, 0), -1).uU();
-		ser.Parse(";").H("S", "sen exp", (0, 1), 1).u();
-		var t = ser.Parse("aa").Eq("Z");
-		t = t/**/	.h("S", "sen ;", (0, 2), 1).H("E", 'a', (0, 1)).uu();
-		t = t/**/.n(err: -1).H(null, "sen ;", (1, 2), -1).uU();
-		t = ser.Parse("a;;b;;").Eq("Z");
-		t = t/**/	.H("S", "5:6! end of", (0, 6), 1).u();
-		t = t/**/.n(err: -1).H(null, "sen sen", (2, 3), -1);
-		t = t/**/			.N(null, "end of", (3, 4), -1).N(null, "end of", (5, 6), -1).uU();
-		t = ser.Parse(";;b;;").Eq("Z");
-		t = t/**/	.H("S", "4:5! end of", (0, 5), 1).u();
-		t = t/**/.n(err: -1).H(null, "sen exp", (0, 1), -1).N(null, "end of", (1, 2), -1);
-		t = t/**/			.N(null, "end of", (2, 3), -1).N(null, "end of", (4, 5), -1).uU();
+		var _ = ser.Parse("").H(null, "sen exp", (0, 0), -1).uU;
+		_ = ser.Parse(";").H("S", "sen exp", (0, 1), 1).u;
+		_ = ser.Parse("aa").Eq("Z");
+		_ = _/**/	.h("S", "sen ;", (0, 2), 1).H("E", 'a', (0, 1)).uu;
+		_ = _/**/.n(err: -1).H(null, "sen ;", (1, 2), -1).uU;
+		_ = ser.Parse("a;;b;;").Eq("Z");
+		_ = _/**/	.H("S", "5:6! end of", (0, 6), 1).u;
+		_ = _/**/.n(err: -1).H(null, "sen sen", (2, 3), -1);
+		_ = _/**/			.N(null, "end of", (3, 4), -1).N(null, "end of", (5, 6), -1).uU;
+		_ = ser.Parse(";;b;;").Eq("Z");
+		_ = _/**/	.H("S", "4:5! end of", (0, 5), 1).u;
+		_ = _/**/.n(err: -1).H(null, "sen exp", (0, 1), -1).N(null, "end of", (1, 2), -1);
+		_ = _/**/			.N(null, "end of", (2, 3), -1).N(null, "end of", (4, 5), -1).uU;
 	}
 
 	[TestMethod]
@@ -562,25 +561,25 @@ public class TestSerMaker : IDisposable
 			.n("E", "exp")['a', ..]['b', ..]
 		);
 		NewSer(true);
-		ser.Parse("a;").h("S").H("E", 'a').uuU();
-		ser.Parse("a;b;").h("S").h("S").H("E", 'a').u().N("E", 'b').uuU();
-		ser.Parse("").H(null, "sen exp  sen sen", (0, 0), -1).uU();
-		ser.Parse(";").H("S", "sen exp  sen sen", (0, 1), 1).u();
-		var t = ser.Parse("aa").Eq("Z");
-		t = t/**/	.h("S", "sen ;", (0, 2), 1).H("E", 'a', (0, 1)).uu();
-		t = t/**/.n(err: -1).H(null, "sen ;", (1, 2), -1).uU();
-		t = ser.Parse("a;b").Eq("Z");
-		t = t/**/	.h("S", "sen ;", (0, 3), 1).h("S", j: (0, 2)).H("E", 'a', (0, 1)).u();
-		t = t/**/								.N("E", 'b', (2, 3)).uu();
-		t = t/**/.n(err: -1).H(null, "sen ;", (3, 3), -1).uU();
-		t = ser.Parse(";;a;;").Eq("Z");
-		t = t/**/	.h("S", "4:5! sen exp", (0, 5), 1);
-		t = t/**/		.h("S", j: (0, 4)).h("S", "1:2! sen exp", (0, 2), 1);
-		t = t/**/						.H("S", "0:1! sen exp  sen sen", (0, 1), 1).u();
-		t = t/**/					.N("E", 'a', (2, 3)).uuu();
-		t = t/**/.n(err: -1).H(null, "sen exp  sen sen", (0, 1), -1);
-		t = t/**/			.N(null, "sen exp", (1, 2), -1);
-		t = t/**/			.N(null, "sen exp", (4, 5), -1).uU();
+		var _ = ser.Parse("a;").h("S").H("E", 'a').uuU;
+		_ = ser.Parse("a;b;").h("S").h("S").H("E", 'a').u.N("E", 'b').uuU;
+		_ = ser.Parse("").H(null, "sen exp  sen sen", (0, 0), -1).uU;
+		_ = ser.Parse(";").H("S", "sen exp  sen sen", (0, 1), 1).u;
+		_ = ser.Parse("aa").Eq("Z");
+		_ = _/**/	.h("S", "sen ;", (0, 2), 1).H("E", 'a', (0, 1)).uu;
+		_ = _/**/.n(err: -1).H(null, "sen ;", (1, 2), -1).uU;
+		_ = ser.Parse("a;b").Eq("Z");
+		_ = _/**/	.h("S", "sen ;", (0, 3), 1).h("S", j: (0, 2)).H("E", 'a', (0, 1)).u;
+		_ = _/**/								.N("E", 'b', (2, 3)).uu;
+		_ = _/**/.n(err: -1).H(null, "sen ;", (3, 3), -1).uU;
+		_ = ser.Parse(";;a;;").Eq("Z");
+		_ = _/**/	.h("S", "4:5! sen exp", (0, 5), 1);
+		_ = _/**/		.h("S", j: (0, 4)).h("S", "1:2! sen exp", (0, 2), 1);
+		_ = _/**/						.H("S", "0:1! sen exp  sen sen", (0, 1), 1).u;
+		_ = _/**/					.N("E", 'a', (2, 3)).uuu;
+		_ = _/**/.n(err: -1).H(null, "sen exp  sen sen", (0, 1), -1);
+		_ = _/**/			.N(null, "sen exp", (1, 2), -1);
+		_ = _/**/			.N(null, "sen exp", (4, 5), -1).uU;
 	}
 
 	void DoRecover3()
@@ -603,44 +602,44 @@ public class TestSerMaker : IDisposable
 		DoRecover3();
 		ser.True("a;"); ser.True("a;b;"); ser.True("a;b;a;");
 		ser.True("(a);"); ser.True("{a*b;}"); ser.True("{a;b;}"); ser.True("({a;b;});");
-		var t = ser.Parse("a+b){;b;");
-		t = t/**/	.h("S").h("S", "sen ;", (0, 6), 1);
-		t = t/**/				.h("E", '+', (0, 3)).H(d: 'a').N(d: 'b').uu();
-		t = t/**/			.N("E", 'b', (6, 7)).uu();
-		t = t/**/.n(err: -1).H(null, "sen ;", (3, 4), -1).uU();
-		t = ser.Parse("(a*b;");
-		t = t/**/	.h("S").h("E", "par )", (0, 4), 1);
-		t = t/**/				.h("E", '*', (1, 4)).H(d: 'a').N(d: 'b').uuuu();
-		t = t/**/.n(err: -1).H(null, "par )", (4, 4), -1).uU();
-		t = ser.Parse("{a*b;");
-		t = t/**/	.h("S", j: (1, 5)).h("E", '*', j: (1, 4)).H(d: 'a').N(d: 'b').uu();
-		t = t/**/	.N("B", "blo }  sen exp", (0, 5), 1).u();
-		t = t/**/.n(err: -1).H(null, "blo }  sen exp", (5, 5), -1).uU();
+		var _ = ser.Parse("a+b){;b;");
+		_ = _/**/	.h("S").h("S", "sen ;", (0, 6), 1);
+		_ = _/**/				.h("E", '+', (0, 3)).H(d: 'a').N(d: 'b').uu;
+		_ = _/**/			.N("E", 'b', (6, 7)).uu;
+		_ = _/**/.n(err: -1).H(null, "sen ;", (3, 4), -1).uU;
+		_ = ser.Parse("(a*b;");
+		_ = _/**/	.h("S").h("E", "par )", (0, 4), 1);
+		_ = _/**/				.h("E", '*', (1, 4)).H(d: 'a').N(d: 'b').uuuu;
+		_ = _/**/.n(err: -1).H(null, "par )", (4, 4), -1).uU;
+		_ = ser.Parse("{a*b;");
+		_ = _/**/	.h("S", j: (1, 5)).h("E", '*', j: (1, 4)).H(d: 'a').N(d: 'b').uu;
+		_ = _/**/	.N("B", "blo }  sen exp", (0, 5), 1).u;
+		_ = _/**/.n(err: -1).H(null, "blo }  sen exp", (5, 5), -1).uU;
 	}
 
 	[TestMethod]
 	public void Recover4()
 	{
 		DoRecover3();
-		var t = ser.Parse("{(a*b;");
-		t = t/**/	.h("S").h("E", "par )", (1, 5), 1);
-		t = t/**/				.h("E", '*', (2, 5)).H(d: 'a').N(d: 'b').uuu();
-		t = t/**/	.N("B", "blo }  sen exp", (0, 6), 1).u();
-		t = t/**/.n(err: -1).H(null, "par )", (5, 5), -1).N(null, "blo }  sen exp", (6, 6), -1).uU();
-		t = ser.Parse("({b;");
-		t = t/**/	.h("S", "sen ;", (0, 4), 1).h("E", "plo )", (0, 4), 1);
-		t = t/**/								.h("S", j: (2, 4)).H("E", 'b').u();
-		t = t/**/								.N("B", "blo }  sen exp", (1, 4), 1).uuu();
-		t = t/**/.n(err: -1).H(null, "blo }  sen exp", (4, 4), -1).N(null, "plo )", (4, 4), -1);
-		t = t/**/			.N(null, "sen ;", (4, 4), -1).uU();
-		t = ser.Parse("{({b");
-		t = t/**/	.h("S", "sen ;", (1, 4), 1).h("E", "plo )", (1, 4), 1);
-		t = t/**/								.h("S", "sen ;", (3, 4), 1).H("E", 'b', (3, 4)).u();
-		t = t/**/								.N("B", "blo }  sen exp", (2, 4), 1).uu();
-		t = t/**/	.N("B", "blo }  sen exp", (0, 4), 1).u();
-		t = t/**/.n(err: -1).H(null, "sen ;", (4, 4), -1).N(null, "blo }  sen exp", (4, 4), -1);
-		t = t/**/			.N(null, "plo )", (4, 4), -1).N(null, "sen ;", (4, 4), -1);
-		t = t/**/			.N(null, "blo }  sen exp", (4, 4), -1).uU();
+		var _ = ser.Parse("{(a*b;");
+		_ = _/**/	.h("S").h("E", "par )", (1, 5), 1);
+		_ = _/**/				.h("E", '*', (2, 5)).H(d: 'a').N(d: 'b').uuu;
+		_ = _/**/	.N("B", "blo }  sen exp", (0, 6), 1).u;
+		_ = _/**/.n(err: -1).H(null, "par )", (5, 5), -1).N(null, "blo }  sen exp", (6, 6), -1).uU;
+		_ = ser.Parse("({b;");
+		_ = _/**/	.h("S", "sen ;", (0, 4), 1).h("E", "plo )", (0, 4), 1);
+		_ = _/**/								.h("S", j: (2, 4)).H("E", 'b').u;
+		_ = _/**/								.N("B", "blo }  sen exp", (1, 4), 1).uuu;
+		_ = _/**/.n(err: -1).H(null, "blo }  sen exp", (4, 4), -1).N(null, "plo )", (4, 4), -1);
+		_ = _/**/			.N(null, "sen ;", (4, 4), -1).uU;
+		_ = ser.Parse("{({b");
+		_ = _/**/	.h("S", "sen ;", (1, 4), 1).h("E", "plo )", (1, 4), 1);
+		_ = _/**/								.h("S", "sen ;", (3, 4), 1).H("E", 'b', (3, 4)).u;
+		_ = _/**/								.N("B", "blo }  sen exp", (2, 4), 1).uu;
+		_ = _/**/	.N("B", "blo }  sen exp", (0, 4), 1).u;
+		_ = _/**/.n(err: -1).H(null, "sen ;", (4, 4), -1).N(null, "blo }  sen exp", (4, 4), -1);
+		_ = _/**/			.N(null, "plo )", (4, 4), -1).N(null, "sen ;", (4, 4), -1);
+		_ = _/**/			.N(null, "blo }  sen exp", (4, 4), -1).uU;
 	}
 
 	[TestMethod]
@@ -649,49 +648,49 @@ public class TestSerMaker : IDisposable
 		var z = SerMaker<char, string>.ErrZ; SerMaker<char, string>.ErrZ = 2;
 		DoRecover3();
 		SerMaker<char, string>.ErrZ = z;
-		ser.Parse("+;").H("S", "sen blo  sen exp ...", (0, 2), 1).u();
-		ser.Parse("*b;").H("S", "sen blo  sen exp ...", (0, 3), 1).u();
-		var t = ser.Parse("a+;").Eq("Z");
-		t = t/**/	.h("S", "add exp", (0, 3), 1).H("E", 'a', (0, 1)).uu();
-		t = t/**/.n(err: -1).H(null, "add exp", (2, 3), -1).uU();
-		t = ser.Parse("*+;a+;");
-		t = t/**/	.h("S", "add exp", (0, 6), 1).H("S", "sen blo  sen exp ...", (0, 3), 1);
-		t = t/**/								.N("E", 'a', (3, 4)).uu();
-		t = t/**/.n(err: -1).H(null, "sen blo  sen exp ...", (0, 1), -1).N(null, "add exp", (5, 6), -1).uU();
-		t = ser.Parse("a+b;a*;+b;");
-		t = t/**/	.h("S", "sen exp", (0, 10), 1).h("S", "mul exp", (0, 7), 1);
-		t = t/**/									.h("S", j: (0, 4)).h("E", "a+b", (0, 3)).u();
-		t = t/**/									.N(d: 'a').uuu();
-		t = t/**/.n(err: -1).H(null, "mul exp", (6, 7), -1).N(null, "sen exp", (7, 8), -1).uU();
-		t = ser.Parse("a+b*a+");
-		t = t/**/	.h("S", "add exp", (0, 6), 1).h("E", '+', (0, 5)).H("E", 'a', (0, 1));
-		t = t/**/											.n(d: '*').H(d: 'b').N(d: 'a').uuuu();
-		t = t/**/.n(err: -1).H(null, "add exp", (6, 6), -1).uU();
+		var _ = ser.Parse("+;").H("S", "sen blo  sen exp ...", (0, 2), 1).u;
+		_ = ser.Parse("*b;").H("S", "sen blo  sen exp ...", (0, 3), 1).u;
+		_ = ser.Parse("a+;").Eq("Z");
+		_ = _/**/	.h("S", "add exp", (0, 3), 1).H("E", 'a', (0, 1)).uu;
+		_ = _/**/.n(err: -1).H(null, "add exp", (2, 3), -1).uU;
+		_ = ser.Parse("*+;a+;");
+		_ = _/**/	.h("S", "add exp", (0, 6), 1).H("S", "sen blo  sen exp ...", (0, 3), 1);
+		_ = _/**/								.N("E", 'a', (3, 4)).uu;
+		_ = _/**/.n(err: -1).H(null, "sen blo  sen exp ...", (0, 1), -1).N(null, "add exp", (5, 6), -1).uU;
+		_ = ser.Parse("a+b;a*;+b;");
+		_ = _/**/	.h("S", "sen exp", (0, 10), 1).h("S", "mul exp", (0, 7), 1);
+		_ = _/**/									.h("S", j: (0, 4)).h("E", "a+b", (0, 3)).u;
+		_ = _/**/									.N(d: 'a').uuu;
+		_ = _/**/.n(err: -1).H(null, "mul exp", (6, 7), -1).N(null, "sen exp", (7, 8), -1).uU;
+		_ = ser.Parse("a+b*a+");
+		_ = _/**/	.h("S", "add exp", (0, 6), 1).h("E", '+', (0, 5)).H("E", 'a', (0, 1));
+		_ = _/**/											.n(d: '*').H(d: 'b').N(d: 'a').uuuu;
+		_ = _/**/.n(err: -1).H(null, "add exp", (6, 6), -1).uU;
 	}
 
 	[TestMethod]
 	public void Recover6()
 	{
 		DoRecover3();
-		var t = ser.Parse("()}");
-		t = t/**/	.h("S", "sen ;", (0, 3), 1).H("E", "plo blo  par exp", (0, 2), 1).uu();
-		t = t/**/.n(err: -1).H(null, "plo blo  par exp", (1, 2), -1).N(null, "sen ;", (2, 3), -1).uU();
-		t = ser.Parse("b+();a;");
-		t = t/**/	.h("S").h("S").h(d: '+').H(d: 'b').N("E", "plo blo  par exp", (2, 4), 1).uu();
-		t = t/**/			.N("E", 'a', (5, 6)).uu();
-		t = t/**/.n(err: -1).H(null, "plo blo  par exp", (3, 4), -1).uU();
-		t = ser.Parse("a;b+(a*);b{");
-		t = t/**/	.h("S", "sen ;", (0, 11), 1);
-		t = t/**/		.h("S").h("S").H(d: 'a').u();
-		t = t/**/				.n(d: '+').H(d: 'b').n("E", "mul exp", (4, 8), 1).H(d: 'a').uuu();
-		t = t/**/		.N("E", 'b', (9, 10)).uu();
-		t = t/**/.n(err: -1).H(null, "mul exp", (7, 8), -1).N(null, "sen ;", (10, 11), -1).uU();
-		t = ser.Parse("a;b+(a*)b;a+;");
-		t = t/**/	.h("S", "add exp", (0, 13), 1);
-		t = t/**/		.h("S", "sen ;", (0, 10), 1).h("S").H(d: 'a').u();
-		t = t/**/					.n(d: '+').H(d: 'b').n("E", "mul exp", (4, 8), 1).H(d: 'a').uuu();
-		t = t/**/		.N("E", 'a', (10, 11)).uu();
-		t = t/**/.n(err: -1).H(null, "mul exp", (7, 8), -1).N(null, "sen ;", (8, 9), -1);
-		t = t/**/			.N(null, "add exp", (12, 13), -1).uU();
+		var _ = ser.Parse("()}");
+		_ = _/**/	.h("S", "sen ;", (0, 3), 1).H("E", "plo blo  par exp", (0, 2), 1).uu;
+		_ = _/**/.n(err: -1).H(null, "plo blo  par exp", (1, 2), -1).N(null, "sen ;", (2, 3), -1).uU;
+		_ = ser.Parse("b+();a;");
+		_ = _/**/	.h("S").h("S").h(d: '+').H(d: 'b').N("E", "plo blo  par exp", (2, 4), 1).uu;
+		_ = _/**/			.N("E", 'a', (5, 6)).uu;
+		_ = _/**/.n(err: -1).H(null, "plo blo  par exp", (3, 4), -1).uU;
+		_ = ser.Parse("a;b+(a*);b{");
+		_ = _/**/	.h("S", "sen ;", (0, 11), 1);
+		_ = _/**/		.h("S").h("S").H(d: 'a').u;
+		_ = _/**/				.n(d: '+').H(d: 'b').n("E", "mul exp", (4, 8), 1).H(d: 'a').uuu;
+		_ = _/**/		.N("E", 'b', (9, 10)).uu;
+		_ = _/**/.n(err: -1).H(null, "mul exp", (7, 8), -1).N(null, "sen ;", (10, 11), -1).uU;
+		_ = ser.Parse("a;b+(a*)b;a+;");
+		_ = _/**/	.h("S", "add exp", (0, 13), 1);
+		_ = _/**/		.h("S", "sen ;", (0, 10), 1).h("S").H(d: 'a').u;
+		_ = _/**/					.n(d: '+').H(d: 'b').n("E", "mul exp", (4, 8), 1).H(d: 'a').uuu;
+		_ = _/**/		.N("E", 'a', (10, 11)).uu;
+		_ = _/**/.n(err: -1).H(null, "mul exp", (7, 8), -1).N(null, "sen ;", (8, 9), -1);
+		_ = _/**/			.N(null, "add exp", (12, 13), -1).uU;
 	}
 }
