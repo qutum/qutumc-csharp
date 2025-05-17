@@ -392,13 +392,14 @@ public class TestSynter : IDisposable
 		_ = _/**/			.N(P, (L.RUN, "d"));
 		_ = _/**/			.n(E, L.DIV).H(P, (L.INT, 5));
 		_ = _/**/						.n(I).H(P, (L.NAME, "c")).N(P, L.RUN).uuuuuU;
-		_ = Parse(@"0 << a 1 * 2 3. 4 .d / 5 c .");
+		_ = Parse(@"0 << a 1 * 2 3. 4 .d.e 6 / 5 c .");
 		_ = _/**/	.h(B).H(P, (L.INT, "0"));
 		_ = _/**/		.n(E, L.SHL).H(P, (L.NAME, "a")).n(I).H(P, (L.INT, 1)).uu;
 		_ = _/**/		.n(E, L.MUL).H(P, (L.INT, 2));
 		_ = _/**/					.n(I).H(P, (L.INT, 3)).N(P, (L.RUND, "")).u;
 		_ = _/**/					.n(I).H(P, (L.INT, 4)).u;
-		_ = _/**/					.N(P, L.RUN).u;
+		_ = _/**/					.N(P, (L.RUN, "d")).N(P, (L.RUND, "e"));
+		_ = _/**/					.n(I).H(P, (L.INT, 6)).uu;
 		_ = _/**/		.n(E, L.DIV).H(P, (L.INT, 5)).n(I).H(P, (L.NAME, "c")).u;
 		_ = _/**/					.N(P, L.RUN).uuuU;
 		_ = Parse(@"0 << a,1 * 2 3. 4 .d / 5 c .");
