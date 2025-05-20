@@ -291,6 +291,7 @@ public partial class Lexier<K>
 			if (grammar.prods.Count < 1)
 				throw new("No product");
 			var begin = new Unit(ler);
+			var aus = new Unit[grammar.prods.Max(p => p.Count) + 1][];
 			// build prod
 			foreach (var prod in grammar.prods) {
 				var k = prod.key;
@@ -314,19 +315,17 @@ public partial class Lexier<K>
 					else // no backward cross wads
 						{ u.go = begin; u.mode = -3; }
 				}
-				Unit[] aus = null;
 				// build wad
 				foreach (var (w, wad) in prod.Each(1)) {
-					var u = wus[wad];
 					// build alt
-					var Aus = w.Select((a, alt) => {
+					aus[wad] = w.Select((a, alt) => {
 						++alt;
 						var bz = a.Sum(b => b.str.Length + (b.one.Length > 0 ? 1 : 0));
 						if (a.Count == 0 ? alt > 1 : bz == 0)
 							throw new($"No byte in {k}.{wad}.{alt}");
 						if (bz > AltByteN)
 							throw new($"{k}.{wad}.{alt} exceeds {AltByteN} bytes");
-						u = wus[wad];
+						var u = wus[wad];
 						var ok = !a.loop ? wus[wad + 1] // go for match
 							: wad > 1 ? u : throw new($"Can not loop first wad {k}.1.{alt}");
 						var dup = w.redo ? u : begin; // error for repeat
@@ -340,13 +339,16 @@ public partial class Lexier<K>
 						}
 						return u; // the last unit of this alt
 					}).Where(u => u.next != null).ToArray();
-					if (aus != null) {
-						u = wus[wad];
-						for (int x = 0; x <= 128; x++)
-							if (u.next[x] != null && aus.Any(au => au.next[x] != null))
-								throw new($"{k}.{wad} and {k}.{wad - 1} clash over dup");
-					}
-					aus = Aus;
+					var u = wus[wad];
+					if (aus[wad - 1] != null)
+						for (int x = 0; x <= 128; x++) {
+							if (u.next[x] == null) continue;
+							for (int y = wad - 1; aus[y] != null; y--)
+								if (aus[y].Any(au => au.next[x] != null))
+									throw new($"{k}.{wad} and {k}.{y} clash over dup");
+						}
+					if (w[0].Count > 0)
+						aus[wad - 1] = null;
 				};
 			}
 			if (dump) Dump(begin, "");

@@ -279,6 +279,7 @@ public class TestLexier : IDisposable
 	{
 		Throw(() => NewLer("A=[ab]+ [bc]"), "A.2 and A.1 .*dup");
 		Throw(() => NewLer("A=a[ab]+|b[bc]+ b"), "A.2 and A.1 .*dup");
+		Throw(() => NewLer("A=a+ |b a"), "A.3 and A.1 .*dup");
 	}
 
 	[TestMethod]
