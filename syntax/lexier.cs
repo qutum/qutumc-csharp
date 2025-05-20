@@ -7,6 +7,7 @@
 using qutum.parser;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
 namespace qutum.syntax;
@@ -106,11 +107,11 @@ public enum Lex : int
 	RP = Phr | LSB + 1 & 255, RCB, RSB,
 	// singles of blank group
 	EOL = Blank | RSB + 1 & 255, IND, INDR, DED, DEDR, INDJ,
-	SP, COM, COMB, PATH, NUM,
+	SP, COM, COMB, PATH, DEC, HEX,
 
 	// inside kinds
 	// literal
-	STR = Phr | Kind | LIT << 8 | 1, STRB, NAME, HEX, INT, FLOAT,
+	STR = Phr | Kind | LIT << 8 | 1, STRB, NAME, INT, FLOAT,
 	// logical
 	OR = Bin | Kind | BIN3 << 8 | 1, XOR, AND,
 	// comparison
@@ -162,12 +163,12 @@ public sealed partial class Lexier : LexierBuf<L>
 				.w[[]][" ", ..].loop["\t", ..].loop
 
 		.k(L.COM).w["##"] // ##  |[\A^\n]+
-					.w[[]][Set.All.Exc("\n"), ..]
+				.w[[]][Set.All.Exc("\n"), ..]
 		.k(L.COMB).w["\\", .., "#"] // \\+#  +#\\+|+#|+[\A^#]+
-					.w["#", "\\", ..].loop["#"].loop[Set.All.Exc("#"), ..].loop
+				.w["#", "\\", ..].loop["#"].loop[Set.All.Exc("#"), ..].loop
 
 		.k(L.STRB).w["\\", .., "\""] // \\+"  +"\\+|+"|+[\A^"]+
-					.w["\"", "\\", ..].loop["\""].loop[Set.All.Exc("\""), ..].loop
+				.w["\"", "\\", ..].loop["\""].loop[Set.All.Exc("\""), ..].loop
 		.k(L.STR).w["\""] // "  *"|\n|\r\n|+[\L^"\\]+|+\\[0tnr".`\\]|+\\x\x\x|+\\u\x\x\x\x
 				.redo["\"\n".One()]["\r\n"]
 					[Set.Line.Exc("\"\\"), ..].loop
@@ -182,12 +183,16 @@ public sealed partial class Lexier : LexierBuf<L>
 
 		.k(L.NAME).w[Set.Alpha.Inc("_")][Set.Alpha.Inc("_"), Set.Word, ..] // [\a_]\w*
 		.k(L.RUN).w["."] // .|.[\a_]\w*
-						[".", Set.Alpha.Inc("_")][".", Set.Alpha.Inc("_"), Set.Word, ..]
+					[".", Set.Alpha.Inc("_")][".", Set.Alpha.Inc("_"), Set.Word, ..]
 
-		.k(L.HEX).w["0x"]["0X"] // 0[xX]  _*\x  |+_*\x+
+		.k(L.HEX).w["0x"]["0X"] // 0[xX]  _*\x+  |+_*\x+  |.\x+  |+_+\x+  |[pP][\+\-]?\d+|[xX][\+\-]?\x+
 				.w[Set.Hex]["_", .., Set.Hex]
 				.w[[]][Set.Hex, ..].loop["_", .., Set.Hex, ..].loop
-		.k(L.NUM) // 0|[1-9]  |+_*\d+  |.\d+  |+_+\d+  |[eE][\+\-]?\d+  |[fF]
+				.w[[]][".", Set.Hex, ..]
+				.w[[]]["_", .., Set.Hex, ..].loop
+				.w[[]]["pP".One(), Set.Dec, ..]["pP".One(), "+-".One(), Set.Dec, ..]
+					["xX".One(), Set.Hex, ..]["xX".One(), "+-".One(), Set.Hex, ..]
+		.k(L.DEC) // 0|[1-9]  |+_*\d+  |.\d+  |+_+\d+  |[eE][\+\-]?\d+  |[fF]
 				.w["0"][Set.Dec.Exc("0")]
 				.w[[]][Set.Dec, ..].loop["_", .., Set.Dec, ..].loop
 				.w[[]][".", Set.Dec, ..]
@@ -457,21 +462,24 @@ internal sealed class LexierGet : Lexier<L>, Lexer<L, Lexi<L>>
 			Read(j, bz); Unesc(j);
 			return; // inside string
 
-		case L.HEX:
-			if (!end)
-				return;
-			bz = Read(lj, 0);
-			k = L.INT; d = Hex(); // as INT
-			break;
-
-		case L.NUM:
+		case L.DEC:
 			if (wad == 2) ni = lj.size; // end of integer wad
 			else if (wad == 4) nf = lj.size; // end of fraction wad
 			else if (wad == 5) ne = lj.size; // end of exponent wad
 			if (!end)
 				return;
 			bz = Read(lj, 0);
-			d = Num(ref k);
+			d = Dec(ref k);
+			break;
+
+		case L.HEX:
+			if (wad == 3) ni = lj.size; // end of integer wad
+			else if (wad == 5) nf = lj.size; // end of fraction wad
+			else if (wad == 6) ne = lj.size; // end of exponent wad
+			if (!end)
+				return;
+			bz = Read(lj, 0);
+			d = Hex(ref k);
 			break;
 
 		case L.NAME:
@@ -545,31 +553,14 @@ internal sealed class LexierGet : Lexier<L>, Lexer<L, Lexi<L>>
 			}
 	}
 
-	int Hex(int x) => (bs[x] & 15) + (bs[x] < 'A' ? 0 : 9);
-
-	object Hex()
-	{
-		uint v = 0;
-		for (int x = 2; x < bz; x++)
-			if (bs[x] != '_')
-				if (v < 0x1000_0000)
-					v = v << 4 | (uint)Hex(x);
-				else {
-					Error(L.INT, (lon, lon + bz), "hexadecimal out of range");
-					return 0;
-				}
-		return v;
-	}
-
-	object Num(ref L key)
+	object Dec(ref L key)
 	{
 		uint v = 0; int x = 0, dot = 0, e = 0;
 		if (ni == bz) {
 			key = L.INT; // as INT
 			for (; x < ni; x++)
 				if (bs[x] != '_')
-					if (v < 214748364 || v == 214748364 && bs[x] <= '8')
-						v = v * 10 + bs[x] - '0';
+					if (v < 21_4748_364 || v == 21_4748_364 && bs[x] <= '8') v = v * 10 + bs[x] - '0';
 					else {
 						Error(key, (lon, lon + ni), "integer out of range");
 						return 0;
@@ -577,39 +568,40 @@ internal sealed class LexierGet : Lexier<L>, Lexer<L, Lexi<L>>
 			return v;
 		}
 		key = L.FLOAT; // as FLOAT
+		if (bz > 65535) {
+			Error(key, (lon, lon + bz), "float out of length");
+			return 0f;
+		}
 		for (; x < ni; x++)
 			if (bs[x] != '_')
-				if (v <= 9999_9999) v = v * 10 + bs[x] - '0';
-				else {
-					dot = ni - x;
-					break;
-				}
-		if (ni < nf)
-			for (x = ni + 1; x < nf; x++)
-				if (bs[x] != '_')
-					if (v <= 9999_9999) {
-						v = v * 10 + bs[x] - '0'; dot--;
-					}
-					else
-						break;
+				if (v <= 9_9999_999) v = v * 10 + bs[x] - '0';
+				else dot++;
+		for (x = ni + 1; x < nf; x++)
+			if (bs[x] != '_')
+				if (v <= 9_9999_999) (v, dot) = (v * 10 + bs[x] - '0', dot - 1);
+				else break;
 		if (v == 0)
 			return 0f;
 		if (nf < ne) {
 			bool neg = bs[nf + 1] == '-';
 			for (x = neg || bs[nf + 1] == '+' ? nf + 1 : nf; ++x < ne;)
-				e = e * 10 + bs[x] - '0';
+				if (e <= 9_9999_999) e = e * 10 + bs[x] - '0';
+				else {
+					Error(key, (lon, lon + ne), "exponent out of range");
+					return 0f;
+				}
 			if (neg)
 				e = -e;
 		}
 		e += dot;
 		if (e <= 0)
-			return e < -54 ? 0f : e < -37 ? v / Exps[37] / Exps[-e - 37] : v / Exps[-e];
-		float w = v * Exps[e < 39 ? e : 39];
-		if (float.IsInfinity(w)) {
+			return e < -54 ? 0f : e < -38 ? v / Exps[-e - 38] / Exps[38] : v / Exps[-e];
+		float d = v * Exps[e < 39 ? e : 39];
+		if (float.IsInfinity(d)) {
 			Error(key, (lon, lon + bz), "float out of range");
 			return 0f;
 		}
-		return w;
+		return d;
 	}
 
 	static readonly float[] Exps = [
@@ -618,4 +610,62 @@ internal sealed class LexierGet : Lexier<L>, Lexer<L, Lexi<L>>
 		1e20f, 1e21f, 1e22f, 1e23f, 1e24f, 1e25f, 1e26f, 1e27f, 1e28f, 1e29f,
 		1e30f, 1e31f, 1e32f, 1e33f, 1e34f, 1e35f, 1e36f, 1e37f, 1e38f, float.PositiveInfinity,
 	];
+
+	byte Hex(int x) => (byte)((bs[x] & 15) + (bs[x] << 25 >> 31 & 9));
+
+	object Hex(ref L key)
+	{
+		uint v = 0; int x = 2, dot = 0, e = 0;
+		if (ni == bz) {
+			key = L.INT; // as INT
+			for (; x < ni; x++)
+				if (bs[x] != '_')
+					if (v <= 0xffff_fff) v = v << 4 | Hex(x);
+					else {
+						Error(key, (lon, lon + ni), "hexadecimal out of range");
+						return 0;
+					}
+			return v;
+		}
+		key = L.FLOAT; // as FLOAT
+		if (bz > 65535) {
+			Error(key, (lon, lon + bz), "float out of length");
+			return 0f;
+		}
+		for (; x < ni; x++)
+			if (bs[x] != '_')
+				if (v <= 0xffff_fff) v = v << 4 | Hex(x);
+				else dot++;
+		for (x = ni + 1; x < nf; x++)
+			if (bs[x] != '_')
+				if (v <= 0xffff_fff) (v, dot) = (v << 4 | Hex(x), dot - 1);
+				else break;
+		if (v == 0)
+			return 0f;
+		if (nf < ne) {
+			bool hex = (char)bs[nf] is 'x' or 'X';
+			bool neg = bs[nf + 1] == '-';
+			for (x = neg || bs[nf + 1] == '+' ? nf + 1 : nf; ++x < ne;)
+				if (hex ? e <= 0x6fff_fff : e <= 9_9999_999)
+					e = hex ? e << 4 | Hex(x) : e * 10 + bs[x] - '0';
+				else {
+					Error(key, (lon, lon + ni), "exponent out of range");
+					return 0f;
+				}
+			if (neg)
+				e = -e;
+		}
+		e += dot << 2;
+		if (e <= 0)
+			return e < -181 ? 0f : e < -126 ? v / Pows[-e - 126] / Pows[126] : v / Pows[-e];
+		float d = v * Pows[e < 128 ? e : 128];
+		if (float.IsInfinity(d)) {
+			Error(key, (lon, lon + bz), "float out of range");
+			return 0f;
+		}
+		return d;
+	}
+
+	static readonly float[] Pows = Enumerable.Range(0, 129)
+		.Select(x => BitConverter.Int32BitsToSingle(x + 127 << 23)).ToArray();
 }
