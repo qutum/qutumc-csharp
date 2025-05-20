@@ -23,6 +23,7 @@ public class TestLexier : IDisposable
 	public void Dispose() => env.Dispose();
 
 	readonly Lexier ler = new();
+	bool hex = false;
 
 	void Check(string read, string s)
 	{
@@ -31,7 +32,7 @@ public class TestLexier : IDisposable
 		env.WriteLine(read);
 		using var __ = ler.Begin(new LerByte(Encoding.UTF8.GetBytes(read)));
 		while (ler.Next()) ;
-		var ls = ler.Dumper();
+		var ls = ler.Dumper(true, hex);
 		env.WriteLine(ls);
 		AreEqual(s, ls);
 	}
@@ -239,7 +240,7 @@ public class TestLexier : IDisposable
 	public void Name2()
 	{
 		Check("a..", "NAME=a RUND RUND EOL");
-		Check("1.).", "INT=1 RUND RP RUND EOL");
+		Check("1._.).", "INT=1 RUND=_ RUND RP RUND EOL");
 		Check("A1.b_..c-__.__", "NAME=A1 RUND=b_ RUND RUND=c SUB NAME=__ RUND=__ EOL");
 	}
 
@@ -278,33 +279,17 @@ public class TestLexier : IDisposable
 	}
 
 	[TestMethod]
-	public void Hex1()
-	{
-		Check("0x0", "INT=0 EOL"); Check("0xF", "INT=15 EOL"); Check("0xx", "HEX!x");
-		Check("+0x0A", "POSI INT=10 EOL"); Check("-0x0A", "NEGA INT=10 EOL");
-		Check("0x_0", "INT=0 EOL"); Check("0x__0", "INT=0 EOL"); Check("0x_0_", "HEX!");
-		Check("1x1", "INT=1 NAME!literal can not densely follow literal NAME=x1 EOL");
-	}
-
-	[TestMethod]
-	public void Hex2()
-	{
-		Check("0x7fffffff", "INT=2147483647 EOL"); Check("0x80_00_00_00", "INT=2147483648 EOL");
-		Check("0xffff_fffe", "INT=4294967294 EOL"); Check("0xffff_fffe_", "HEX!");
-	}
-
-	[TestMethod]
 	public void Int1()
 	{
 		Check("0", "INT=0 EOL"); Check("0 a", "INT=0 NAME=a EOL");
 		Check("+09", "POSI INT=9 EOL"); Check("-9876", "NEGA INT=9876 EOL");
-		Check("2_", "NUM!"); Check("23__3", "INT=233 EOL");
+		Check("2_", "DEC!"); Check("23__3", "INT=233 EOL");
 	}
 
 	[TestMethod]
 	public void Int2()
 	{
-		Check("2_14_7483_648", "INT=2147483648 EOL");
+		Check("002_14_7483_648", "INT=2147483648 EOL");
 		Check("+214_7483_649", "POSI INT!integer out of range INT=0 EOL");
 	}
 
@@ -312,26 +297,30 @@ public class TestLexier : IDisposable
 	public void Float1()
 	{
 		Check("0.000f", "FLOAT=0 EOL"); Check("-0f", "NEGA FLOAT=0 EOL");
-		Check("00.0x", "FLOAT=0 NAME!literal can not densely follow literal NAME=x EOL");
-		Check("340282347999999999999999999999999999999.99999", "FLOAT=3.4028235E+38 EOL");
-		Check("340282430000000000000000000000000000000.5", "FLOAT!float out of range FLOAT=0 EOL");
-	}
-
-	[TestMethod]
-	public void Float2()
-	{
 		Check("1234.0", "FLOAT=1234 EOL"); Check("553.2", "FLOAT=553.2 EOL");
 		Check("34_8.5", "FLOAT=348.5 EOL"); Check("1.0__0", "FLOAT=1 EOL");
 		Check("1.00_0_01000000000000000000000000000000000000000000000001", "FLOAT=1.00001 EOL");
 	}
 
 	[TestMethod]
+	public void Float2()
+	{
+		Check("00.0x", "FLOAT=0 NAME!literal can not densely follow literal NAME=x EOL");
+		Check("3402823479999999999999999999999999_99999.99999", "FLOAT=3.4028235E+38 EOL");
+		Check("340282351_999999999999999999999999999999.99999", "FLOAT=3.4028235E+38 EOL");
+		Check("340282352_000000000000000000000000000000.000", "FLOAT!float out of range FLOAT=0 EOL");
+		Check("1._0", "INT=1 RUND=_0 EOL"); Check("1_.2", "DEC!. INT=2 EOL");
+	}
+
+	[TestMethod]
 	public void Float3()
 	{
+		Check("1e0", "FLOAT=1 EOL"); Check("0e+10", "FLOAT=0 EOL"); Check("0.1e-0", "FLOAT=0.1 EOL");
 		Check("1e38", "FLOAT=1E+38 EOL"); Check("1e+38", "FLOAT=1E+38 EOL");
 		Check("5e38", "FLOAT!float out of range FLOAT=0 EOL");
 		Check("1e88", "FLOAT!float out of range FLOAT=0 EOL");
-		Check("1e999999", "FLOAT!float out of range FLOAT=0 EOL");
+		Check("1e+999999999", "FLOAT!float out of range FLOAT=0 EOL");
+		Check("1e-1000000000", "FLOAT!exponent out of range FLOAT=0 EOL");
 		Check("0.0000034e44", "FLOAT=3.4E+38 EOL");
 		Check("0.0000035e44", "FLOAT!float out of range FLOAT=0 EOL");
 		Check("3402.823479E35", "FLOAT=3.4028235E+38 EOL");
@@ -341,10 +330,85 @@ public class TestLexier : IDisposable
 	public void Float4()
 	{
 		Check("1.234567891e-39", "FLOAT=1.234568E-39 EOL");
-		Check("1.999999999e-45", "FLOAT=1E-45 EOL");
-		Check("1e-46", "FLOAT=0 EOL"); Check("1e-83787", "FLOAT=0 EOL");
-		Check("0.0000000000000000000000000000000000000000000000000034e89f", "FLOAT=3.4E+38 EOL");
-		Check("0.0000000000000000000000000000000000000000000000000034e90f", "FLOAT!float out of range FLOAT=0 EOL");
+		Check("0.700649249e-45", "FLOAT=1E-45 EOL"); Check("0.700649248999e-45", "FLOAT=0 EOL");
+		Check("7.006492490e-46", "FLOAT=1E-45 EOL"); Check("7.006492489999e-46", "FLOAT=0 EOL");
+		Check("1e-83787", "FLOAT=0 EOL");
+		Check("0.000000000000000000000000000000000000000034e79f", "FLOAT=3.4E+38 EOL");
+		Check("0.000000000000000000000000000000000000000034e80f", "FLOAT!float out of range FLOAT=0 EOL");
+		Check("9_9999_9999e-54", "FLOAT=1E-45 EOL");
+		Check("9_9999_9999e-55", "FLOAT=0 EOL");
+	}
+
+	[TestMethod]
+	public void Hex1()
+	{
+		Check("0x0", "INT=0 EOL"); Check("0xF", "INT=15 EOL"); Check("0xx", "HEX!x");
+		Check("+0x0A", "POSI INT=10 EOL"); Check("-0x0A", "NEGA INT=10 EOL");
+		Check("0x_1", "INT=1 EOL"); Check("0x__a", "INT=10 EOL"); Check("0x_2_", "HEX!");
+		Check("1x1", "INT=1 NAME!literal can not densely follow literal NAME=x1 EOL");
+	}
+
+	[TestMethod]
+	public void Hex2()
+	{
+		Check("0X7fffFFFF", "INT=2147483647 EOL"); Check("0X80_00_00_00", "INT=2147483648 EOL");
+		Check("0Xffff_fffe", "INT=4294967294 EOL"); Check("0XFFFF_fffe_", "HEX!");
+		Check("0X10000_0000", "INT!hexadecimal out of range INT=0 EOL");
+	}
+
+	[TestMethod]
+	public void FloatHex1()
+	{
+		hex = true;
+		Check("0x00.00", "FLOAT=0p0 EOL"); Check("-0x1.0", "NEGA FLOAT=1.000000p0 EOL");
+		Check("0x1234.0", "FLOAT=1.234000p12 EOL"); Check("0xA53.f", "FLOAT=1.4a7e00p11 EOL");
+		Check("0x34_c.8", "FLOAT=1.a64000p9 EOL"); Check("0x2.0__0", "FLOAT=1.000000p1 EOL");
+		Check("0x1.000_0_02000000000000000000000000000000001", "FLOAT=1.000002p0 EOL");
+		Check("0x1.000_0_01000000000000000000000000000000001", "FLOAT=1.000000p0 EOL");
+	}
+
+	[TestMethod]
+	public void FloatHex2()
+	{
+		hex = true;
+		Check("0X0.0x", "FLOAT=0p0 NAME!literal can not densely follow literal NAME=x EOL");
+		Check("0X1_00000000_00000000.0", "FLOAT=1.000000p64 EOL");
+		Check("0XFFFFff7fFFFFffff_FFFFffffFFFFffff.fffffff", "FLOAT=1.fffffep127 EOL");
+		Check("0XFFFFff8000000000_0000000000000000.0", "FLOAT!float out of range FLOAT=0p0 EOL");
+		Check("0X1._0", "INT=1 RUND=_0 EOL"); Check("0X1_.2", "HEX!. INT=2 EOL");
+	}
+
+	[TestMethod]
+	public void FloatHex3()
+	{
+		hex = true;
+		Check("0x1P0", "FLOAT=1.000000p0 EOL"); Check("0X0P+127", "FLOAT=0p0 EOL");
+		Check("0x0.8p-0", "FLOAT=1.000000p-1 EOL");
+		Check("0x2x7F", "FLOAT!float out of range FLOAT=0p0 EOL");
+		Check("0x1X80", "FLOAT!float out of range FLOAT=0p0 EOL");
+		Check("0x1p999", "FLOAT!float out of range FLOAT=0p0 EOL");
+		Check("0x1p+999999999", "FLOAT!float out of range FLOAT=0p0 EOL");
+		Check("0x1p-1000000000", "FLOAT!exponent out of range FLOAT=0p0 EOL");
+		Check("0x1x+6FFFffff", "FLOAT!float out of range FLOAT=0p0 EOL");
+		Check("0x1X-70000000", "FLOAT!exponent out of range FLOAT=0p0 EOL");
+		Check("0x0.000001fffffep151", "FLOAT=1.fffffep127 EOL");
+		Check("0x0.000001ffffffp151", "FLOAT!float out of range FLOAT=0p0 EOL");
+		Check("0xff.ffffp120", "FLOAT=1.fffffep127 EOL");
+		Check("0xff.ffff8p120", "FLOAT!float out of range FLOAT=0p0 EOL");
+	}
+
+	[TestMethod]
+	public void FloatHex4()
+	{
+		hex = true;
+		Check("0X1.2468acx-7e", "FLOAT=1.2468acp-126 EOL");
+		Check("0X0.12468acX-7e", "FLOAT=0.12468ap-126 EOL");
+		Check("0x1.2468acefx-7f", "FLOAT=0.923456p-126 EOL");
+		Check("0x0.80000081p-149", "FLOAT=0.000002p-126 EOL");
+		Check("0x0.80000080p-149", "FLOAT=0p0 EOL");
+		Check("0x1x-FF", "FLOAT=0p0 EOL");
+		Check("0x0.0000000000000000000000000FFFFff7fp228", "FLOAT=1.fffffep127 EOL");
+		Check("0x0.0000000000000000000000000FFFFff7fp229", "FLOAT!float out of range FLOAT=0p0 EOL");
 	}
 
 	[TestMethod]
