@@ -20,12 +20,11 @@ using Nord = ushort;
 
 public partial struct Lexi<K>
 {
-	public override readonly string ToString() =>
-		$"{key}{(err < 0 ? "!" : err > 0 ? "?" : value != null ? "=" : "")}{value}";
+	public override readonly string ToString() => Dumper(null);
 
 	public readonly string Dumper(Func<object, object> dumper) =>
 		new StrMake(out var s) + key + (err < 0 ? "!" : err > 0 ? "?" : value != null ? "=" : "")
-		+ (value != null ? s + dumper(value) : s);
+		+ (value != null ? s + (dumper?.Invoke(value) ?? value.ToString()): s);
 }
 
 public partial class Lexier<K>
@@ -61,7 +60,8 @@ public partial class Lexier<K>
 				}
 	}
 
-	public string Dumper() => string.Join(" ", lexs.Seg((0, loc)).Select(t => t.ToString()).ToArray());
+	public string Dumper(Func<object, object> dumper = null)
+		=> string.Join(" ", lexs.Seg((0, loc)).Select(t => t.Dumper(dumper)));
 }
 
 public partial class LinkTree<T>

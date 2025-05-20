@@ -34,7 +34,7 @@ public class Dumps
 
 public partial class Lexier
 {
-	public string Dumper(bool all = true)
+	public string Dumper(bool all = true, bool hex = false)
 	{
 		if (dump)
 			using (var env = EnvWriter.Use())
@@ -42,11 +42,23 @@ public partial class Lexier
 		return string.Join(" ",
 			(all ? errs.Concat(lexs.Seg((1, loc))).Concat(blanks ?? []).OrderBy(l => l.j.on)
 				: (IEnumerable<Lexi<L>>)lexs.Seg((1, loc)))
-			.Select(t => t.Dumper(Dumper)).ToArray());
+			.Select(t => t.Dumper(hex ? DumperHex : Dumper)).ToArray());
 	}
 
 	public static string Dumper(object d)
 		=> d is object[] s ? string.Join(',', s) + "," : d?.ToString() ?? "";
+
+	public static string DumperHex(object d)
+	{
+		if (d is int i) return i.ToString("x8");
+		if (d is not float f) return Dumper(d);
+		var b = BitConverter.SingleToInt32Bits(f);
+		if (b == 0) return "0p0";
+		if (b == 1 << 31) return "-0p0";
+		var sub = (b & 0x7f800000) == 0;
+		return new StrMake(out var _) + (b < 0 ? "-" : "") + (sub ? "0." : "1.") +
+			(b << 1 & 0xFFffff).ToString("x6") + 'p' + (sbyte)(sub ? -126 : (byte)(b >> 23) - 127);
+	}
 }
 
 public partial class Synter
