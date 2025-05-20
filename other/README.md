@@ -4,9 +4,15 @@ Under the terms of the Creative Commons BY-SA 4.0 http://creativecommons.org/lic
 http://qutum.com  http://qutum.cn
 -->
 
-## qutum.parser.MetaStr
+## qutum.parser.meta.MetaStr
 
 元文法字符，支持空白、词、数字、量词、转义等
+
+## qutum.parser.meta.MetaLex
+
+`qutum.parser.Lexier`元文法
+- 以空格分隔多组，以`|`分隔多分支，`|`左接空格为空分支，`|`右接的空格忽略
+- 每组开头`*`为重试，每分支开头`+`为循环，每字节后接`+`为重复
 
 ## qutum.parser.earley.Earley
 

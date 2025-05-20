@@ -12,10 +12,6 @@ http://qutum.com  http://qutum.cn
 
 读取byte流，产生byte流
 
-## qutum.parser.MetaStr
-
-元文法字符，支持空白、词、数字、量词、转义等
-
 ## qutum.parser.Lexier
 
 词法解析器，读取byte流，产生`Lexi`流，行列定位，DFA算法
@@ -30,10 +26,6 @@ http://qutum.com  http://qutum.cn
 
 默认字节范围为 编码32-126及 `\t\n\r`
 - 转义：`\s`空格 `\t\n\r` `\d`数字 `\x`十六进制 `\a`字母 `\b`任意字节 `\B`编码128以上
-
-元文法
-- 以空格分隔多组，以`|`分隔多分支，`|`左接空格为空分支，`|`右接的空格忽略
-- 每组开头`*`为重试，每分支开头`+`为循环，每字节后接`+`为重复
 
 ## qutum.parser.Synter & qutum.parser.SerMaker
 
