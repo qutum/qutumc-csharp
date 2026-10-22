@@ -647,11 +647,11 @@ public class TestSynter : IDisposable
 		_ = _/**/	.h(B).H(P, (L.NAME, "a"));
 		_ = _/**/		.n(I).H(P, (L.INT, 1)).n(E, L.MUL).H(P, (L.INT, 2)).uuuuU;
 		_ = Parse(@"0 * a, 1 * 2, 3, 4 == 5");
-		_ = _/**/	.h(B).H(P, (L.INT, "0")).n(E, L.MUL);
-		_ = _/**/			.H(P, (L.NAME, "a"));
-		_ = _/**/			.n(I).H(P, (L.INT, 1)).n(E, L.MUL).H(P, (L.INT, 2)).uu;
-		_ = _/**/			.n(I).H(P, (L.INT, 3)).u;
-		_ = _/**/			.n(I).H(P, (L.INT, 4)).n(E, L.EQ).H(P, (L.INT, 5)).uuuuuU;
+		_ = _/**/	.h(B).H(P, (L.INT, "0"));
+		_ = _/**/		.n(E, L.MUL).H(P, (L.NAME, "a"));
+		_ = _/**/					.n(I).H(P, (L.INT, 1)).n(E, L.MUL).H(P, (L.INT, 2)).uu;
+		_ = _/**/					.n(I).H(P, (L.INT, 3)).u;
+		_ = _/**/					.n(I).H(P, (L.INT, 4)).n(E, L.EQ).H(P, (L.INT, 5)).uuuuuU;
 	}
 
 	[TestMethod]

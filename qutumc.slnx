@@ -1,0 +1,15 @@
+<Solution>
+	<Folder Name="/Solution Items/">
+		<File Path=".editorconfig" />
+		<File Path="directory.packages.props" />
+		<File Path="LICENSE" />
+		<File Path="README.md" />
+	</Folder>
+	<Project Path="parser/parser.csproj" />
+	<Project Path="syntax/syntax.csproj" />
+	<Project Path="qutumc/qutumc.csproj" />
+	<Project Path="other/other.csproj" />
+	<Project Path="parser-test/parser-test.csproj" />
+	<Project Path="qutumc-test/qutumc-test.csproj" />
+	<Project Path="other-test/other-test.csproj" />
+</Solution>
