@@ -55,7 +55,7 @@ public class LexGram<K> where K : struct
 	// add a redo Wad to last Prod
 	public LexGram<K> redo { get { prods[^1].Add(new() { redo = true }); return this; } }
 	// add a Alt to last Wad
-	// string : byte sequence, ReadOnlyMemory<char> : one byte set, .. : duplicate
+	// string : byte sequence, ByteSet.One : one byte set, .. : duplicate
 	public LexGram<K> this[params object[] cons] {
 		get {
 			Alt a = [];
@@ -63,7 +63,7 @@ public class LexGram<K> where K : struct
 			foreach (var c in cons)
 				if (c is Range) a[^1] = a[^1] with { dup = true };
 				else if (c is string str) a.Add(new() { str = str });
-				else if (c is ReadOnlyMemory<char> one) a.Add(new() { str = "", one = one });
+				else if (c is ByteSet.One one) a.Add(new() { str = "", one = one.set });
 				else throw new($"wrong altern content {c?.GetType()}");
 			return this;
 		}
@@ -322,7 +322,7 @@ public partial class Lexier<K>
 				// build wad
 				foreach (var (w, wad) in prod.Each(1)) {
 					// build alt
-					aus[wad] = w.Select((a, alt) => {
+					aus[wad] = [.. w.Select((a, alt) => {
 						++alt;
 						var bz = a.Sum(b => b.str.Length + (b.one.Length > 0 ? 1 : 0));
 						if (a.Count == 0 ? alt > 1 : bz == 0)
@@ -342,7 +342,7 @@ public partial class Lexier<K>
 								Byte(c.one, ref u, k, wad, ++bx >= bz, ok, c.dup ? dup : null);
 						}
 						return u; // the last unit of this alt
-					}).Where(u => u.next != null).ToArray();
+					}).Where(u => u.next != null)];
 					var u = wus[wad];
 					if (aus[wad - 1] != null)
 						for (int x = 0; x <= 128; x++) {

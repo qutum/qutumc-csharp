@@ -15,6 +15,7 @@ namespace qutum.syntax;
 using Kord = char;
 using L = Lex;
 using S = ByteSet;
+using One = ByteSet.One;
 
 /*	EXC		!	NOT
 	QUO		"	STR?
@@ -159,46 +160,46 @@ public sealed partial class Lexier : LexierBuf<L>
 		.k(L.RP).w[")"].k(L.RSB).w["]"].k(L.RCB).w["}"]
 
 		.k(L.EOL).w["\n"]["\r\n"]
-		.k(L.SP).w[" \t".One()] // [\s\t]  |+\s+|+\t+
+		.k(L.SP).w[(One)" \t"] // [\s\t]  |+\s+|+\t+
 				.w[[]][" ", ..].loop["\t", ..].loop
 
 		.k(L.COM).w["##"] // ##  |[\A^\n]+
-				.w[[]][S.All.Exc("\n"), ..]
+				.w[[]][S.All - "\n", ..]
 		.k(L.COMB).w["\\", .., "#"] // \\+#  +#\\+|+#|+[\A^#]+
-				.w["#", "\\", ..].loop["#"].loop[S.All.Exc("#"), ..].loop
+				.w["#", "\\", ..].loop["#"].loop[S.All - "#", ..].loop
 
 		.k(L.STRB).w["\\", .., "\""] // \\+"  +"\\+|+"|+[\A^"]+
-				.w["\"", "\\", ..].loop["\""].loop[S.All.Exc("\""), ..].loop
+				.w["\"", "\\", ..].loop["\""].loop[S.All - "\"", ..].loop
 		.k(L.STR).w["\""] // "  *"|\n|\r\n|+[\L^"\\]+|+\\[0tnr".`\\]|+\\x\x\x|+\\u\x\x\x\x
-				.redo["\"\n".One()]["\r\n"]
-					[S.Line.Exc("\"\\"), ..].loop
-					["\\", "0tnr\".`\\".One()].loop
+				.redo[(One)"\"\n"]["\r\n"]
+					[S.Line - "\"\\", ..].loop
+					["\\", (One)"0tnr\".`\\"].loop
 					["\\x", S.Hex, S.Hex].loop["\\u", S.Hex, S.Hex, S.Hex, S.Hex].loop
 
 		.k(L.PATH).w["`"][".`"] // .?`  *`|\n|\r\n|+.|+[\L^.`\\]+|+\\[0tnr".`\\]|+\\x\x\x|+\\u\x\x\x\x
-				.redo["`\n".One()]["\r\n"]["."].loop
-					[S.Line.Exc(".`\\"), ..].loop
-					["\\", "0tnr\".`\\".One()].loop
+				.redo[(One)"`\n"]["\r\n"]["."].loop
+					[S.Line - ".`\\", ..].loop
+					["\\", (One)"0tnr\".`\\"].loop
 					["\\x", S.Hex, S.Hex].loop["\\u", S.Hex, S.Hex, S.Hex, S.Hex].loop
 
-		.k(L.NAME).w[S.Alpha.Inc("_")][S.Alpha.Inc("_"), S.Word, ..] // [\a_]\w*
+		.k(L.NAME).w[S.Alpha + "_"][S.Alpha + "_", S.Word, ..] // [\a_]\w*
 		.k(L.RUN).w["."] // .|.[\a_]\w*
-					[".", S.Alpha.Inc("_")][".", S.Alpha.Inc("_"), S.Word, ..]
+					[".", S.Alpha + "_"][".", S.Alpha + "_", S.Word, ..]
 
 		.k(L.HEX).w["0x"]["0X"] // 0[xX]  _*\x+  |+_*\x+  |.\x+  |+_+\x+  |[pP][\+\-]?\d+|[xX][\+\-]?\x+
 				.w[S.Hex]["_", .., S.Hex]
 				.w[[]][S.Hex, ..].loop["_", .., S.Hex, ..].loop
 				.w[[]][".", S.Hex, ..]
 				.w[[]]["_", .., S.Hex, ..].loop
-				.w[[]]["pP".One(), S.Dec, ..]["pP".One(), "+-".One(), S.Dec, ..]
-					["xX".One(), S.Hex, ..]["xX".One(), "+-".One(), S.Hex, ..]
+				.w[[]][(One)"pP", S.Dec, ..][(One)"pP", (One)"+-", S.Dec, ..]
+					[(One)"xX", S.Hex, ..][(One)"xX", (One)"+-", S.Hex, ..]
 		.k(L.DEC) // 0|[1-9]  |+_*\d+  |.\d+  |+_+\d+  |[eE][\+\-]?\d+  |[fF]
-				.w["0"][S.Dec.Exc("0")]
+				.w["0"][S.Dec - "0"]
 				.w[[]][S.Dec, ..].loop["_", .., S.Dec, ..].loop
 				.w[[]][".", S.Dec, ..]
 				.w[[]]["_", .., S.Dec, ..].loop
-				.w[[]]["eE".One(), S.Dec, ..]["eE".One(), "+-".One(), S.Dec, ..]
-				.w[[]]["fF".One()]
+				.w[[]][(One)"eE", S.Dec, ..][(One)"eE", (One)"+-", S.Dec, ..]
+				.w[[]][(One)"fF"]
 	;
 
 	public const int IndMin = 2, IndrMin = 6;
@@ -666,6 +667,6 @@ internal sealed class LexierGet : Lexier<L>, Lexer<L, Lexi<L>>
 		return d;
 	}
 
-	static readonly float[] Pows = Enumerable.Range(0, 129)
-		.Select(x => BitConverter.Int32BitsToSingle(x + 127 << 23)).ToArray();
+	static readonly float[] Pows = [.. Enumerable.Range(0, 129)
+		.Select(x => BitConverter.Int32BitsToSingle(x + 127 << 23))];
 }

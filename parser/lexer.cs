@@ -141,15 +141,16 @@ public class LerByteList(List<byte> read) : Lexer<byte, byte>
 public static class ByteSet
 {
 	public static readonly bool[] L = new bool[129],// single line, no \r \n, \x80
+								LL = new bool[129], // multi lines
 								D = new bool[129],  // decimal
 								X = new bool[129],  // hexadecimal
 								A = new bool[129],  // alphabet
 								W = new bool[129],  // word, decimal or alphabet or _
 								O = new bool[129];  // operator
-	public static readonly string ALL, LINE, DEC, HEX, ALPHA, WORD, OP;
+	public static readonly string ALL, LINE, LINES, DEC, HEX, ALPHA, WORD, OP;
 	public static readonly string[] BYTE; // [each byte]
 
-	public static readonly ReadOnlyMemory<char> All, Line, Dec, Hex, Alpha, Word, Op;
+	public static readonly One All, Line, Lines, Dec, Hex, Alpha, Word, Op;
 
 	static ByteSet()
 	{
@@ -157,6 +158,7 @@ public static class ByteSet
 			O[t] = true;
 		for (char t = '\0'; t < 127; t++) {
 			L[t] = t is >= ' ' or '\t';
+			LL[t] = t is >= ' ' or '\t' or '\n' or '\r';
 			D[t] = t is >= '0' and <= '9';
 			X[t] = D[t] || t is >= 'a' and <= 'f' or >= 'A' and <= 'F';
 			A[t] = t is >= 'A' and <= 'Z' or >= 'a' and <= 'z';
@@ -166,31 +168,37 @@ public static class ByteSet
 		var all = Enumerable.Range(0, 129).Select(b => (char)b);
 		ALL = new string([.. all]);
 		LINE = new string([.. all.Where(b => L[b])]);
+		LINES = new string([.. all.Where(b => LL[b])]);
 		DEC = new string([.. all.Where(b => D[b])]);
 		HEX = new string([.. all.Where(b => X[b])]);
 		ALPHA = new string([.. all.Where(b => A[b])]);
 		WORD = new string([.. all.Where(b => W[b])]);
 		OP = new string([.. all.Where(b => O[b])]);
 		BYTE = [.. all.Select(b => new string(b, 1))];
-		All = ALL.One();
-		Line = LINE.One();
-		Dec = DEC.One();
-		Hex = HEX.One();
-		Alpha = ALPHA.One();
-		Word = WORD.One();
-		Op = OP.One();
+		All = ALL;
+		Line = LINE;
+		Lines = LINES;
+		Dec = DEC;
+		Hex = HEX;
+		Alpha = ALPHA;
+		Word = WORD;
+		Op = OP;
 	}
 
-	public static ReadOnlyMemory<char> One(this string s)
-		=> s.AsMemory();
-	public static ReadOnlyMemory<char> Inc(this ReadOnlyMemory<char> inc, ReadOnlyMemory<char> more)
-		=> inc.Enum().Union(more.Enum()).ToArray().AsMemory();
-	public static ReadOnlyMemory<char> Inc(this ReadOnlyMemory<char> inc, string more)
-		=> Inc(inc, more.One());
-	public static ReadOnlyMemory<char> Exc(this ReadOnlyMemory<char> inc, ReadOnlyMemory<char> exc)
-		=> inc.Enum().Except(exc.Enum()).ToArray().AsMemory();
-	public static ReadOnlyMemory<char> Exc(this ReadOnlyMemory<char> inc, string exc)
-		=> Exc(inc, exc.One());
+	public struct One
+	{
+		public ReadOnlyMemory<char> set;
+
+		public static implicit operator One(ReadOnlyMemory<char> s) => new() { set = s };
+		public static implicit operator One(Memory<char> s) => new() { set = s };
+		public static implicit operator One(string s) => s.AsMemory();
+		public static One operator +(One o, ReadOnlyMemory<char> include)
+			=> o.set.Enum().Union(include.Enum()).ToArray().AsMemory();
+		public static One operator -(One o, ReadOnlyMemory<char> exc)
+			=> o.set.Enum().Except(exc.Enum()).ToArray().AsMemory();
+		public static One operator +(One o, string include) => o + include.AsMemory();
+		public static One operator -(One o, string exclude) => o - exclude.AsMemory();
+	}
 
 	public static string Esc<K>(K k)
 	{

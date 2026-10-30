@@ -12,6 +12,8 @@ using System.Linq;
 
 namespace qutum.parser.meta;
 
+using Set = ByteSet;
+
 sealed class MetaStr(string read) : LerStr(read)
 {
 	public override bool Is(char aim) => Is(read[loc], aim);
@@ -22,9 +24,9 @@ sealed class MetaStr(string read) : LerStr(read)
 	public override bool Is(char k, char aim) =>
 		aim switch {
 			'S' => k is ' ' or '\t',        // space
-			'X' => k < 127 && ByteSet.X[k], // hexadecimal
-			'W' => k < 127 && ByteSet.W[k], // word
-			'O' => k < 127 && ByteSet.O[k], // operator
+			'X' => k < 127 && Set.X[k], // hexadecimal
+			'W' => k < 127 && Set.W[k], // word
+			'O' => k < 127 && Set.O[k], // operator
 			'G' => k < 127 && SetG[k], // grammar operator
 			'E' => k > ' ' && k < 127,      // escape
 			'I' => k < 127 && SetI[k], // single range
@@ -48,28 +50,26 @@ sealed class MetaStr(string read) : LerStr(read)
 			'r' => "\r",
 			'0' => "\0",
 			_ => (lexer ? c : '\0') switch {
-				'A' => ByteSet.ALL,
-				'l' => ByteSet.LINE,
-				'd' => ByteSet.DEC,
-				'x' => ByteSet.HEX,
-				'a' => ByteSet.ALPHA,
-				'w' => ByteSet.WORD,
+				'A' => Set.ALL,
+				'l' => Set.LINE,
+				'd' => Set.DEC,
+				'x' => Set.HEX,
+				'a' => Set.ALPHA,
+				'w' => Set.WORD,
 				'u' => "\x80",
-				_ => c < 129 ? ByteSet.BYTE[c] : c.ToString(),
+				_ => c < 129 ? Set.BYTE[c] : c.ToString(),
 			}
 		};
 	}
 
-	internal static readonly bool[] SetG = new bool[129],  // grammar operator, op except * + = ? \\ |
-									SetI = new bool[129],  // grammer single, word or = or grammar op except [ ]
-									RangeI = new bool[129];// default inclusive range
+	static readonly bool[] SetG = new bool[129], // grammar operator, op except * + = ? \\ |
+							SetI = new bool[129];// grammer single, word or = or grammar op except [ ]
 
 	static MetaStr()
 	{
 		for (char t = '\0'; t < 127; t++) {
-			SetG[t] = ByteSet.O[t] && t is not ('*' or '+' or '=' or '?' or '\\' or '|');
-			SetI[t] = ByteSet.W[t] || SetG[t] && t != '[' && t != ']' || t == '=';
-			RangeI[t] = t is >= ' ' or '\t' or '\n' or '\r';
+			SetG[t] = Set.O[t] && t is not ('*' or '+' or '=' or '?' or '\\' or '|');
+			SetI[t] = Set.W[t] || SetG[t] && t != '[' && t != ']' || t == '=';
 		}
 	}
 }
@@ -165,7 +165,7 @@ public static class MetaLex
 	{
 		var x = b.j.on;
 		if (gram[x] == '\\') { // escape bytes
-			es[ez++] = MetaStr.Unesc(gram, (x, b.j.via), true).One();
+			es[ez++] = (Set.One)MetaStr.Unesc(gram, (x, b.j.via), true);
 			x += 2;
 		}
 		// build range
@@ -173,7 +173,7 @@ public static class MetaLex
 			++x;
 			Span<bool> rs = stackalloc bool[129]; bool inc = true;
 			if (x != b.head?.j.on) // inclusive range omitted, use default
-				MetaStr.RangeI.CopyTo(rs);
+				Set.LL.CopyTo(rs);
 			foreach (var r in b) {
 				inc &= x == (x = r.j.on); // before ^
 				if (gram[x] == '\\')
@@ -190,11 +190,11 @@ public static class MetaLex
 				if (rs[y]) s[n++] = y;
 			if (n == 0)
 				throw new($"No byte in {k}.{wad} :{meta.ler.Lexs(b.j)}");
-			es[ez++] = (ReadOnlyMemory<char>)s.AsMemory(0, n);
+			es[ez++] = (Set.One)s.AsMemory(0, n);
 			++x; // range ]
 		}
 		else // single byte
-			es[ez++] = ByteSet.BYTE[gram[x++]];
+			es[ez++] = Set.BYTE[gram[x++]];
 		// byte dup +
 		if (x < b.j.via)
 			es[ez++] = Range.All;
