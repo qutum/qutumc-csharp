@@ -44,7 +44,7 @@ public partial class Lexier<K>
 		if (u.next == null)
 			return;
 		foreach (var n in u.next.Where(n => n != null).Distinct()) {
-			var s = u.next.Select((nn, b) => nn != n ? null : CharSet.Unesc((byte)b))
+			var s = u.next.Select((nn, b) => nn != n ? null : ByteSet.Esc((byte)b))
 				.Where(x => x != null);
 			using var _ = EnvWriter.Indent("  ");
 			if (n == u)
@@ -172,8 +172,8 @@ public partial class Synter<K, L, N, T, Ler>
 
 	public virtual string Dumper(object d)
 	{
-		if (d is Kord key) return key == default ? "eor" : CharSet.Unesc(key);
-		if (d is Nord name) return CharSet.Unesc((char)name);
+		if (d is Kord key) return key == default ? "eor" : ByteSet.Esc(key);
+		if (d is Nord name) return ByteSet.Esc((char)name);
 		if (d is SynForm f) {
 			StrMake s = new(); short r;
 			if (dumper != Dumper)
@@ -232,13 +232,13 @@ public partial class SerMaker<K, N>
 		if (d is SynGram<K, N>.Con con)
 			d = con.K ? con.k : con.n;
 		if (d is K key)
-			return key.Equals(default(K)) ? "eor" : CharSet.Unesc(key);
+			return key.Equals(default(K)) ? "eor" : ByteSet.Esc(key);
 		if (d is (IEnumerable<K> keys2, StrMake s2))
 			(d, s) = (keys2, s2);
 		if (d is IEnumerable<K> keys) {
 			var ss = s.s == null; if (ss) s = new();
 			foreach (var K in keys)
-				_ = s - ' ' + (K.Equals(default(K)) ? "eor" : CharSet.Unesc(K));
+				_ = s - ' ' + (K.Equals(default(K)) ? "eor" : ByteSet.Esc(K));
 			return ss ? s : null;
 		}
 		return d.ToString();

@@ -42,16 +42,20 @@ public class LexGram<K> where K : struct
 	{
 		// byte sequence
 		public string str;
-		// one byte range
+		// one byte set
 		public ReadOnlyMemory<char> one;
-		// duplicate last byte of sequence, or duplicate one byte of range
+		// duplicate last byte of sequence, or duplicate one byte of set
 		public bool dup;
 	}
 
+	// add a Prod with key
 	public LexGram<K> k(K key) { prods.Add(new() { key = key }); return this; }
+	// add a Wad to last Prod
 	public LexGram<K> w { get { prods[^1].Add([]); return this; } }
+	// add a redo Wad to last Prod
 	public LexGram<K> redo { get { prods[^1].Add(new() { redo = true }); return this; } }
-	// string : byte sequence, ReadOnlyMemory<char> : one byte range, .. : duplicate
+	// add a Alt to last Wad
+	// string : byte sequence, ReadOnlyMemory<char> : one byte set, .. : duplicate
 	public LexGram<K> this[params object[] cons] {
 		get {
 			Alt a = [];

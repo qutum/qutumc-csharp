@@ -14,7 +14,7 @@ namespace qutum.syntax;
 
 using Kord = char;
 using L = Lex;
-using Set = CharSet;
+using S = ByteSet;
 
 /*	EXC		!	NOT
 	QUO		"	STR?
@@ -163,41 +163,41 @@ public sealed partial class Lexier : LexierBuf<L>
 				.w[[]][" ", ..].loop["\t", ..].loop
 
 		.k(L.COM).w["##"] // ##  |[\A^\n]+
-				.w[[]][Set.All.Exc("\n"), ..]
+				.w[[]][S.All.Exc("\n"), ..]
 		.k(L.COMB).w["\\", .., "#"] // \\+#  +#\\+|+#|+[\A^#]+
-				.w["#", "\\", ..].loop["#"].loop[Set.All.Exc("#"), ..].loop
+				.w["#", "\\", ..].loop["#"].loop[S.All.Exc("#"), ..].loop
 
 		.k(L.STRB).w["\\", .., "\""] // \\+"  +"\\+|+"|+[\A^"]+
-				.w["\"", "\\", ..].loop["\""].loop[Set.All.Exc("\""), ..].loop
+				.w["\"", "\\", ..].loop["\""].loop[S.All.Exc("\""), ..].loop
 		.k(L.STR).w["\""] // "  *"|\n|\r\n|+[\L^"\\]+|+\\[0tnr".`\\]|+\\x\x\x|+\\u\x\x\x\x
 				.redo["\"\n".One()]["\r\n"]
-					[Set.Line.Exc("\"\\"), ..].loop
+					[S.Line.Exc("\"\\"), ..].loop
 					["\\", "0tnr\".`\\".One()].loop
-					["\\x", Set.Hex, Set.Hex].loop["\\u", Set.Hex, Set.Hex, Set.Hex, Set.Hex].loop
+					["\\x", S.Hex, S.Hex].loop["\\u", S.Hex, S.Hex, S.Hex, S.Hex].loop
 
 		.k(L.PATH).w["`"][".`"] // .?`  *`|\n|\r\n|+.|+[\L^.`\\]+|+\\[0tnr".`\\]|+\\x\x\x|+\\u\x\x\x\x
 				.redo["`\n".One()]["\r\n"]["."].loop
-					[Set.Line.Exc(".`\\"), ..].loop
+					[S.Line.Exc(".`\\"), ..].loop
 					["\\", "0tnr\".`\\".One()].loop
-					["\\x", Set.Hex, Set.Hex].loop["\\u", Set.Hex, Set.Hex, Set.Hex, Set.Hex].loop
+					["\\x", S.Hex, S.Hex].loop["\\u", S.Hex, S.Hex, S.Hex, S.Hex].loop
 
-		.k(L.NAME).w[Set.Alpha.Inc("_")][Set.Alpha.Inc("_"), Set.Word, ..] // [\a_]\w*
+		.k(L.NAME).w[S.Alpha.Inc("_")][S.Alpha.Inc("_"), S.Word, ..] // [\a_]\w*
 		.k(L.RUN).w["."] // .|.[\a_]\w*
-					[".", Set.Alpha.Inc("_")][".", Set.Alpha.Inc("_"), Set.Word, ..]
+					[".", S.Alpha.Inc("_")][".", S.Alpha.Inc("_"), S.Word, ..]
 
 		.k(L.HEX).w["0x"]["0X"] // 0[xX]  _*\x+  |+_*\x+  |.\x+  |+_+\x+  |[pP][\+\-]?\d+|[xX][\+\-]?\x+
-				.w[Set.Hex]["_", .., Set.Hex]
-				.w[[]][Set.Hex, ..].loop["_", .., Set.Hex, ..].loop
-				.w[[]][".", Set.Hex, ..]
-				.w[[]]["_", .., Set.Hex, ..].loop
-				.w[[]]["pP".One(), Set.Dec, ..]["pP".One(), "+-".One(), Set.Dec, ..]
-					["xX".One(), Set.Hex, ..]["xX".One(), "+-".One(), Set.Hex, ..]
+				.w[S.Hex]["_", .., S.Hex]
+				.w[[]][S.Hex, ..].loop["_", .., S.Hex, ..].loop
+				.w[[]][".", S.Hex, ..]
+				.w[[]]["_", .., S.Hex, ..].loop
+				.w[[]]["pP".One(), S.Dec, ..]["pP".One(), "+-".One(), S.Dec, ..]
+					["xX".One(), S.Hex, ..]["xX".One(), "+-".One(), S.Hex, ..]
 		.k(L.DEC) // 0|[1-9]  |+_*\d+  |.\d+  |+_+\d+  |[eE][\+\-]?\d+  |[fF]
-				.w["0"][Set.Dec.Exc("0")]
-				.w[[]][Set.Dec, ..].loop["_", .., Set.Dec, ..].loop
-				.w[[]][".", Set.Dec, ..]
-				.w[[]]["_", .., Set.Dec, ..].loop
-				.w[[]]["eE".One(), Set.Dec, ..]["eE".One(), "+-".One(), Set.Dec, ..]
+				.w["0"][S.Dec.Exc("0")]
+				.w[[]][S.Dec, ..].loop["_", .., S.Dec, ..].loop
+				.w[[]][".", S.Dec, ..]
+				.w[[]]["_", .., S.Dec, ..].loop
+				.w[[]]["eE".One(), S.Dec, ..]["eE".One(), "+-".One(), S.Dec, ..]
 				.w[[]]["fF".One()]
 	;
 

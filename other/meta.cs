@@ -22,13 +22,13 @@ sealed class MetaStr(string read) : LerStr(read)
 	public override bool Is(char k, char aim) =>
 		aim switch {
 			'S' => k is ' ' or '\t',        // space
-			'X' => k < 127 && CharSet.X[k], // hexadecimal
-			'W' => k < 127 && CharSet.W[k], // word
-			'O' => k < 127 && CharSet.O[k], // operator
-			'G' => k < 127 && CharSet.G[k], // grammar operator
+			'X' => k < 127 && ByteSet.X[k], // hexadecimal
+			'W' => k < 127 && ByteSet.W[k], // word
+			'O' => k < 127 && ByteSet.O[k], // operator
+			'G' => k < 127 && SetG[k], // grammar operator
 			'E' => k > ' ' && k < 127,      // escape
-			'I' => k < 127 && CharSet.I[k], // single range
-			'R' => k < 127 && CharSet.I[k] && k != '-' && k != '^', // range
+			'I' => k < 127 && SetI[k], // single range
+			'R' => k < 127 && SetI[k] && k != '-' && k != '^', // range
 			'Q' => k is '?' or '*' or '+',                          // quantifier
 			'H' => k >= ' ' && k < 127 && k != '=' && k != '|',     // hint
 			'V' => k is >= ' ' or '\t',                             // comment
@@ -48,16 +48,29 @@ sealed class MetaStr(string read) : LerStr(read)
 			'r' => "\r",
 			'0' => "\0",
 			_ => (lexer ? c : '\0') switch {
-				'A' => CharSet.ALL,
-				'l' => CharSet.LINE,
-				'd' => CharSet.DEC,
-				'x' => CharSet.HEX,
-				'a' => CharSet.ALPHA,
-				'w' => CharSet.WORD,
+				'A' => ByteSet.ALL,
+				'l' => ByteSet.LINE,
+				'd' => ByteSet.DEC,
+				'x' => ByteSet.HEX,
+				'a' => ByteSet.ALPHA,
+				'w' => ByteSet.WORD,
 				'u' => "\x80",
-				_ => c < 129 ? CharSet.BYTE[c] : c.ToString(),
+				_ => c < 129 ? ByteSet.BYTE[c] : c.ToString(),
 			}
 		};
+	}
+
+	internal static readonly bool[] SetG = new bool[129],  // grammar operator, op except * + = ? \\ |
+									SetI = new bool[129],  // grammer single, word or = or grammar op except [ ]
+									RangeI = new bool[129];// default inclusive range
+
+	static MetaStr()
+	{
+		for (char t = '\0'; t < 127; t++) {
+			SetG[t] = ByteSet.O[t] && t is not ('*' or '+' or '=' or '?' or '\\' or '|');
+			SetI[t] = ByteSet.W[t] || SetG[t] && t != '[' && t != ']' || t == '=';
+			RangeI[t] = t is >= ' ' or '\t' or '\n' or '\r';
+		}
 	}
 }
 
@@ -140,7 +153,8 @@ public static class MetaLex
 					_ = g[es[0..ez]];
 					if (a.head.name == "loop" || a.head.next?.name == "loop")
 						_ = g.loop;
-				};
+				}
+				;
 			}
 		}
 		if (dump) Dump(top, g);
@@ -159,7 +173,7 @@ public static class MetaLex
 			++x;
 			Span<bool> rs = stackalloc bool[129]; bool inc = true;
 			if (x != b.head?.j.on) // inclusive range omitted, use default
-				CharSet.RI.CopyTo(rs);
+				MetaStr.RangeI.CopyTo(rs);
 			foreach (var r in b) {
 				inc &= x == (x = r.j.on); // before ^
 				if (gram[x] == '\\')
@@ -180,7 +194,7 @@ public static class MetaLex
 			++x; // range ]
 		}
 		else // single byte
-			es[ez++] = CharSet.BYTE[gram[x++]];
+			es[ez++] = ByteSet.BYTE[gram[x++]];
 		// byte dup +
 		if (x < b.j.via)
 			es[ez++] = Range.All;

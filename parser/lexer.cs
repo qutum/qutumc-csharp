@@ -138,40 +138,33 @@ public class LerByteList(List<byte> read) : Lexer<byte, byte>
 	public IEnumerable<byte> Keys(string keys) => keys.Select(k => (byte)k);
 }
 
-public static class CharSet
+public static class ByteSet
 {
 	public static readonly bool[] L = new bool[129],// single line, no \r \n, \x80
 								D = new bool[129],  // decimal
 								X = new bool[129],  // hexadecimal
 								A = new bool[129],  // alphabet
 								W = new bool[129],  // word, decimal or alphabet or _
-								O = new bool[129],  // operator
-								G = new bool[129],  // grammar operator, op except * + = ? \\ |
-								I = new bool[129],  // grammer single, word or = or grammar op except [ ]
-								RI = new bool[129]; // default inclusive range
+								O = new bool[129];  // operator
 	public static readonly string ALL, LINE, DEC, HEX, ALPHA, WORD, OP;
 	public static readonly string[] BYTE; // [each byte]
 
 	public static readonly ReadOnlyMemory<char> All, Line, Dec, Hex, Alpha, Word, Op;
 
-	static CharSet()
+	static ByteSet()
 	{
-		foreach (var t in "!\"#$%&'()*+,-./:;<=>?@[\\]^`{|}~") {
+		foreach (var t in "!\"#$%&'()*+,-./:;<=>?@[\\]^`{|}~")
 			O[t] = true;
-			G[t] = t is not ('*' or '+' or '=' or '?' or '\\' or '|');
-		}
 		for (char t = '\0'; t < 127; t++) {
 			L[t] = t is >= ' ' or '\t';
 			D[t] = t is >= '0' and <= '9';
 			X[t] = D[t] || t is >= 'a' and <= 'f' or >= 'A' and <= 'F';
 			A[t] = t is >= 'A' and <= 'Z' or >= 'a' and <= 'z';
 			W[t] = D[t] || A[t] || t == '_';
-			I[t] = W[t] || G[t] && t != '[' && t != ']' || t == '=';
-			RI[t] = t is >= ' ' or '\t' or '\n' or '\r';
 		}
 		L[128] = true;
 		var all = Enumerable.Range(0, 129).Select(b => (char)b);
-		ALL = new string([..all]);
+		ALL = new string([.. all]);
 		LINE = new string([.. all.Where(b => L[b])]);
 		DEC = new string([.. all.Where(b => D[b])]);
 		HEX = new string([.. all.Where(b => X[b])]);
@@ -199,7 +192,7 @@ public static class CharSet
 	public static ReadOnlyMemory<char> Exc(this ReadOnlyMemory<char> inc, string exc)
 		=> Exc(inc, exc.One());
 
-	public static string Unesc<K>(K k)
+	public static string Esc<K>(K k)
 	{
 		if (k is byte bb && bb >= 128)
 			return "\\U";
