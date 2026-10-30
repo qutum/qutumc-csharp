@@ -30,7 +30,7 @@ public readonly struct Ser(Synt t, Synter s)
 	[System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE0305:Simplify collection initialization")]
 	public readonly Ser Eq(S? name = null, object d = null, Jov<Dec?> j = default, int err = 0)
 	{
-		AreNotEqual(null, t);
+		IsNotNull(t);
 		AreEqual(err, t.err);
 		if (name != null) AreEqual(name, t.name);
 		var (line, col) = s.ler.LineCol(t.j);
@@ -75,10 +75,10 @@ public readonly struct Ser(Synt t, Synter s)
 	public Ser N(S? name = null, object d = null, Jov<Dec?> j = default, int err = 0)
 		=> new Ser(t.next, s).Eq(name, d, j, err).Leaf;
 
-	public Ser Vine { get { AreNotEqual(null, t.head); return this; } }
-	public Ser Leaf { get { AreEqual(null, t.head); return this; } }
-	public Ser u { get { AreEqual(null, t.next); AreNotEqual(null, t.up); return new Ser(t.up, s); } }
-	public Ser U { get { AreEqual(null, t.next); AreEqual(null, t.up); return new Ser(t.up, s); } }
+	public Ser Vine { get { IsNotNull(t.head); return this; } }
+	public Ser Leaf { get { IsNull(t.head); return this; } }
+	public Ser u { get { IsNull(t.next); IsNotNull(t.up); return new Ser(t.up, s); } }
+	public Ser U { get { IsNull(t.next); IsNull(t.up); return new Ser(t.up, s); } }
 	public Ser uu => u.u;
 	public Ser uU => u.U;
 	public Ser uuu => u.u.u;

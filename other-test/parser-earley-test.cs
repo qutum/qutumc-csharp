@@ -17,7 +17,7 @@ public readonly struct Ser(EsynStr t, EarleyStr s)
 {
 	public readonly Ser Eq(string name = null, Jov<int?> j = default, object d = null, int err = 0)
 	{
-		AreNotEqual(null, t);
+		IsNotNull(t);
 		AreEqual(err, t.err);
 		if (name != null) AreEqual(name, t.name);
 		if (j.on != null) AreEqual(j.on, t.j.on);
@@ -36,10 +36,10 @@ public readonly struct Ser(EsynStr t, EarleyStr s)
 	public Ser N(string name = null, Jov<int?> j = default, object d = null, int err = 0)
 		=> new Ser(t.next, s).Eq(name, j, d, err).Leaf;
 
-	public Ser Vine { get { AreNotEqual(null, t.head); return this; } }
-	public Ser Leaf { get { AreEqual(null, t.head); return this; } }
-	public Ser u { get { AreEqual(null, t.next); AreNotEqual(null, t.up); return new Ser(t.up, s); } }
-	public Ser U { get { AreEqual(null, t.next); AreEqual(null, t.up); return new Ser(t.up, s); } }
+	public Ser Vine { get { IsNotNull(t.head); return this; } }
+	public Ser Leaf { get { IsNull(t.head); return this; } }
+	public Ser u { get { IsNull(t.next); IsNotNull(t.up); return new Ser(t.up, s); } }
+	public Ser U { get { IsNull(t.next); IsNull(t.up); return new Ser(t.up, s); } }
 	public Ser uu => u.u;
 	public Ser uU => u.U;
 	public Ser uuu => u.u.u;

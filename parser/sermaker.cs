@@ -129,7 +129,8 @@ public partial class SerMaker<K, N>
 						if (!ce)
 							goto A;
 					}
-					_ = firsts[nx].empty || (loop = firsts[nx].empty = true); A:;
+					_ = firsts[nx].empty || (loop = firsts[nx].empty = true);
+				A:;
 				}
 			}
 		for (var x = 0; x < firstAs.Length; x++) {
@@ -204,7 +205,8 @@ public partial class SerMaker<K, N>
 				foreach (var (fi, i) in f.Is.Zip(Is))
 					if (fi.alt != i.alt || fi.want != i.want || !fi.heads.Same(i.heads))
 						goto No;
-				return f.index; No:;
+				return f.index;
+			No:;
 			}
 		var F = new Form {
 			index = (short)forms.Count, Is = Is, clashs = new Clash[keys.Length],

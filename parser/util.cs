@@ -14,11 +14,11 @@ using System.Text;
 
 namespace qutum.parser;
 
-// jot of data to inclusive end, default size is 1
+// jot of data to inclusive end, [on,to], default size is 1
 public struct Jot
 {
-	public int on; // start on this index
-	public int to; // end to this inclusive index
+	public int on; // index on the first, [on]==first
+	public int to; // inclusive index to the last, last==[to]
 
 	public readonly int size => to - on + 1;
 	public readonly bool any => on <= to;
@@ -29,11 +29,11 @@ public struct Jot
 	public static implicit operator (int on, int to)(Jot j) => (j.on, j.to);
 	public static implicit operator Jot(Jov j) => (j.on, j.via - 1);
 }
-// jot of data via exclusive end, default size is 0
+// jot of data via exclusive end, [on,via), default size is 0
 public struct Jov(int on, int via)
 {
-	public int on = on; // start on this index
-	public int via = via; // end via this exclusive index
+	public int on = on; // index on the first, [on]==first
+	public int via = via; // exclusive index via the last, last==[via-1]
 
 	public readonly int size => via - on;
 	public readonly bool any => on < via;
@@ -203,10 +203,8 @@ public partial class LinkTree<T> : IEnumerable<T> where T : LinkTree<T>
 	// remove self from up
 	public T Remove(bool clear = true)
 	{
-		if (prev != null)
-			prev.next = next;
-		if (next != null)
-			next.prev = prev;
+		prev?.next = next;
+		next?.prev = prev;
 		if (up?.head == this)
 			up.head = next;
 		if (up?.tail == this)

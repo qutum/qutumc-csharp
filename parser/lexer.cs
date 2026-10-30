@@ -170,15 +170,15 @@ public static class CharSet
 			RI[t] = t is >= ' ' or '\t' or '\n' or '\r';
 		}
 		L[128] = true;
-		var all = Enumerable.Range(0, 129);
-		ALL = new string(all.Select(b => (char)b).ToArray());
-		LINE = new string(all.Where(b => L[b]).Select(b => (char)b).ToArray());
-		DEC = new string(all.Where(b => D[b]).Select(b => (char)b).ToArray());
-		HEX = new string(all.Where(b => X[b]).Select(b => (char)b).ToArray());
-		ALPHA = new string(all.Where(b => A[b]).Select(b => (char)b).ToArray());
-		WORD = new string(all.Where(b => W[b]).Select(b => (char)b).ToArray());
-		OP = new string(all.Where(b => O[b]).Select(b => (char)b).ToArray());
-		BYTE = Enumerable.Range(0, 129).Select(b => new string((char)b, 1)).ToArray();
+		var all = Enumerable.Range(0, 129).Select(b => (char)b);
+		ALL = new string([..all]);
+		LINE = new string([.. all.Where(b => L[b])]);
+		DEC = new string([.. all.Where(b => D[b])]);
+		HEX = new string([.. all.Where(b => X[b])]);
+		ALPHA = new string([.. all.Where(b => A[b])]);
+		WORD = new string([.. all.Where(b => W[b])]);
+		OP = new string([.. all.Where(b => O[b])]);
+		BYTE = [.. all.Select(b => new string(b, 1))];
 		All = ALL.One();
 		Line = LINE.One();
 		Dec = DEC.One();

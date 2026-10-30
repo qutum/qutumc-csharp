@@ -39,7 +39,7 @@ public class TestSerMaker : IDisposable
 	public void ClashEq(params (HashSet<char>, short[] redus, short[] shifts)[] aims)
 	{
 		var tests = mer.Clashs();
-		AreEqual(tests.Count, aims.Length);
+		HasCount(tests.Count, aims);
 		var bz = tests.First().Key.redus.bits.Length;
 		foreach (var (keys, redus, shifts) in aims) {
 			IsTrue(tests.TryGetValue(new() {
@@ -321,7 +321,7 @@ public class TestSerMaker : IDisposable
 			.n("a")['1', ..].synt['2', ..].synt['3', ..].synt['4', ..].synt['5', ..].synt
 		);
 		mer.Firsts(); mer.Forms();
-		AreEqual(null, mer.Clashs());
+		IsNull(mer.Clashs());
 	}
 
 	[TestMethod]

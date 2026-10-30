@@ -139,7 +139,7 @@ public static partial class Dumps
 			if (f.dump is Form d)
 				(dump, s) = (d.dump, d.s);
 			else // DebuggerDisplay stupidly ignored for DebuggerTypeProxy
-				(_, _, _) = (s = f.ToString().Split('\n').Select(s => (Str)s).ToArray(),
+				(_, _, _) = (s = [.. f.ToString().Split('\n').Select(s => (Str)s)],
 					dump = $"form {f.index} size {s?.Length}",
 					f.dump = this);
 			err = (Str)f.err;
@@ -167,8 +167,7 @@ public partial class Synter<K, L, N, T, Ler>
 	{
 		dumper = Dumper;
 		foreach (var (f, fx) in forms.Each())
-			if (f != null)
-				f.dump ??= (Func<object, string>)Dumper;
+			f?.dump ??= (Func<object, string>)Dumper;
 	}
 
 	public virtual string Dumper(object d)

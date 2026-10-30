@@ -40,6 +40,7 @@ public class TestLexier : IDisposable
 		AreEqual(s, ls);
 	}
 
+	[System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "MSTEST0058:Do not use asserts in catch blocks")]
 	static void Throw(Action a, string reg)
 	{
 		try {

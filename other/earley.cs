@@ -154,7 +154,8 @@ public class Earley<K, L, N, T, Ler>
 		err = null;
 		if (rec == 0) rec = -1;
 		int shift = 0;
-	Loop: do {
+	Loop:
+		do {
 			int c, p, cc, pp;
 			Complete(lexm[lexz]); cc = c = matchz;
 			Predict(lexm[lexz]); pp = p = matchz;
@@ -323,7 +324,7 @@ public class Earley<K, L, N, T, Ler>
 					|| m.a.prior && !matchs[max].a.prior
 					|| m.a.prior == matchs[max].a.prior && x > max)
 					max = x;
-				Cont:;
+		Cont:;
 		}
 		if (max >= 0) {
 			var m = matchs[max];
@@ -468,7 +469,7 @@ public class Earley<K, L, N, T, Ler>
 			kv => new EarleyChar.Prod { name = kv.Key });
 		foreach (var kv in grammar)
 			// split into alts
-			prods[kv.Key].alts = kv.Value.Split("|").Select(alt => {
+			prods[kv.Key].alts = [.. kv.Value.Split("|").Select(alt => {
 				// split into cons
 				var s = alt.Replace('\x1', '|')
 					.Split(' ', StringSplitOptions.RemoveEmptyEntries);
@@ -484,7 +485,7 @@ public class Earley<K, L, N, T, Ler>
 				}).Append(new EarleyChar.Con { q = One })
 				.ToArray();
 				return new EarleyChar.Alt { name = kv.Key, s = cons, recover = -1 };
-			}).ToArray();
+			})];
 		// hint synt is greedy
 		prods["hintt"].alts[2].greedy = 1;
 		// spaces before hintw are greedy

@@ -111,8 +111,7 @@ public partial class Synter<K, L, N, T, Ler>
 		this.alts = alts; this.forms = forms; this.recKs = recKs;
 		init = forms[0] ?? forms[1];
 		foreach (var (f, fx) in forms.Each())
-			if (f != null)
-				f.index = (short)fx;
+			f?.index = (short)fx;
 		InitDump();
 	}
 
