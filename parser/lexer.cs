@@ -154,8 +154,6 @@ public static class ByteSet
 
 	static ByteSet()
 	{
-		foreach (var t in "!\"#$%&'()*+,-./:;<=>?@[\\]^`{|}~")
-			O[t] = true;
 		for (char t = '\0'; t < 127; t++) {
 			L[t] = t is >= ' ' or '\t';
 			LL[t] = t is >= ' ' or '\t' or '\n' or '\r';
@@ -164,7 +162,9 @@ public static class ByteSet
 			A[t] = t is >= 'A' and <= 'Z' or >= 'a' and <= 'z';
 			W[t] = D[t] || A[t] || t == '_';
 		}
-		L[128] = true;
+		L[128] = LL[128] = true;
+		foreach (var t in "!\"#$%&'()*+,-./:;<=>?@[\\]^`{|}~")
+			O[t] = true;
 		var all = Enumerable.Range(0, 129).Select(b => (char)b);
 		ALL = new string([.. all]);
 		LINE = new string([.. all.Where(b => L[b])]);
@@ -175,14 +175,7 @@ public static class ByteSet
 		WORD = new string([.. all.Where(b => W[b])]);
 		OP = new string([.. all.Where(b => O[b])]);
 		BYTE = [.. all.Select(b => new string(b, 1))];
-		All = ALL;
-		Line = LINE;
-		Lines = LINES;
-		Dec = DEC;
-		Hex = HEX;
-		Alpha = ALPHA;
-		Word = WORD;
-		Op = OP;
+		(All, Line, Lines, Dec, Hex, Alpha, Word, Op) = (ALL, LINE, LINES, DEC, HEX, ALPHA, WORD, OP);
 	}
 
 	public struct One
@@ -192,12 +185,10 @@ public static class ByteSet
 		public static implicit operator One(ReadOnlyMemory<char> s) => new() { set = s };
 		public static implicit operator One(Memory<char> s) => new() { set = s };
 		public static implicit operator One(string s) => s.AsMemory();
-		public static One operator +(One o, ReadOnlyMemory<char> include)
-			=> o.set.Enum().Union(include.Enum()).ToArray().AsMemory();
-		public static One operator -(One o, ReadOnlyMemory<char> exc)
-			=> o.set.Enum().Except(exc.Enum()).ToArray().AsMemory();
-		public static One operator +(One o, string include) => o + include.AsMemory();
-		public static One operator -(One o, string exclude) => o - exclude.AsMemory();
+		public static One operator +(One o, One include)
+			=> o.set.Enum().Union(include.set.Enum()).ToArray().AsMemory();
+		public static One operator -(One o, One exclude)
+			=> o.set.Enum().Except(exclude.set.Enum()).ToArray().AsMemory();
 	}
 
 	public static string Esc<K>(K k)

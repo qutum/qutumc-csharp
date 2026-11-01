@@ -23,17 +23,17 @@ sealed class MetaStr(string read) : LerStr(read)
 	// for meta grammar
 	public override bool Is(char k, char aim) =>
 		aim switch {
-			'S' => k is ' ' or '\t',        // space
+			'S' => k is ' ' or '\t',    // space
 			'X' => k < 127 && Set.X[k], // hexadecimal
 			'W' => k < 127 && Set.W[k], // word
 			'O' => k < 127 && Set.O[k], // operator
-			'G' => k < 127 && SetG[k], // grammar operator
-			'E' => k > ' ' && k < 127,      // escape
-			'I' => k < 127 && SetI[k], // single range
-			'R' => k < 127 && SetI[k] && k != '-' && k != '^', // range
-			'Q' => k is '?' or '*' or '+',                          // quantifier
-			'H' => k >= ' ' && k < 127 && k != '=' && k != '|',     // hint
-			'V' => k is >= ' ' or '\t',                             // comment
+			'G' => k < 127 && SetG[k],  // grammar operator
+			'E' => k > ' ' && k < 127,  // escape
+			'I' => k < 127 && SetI[k],  // single range
+			'R' => k < 127 && SetI[k] && k != '-' && k != '^',  // range
+			'Q' => k is '?' or '*' or '+',                      // quantifier
+			'H' => k >= ' ' && k < 127 && k != '=' && k != '|', // hint
+			'V' => k is >= ' ' or '\t',                         // comment
 			_ => k == aim,
 		};
 
@@ -157,7 +157,10 @@ public static class MetaLex
 				;
 			}
 		}
-		if (dump) Dump(top, g);
+		if (dump) {
+			using var env = EnvWriter.Use();
+			env.WriteLine("meta:"); top.Dump();
+		}
 		return g;
 	}
 
@@ -198,30 +201,5 @@ public static class MetaLex
 		// byte dup +
 		if (x < b.j.via)
 			es[ez++] = Range.All;
-	}
-
-	static void Dump<K>(EsynStr top, LexGram<K> gram) where K : struct
-	{
-		using var env = EnvWriter.Use();
-		env.WriteLine("meta:");
-		top.Dump();
-		env.WriteLine("gram:");
-		foreach (var prod in gram.prods) {
-			env.Write($".k({prod.key})");
-			foreach (var wad in prod) {
-				env.Write(wad.redo ? "\n  .redo" : "\n  .w");
-				foreach (var alt in wad) {
-					env.Write("[");
-					foreach (var (c, cx) in alt.Each()) {
-						if (c.one.Length > 0) env.Write($"[{c.one}]");
-						else env.Write($"\"{c.str}\"");
-						if (c.dup) env.Write(",..");
-						if (cx < alt.Count - 1) env.Write(",");
-					}
-					env.Write(alt.loop ? "].loop" : "]");
-				}
-			}
-			env.WriteLine();
-		}
 	}
 }

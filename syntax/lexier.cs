@@ -14,8 +14,8 @@ namespace qutum.syntax;
 
 using Kord = char;
 using L = Lex;
-using S = ByteSet;
 using One = ByteSet.One;
+using S = ByteSet;
 
 /*	EXC		!	NOT
 	QUO		"	STR?

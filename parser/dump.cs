@@ -27,6 +27,32 @@ public partial struct Lexi<K>
 		+ (value != null ? s + (dumper?.Invoke(value) ?? value.ToString()) : s);
 }
 
+public partial class LexGram<K>
+{
+	public void Dump()
+	{
+		using var env = EnvWriter.Use();
+		env.WriteLine($"{nameof(LexGram<>)}:");
+		foreach (var prod in prods) {
+			env.Write($".k({prod.key})");
+			foreach (var wad in prod) {
+				env.Write(wad.redo ? "\n  .redo" : "\n  .w");
+				foreach (var alt in wad) {
+					env.Write("[");
+					foreach (var (c, cx) in alt.Each()) {
+						if (c.one.Length > 0) env.Write($"(One)\"{c.one}\"");
+						else env.Write($"\"{c.str}\"");
+						if (c.dup) env.Write(",..");
+						if (cx < alt.Count - 1) env.Write(",");
+					}
+					env.Write(alt.loop ? "].loop" : "]");
+				}
+			}
+			env.WriteLine();
+		}
+	}
+}
+
 public partial class Lexier<K>
 {
 	static void Dump(Unit u, string pre, Dictionary<Unit, bool> us = null)
@@ -36,7 +62,7 @@ public partial class Lexier<K>
 		us ??= [];
 		us[u] = false; // dumped
 		if (u.id == 0)
-			env.WriteLine("unit:");
+			env.WriteLine($"{nameof(Lexier<>)}.{nameof(Unit)}:");
 		env.WriteLine($"{u.id}: {u.key}.{u.wad} " +
 			$"{(u.mode >= 0 ? "back" : u.mode == -1 ? "ok" : "err")}.{u.go.id} < {pre}");
 		if (!us.ContainsKey(u.go))

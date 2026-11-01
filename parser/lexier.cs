@@ -15,13 +15,13 @@ namespace qutum.parser;
 public partial struct Lexi<K> where K : struct
 {
 	public K key;
-	public Jov j; // read jot loc, error: <0
+	public Jov j; // jot of read.loc, error: on<0
 	public int err; // error: <0, no error: >=0
 	public object value;
 }
 
 // lexic grammar
-public class LexGram<K> where K : struct
+public partial class LexGram<K> where K : struct
 {
 	public readonly List<Prod> prods = [];
 	public class Prod : List<Wad>
@@ -35,7 +35,7 @@ public class LexGram<K> where K : struct
 	}
 	public class Alt : List<Con>
 	{
-		// match to loop wad
+		// match then loop wad
 		public bool loop;
 	}
 	public struct Con
@@ -48,13 +48,13 @@ public class LexGram<K> where K : struct
 		public bool dup;
 	}
 
-	// add a Prod with key
+	// add a product with key
 	public LexGram<K> k(K key) { prods.Add(new() { key = key }); return this; }
-	// add a Wad to last Prod
+	// add a wad to last product
 	public LexGram<K> w { get { prods[^1].Add([]); return this; } }
-	// add a redo Wad to last Prod
+	// add a redo wad to last Prod
 	public LexGram<K> redo { get { prods[^1].Add(new() { redo = true }); return this; } }
-	// add a Alt to last Wad
+	// add a altern to last wad
 	// string : byte sequence, ByteSet.One : one byte set, .. : duplicate
 	public LexGram<K> this[params object[] cons] {
 		get {
@@ -68,6 +68,7 @@ public class LexGram<K> where K : struct
 			return this;
 		}
 	}
+	// mark last altern loop
 	public LexGram<K> loop { get { prods[^1][^1][^1].loop = true; return this; } }
 }
 
@@ -81,7 +82,7 @@ public partial class Lexier<K> : LexierBuf<K> where K : struct
 		internal int id;
 		internal K key;
 		internal int wad; // first is 1
-		internal int prez; // for next[byte] are this unit, count bytes
+		internal int prez; // count bytes which next[byte] are this unit
 		internal Unit[] next; // [next unit of byte], byte >= 128: [128]
 		internal Unit go; // when next==null or next[byte]==null or backward
 						  // go.next != null, go to begin: eor or error
@@ -95,9 +96,9 @@ public partial class Lexier<K> : LexierBuf<K> where K : struct
 	int uid;
 	protected Lexer<byte, byte> read;
 	int bz; // total bytes got
-	Jov bj; // read jot loc for each wad
-	readonly byte[] bytes = new byte[AltByteN + 1]; // {latest bytes}[read loc & AltByteN]
-	protected int lon; // read loc for current lexi
+	Jov bj; // jot of read.loc for each wad
+	readonly byte[] bytes = new byte[AltByteN + 1]; // {latest bytes}[read.loc & AltByteN]
+	protected int lon; // read.loc for current lexi
 
 	public const int AltByteN = 15;
 
@@ -207,7 +208,7 @@ public partial class Lexier<K> : LexierBuf<K> where K : struct
 		if (errs != null) errs.Add(l); else Add(l);
 	}
 
-	// eor, read via exclusive loc
+	// exclusive loc via end of read
 	protected virtual void Eor(int via) { }
 }
 
@@ -215,7 +216,7 @@ public abstract class LexierBuf<K> : LexerSeg<K, Lexi<K>> where K : struct
 {
 	protected int size, loc; // lexs size, current loc
 	protected Lexi<K>[] lexs;
-	public List<int> lines = []; // [0, loc of read after eol...]
+	public List<int> lines = []; // [0, read.loc after eol...]
 	public List<Lexi<K>> errs = []; // [error lexi]: not null, merge to lexs: null
 
 	public virtual void Dispose()
@@ -294,6 +295,8 @@ public partial class Lexier<K>
 		{
 			if (grammar.prods.Count < 1)
 				throw new("No product");
+			if (dump)
+				grammar.Dump();
 			var begin = new Unit(ler);
 			var aus = new Unit[grammar.prods.Max(p => p.Count) + 1][];
 			// build prod
@@ -353,7 +356,7 @@ public partial class Lexier<K>
 						}
 					if (w[0].Count > 0)
 						aus[wad - 1] = null;
-				};
+				}
 			}
 			if (dump) Dump(begin, "");
 			return begin;
