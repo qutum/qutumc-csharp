@@ -12,12 +12,12 @@ using System.Text;
 using System.Text.RegularExpressions;
 using static Microsoft.VisualStudio.TestTools.UnitTesting.Assert;
 
-namespace qutum.test.parser;
+namespace qutum.test.parser.meta;
 
 [System.Diagnostics.CodeAnalysis.SuppressMessage("CodeQuality", "IDE0079:Remove unnecessary suppression")]
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1806:Do not ignore method results")]
 [TestClass]
-public class TestLexier : IDisposable
+public class TestMetaLex : IDisposable
 {
 	readonly EnvWriter env = EnvWriter.Use();
 
