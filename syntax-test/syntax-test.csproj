@@ -1,6 +1,6 @@
 <Project>
 	<PropertyGroup>
-		<BaseIntermediateOutputPath>..\bin\obj-qutumc-test</BaseIntermediateOutputPath>
+		<BaseIntermediateOutputPath>..\bin\obj-syntax-test</BaseIntermediateOutputPath>
 		<BaseOutputPath>..\bin</BaseOutputPath>
 	</PropertyGroup>
 	<Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
@@ -32,7 +32,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="..\qutumc\qutumc.csproj" />
+		<ProjectReference Include="..\syntax\syntax.csproj" />
 	</ItemGroup>
 
 	<Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
