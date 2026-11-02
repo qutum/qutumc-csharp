@@ -13,8 +13,6 @@ using static Microsoft.VisualStudio.TestTools.UnitTesting.Assert;
 
 namespace qutum.test.parser;
 
-using Gram = SynGram<char, string>;
-
 [TestClass]
 public class TestSerMaker : IDisposable
 {
@@ -23,20 +21,18 @@ public class TestSerMaker : IDisposable
 	public void Dispose() => env.Dispose();
 
 	SerMaker<char, string> mer;
-	TestSynter ser;
 
-	public void NewMer(Gram gram)
-	{
-		mer = new(gram, k => k, n => n[0]);
-	}
+	static SynGram<char, string> Gram => new();
 
-	public static void Eq((bool empty, IEnumerable<char> first) test, bool empty, string first)
+	void NewMer(SynGram<char, string> gram) => mer = new(gram, k => k, n => n[0]);
+
+	static void Eq((bool empty, IEnumerable<char> first) test, bool empty, string first)
 	{
 		AreEqual(empty, test.empty);
 		AreEqual(first, string.Join(" ", test.first.Order()));
 	}
 
-	public void ClashEq(params (HashSet<char>, short[] redus, short[] shifts)[] aims)
+	void ClashEq(params (HashSet<char>, short[] redus, short[] shifts)[] aims)
 	{
 		var tests = mer.Clashs();
 		HasCount(tests.Count, aims);
@@ -53,10 +49,12 @@ public class TestSerMaker : IDisposable
 		}
 	}
 
-	public void NewSer(bool recover = false)
+	TestSynter ser;
+
+	void NewSer(bool recover = false)
 	{
 		var (a, f, r) = mer.Make(out var _);
-		ser = new TestSynter {
+		ser = new() {
 			ser = new(n => n[0], a, f, r) { recover = recover, dumper = mer.Dumper }
 		};
 	}
@@ -64,7 +62,7 @@ public class TestSerMaker : IDisposable
 	[TestMethod]
 	public void FirstTigerG312()
 	{
-		NewMer(new Gram().n("S")["Z"]
+		NewMer(Gram.n("S")["Z"]
 			.n("Z")['d']["X", "Y", "Z"]
 			.n("Y")[[]]['c']
 			.n("X")["Y"]['a']
@@ -78,8 +76,7 @@ public class TestSerMaker : IDisposable
 	[TestMethod]
 	public void FirstTigerT316()
 	{
-		NewMer(new Gram()
-			.n("S")["E"]
+		NewMer(Gram.n("S")["E"]
 			.n("E")["T", "e"]
 			.n("e")['+', "T", "e"]['-', "T", "e"][[]]
 			.n("T")["F", "t"]
@@ -98,19 +95,19 @@ public class TestSerMaker : IDisposable
 	[TestMethod]
 	public void Clash1()
 	{
-		NewMer(new Gram().n("S")["E"].n("E")['i']["E", "E"]['j']);
+		NewMer(Gram.n("S")["E"].n("E")['i']["E", "E"]['j']);
 		mer.Firsts(); mer.Forms();
 		ClashEq(
 			(['i'], [2], [1]),
 			(['j'], [2], [3])
 		);
-		NewMer(new Gram().n("S")["E"].n("E")['i']["E", "E"]['j'].clash);
+		NewMer(Gram.n("S")["E"].n("E")['i']["E", "E"]['j'].clash);
 		mer.Firsts(); mer.Forms();
 		ClashEq(
 			(['i'], [2], [1]),
 			(['j'], [2], [3])
 		);
-		NewMer(new Gram().n("S")["E"].n("E")['i'].clash["E", "E"].clash['j'].clash);
+		NewMer(Gram.n("S")["E"].n("E")['i'].clash["E", "E"].clash['j'].clash);
 		mer.Firsts(); mer.Forms();
 		ClashEq(
 			(['i'], [~2], [1]),
@@ -121,7 +118,7 @@ public class TestSerMaker : IDisposable
 	[TestMethod]
 	public void Clash2()
 	{
-		NewMer(new Gram().n("S")["E"]
+		NewMer(Gram.n("S")["E"]
 			.n("E")["E", "E"].clash
 					["E", '+', "E"].clash
 					['x'].clash
@@ -133,7 +130,7 @@ public class TestSerMaker : IDisposable
 			(['x'], [1], [~3]),
 			(['x'], [2], [~3])
 		);
-		NewMer(new Gram().n("S")["E"]
+		NewMer(Gram.n("S")["E"]
 			.n("E")['x'].clash
 					["E", "E"].clash
 					["E", '+', "E"].clash
@@ -150,7 +147,7 @@ public class TestSerMaker : IDisposable
 	[TestMethod]
 	public void Clash3()
 	{
-		NewMer(new Gram().n("S")["E"]
+		NewMer(Gram.n("S")["E"]
 			.n("E")["E", ',', "E"].clash
 					["E", '+', "E"].clash
 					["E", '^', "E"].clashRight
@@ -173,7 +170,7 @@ public class TestSerMaker : IDisposable
 	[TestMethod]
 	public void Clash4()
 	{
-		NewMer(new Gram().n("S")["E"]
+		NewMer(Gram.n("S")["E"]
 			.n("B")[',', "E"].clash
 					['+', "E"].clash
 					['^', "E"].clashRight
@@ -192,7 +189,7 @@ public class TestSerMaker : IDisposable
 			(['^'], [2], [~3]),
 			(['^'], [3], [~3])
 		);
-		NewMer(new Gram().n("S")["E"]
+		NewMer(Gram.n("S")["E"]
 			.n("B")["E", ',']
 					["E", '+']
 					["E", '^']
@@ -210,7 +207,7 @@ public class TestSerMaker : IDisposable
 	[TestMethod]
 	public void Clash5()
 	{
-		NewMer(new Gram().n("S")["E"]
+		NewMer(Gram.n("S")["E"]
 			.n("E")["E", '?', "E", ':', "E", '?', "E"].clashRight
 					["E", '+', "E"].clash
 					["E", '$', "E"].clash
@@ -234,7 +231,7 @@ public class TestSerMaker : IDisposable
 	[TestMethod]
 	public void Clash6()
 	{
-		NewMer(new Gram().n("S")["E"]
+		NewMer(Gram.n("S")["E"]
 			.n("E")["E", '+', "E"].clash
 					["E", '-', "E"].clashPrev
 					["E", '|', "E"].clashPrev
@@ -275,7 +272,7 @@ public class TestSerMaker : IDisposable
 	[TestMethod]
 	public void Clash7()
 	{
-		NewMer(new Gram().n("S")["E"]
+		NewMer(Gram.n("S")["E"]
 			.n("E")["E", ",", "E"].clash
 			.n("B")['+', "E"].clash
 					['^', "E"].clashRight
@@ -295,7 +292,7 @@ public class TestSerMaker : IDisposable
 			(['^'], [2], [~3]),
 			(['^'], [3], [~3])
 		);
-		NewMer(new Gram().n("S")["E"]
+		NewMer(Gram.n("S")["E"]
 			.n("E")["E", "B", "E"]
 			.n("B")[',']
 					['+']
@@ -313,7 +310,7 @@ public class TestSerMaker : IDisposable
 	[TestMethod]
 	public void Clash8()
 	{
-		NewMer(new Gram().n("S")["B"]
+		NewMer(Gram.n("S")["B"]
 			.n("B")["b", .., "B"].syntRight[[]]
 			.n("b")["a", "J"]
 			.n("j")['(', .., "b", "B", ')'].synt
@@ -327,8 +324,7 @@ public class TestSerMaker : IDisposable
 	[TestMethod]
 	public void ClashTigerF332()
 	{
-		NewMer(new Gram()
-			.n("P")["L"]
+		NewMer(Gram.n("P")["L"]
 			.n("S")['i', '=', 'i']
 					['*', 'i', ':', "S"]
 					['(', "S", ')']
@@ -343,7 +339,7 @@ public class TestSerMaker : IDisposable
 	[TestMethod]
 	public void ClashTigerF337()
 	{
-		NewMer(new Gram().n("Z")["S"]
+		NewMer(Gram.n("Z")["S"]
 			.n("S")['i', ':', "A"]['i', ':', "B"]['i', ':', "C"]
 			.n("B")["B", '|', "B"].clash["B", '&', "B"].clash
 					["A", '=', "A"]
@@ -367,8 +363,7 @@ public class TestSerMaker : IDisposable
 	[TestMethod]
 	public void MakeTigerF325()
 	{
-		NewMer(new Gram()
-			.n("S")["E"]
+		NewMer(Gram.n("S")["E"]
 			.n("E")["T", '+', .., "E"]["T"]
 			.n("T")['a', ..]['b', ..]
 		);
@@ -379,8 +374,7 @@ public class TestSerMaker : IDisposable
 	[TestMethod]
 	public void MakeTigerT328()
 	{
-		NewMer(new Gram()
-			.n("Z")["S"]
+		NewMer(Gram.n("Z")["S"]
 			.n("S")["V", '=', .., "E"]["E"].syntOmit
 			.n("E")["V"].syntOmit
 			.n("V")['a', ..]['b', ..]['*', .., "E"]
@@ -392,8 +386,7 @@ public class TestSerMaker : IDisposable
 	[TestMethod]
 	public void MakeTigerT322()
 	{
-		NewMer(new Gram()
-			.n("Z")["S"]
+		NewMer(Gram.n("Z")["S"]
 			.n("S")['(', .., "L", ')']['a', ..]['b', ..]
 			.n("L")["S"].syntOmit["L", ',', .., "S"]
 		);
@@ -404,8 +397,7 @@ public class TestSerMaker : IDisposable
 	[TestMethod]
 	public void MakeDragon2F451()
 	{
-		NewMer(new Gram()
-			.n("Z")["S"]
+		NewMer(Gram.n("Z")["S"]
 			.n("S")['i', .., "S"].clash['i', .., "S", 'e', "S"].clash
 					['a', ..]['b', ..]['c', ..]
 		);
@@ -416,7 +408,7 @@ public class TestSerMaker : IDisposable
 	[TestMethod]
 	public void MakeDragon2F449()
 	{
-		NewMer(new Gram().n("Z")["E"].syntOmit
+		NewMer(Gram.n("Z")["E"].syntOmit
 			.n("E")["E", '+', .., "E"].clash
 					["E", '*', .., "E"].clash
 					['(', .., "E", ')'].syntOmit
@@ -429,8 +421,8 @@ public class TestSerMaker : IDisposable
 	[TestMethod]
 	public void Synt1()
 	{
-		NewMer(new Gram()
-			.n("S")["E"].n("E")["A", "B"]
+		NewMer(Gram.n("S")["E"]
+			.n("E")["A", "B"]
 			.n("A")['a', ..].synt
 			.n("B")['b', ..].synt
 		);
@@ -441,7 +433,7 @@ public class TestSerMaker : IDisposable
 	[TestMethod]
 	public void Synt2()
 	{
-		NewMer(new Gram().n("S")["E"]
+		NewMer(Gram.n("S")["E"]
 			.n("E")["E", '+', .., "E"].clash.syntLeft
 					["E", '-', .., "E"].clashPrev.syntLeft
 					["E", '*', .., "E"].clash.syntLeft
@@ -477,7 +469,7 @@ public class TestSerMaker : IDisposable
 	[TestMethod]
 	public void ErrorCyclic()
 	{
-		NewMer(new Gram()
+		NewMer(Gram
 			.n("Z")["S", 'a'].clash.syntOmit
 			.n("S")['a', ..]["S"].clash
 		);
@@ -488,11 +480,11 @@ public class TestSerMaker : IDisposable
 	[TestMethod]
 	public void Error1()
 	{
-		NewMer(new Gram().n("S")['a']);
+		NewMer(Gram.n("S")['a']);
 		NewSer();
 		_ = ser.Parse("").H(null, "S a", (0, 0), -1).uU;
 		_ = ser.Parse("b").H(null, "S a", (0, 1), -1).uU;
-		NewMer(new Gram().n("Z")["S"].n("S")['a']['b']);
+		NewMer(Gram.n("Z")["S"].n("S")['a']['b']);
 		NewSer();
 		_ = ser.Parse("").H(null, "Z S", (0, 0), -1).uU;
 		_ = ser.Parse("c").H(null, "Z S", (0, 1), -1).uU;
@@ -502,7 +494,7 @@ public class TestSerMaker : IDisposable
 	[TestMethod]
 	public void Error2()
 	{
-		NewMer(new Gram().n("P")["S"].syntOmit
+		NewMer(Gram.n("P")["S"].syntOmit
 			.n("S", "sentence")
 					["E"]["S", ';', "E"]
 			.n("E", "expression", false)
@@ -532,7 +524,7 @@ public class TestSerMaker : IDisposable
 	[TestMethod]
 	public void Recover1()
 	{
-		NewMer(new Gram().n("Z")["S"]
+		NewMer(Gram.n("Z")["S"]
 			.n("S", "sen")["E", ';'].recover["E", ';', "S"]
 			.n("E", "exp")['a', ..]['b', ..]
 		);
@@ -556,7 +548,7 @@ public class TestSerMaker : IDisposable
 	[TestMethod]
 	public void Recover2()
 	{
-		NewMer(new Gram().n("Z")["S"]
+		NewMer(Gram.n("Z")["S"]
 			.n("S", "sen")["E", ';'].recover["S", "E", ';'].recover
 			.n("E", "exp")['a', ..]['b', ..]
 		);
@@ -584,7 +576,7 @@ public class TestSerMaker : IDisposable
 
 	void DoRecover3()
 	{
-		NewMer(new Gram().n("Z")["S"]
+		NewMer(Gram.n("Z")["S"]
 			.n("S", "sen")["B"].syntOmit
 					["E", ';'].recover["S", "E", ';'].recover
 			.n("B", "blo")['{', .., "S", '}'].recover.syntOmit

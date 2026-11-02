@@ -29,7 +29,9 @@ public class TestLexier : IDisposable
 	public enum Lex { _, A, B, BB, C, CC, D };
 
 	Lexier<Lex> ler;
+
 	static LexGram<Lex> Gram => new();
+
 	void Ler(LexGram<Lex> gram) => ler = new(gram, true) { errs = null };
 
 	void Check(string read, string s) => Check(Encoding.UTF8.GetBytes(read), s);
@@ -290,7 +292,7 @@ public class TestLexier : IDisposable
 	[TestMethod]
 	public void Wad1()
 	{
-		Ler(Gram.k(A).w["aa"].w["b"].w["cde"].k(B).w["ab"].k(C).w["bc"]);
+		Ler(Gram.k(B).w["ab"].k(A).w["aa"].w["b"].w["cde"].k(C).w["bc"]);
 		Check("aabcdee", "A=aabcde _!e"); Check("abbc", "B=ab C=bc");
 		Check("aa", "A!"); Check("aabcdf", "A!c _!d _!f");
 		Check("aacab", "A!c B=ab");
