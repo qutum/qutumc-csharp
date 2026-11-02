@@ -333,38 +333,45 @@ public static partial class Extension
 {
 	const short No = -1;
 
-	public static IEnumerable<(short d, Kord ord)> Full(this SynForm.S<Kord> s)
+	extension(SynForm.S<Kord> s)
 	{
+		public IEnumerable<(short d, Kord ord)> Full()
+		{
 		for (var y = 0; y < s.s.Length; y++)
 			yield return (s.s[y], s.x?[y] ?? (Kord)y);
 	}
-	public static IEnumerable<(short d, Nord ord)> Full(this SynForm.S<Nord> s)
+		public IEnumerable<(short d, Kord ord)> Yes()
 	{
-		for (var y = 0; y < s.s.Length; y++)
-			yield return (s.s[y], s.x?[y] ?? (Nord)y);
+			foreach (var d in s.Full()) if (d.d != No) yield return d;
 	}
-	public static IEnumerable<(short d, Kord ord)> Yes(this SynForm.S<Kord> s)
+		public IEnumerable<(short d, Kord ord)> Form()
 	{
-		foreach (var d in s.Full()) if (d.d != No) yield return d;
+			foreach (var d in s.Full()) if (d.d > No) yield return d;
 	}
-	public static IEnumerable<(short d, Nord ord)> Yes(this SynForm.S<Nord> s)
+		public IEnumerable<(short d, Kord ord)> Redu()
 	{
-		foreach (var d in s.Full()) if (d.d != No) yield return d;
+			foreach (var d in s.Full()) if (d.d < No) yield return d;
 	}
-	public static IEnumerable<(short d, Kord ord)> Form(this SynForm.S<Kord> s)
+		public IEnumerable<(short d, Kord ord)> Alt()
 	{
-		foreach (var d in s.Full()) if (d.d > No) yield return d;
+			foreach (var d in s.Full()) if (d.d < No) yield return (SynForm.Redu(d.d), d.ord);
 	}
-	public static IEnumerable<(short d, Nord ord)> Form(this SynForm.S<Nord> s)
-	{
-		foreach (var d in s.Full()) if (d.d > No) yield return d;
 	}
-	public static IEnumerable<(short d, Kord ord)> Redu(this SynForm.S<Kord> s)
+
+	extension(SynForm.S<Nord> s)
 	{
-		foreach (var d in s.Full()) if (d.d < No) yield return d;
+		public IEnumerable<(short d, Nord ord)> Full()
+	{
+			for (var y = 0; y < s.s.Length; y++)
+				yield return (s.s[y], s.x?[y] ?? (Nord)y);
 	}
-	public static IEnumerable<(short d, Kord ord)> Alt(this SynForm.S<Kord> s)
+		public IEnumerable<(short d, Nord ord)> Yes()
 	{
-		foreach (var d in s.Full()) if (d.d < No) yield return (SynForm.Redu(d.d), d.ord);
+			foreach (var d in s.Full()) if (d.d != No) yield return d;
+	}
+		public IEnumerable<(short d, Nord ord)> Form()
+	{
+			foreach (var d in s.Full()) if (d.d > No) yield return d;
+		}
 	}
 }

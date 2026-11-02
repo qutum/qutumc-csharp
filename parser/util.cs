@@ -73,42 +73,45 @@ public static partial class Extension
 		var z = s.Count; s.UnionWith(add); return s.Count > z;
 	}
 
-	public static IEnumerable<(T d, int x)> Each<T>(this IEnumerable<T> s, int offset = 0)
+	extension<T>(IEnumerable<T> s)
 	{
-		foreach (var d in s) yield return (d, offset++);
-	}
-
-	public static IEnumerable<T?> May<T>(this IEnumerable<T> s) where T : struct
-	{
-		bool no = true;
-		foreach (var d in s) { no = false; yield return d; }
-		if (no) yield return null;
-	}
-
-	public static T? FirstOrNull<T>(this IEnumerable<T> s, Func<T, bool> If) where T : struct
-	{
-		foreach (var d in s) if (If(d)) return d;
-		return null;
-	}
-
-	public static Dictionary<T, V> ToDict<T, V>(this IEnumerable<T> s, Func<T, V, V> value)
-	{
-		var kv = new Dictionary<T, V>();
-		foreach (var d in s)
-			kv[d] = kv.TryGetValue(d, out var v) ? value(d, v) : value(d, default);
-		return kv;
-	}
-	public static Dictionary<K, V> ToDict<T, K, V>(this IEnumerable<T> s, Func<T, K> key, Func<K, V, V> value)
-	{
-		var kv = new Dictionary<K, V>();
-		foreach (var d in s) {
-			var k = key(d);
-			kv[k] = kv.TryGetValue(k, out var v) ? value(k, v) : value(k, default);
+		public IEnumerable<(T d, int x)> Each(int offset = 0)
+		{
+			foreach (var d in s) yield return (d, offset++);
 		}
-		return kv;
+		public Dictionary<T, V> ToDict<V>(Func<T, V, V> value)
+		{
+			var kv = new Dictionary<T, V>();
+			foreach (var d in s)
+				kv[d] = kv.TryGetValue(d, out var v) ? value(d, v) : value(d, default);
+			return kv;
+		}
+		public Dictionary<K, V> ToDict<K, V>(Func<T, K> key, Func<K, V, V> value)
+		{
+			var kv = new Dictionary<K, V>();
+			foreach (var d in s) {
+				var k = key(d);
+				kv[k] = kv.TryGetValue(k, out var v) ? value(k, v) : value(k, default);
+			}
+			return kv;
+		}
+		public Dictionary<T, int> ToCount() => ToDict<T, int>(s, (d, z) => z + 1);
 	}
-	public static Dictionary<T, int> ToCount<T>(this IEnumerable<T> s)
-		=> ToDict<T, int>(s, (d, z) => z + 1);
+
+	extension<T>(IEnumerable<T> s) where T : struct
+	{
+		public IEnumerable<T?> May()
+		{
+			bool no = true;
+			foreach (var d in s) { no = false; yield return d; }
+			if (no) yield return null;
+		}
+		public T? FirstOrNull(Func<T, bool> If)
+		{
+			foreach (var d in s) if (If(d)) return d;
+			return null;
+		}
+	}
 }
 
 public partial class LinkTree<T> : IEnumerable<T> where T : LinkTree<T>

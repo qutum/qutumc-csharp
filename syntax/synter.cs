@@ -125,7 +125,7 @@ file static class Extension
 {
 	public static SynGram<L, S> Alts(this SynGram<L, S> gram, L group)
 	{
-		foreach (var k in LexIs.OfGroup(group, true))
+		foreach (var k in group.GroupEach(true))
 			if (k.IsKind() || k.IsSingle())
 				_ = gram[k];
 		return gram;

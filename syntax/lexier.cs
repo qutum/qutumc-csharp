@@ -53,40 +53,46 @@ using S = ByteSet;
 
 public static class LexIs
 {
-	public static IEnumerable<L> OfGroup(this L g, bool kinds = false)
+	extension(L aim)
 	{
-		HashSet<L> ks = kinds ? [] : null;
-		foreach (var key in Enum.GetValues<L>())
-			if (key.InGroupAll(g)) {
-				yield return key;
-				if (kinds && key.InKind() is var k and > 0)
-					ks.Add((L)k);
-			}
-		if (kinds)
-			foreach (var k in ks)
-				yield return k;
+		public IEnumerable<L> GroupEach(bool kinds = false)
+		{
+			HashSet<L> ks = kinds ? [] : null;
+			foreach (var key in Enum.GetValues<L>())
+				if (key.InGroupAll(aim)) {
+					yield return key;
+					if (kinds && key.InKind() is var k and > 0)
+						ks.Add((L)k);
+				}
+			if (kinds)
+				foreach (var k in ks)
+					yield return k;
+		}
+		public bool IsGroup() => (byte)aim == 0;
+		public bool IsKind() => (ushort)aim is > 0 and < 16;
+		public bool IsSingle() => (ushort)aim is >= 16 and <= 255;
 	}
 
-	public static bool IsGroup(this L aim) => (byte)aim == 0;
-	public static bool IsKind(this L aim) => (ushort)aim is > 0 and < 16;
-	public static bool IsSingle(this L aim) => (ushort)aim is >= 16 and <= 255;
-	public static bool InGroup(this L key, L aim) => (int)(key & aim) << 8 != 0;
-	public static bool InGroupAll(this L key, L aim) => (int)(key & aim) == (int)aim;
-	public static byte InKind(this L key) => (byte)((ushort)key >> 8);
-	public static bool InKind(this L key, L aim) => (byte)((int)key >> ((int)key >> 24)) == (byte)aim;
+	extension(L key)
+	{
+		public bool InGroup(L aim) => (int)(key & aim) != 0;
+		public bool InGroupAll(L aim) => (int)(key & aim) == (int)aim;
+		public byte InKind() => (byte)((ushort)key >> 8);
+		public bool InKind(L aim) => (byte)((int)key >> ((int)key >> 24)) == (byte)aim;
 
-	public static bool Is(this L key, L aim) =>
-		aim.IsGroup() ? key.InGroup(aim) : aim.IsKind() ? key.InKind(aim) : key == aim;
+		public bool Is(L aim) =>
+			aim.IsGroup() ? key.InGroup(aim) : aim.IsKind() ? key.InKind(aim) : key == aim;
 
-	// key ordinal is single or kind byte
-	public static Kord Ordin(this L key) => (Kord)(byte)((int)key >> ((int)key >> 24));
+		// key ordinal byte for single or which kind
+		public Kord Ordin() => (Kord)(byte)((int)key >> ((int)key >> 24));
+	}
 }
 
 // lexemes
 public enum Lex : int
 {
 	// 0 for end of read
-	// kinds 255<<8
+	// kinds, 255<<8
 	LIT = 1, // literals
 	BIN1,
 	BIN2,
@@ -102,7 +108,7 @@ public enum Lex : int
 
 	// singles
 	QUO = 16,
-	// singles of groups: binary, proem, phrase
+	// singles in proem, phrase, binary groups
 	INP = Bin | QUO + 1 & 255, ORB, XORB,
 	LP = Proem | XORB + 1 & 255, LCB, LSB = Junct | LCB + 1,
 	RP = Phr | LSB + 1 & 255, RCB, RSB,
@@ -110,7 +116,7 @@ public enum Lex : int
 	EOL = Blank | RSB + 1 & 255, IND, INDR, DED, DEDR, INDJ,
 	SP, COM, COMB, PATH, DEC, HEX,
 
-	// inside kinds
+	// inside one kind
 	// literal
 	STR = Phr | Kind | LIT << 8 | 1, STRB, NAME, INT, FLOAT,
 	// logical
@@ -129,13 +135,13 @@ public enum Lex : int
 	// dense postfix
 	RUND = POSTD << 8 | POST << 8 ^ RUN,
 
-	// groups 255<<16
+	// multi groups, 255<<16
 	Proem  /**/= 0x_01_0000, // proem
 	Phr    /**/= 0x_02_0000, // phrase
 	Junct  /**/= 0x_04_0000, // junct
-	Bin    /**/= 0x_08_0000 | Junct, // binary
+	Bin    /**/= 0x_08_0000 | Junct, // binary, also junct
 	Blank  /**/= 0x_80_0000, // blank
-	Kind   /**/= 0x800_0000, // kind 8<<24
+	Kind   /**/= 0x800_0000, // inside one kind, 8<<24
 }
 
 // lexic parser

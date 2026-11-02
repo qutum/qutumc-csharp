@@ -4,12 +4,13 @@
 // Under the terms of the GNU General Public License version 3
 // http://qutum.com  http://qutum.cn
 //
-namespace qutum.parser;
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+
+namespace qutum.parser;
+
 using Kord = char;
 using Nord = ushort;
 

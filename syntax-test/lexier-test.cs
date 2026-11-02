@@ -52,10 +52,10 @@ public class TestLexier : IDisposable
 	public void LexGroup()
 	{
 		AreEqual("Bin INP ORB XORB OR XOR AND EQ UEQ LEQ GEQ LT GT ADD SUB MUL DIV MOD DIVF MODF SHL SHR ANDB",
-			string.Join(" ", LexIs.OfGroup(Lex.Bin).Order()));
+			string.Join(" ", Lex.Bin.GroupEach().Order()));
 		AreEqual("BIN3 BIN4 BIN53 BIN57 BIN67 "
 			+ "Bin INP ORB XORB OR XOR AND EQ UEQ LEQ GEQ LT GT ADD SUB MUL DIV MOD DIVF MODF SHL SHR ANDB",
-			string.Join(" ", LexIs.OfGroup(Lex.Bin, true).Order()));
+			string.Join(" ", Lex.Bin.GroupEach(true).Order()));
 	}
 
 	[TestMethod]
