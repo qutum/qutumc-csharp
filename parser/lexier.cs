@@ -90,6 +90,7 @@ public partial class Lexier<K> : LexierBuf<K> where K : struct
 						   // no backward cross wads nor duplicate bytes
 
 		internal Unit(Lexier<K> l) => id = l.uid++;
+		internal string Kw => field ??= Kw(key, wad);
 	}
 
 	readonly Unit begin;
@@ -286,6 +287,8 @@ public abstract class LexierBuf<K> : LexerSeg<K, Lexi<K>> where K : struct
 
 public partial class Lexier<K>
 {
+	internal static partial string Kw(K key, int wad);
+
 	public Lexier(LexGram<K> grammar, bool dumpGram = false)
 		=> begin = new Build(this).Do(grammar, dumpGram);
 
@@ -310,14 +313,14 @@ public partial class Lexier<K>
 				foreach (var (w, wad) in prod.Each(1)) {
 					var u = wus[wad];
 					if (w.Count == 0)
-						throw new($"No altern in {k}.{wad}");
+						throw new($"No altern in {Kw(k, wad)}");
 					if (w[0].Count == 0) // empty alt for option wad
-						if (wad == 1) throw new($"Empty altern in first wad {k}.1");
-						else if (w.Count == 1) throw new($"No byte in {k}.{wad}");
-						else if (w.redo) throw new($"Redo empty {k}.{wad}.1");
+						if (wad == 1) throw new($"Empty altern in first wad {Kw(k, 1)}");
+						else if (w.Count == 1) throw new($"No byte in {Kw(k, wad)}");
+						else if (w.redo) throw new($"Redo empty {Kw(k, wad)}.1");
 						else { u.go = wus[wad + 1]; u.mode = -1; }
 					else if (w.redo) // shift read then redo wad like the begin
-						if (wad == 1) throw new($"Redo first wad {k}.1");
+						if (wad == 1) throw new($"Redo first wad {Kw(k, 1)}");
 						else { u.go = u; u.mode = -3; }
 					else // no backward cross wads
 						{ u.go = begin; u.mode = -3; }
@@ -329,12 +332,12 @@ public partial class Lexier<K>
 						++alt;
 						var bz = a.Sum(b => b.str.Length + (b.one.Length > 0 ? 1 : 0));
 						if (a.Count == 0 ? alt > 1 : bz == 0)
-							throw new($"No byte in {k}.{wad}.{alt}");
+							throw new($"No byte in {Kw(k, wad)}.{alt}");
 						if (bz > AltByteN)
-							throw new($"{k}.{wad}.{alt} exceeds {AltByteN} bytes");
+							throw new($"{Kw(k, wad)}.{alt} exceeds {AltByteN} bytes");
 						var u = wus[wad];
 						var ok = !a.loop ? wus[wad + 1] // go for match
-							: wad > 1 ? u : throw new($"Can not loop first wad {k}.1.{alt}");
+							: wad > 1 ? u : throw new($"Can not loop first wad {Kw(k, 1)}.{alt}");
 						var dup = w.redo ? u : begin; // error for repeat
 						var bx = 0; // build units from contents
 						foreach (var c in a) {
@@ -352,7 +355,7 @@ public partial class Lexier<K>
 							if (u.next[x] == null) continue;
 							for (int y = wad - 1; aus[y] != null; y--)
 								if (aus[y].Any(au => au.next[x] != null))
-									throw new($"{k}.{wad} and {k}.{y} clash over dup");
+									throw new($"{Kw(k, wad)} and {Kw(k, y)} clash over dup");
 						}
 					if (w[0].Count > 0)
 						aus[wad - 1] = null;
@@ -386,21 +389,21 @@ public partial class Lexier<K>
 				// all exist nexts must be the same
 				for (int x = 1; x < bs.Length; x++)
 					if (u.next[bs[x]] != n)
-						throw new($"Prefix '{bs[x]}' of {key}.{wad} and {(n ?? u.next[bs[x]]).key}"
-							+ $".{(n ?? u.next[bs[x]]).wad} must be the same or distinct");
+						throw new($"Prefix '{bs[x]}' of {Kw(key, wad)} and {(n ?? u.next[bs[x]]).Kw}"
+							+ " must be the same or distinct");
 			if (n == null) {
 				n = dup ? u // duplicate bytes
 					: new Unit(ler) { key = key, wad = wad, prez = bs.Length, go = go, mode = mode };
 				for (int x = 0; x < bs.Length; x++)
 					u.next[bs[x]] = n;
 				if (dup && u.mode == -1 && mode == -3)
-					throw new($"{key}.{wad} and {u.key}.{u.wad} clash over byte dup");
+					throw new($"{Kw(key, wad)} and {u.Kw} clash over byte dup");
 			}
 			else if (n.prez != bs.Length) // all already nexts must be the same
-				throw new($"Prefixs of {key}.{wad} and {n.key}.{n.wad}"
+				throw new($"Prefixs of {Kw(key, wad)} and {n.Kw}"
 					+ " must be the same or distinct");
 			else if (dup != (n == u)) // already exist next must not clash
-				throw new($"{key}.{wad} and {n.key}.{n.wad} clash over dup byte");
+				throw new($"{Kw(key, wad)} and {n.Kw} clash over dup byte");
 			else if (!dup)
 				Mode(key, wad, n, go, mode); // check mode for already exist next
 			return n;
@@ -409,11 +412,11 @@ public partial class Lexier<K>
 		static void Mode(K key, int wad, Unit u, Unit go, int mode)
 		{
 			if (u.mode + mode == -2) // both match
-				throw new($"{key}.{wad} and {u.key}.{u.wad} clash over match");
+				throw new($"{Kw(key, wad)} and {u.Kw} clash over match");
 			if (u.mode + mode == -6 && u.go != go) // both error
-				throw new($"{key}.{wad} and {u.key}.{u.wad} clash over error");
+				throw new($"{Kw(key, wad)} and {u.Kw} clash over error");
 			if (u.mode + mode == -3) // error and backward
-				throw new($"{key}.{wad} and {u.key}.{u.wad} clash over duplicate");
+				throw new($"{Kw(key, wad)} and {u.Kw} clash over duplicate");
 			if (u.mode == 0 && mode != 0) {
 				u.key = key; u.wad = wad; u.go = go; u.mode = mode;
 			}

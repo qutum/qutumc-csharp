@@ -16,7 +16,7 @@ http://qutum.com  http://qutum.cn
 
 ## qutum.parser.earley.Earley
 
-语法解析器，读取`Lexer`，基于earley算法，产出语法树
+语法解析器，读取`Lexer`，基于earley算法，产生语法树
 
 支持量词、greedy串联贪婪匹配、优先分支、语法树节点保留或穿透、从错误位置或寻找后方词恢复
 

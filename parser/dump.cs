@@ -55,6 +55,8 @@ public partial class LexGram<K>
 
 public partial class Lexier<K>
 {
+	internal static partial string Kw(K key, int wad) => $"{key}.{wad}";
+
 	static void Dump(Unit u, string pre, Dictionary<Unit, bool> us = null)
 	{
 		using var env = EnvWriter.Use();
@@ -63,8 +65,8 @@ public partial class Lexier<K>
 		us[u] = false; // dumped
 		if (u.id == 0)
 			env.WriteLine($"{nameof(Lexier<>)}.{nameof(Unit)}:");
-		env.WriteLine($"{u.id}: {u.key}.{u.wad} " +
-			$"{(u.mode >= 0 ? "back" : u.mode == -1 ? "ok" : "err")}.{u.go.id} < {pre}");
+		env.WriteLine($"{u.id}: {u.Kw} " +
+			$"{(u.mode >= 0 ? "back" : u.mode == -1 ? "ok" : "err")}:{u.go.id} < {pre}");
 		if (!us.ContainsKey(u.go))
 			us[u.go] = true; // not dumped yet
 		if (u.next == null)
@@ -81,7 +83,7 @@ public partial class Lexier<K>
 	Go: if (usNull)
 			foreach (var go in us)
 				if (go.Value) {
-					Dump(go.Key, $"{go.Key.key}.{go.Key.wad - 1}", us);
+					Dump(go.Key, Kw(go.Key.key, go.Key.wad - 1), us);
 					goto Go;
 				}
 	}
