@@ -6,11 +6,14 @@
 //
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 
 namespace qutum.parser;
 
+// key ordinal type
 using Kord = char;
+// name ordinal type
 using Nord = ushort;
 
 // syntax tree
@@ -38,27 +41,29 @@ public sealed partial class SynAlt<N>
 }
 public sealed partial class SynForm
 {
-	public struct S<O> where O : IBinaryInteger<O>
+	public partial struct S<O> where O : struct, IBinaryInteger<O>
 	{
-		public short[] s; // at ordinal or ordinal index
-		public O[] x; // compact: { ordinals ... }, normal: null
+		public short[] s; // value at ordinal or compact index
+		public O[] o; // compact: { ordinals ... }, normal: null
 
 		public readonly short this[O ord] {
-			get => x == null ? int.CreateTruncating(ord) is var y && y < s.Length ? s[y] : No
-				: x.Length switch {
-					1 => x[0] == ord ? s[0] : No,
-					2 => x[0] == ord ? s[0] : x[1] == ord ? s[1] : No,
-					3 => x[0] == ord ? s[0] : x[1] == ord ? s[1] : x[2] == ord ? s[2] : No,
-					4 => x[0] == ord ? s[0] : x[1] == ord ? s[1] : x[2] == ord ? s[2] : x[3] == ord ? s[3] : No,
-					_ => Array.BinarySearch(x, ord) is var z and >= 0 ? s[z] : No
+			get => o == null ? int.CreateTruncating(ord) is var y && y < s.Length ? s[y] : No
+				: o.Length switch {
+					1 => o[0] == ord ? s[0] : No,
+					2 => o[0] == ord ? s[0] : o[1] == ord ? s[1] : No,
+					3 => o[0] == ord ? s[0] : o[1] == ord ? s[1] : o[2] == ord ? s[2] : No,
+					4 => o[0] == ord ? s[0] : o[1] == ord ? s[1] : o[2] == ord ? s[2] : o[3] == ord ? s[3] : No,
+					_ => Array.BinarySearch(o, ord) is var z and >= 0 ? s[z] : No
 				};
 		}
-		internal const short No = -1;
 	}
+	// ordinal not found
+	public const short No = -1;
+
 	public short index;
 	public S<Kord> goKs; // for each key: shift to: form index, reduce: -2-alt index, error: -1
 	public S<Nord> goNs; // for each name: form index, error: -1
-	public short other = S<Kord>.No; // reduce by other key ordinals
+	public short other = No; // reduce by other key ordinals
 	public string err; // error info
 	public (short alt, short want)[] recs; // { recovery alt index and want ... }
 
@@ -91,7 +96,7 @@ public partial class Synter<K, L, N, T, Ler>
 	readonly SynForm[] forms;
 	readonly SynForm init;
 	readonly Kord[] recKs; // { recovery key ordinal ... }
-	const short No = -1;
+	const short No = SynForm.No;
 
 	protected Func<Ler, Kord> keyOrd; // ordinal from 1, default for eor: 0
 	protected Func<N, Nord> nameOrd; // ordinal from 1
@@ -329,49 +334,42 @@ public partial class Synter<K, L, N, T, Ler>
 	}
 }
 
-public static partial class Extension
+public partial class SynForm
 {
-	const short No = -1;
-
-	extension(SynForm.S<Kord> s)
+	public partial struct S<O>
 	{
-		public IEnumerable<(short d, Kord ord)> Full()
+		public readonly IEnumerable<(short v, O ord)> Full()
 		{
-		for (var y = 0; y < s.s.Length; y++)
-			yield return (s.s[y], s.x?[y] ?? (Kord)y);
-	}
-		public IEnumerable<(short d, Kord ord)> Yes()
-	{
-			foreach (var d in s.Full()) if (d.d != No) yield return d;
-	}
-		public IEnumerable<(short d, Kord ord)> Form()
-	{
-			foreach (var d in s.Full()) if (d.d > No) yield return d;
-	}
-		public IEnumerable<(short d, Kord ord)> Redu()
-	{
-			foreach (var d in s.Full()) if (d.d < No) yield return d;
-	}
-		public IEnumerable<(short d, Kord ord)> Alt()
-	{
-			foreach (var d in s.Full()) if (d.d < No) yield return (SynForm.Redu(d.d), d.ord);
-	}
+			for (var y = 0; y < s.Length; y++)
+				yield return (s[y], o?[y] ?? O.CreateTruncating(y));
+		}
+		public readonly IEnumerable<(short v, O ord)> Yes()
+		{
+			foreach (var o in Full()) if (o.v != No) yield return o;
+		}
+
+		public static S<O> Compact(short[] ss, O[] so, int compact = 50) // TODO better compact
+		{
+			S<O> S = new();
+			int z = int.CreateTruncating(so[^1]), sz;
+			if (z < compact || (sz = ss.Count(v => v != No)) >= z >>> 3) {
+				S.s = new short[z + 1];
+				Array.Fill(S.s, No);
+				foreach (var (v, x) in ss.Each())
+					S.s[int.CreateTruncating(so[x])] = v;
+			}
+			else {
+				(S.s, S.o) = (new short[sz], new O[sz]);
+				for (int X = 0, x = 0; x < so.Length; x++)
+					if (ss[x] != No)
+						(S.s[X], S.o[X++]) = (ss[x], so[x]);
+			}
+			return S;
+		}
 	}
 
-	extension(SynForm.S<Nord> s)
+	public IEnumerable<(short v, Kord ord)> KsRedu()
 	{
-		public IEnumerable<(short d, Nord ord)> Full()
-	{
-			for (var y = 0; y < s.s.Length; y++)
-				yield return (s.s[y], s.x?[y] ?? (Nord)y);
-	}
-		public IEnumerable<(short d, Nord ord)> Yes()
-	{
-			foreach (var d in s.Full()) if (d.d != No) yield return d;
-	}
-		public IEnumerable<(short d, Nord ord)> Form()
-	{
-			foreach (var d in s.Full()) if (d.d > No) yield return d;
-		}
+		foreach (var go in goKs.Full()) if (go.v < No) yield return go;
 	}
 }

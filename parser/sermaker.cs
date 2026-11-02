@@ -96,8 +96,6 @@ public partial class SynGram<K, N>
 // N for syntax name i.e synteme
 public partial class SerMaker<K, N>
 {
-	public int compact = 50;
-
 	readonly Func<K, Kord> keyOrd; // ordinal from 1, default for eor: 0
 	readonly Func<N, Nord> nameOrd; // ordinal from 1
 	readonly Kord[] keyOs; // { key ordinal... }
@@ -183,7 +181,7 @@ public partial class SerMaker<K, N>
 		internal short[] goKs; // solved, at key ordinal index, error: -1
 		internal short[] goNs; // form index, at name ordinal index, error: -1
 	}
-	const short No = -1;
+	const short No = SynForm.No;
 
 	readonly List<Form> forms = [];
 	readonly Dictionary<(SynGram<K, N>.Alt, short), int> addItems = [];
@@ -354,25 +352,9 @@ public partial class SerMaker<K, N>
 		// synter forms
 		var Fs = new SynForm[forms.Count];
 		foreach (var f in forms) {
-			void Compact<O>(O[] os, short[] gs, ref SynForm.S<O> Gs) where O : IBinaryInteger<O>
-			{ // TODO better compact
-				int z = int.CreateTruncating(os[^1]), gz;
-				if (z < compact || (gz = gs.Count(m => m != No)) >= z >>> 3) {
-					Gs.s = new short[z + 1];
-					Array.Fill(Gs.s, No);
-					foreach (var (g, x) in gs.Each())
-						Gs.s[int.CreateTruncating(os[x])] = g;
-				}
-				else {
-					(Gs.s, Gs.x) = (new short[gz], new O[gz]);
-					for (int X = 0, x = 0; x < os.Length; x++)
-						if (gs[x] != No)
-							(Gs.s[X], Gs.x[X++]) = (gs[x], os[x]);
-				}
-			}
 			var F = Fs[f.index] = new();
-			Compact(keyOs, f.goKs, ref F.goKs);
-			Compact(nameOs, f.goNs, ref F.goNs);
+			F.goKs = SynForm.S<Kord>.Compact(f.goKs, keyOs);
+			F.goNs = SynForm.S<Nord>.Compact(f.goNs, nameOs);
 			Error(f, F);
 		}
 		return (As, Fs, recKs);
@@ -386,7 +368,7 @@ public partial class SerMaker<K, N>
 	void Error(Form f, SynForm F)
 	{
 		bool accept = false;
-		if (F.goKs.Redu().May().Max()?.d is short other)
+		if (F.KsRedu().May().Max()?.v is short other)
 			if (other == SynForm.Redu(0))
 				accept = true;
 			else // for error and recovery, form with any reduce will always reduce on error keys

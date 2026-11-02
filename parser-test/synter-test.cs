@@ -85,9 +85,9 @@ public class TestSynter : IDisposable
 			if (f.goKs != null) {
 				var F = Fs[fx] = new();
 				F.goNs.s = [];
-				Array.Sort(F.goKs.x = keys[..], F.goKs.s = f.goKs[..]);
+				Array.Sort(F.goKs.o = keys[..], F.goKs.s = f.goKs[..]);
 				if (f.goNs != null)
-					Array.Sort(F.goNs.x = names[..], F.goNs.s = f.goNs[..]);
+					Array.Sort(F.goNs.o = names[..], F.goNs.s = f.goNs[..]);
 			}
 		ser = new(name => name[0], alts, Fs) { dump = 3 };
 	}
