@@ -8,11 +8,33 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Drawing;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 
 namespace qutum.parser;
+
+// typed int16 index
+public struct X<T> : IComparable<X<T>>
+{
+	public short x;
+	public readonly bool Yes => x != -1;
+	public static readonly X<T> No = new() { x = -1 };
+
+	public static explicit operator X<T>(short x) => new() { x = x };
+	//	public static implicit operator short(X<T> x) => x.x;
+
+	public static bool operator ==(X<T> a, X<T> b) => a.x == b.x;
+	public static bool operator !=(X<T> a, X<T> b) => a.x != b.x;
+	public static bool operator <(X<T> a, X<T> b) => a.x < b.x;
+	public static bool operator >(X<T> a, X<T> b) => a.x > b.x;
+
+	public override readonly string ToString() => x.ToString();
+	public override readonly bool Equals(object that) => that is X<T> b && x == b.x;
+	public override readonly int GetHashCode() => x.GetHashCode();
+	public readonly int CompareTo(X<T> that) => x - that.x;
+}
 
 // jot of data to inclusive end, [on,to], default size is 1
 public struct Jot
@@ -47,11 +69,13 @@ public struct Jov(int on, int via)
 public struct Jot<T>
 {
 	public T on, to;
+	public readonly void Deconstruct(out T on, out T to) => (on, to) = (this.on, this.to);
 	public static implicit operator Jot<T>((T on, T to) j) => new() { on = j.on, to = j.to };
 }
 public struct Jov<T>
 {
 	public T on, via;
+	public readonly void Deconstruct(out T on, out T via) => (on, via) = (this.on, this.via);
 	public static implicit operator Jov<T>((T on, T via) j) => new() { on = j.on, via = j.via };
 }
 
@@ -235,7 +259,8 @@ public partial class LinkTree<T> : IEnumerable<T> where T : LinkTree<T>
 public struct BitSet : IEnumerable<int>
 {
 	public ulong[] bits;
-	public readonly int size => bits?.Length ?? 0;
+	public readonly bool Empty => size == 0;
+	readonly int size => bits?.Length ?? 0;
 
 	public BitSet Use(int max)
 	{
@@ -266,7 +291,7 @@ public struct BitSet : IEnumerable<int>
 			return this;
 		if (y > z)
 			(p, q, y, z) = (q, p, z, y);
-		var copy = new BitSet { bits = new ulong[z] };
+		BitSet copy = new() { bits = new ulong[z] };
 		for (var x = 0; x < y; x++)
 			copy.bits[x] = p[x] | q[x];
 		for (var x = y; x < z; x++)
@@ -282,7 +307,7 @@ public struct BitSet : IEnumerable<int>
 				return false;
 		return true;
 	}
-	public static BitSet One(int size, int x) => new BitSet().Use(size).Or(x);
+	public static BitSet One(int max, int x) => new BitSet().Use(max).Or(x);
 
 	public readonly int Min()
 	{
@@ -303,6 +328,37 @@ public struct BitSet : IEnumerable<int>
 		for (int x = 0, y = 0; x < size; x++, y = 0)
 			for (ulong b = bits[x]; b != 0; b >>= 1, y++)
 				if ((b & 1ul) != 0) yield return x << 6 | y;
+	}
+	readonly IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+}
+
+public struct BitSet<T> : IEnumerable<X<T>>
+{
+	public BitSet set;
+	public readonly bool Empty => set.Empty;
+
+	public BitSet<T> Use(int max) { set.Use(max); return this; }
+	public readonly BitSet<T> Or(X<T> x) { set.Or(x.x); return this; }
+	public readonly bool Or(BitSet<T> s) => set.Or(s.set);
+	public readonly BitSet<T> Or(IEnumerable<X<T>> s)
+	{
+		foreach (var x in s ?? [])
+			set.Or(x.x);
+		return this;
+	}
+	public readonly BitSet<T> NewOr(BitSet<T> s, bool may = false)
+	{
+		var set = this.set.NewOr(s.set, may);
+		return set.bits == this.set.bits ? this : new() { set = set };
+	}
+	public readonly bool Same(BitSet<T> s) => set.Same(s.set);
+	public static BitSet<T> One(int max, X<T> x) => new BitSet<T>().Use(max).Or(x);
+
+	public readonly X<T> Min() => (X<T>)short.CreateSaturating(set.Min());
+	public readonly X<T> Max() => (X<T>)short.CreateSaturating(set.Max());
+	public readonly IEnumerator<X<T>> GetEnumerator()
+	{
+		foreach (int x in set) yield return (X<T>)(short)x;
 	}
 	readonly IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 }

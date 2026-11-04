@@ -4,6 +4,11 @@
 // Under the terms of the GNU General Public License version 3
 // http://qutum.com  http://qutum.cn
 //
+global using Formx = qutum.parser.X<qutum.parser.SynForm>;
+global using Altx = qutum.parser.X<qutum.parser.XAlt>;
+global using Conx = qutum.parser.X<qutum.parser.XAltCon>;
+global using AltXs = qutum.parser.BitSet<qutum.parser.XAlt>;
+
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using qutum.parser;
 using System;
@@ -17,7 +22,6 @@ using Nord = ushort;
 
 public readonly struct Ser(SyntStr t, SynterStr s)
 {
-	[System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE0305:Simplify collection initialization")]
 	public readonly Ser Eq(string name = null, object d = null, Jov<int?> j = default, int err = 0)
 	{
 		IsNotNull(t);
@@ -75,8 +79,8 @@ public class TestSynter : IDisposable
 	{
 		var alts = Alts.Split('\n', ' ').Select(a => new SynAlt<string> {
 			name = a[0..1],
-			size = (short)(a.Length - 2),
-			lex = (short)(a.IndexOfAny(keys, 2) - 2),
+			size = checked((byte)(a.Length - 2)),
+			lex = (Conx)checked((short)(a.IndexOfAny(keys, 2) - 2)),
 			synt = a[1] switch { '+' => 1, '-' => -1, _ => 0 },
 			syntName = a[0..1],
 		}).ToArray();
@@ -84,16 +88,16 @@ public class TestSynter : IDisposable
 		foreach (var (f, fx) in forms.Each())
 			if (f.goKs != null) {
 				var F = Fs[fx] = new();
-				F.goNs.s = [];
-				Array.Sort(F.goKs.o = keys[..], F.goKs.s = f.goKs[..]);
+				F.goNs.X = [];
+				Array.Sort(F.goKs.O = keys[..], F.goKs.X = [.. f.goKs.Select(x => (Formx)x)]);
 				if (f.goNs != null)
-					Array.Sort(F.goNs.o = names[..], F.goNs.s = f.goNs[..]);
+					Array.Sort(F.goNs.O = names[..], F.goNs.X = [.. f.goNs.Select(x => (Formx)x)]);
 			}
 		ser = new(name => name[0], alts, Fs) { dump = 3 };
 	}
 	const short _ = -1;
 	static readonly short r0 = R(0), r1 = R(1), r2 = R(2), r3 = R(3), r4 = R(4), r5 = R(5);
-	static short R(int alt) => SynForm.Redu(alt);
+	static short R(short alt) => SynForm.Redu((Altx)alt).x;
 
 	public void True(string read) => IsTrue(Begin(read).Check());
 	public void False(string read) => IsFalse(Begin(read).Check());

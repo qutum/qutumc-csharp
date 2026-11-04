@@ -4,6 +4,21 @@
 // Under the terms of the GNU General Public License version 3
 // http://qutum.com  http://qutum.cn
 //
+// key ordinal index
+global using Kordx = qutum.parser.X<char>;
+// name ordinal index
+global using Nordx = qutum.parser.X<ushort>;
+// key ordinal indices
+global using KordXs = qutum.parser.BitSet<char>;
+// SynForm index
+global using Formx = qutum.parser.X<qutum.parser.SynForm>;
+// SynAlt index
+global using Altx = qutum.parser.X<qutum.parser.XAlt>;
+// SynAlt.Con in index
+global using Conx = qutum.parser.X<qutum.parser.XAltCon>;
+// SynAlt indices
+global using AltXs = qutum.parser.BitSet<qutum.parser.XAlt>;
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -29,11 +44,12 @@ public class SyntStr : Synt<string, SyntStr>
 {
 }
 
+public struct XAlt { }
 public sealed partial class SynAlt<N>
 {
 	public N name;
 	public short size;
-	public short lex; // save main lex at this index to synt.info, no save: <0
+	public Conx lex; // save main lex at this index to synt.info, no save: <0
 	public sbyte rec; // at recovery key ordinal index, or 0
 	public sbyte synt; // make synt: as synter: 0, omit: -1, make: 1, lift left: 2, lift right: 3
 	public N syntName;
@@ -41,33 +57,31 @@ public sealed partial class SynAlt<N>
 }
 public sealed partial class SynForm
 {
-	public partial struct S<O> where O : struct, IBinaryInteger<O>
-	{
-		public short[] s; // value at ordinal or compact index
-		public O[] o; // compact: { ordinals ... }, normal: null
-
-		public readonly short this[O ord] {
-			get => o == null ? int.CreateTruncating(ord) is var y && y < s.Length ? s[y] : No
-				: o.Length switch {
-					1 => o[0] == ord ? s[0] : No,
-					2 => o[0] == ord ? s[0] : o[1] == ord ? s[1] : No,
-					3 => o[0] == ord ? s[0] : o[1] == ord ? s[1] : o[2] == ord ? s[2] : No,
-					4 => o[0] == ord ? s[0] : o[1] == ord ? s[1] : o[2] == ord ? s[2] : o[3] == ord ? s[3] : No,
-					_ => Array.BinarySearch(o, ord) is var z and >= 0 ? s[z] : No
-				};
-		}
-	}
-	// ordinal not found
-	public const short No = -1;
-
-	public short index;
-	public S<Kord> goKs; // for each key: shift to: form index, reduce: -2-alt index, error: -1
-	public S<Nord> goNs; // for each name: form index, error: -1
-	public short other = No; // reduce by other key ordinals
+	public Formx index;
+	public OrdFormx<Kord> goKs; // for each key: shift to: form index, reduce: -2-alt index, error: -1
+	public OrdFormx<Nord> goNs; // for each name: form index, error: -1
+	public Formx other = Formx.No; // reduce by other key ordinals
 	public string err; // error info
-	public (short alt, short want)[] recs; // { recovery alt index and want ... }
+	public (Altx alt, Conx want)[] recs; // { recovery alt index and want ... }
 
-	public static short Redu(int alt) => (short)(-2 - alt);
+	public static Formx Redu(Altx alt) => (Formx)(short)(-2 - alt.x);
+	public static Altx Redu(Formx form) => (Altx)(short)(-2 - form.x);
+}
+public partial struct OrdFormx<Ord> where Ord : struct, IBinaryInteger<Ord>
+{
+	public Formx[] X; // at ordinal or compact index
+	public Ord[] O; // compact: { ordinals ... }, normal: null
+
+	public readonly Formx this[Ord o] {
+		get => O == null ? int.CreateTruncating(o) is var y && y < X.Length ? X[y] : Formx.No
+			: O.Length switch {
+				1 => O[0] == o ? X[0] : Formx.No,
+				2 => O[0] == o ? X[0] : O[1] == o ? X[1] : Formx.No,
+				3 => O[0] == o ? X[0] : O[1] == o ? X[1] : O[2] == o ? X[2] : Formx.No,
+				4 => O[0] == o ? X[0] : O[1] == o ? X[1] : O[2] == o ? X[2] : O[3] == o ? X[3] : Formx.No,
+				_ => Array.BinarySearch(O, o) is var z and >= 0 ? X[z] : Formx.No
+			};
+	}
 }
 
 // syntax parser
@@ -96,7 +110,6 @@ public partial class Synter<K, L, N, T, Ler>
 	readonly SynForm[] forms;
 	readonly SynForm init;
 	readonly Kord[] recKs; // { recovery key ordinal ... }
-	const short No = SynForm.No;
 
 	protected Func<Ler, Kord> keyOrd; // ordinal from 1, default for eor: 0
 	protected Func<N, Nord> nameOrd; // ordinal from 1
@@ -116,7 +129,7 @@ public partial class Synter<K, L, N, T, Ler>
 		this.alts = alts; this.forms = forms; this.recKs = recKs;
 		init = forms[0] ?? forms[1];
 		foreach (var (f, fx) in forms.Each())
-			f?.index = (short)fx;
+			f?.index = (Formx)(short)fx;
 		InitDump();
 	}
 
@@ -133,17 +146,17 @@ public partial class Synter<K, L, N, T, Ler>
 	Loop:
 		var form = stack[^1].form;
 		var go = form.goKs[key];
-		if (go > No) { // shift
-			stack.Add((forms[go], -1, null));
+		if (go > Formx.No) { // shift
+			stack.Add((forms[go.x], -1, null));
 			goto Read;
 		}
-		else if (go < No) { // reduce
-			var alt = alts[SynForm.Redu(go)];
+		else if (go < Formx.No) { // reduce
+			var alt = alts[SynForm.Redu(go).x];
 			stack.RemoveRange(stack.Count - alt.size, alt.size);
 			form = stack[^1].form;
 			go = form.goNs[nameOrd(alt.name)];
-			if (go > No) {
-				stack.Add((forms[go], -1, null));
+			if (go > Formx.No) {
+				stack.Add((forms[go.x], -1, null));
 				if (stack.Count < stuck.min) (stuck.min, stuck.loop) = (stack.Count, 1);
 				else if (++stuck.loop >= 100) goto Reject; // stack stuck without shift
 				goto Loop;
@@ -167,7 +180,7 @@ public partial class Synter<K, L, N, T, Ler>
 		stack.Add((form, loc, synt));
 		if (recCs != null && form.recs != null)
 			foreach (var a in form.recs)
-				recCs[alts[a.alt].rec].Add(stack.Count - 1);
+				recCs[alts[a.alt.x].rec].Add(stack.Count - 1);
 	}
 	void StackPop(int on = 0, int size = 0)
 	{
@@ -188,7 +201,7 @@ public partial class Synter<K, L, N, T, Ler>
 			recCs[x] = new(stack.Capacity) { 0 };
 		foreach (var ((f, _, _), x) in stack.Each())
 			foreach (var a in f?.recs ?? [])
-				recCs[alts[a.alt].rec].Add(x);
+				recCs[alts[a.alt.x].rec].Add(x);
 	}
 	void StackClear() { stack.Clear(); recCs = null; }
 
@@ -204,19 +217,19 @@ public partial class Synter<K, L, N, T, Ler>
 	Loop:
 		var form = stack[^1].form;
 		var go = form.goKs[key];
-		if (go > No) { // shift
-			StackPush(forms[go], ler.Loc(), null);
+		if (go > Formx.No) { // shift
+			StackPush(forms[go.x], ler.Loc(), null);
 			goto Read;
 		}
 		(sbyte err, short size, T info) redu = default;
 	Reduce:
 		T t;
-		if (go < No) { // reduce
+		if (go < Formx.No) { // reduce
 			(var name, var loc, t) = Reduce(go, ref redu);
 			form = stack[^1].form;
 			go = form.goNs[name];
-			if (go > No) {
-				StackPush(forms[go], loc, t);
+			if (go > Formx.No) {
+				StackPush(forms[go.x], loc, t);
 				if (stack.Count < stuck.min) (stuck.min, stuck.loop) = (stack.Count, 1);
 				else if (++stuck.loop >= 100) goto Cyclic; // stack stuck without shift
 				goto Loop;
@@ -239,9 +252,9 @@ public partial class Synter<K, L, N, T, Ler>
 		return errs.Add(t);
 	}
 
-	(Nord name, int loc, T t) Reduce(short go, ref (sbyte err, short size, T info) redu)
+	(Nord name, int loc, T t) Reduce(Formx go, ref (sbyte err, short size, T info) redu)
 	{
-		var alt = alts[SynForm.Redu(go)];
+		var alt = alts[SynForm.Redu(go).x];
 		if (redu.err == 0)
 			redu.size = alt.size;
 		int loc = redu.size > 0 ? stack[^redu.size].loc : stack[^1].loc + 1;
@@ -262,17 +275,17 @@ public partial class Synter<K, L, N, T, Ler>
 					t.Append(head);
 				else
 					t.AddHead(head);
-			else if (make && i == alt.lex)
+			else if (make && i == alt.lex.x)
 				t.info ??= ler.Lex(l);
 		}
 		StackPop(size: redu.size);
 		return (nameOrd(alt.name), loc, t);
 	}
 
-	(sbyte err, short size, T info) Error(SynForm form, ref Kord key, ref short go, T errs)
+	(sbyte err, short size, T info) Error(SynForm form, ref Kord key, ref Formx go, T errs)
 	{
-		(int cx, short a, short want) rec = default;
-		if (go == No && form.other != No) // reduce by other key ordinals
+		(int cx, Altx a, Conx want) rec = default;
+		if (!go.Yes && form.other.Yes) // reduce by other key ordinals
 			if (!recover || stack[^1].form.recs == null) {
 				go = form.other;
 				return (0, 0, null);
@@ -280,7 +293,7 @@ public partial class Synter<K, L, N, T, Ler>
 		T e = new() {
 			j = (ler.Loc(), ler.Loc() + (key != default ? 1 : 0)), err = -1,
 			info = (int)errs.info == 100 ? "more than 100 errors ..."
-				: form.err ?? (go < No ? SerMaker<K, N>.ErrEor : "unknown error"),
+				: form.err ?? (go < Formx.No ? SerMaker<K, N>.ErrEor : "unknown error"),
 		};
 		if ((int)errs.info <= 100)
 			errs.Add(e).info = (int)errs.info + 1;
@@ -291,7 +304,7 @@ public partial class Synter<K, L, N, T, Ler>
 		if (key != default && (rec = Fake(key, -1, stack.Count - 1)).cx > 0) {
 			go = SynForm.Redu(rec.a);
 			e.j.via = e.j.on;
-			return (1, rec.want, e); // recover
+			return (1, rec.want.x, e); // recover
 		}
 		// recovery stack
 		if (recCs == null)
@@ -305,71 +318,63 @@ public partial class Synter<K, L, N, T, Ler>
 					if (recCs[x][^1] >= rec.cx && Fake(key, x, recCs[x][^1]) is var r && r.cx > 0)
 						if (r.cx > rec.cx || r.want > rec.want)
 							rec = r; // latest recovery stack and most want
-				if (rec.want == 0)
+				if (rec.want.x == 0)
 					return (-1, 0, null); // can not recover, reject
 			}
 			else if (Array.BinarySearch(recKs, key) is var kx and >= 0
 					&& recCs[kx][^1] is var cx and > 0)
 				foreach (var (a, want) in stack[cx].form.recs)
-					if (alts[(rec = (cx, a, want)).a].rec == kx) // latest alt due to reversed index
+					if (alts[(rec = (cx, a, want)).a.x].rec == kx) // latest alt due to reversed index
 						break;
 		// recover
 		StackPop(on: rec.cx + 1);
 		go = SynForm.Redu(rec.a);
-		e.name = alts[rec.a].name;
-		return (1, rec.want, e);
+		e.name = alts[rec.a.x].name;
+		return (1, rec.want.x, e);
 	}
 
-	(int cx, short a, short want) Fake(Kord key, int kx, int cx)
+	(int cx, Altx a, Conx want) Fake(Kord key, int kx, int cx)
 	{
 		if (key != default)
 			foreach (var (a, want) in stack[cx].form.recs ?? [])
-				if (alts[a].lex >= 0 && want > 0 && want == alts[a].size - 1) // final key
+				if (alts[a.x].lex.Yes && want.x > 0 && want.x == alts[a.x].size - 1) // final key
 					return (cx, a, want);
 		if (key == default)
 			foreach (var (a, want) in stack[cx].form.recs ?? [])
-				if ((kx < 0 || alts[a].rec == kx) && want + stack.Count - cx - 1 > 0)
+				if ((kx < 0 || alts[a.x].rec == kx) && want.x + stack.Count - cx - 1 > 0)
 					return (cx, a, want);
-		return (0, 0, 0);
+		return (0, (Altx)0, (Conx)0);
 	}
 }
 
-public partial class SynForm
+public partial struct OrdFormx<Ord>
 {
-	public partial struct S<O>
+	public readonly IEnumerable<(Formx x, Ord ord)> Full()
 	{
-		public readonly IEnumerable<(short v, O ord)> Full()
-		{
-			for (var y = 0; y < s.Length; y++)
-				yield return (s[y], o?[y] ?? O.CreateTruncating(y));
-		}
-		public readonly IEnumerable<(short v, O ord)> Yes()
-		{
-			foreach (var o in Full()) if (o.v != No) yield return o;
-		}
-
-		public static S<O> Compact(short[] ss, O[] so, int compact = 50) // TODO better compact
-		{
-			S<O> S = new();
-			int z = int.CreateTruncating(so[^1]), sz;
-			if (z < compact || (sz = ss.Count(v => v != No)) >= z >>> 3) {
-				S.s = new short[z + 1];
-				Array.Fill(S.s, No);
-				foreach (var (v, x) in ss.Each())
-					S.s[int.CreateTruncating(so[x])] = v;
-			}
-			else {
-				(S.s, S.o) = (new short[sz], new O[sz]);
-				for (int X = 0, x = 0; x < so.Length; x++)
-					if (ss[x] != No)
-						(S.s[X], S.o[X++]) = (ss[x], so[x]);
-			}
-			return S;
-		}
+		for (var y = 0; y < X.Length; y++)
+			yield return (X[y], O?[y] ?? Ord.CreateTruncating(y));
+	}
+	public readonly IEnumerable<(Formx x, Ord ord)> Yes()
+	{
+		foreach (var o in Full()) if (o.x.Yes) yield return o;
 	}
 
-	public IEnumerable<(short v, Kord ord)> KsRedu()
+	public static OrdFormx<Ord> Compact(Formx[] xs, Ord[] os, int compact = 50) // TODO better compact
 	{
-		foreach (var go in goKs.Full()) if (go.v < No) yield return go;
+		OrdFormx<Ord> S = new();
+		int z = int.CreateTruncating(os[^1]), zz;
+		if (z < compact || (zz = xs.Count(x => x.Yes)) >= z >>> 3) {
+			S.X = new Formx[z + 1];
+			Array.Fill(S.X, Formx.No);
+			foreach (var (v, i) in xs.Each())
+				S.X[int.CreateTruncating(os[i])] = v;
+		}
+		else {
+			(S.X, S.O) = (new Formx[zz], new Ord[zz]);
+			for (int I = 0, i = 0; i < os.Length; i++)
+				if (xs[i].Yes)
+					(S.X[I], S.O[I++]) = (xs[i], os[i]);
+		}
+		return S;
 	}
 }

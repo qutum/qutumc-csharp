@@ -203,18 +203,18 @@ public partial class Synter<K, L, N, T, Ler>
 		if (d is Kord key) return key == default ? "eor" : ByteSet.Esc(key);
 		if (d is Nord name) return ByteSet.Esc((char)name);
 		if (d is SynForm f) {
-			StrMake s = new(); short r;
+			StrMake s = new(); Altx r;
 			if (dumper != Dumper)
 				s += dumper(d);
-			if (f.other != No)
-				_ = s - '\n' + "  redu " + (r = SynForm.Redu(f.other)) + " " + alts[r];
+			if (f.other.Yes)
+				_ = s - '\n' + "  redu " + (r = SynForm.Redu(f.other)) + " " + alts[r.x];
 			foreach (var (g, k) in f.goKs.Yes())
-				_ = s - '\n' + Dumper(k) + (g > No ? s + " shift " + g
-						: s + " redu " + (r = SynForm.Redu(g)) + " " + alts[r]);
+				_ = s - '\n' + Dumper(k) + (g > Formx.No ? s + " shift " + g
+						: s + " redu " + (r = SynForm.Redu(g)) + " " + alts[r.x]);
 			foreach (var (g, n) in f.goNs.Yes())
 				_ = s - '\n' + Dumper(n) + " go " + g;
 			foreach (var (a, want) in f.recs ?? [])
-				_ = s - '\n' + "recover " + a + '_' + want + ' ' + alts[a];
+				_ = s - '\n' + "recover " + a + '_' + want + ' ' + alts[a.x];
 			return s;
 		}
 		if (dump > 0 && d is T t) {
@@ -245,7 +245,7 @@ public partial class SynGram<K, N>
 				s = s + ' ' + SerMaker<K, N>.Dumper_(c);
 			return s + "  " + clash switch { 0 => "", 1 => "<", > 1 => ">", _ => "^" }
 				+ (rec ? "!!" : "") + synt switch { 0 => "", < 0 => "-", 2 => "(", 3 => ")", _ => "+" }
-				+ (lex >= 0 ? s + '.' + lex : s) + ' ' + label;
+				+ (lex.x >= 0 ? s + '.' + lex : s) + ' ' + label;
 		}
 	}
 }
@@ -276,7 +276,7 @@ public partial class SerMaker<K, N>
 	{
 		if (d is SynForm f) {
 			StrMake s = new();
-			foreach (var (a, want, heads, clo) in forms[f.index].Is)
+			foreach (var (a, want, heads, clo) in forms[f.index.x].Is)
 				_ = s - '\n' + want + "_ " + a + "  " + Dumper_((KeySet(heads), s)) + "  :" + clo;
 			return s;
 		}
@@ -289,19 +289,19 @@ public partial class SerMaker<K, N>
 			using (var env = EnvWriter.Use())
 				env.WriteLine($"forms: {forms.Count} (max {(
 					forms.Select(f => f.Is.Count).Max())} items)");
-		else if (d is (Dictionary<Clash, (BitSet keys, short go)> clashs,
+		else if (d is (Dictionary<Clash, (KordXs keys, Formx go)> clashs,
 				bool detail, int solvez)) {
 			using var env = EnvWriter.Use();
 			env.WriteLine(detail ? $"clashes: {clashs.Count} ({solvez} solved)"
 						: $"unsolved clashes: {clashs.Count} (besides {solvez} solved)");
 			foreach (var ((c, (keys, go)), cx) in clashs.Each(1)) {
-				env.Write(cx + (go == No ? "  : " : " :: "));
+				env.Write(cx + (go.Yes ? " :: " : "  : "));
 				env.WriteLine(Dumper_(KeySet(keys)));
 				using var _ = EnvWriter.Indent("\t\t");
 				foreach (var a in c.redus)
-					env.WriteLine($"{(a == SynForm.Redu(go) ? "REDU" : "redu")} {a}  {alts[a]}");
+					env.WriteLine($"{(a == SynForm.Redu(go) ? "REDU" : "redu")} {a}  {alts[a.x]}");
 				foreach (var a in c.shifts)
-					env.WriteLine($"{(go > No ? "SHIFT" : "shift")} {a}  {alts[a]}");
+					env.WriteLine($"{(go > Formx.No ? "SHIFT" : "shift")} {a}  {alts[a.x]}");
 			}
 		}
 	}

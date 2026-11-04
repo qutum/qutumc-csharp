@@ -36,16 +36,19 @@ public class TestSerMaker : IDisposable
 	{
 		var tests = mer.Clashs();
 		HasCount(tests.Count, aims);
-		var bz = tests.First().Key.redus.bits.Length;
+		var bz = tests.First().Key.redus.set.bits.Length;
 		foreach (var (keys, redus, shifts) in aims) {
 			IsTrue(tests.TryGetValue(new() {
-				redus = new BitSet { bits = new ulong[bz] }.Or(redus.Select(a => a ^ a >> 15)),
-				shifts = shifts == null ? default
-					: new BitSet { bits = new ulong[bz] }.Or(shifts.Select(a => a ^ a >> 15))
+				redus = new AltXs {
+					set = new BitSet { bits = new ulong[bz] }.Or(redus.Select(a => a ^ a >> 15))
+				},
+				shifts = shifts == null ? default : new AltXs {
+					set = new BitSet { bits = new ulong[bz] }.Or(shifts.Select(a => a ^ a >> 15))
+				}
 			}, out var t));
 			IsTrue(keys.SetEquals(mer.KeySet(t.keys)));
-			AreEqual(shifts?.Min() < 0 ? 0 : redus.Min() < 0 ? SynForm.Redu(~redus.Min()) : -1,
-				int.Min(t.go, 0));
+			AreEqual(shifts?.Min() < 0 ? 0 : redus.Min() < 0 ? SynForm.Redu((Altx)(short)~redus.Min()).x : -1,
+				int.Min(t.go.x, 0));
 		}
 	}
 
