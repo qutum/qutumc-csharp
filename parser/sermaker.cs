@@ -341,7 +341,7 @@ public partial class SerMaker<K, N>
 		var As = new SynAlt<N>[alts.Length];
 		foreach (var (a, ax) in alts.Each())
 			As[ax] = new() {
-				name = a.name, size = (short)a.Count, lex = a.lex,
+				name = a.name, size = (Conx)(short)a.Count, lex = a.lex,
 #pragma warning disable CS8974 // Converting method group to non-delegate type
 				synt = a.synt, label = a.label, dump = a.ToString,
 				syntName = EqualityComparer<N>.Default.Equals(a.asName, default) ? a.name : a.asName,

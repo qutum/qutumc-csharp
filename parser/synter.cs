@@ -48,7 +48,7 @@ public struct XAlt { }
 public sealed partial class SynAlt<N>
 {
 	public N name;
-	public short size;
+	public Conx size;
 	public Conx lex; // save main lex at this index to synt.info, no save: <0
 	public sbyte rec; // at recovery key ordinal index, or 0
 	public sbyte synt; // make synt: as synter: 0, omit: -1, make: 1, lift left: 2, lift right: 3
@@ -152,7 +152,7 @@ public partial class Synter<K, L, N, T, Ler>
 		}
 		else if (go < Formx.No) { // reduce
 			var alt = alts[SynForm.Redu(go).x];
-			stack.RemoveRange(stack.Count - alt.size, alt.size);
+			stack.RemoveRange(stack.Count - alt.size.x, alt.size.x);
 			form = stack[^1].form;
 			go = form.goNs[nameOrd(alt.name)];
 			if (go > Formx.No) {
@@ -221,7 +221,7 @@ public partial class Synter<K, L, N, T, Ler>
 			StackPush(forms[go.x], ler.Loc(), null);
 			goto Read;
 		}
-		(sbyte err, short size, T info) redu = default;
+		(sbyte err, Conx size, T info) redu = default;
 	Reduce:
 		T t;
 		if (go < Formx.No) { // reduce
@@ -252,12 +252,12 @@ public partial class Synter<K, L, N, T, Ler>
 		return errs.Add(t);
 	}
 
-	(Nord name, int loc, T t) Reduce(Formx go, ref (sbyte err, short size, T info) redu)
+	(Nord name, int loc, T t) Reduce(Formx go, ref (sbyte err, Conx size, T info) redu)
 	{
 		var alt = alts[SynForm.Redu(go).x];
 		if (redu.err == 0)
 			redu.size = alt.size;
-		int loc = redu.size > 0 ? stack[^redu.size].loc : stack[^1].loc + 1;
+		int loc = redu.size.x > 0 ? stack[^redu.size.x].loc : stack[^1].loc + 1;
 		if (redu.err > 0 && redu.info is T e && loc > e.j.on)
 			loc = e.j.on; // recovery synt start
 		bool make = alt.synt > 0 || alt.synt == 0 && synt;
@@ -265,30 +265,30 @@ public partial class Synter<K, L, N, T, Ler>
 			name = alt.syntName, j = (loc, ler.Loc()), dump = dump >= 3 ? alt : alt.label,
 			err = redu.err, info = redu.info,
 		} : null;
-		for (var i = redu.size - 1; i >= 0; i--) {
-			var (_, l, synt) = stack[^(redu.size - i)];
+		for (var i = redu.size.x - 1; i >= 0; i--) {
+			var (_, l, synt) = stack[^(redu.size.x - i)];
 			if (synt is T head)
 				if (!make // flatten synts
 					|| alt.synt == 2 && i == 0) // lift first synt as prev
 					t = head.Append(t); // maybe slow if deep left recursive
-				else if (alt.synt == 3 && i == redu.size - 1) // lift last synt as next
+				else if (alt.synt == 3 && i == redu.size.x - 1) // lift last synt as next
 					t.Append(head);
 				else
 					t.AddHead(head);
 			else if (make && i == alt.lex.x)
 				t.info ??= ler.Lex(l);
 		}
-		StackPop(size: redu.size);
+		StackPop(size: redu.size.x);
 		return (nameOrd(alt.name), loc, t);
 	}
 
-	(sbyte err, short size, T info) Error(SynForm form, ref Kord key, ref Formx go, T errs)
+	(sbyte err, Conx size, T info) Error(SynForm form, ref Kord key, ref Formx go, T errs)
 	{
 		(int cx, Altx a, Conx want) rec = default;
 		if (!go.Yes && form.other.Yes) // reduce by other key ordinals
 			if (!recover || stack[^1].form.recs == null) {
 				go = form.other;
-				return (0, 0, null);
+				return (0, Conx.No, null);
 			}
 		T e = new() {
 			j = (ler.Loc(), ler.Loc() + (key != default ? 1 : 0)), err = -1,
@@ -299,12 +299,12 @@ public partial class Synter<K, L, N, T, Ler>
 			errs.Add(e).info = (int)errs.info + 1;
 		// recovery disabled
 		if (!recover)
-			return (-1, 0, null);
+			return (-1, Conx.No, null);
 		// want a recovery key right now, fake it
 		if (key != default && (rec = Fake(key, -1, stack.Count - 1)).cx > 0) {
 			go = SynForm.Redu(rec.a);
 			e.j.via = e.j.on;
-			return (1, rec.want.x, e); // recover
+			return (1, rec.want, e); // recover
 		}
 		// recovery stack
 		if (recCs == null)
@@ -319,7 +319,7 @@ public partial class Synter<K, L, N, T, Ler>
 						if (r.cx > rec.cx || r.want > rec.want)
 							rec = r; // latest recovery stack and most want
 				if (rec.want.x == 0)
-					return (-1, 0, null); // can not recover, reject
+					return (-1, (Conx)0, null); // can not recover, reject
 			}
 			else if (Array.BinarySearch(recKs, key) is var kx and >= 0
 					&& recCs[kx][^1] is var cx and > 0)
@@ -330,14 +330,14 @@ public partial class Synter<K, L, N, T, Ler>
 		StackPop(on: rec.cx + 1);
 		go = SynForm.Redu(rec.a);
 		e.name = alts[rec.a.x].name;
-		return (1, rec.want.x, e);
+		return (1, rec.want, e);
 	}
 
 	(int cx, Altx a, Conx want) Fake(Kord key, int kx, int cx)
 	{
 		if (key != default)
 			foreach (var (a, want) in stack[cx].form.recs ?? [])
-				if (alts[a.x].lex.Yes && want.x > 0 && want.x == alts[a.x].size - 1) // final key
+				if (alts[a.x].lex.Yes && want.x > 0 && want.x == alts[a.x].size.x - 1) // final key
 					return (cx, a, want);
 		if (key == default)
 			foreach (var (a, want) in stack[cx].form.recs ?? [])

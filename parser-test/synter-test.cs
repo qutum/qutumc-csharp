@@ -79,7 +79,7 @@ public class TestSynter : IDisposable
 	{
 		var alts = Alts.Split('\n', ' ').Select(a => new SynAlt<string> {
 			name = a[0..1],
-			size = checked((byte)(a.Length - 2)),
+			size = (Conx)checked((byte)(a.Length - 2)),
 			lex = (Conx)checked((short)(a.IndexOfAny(keys, 2) - 2)),
 			synt = a[1] switch { '+' => 1, '-' => -1, _ => 0 },
 			syntName = a[0..1],
