@@ -29,8 +29,8 @@ public partial class SynGram<K, N>
 		internal Altx index; // index of whole grammar alts
 		public N name;
 		public Conx lex = Conx.No; // save main lex at this index to synt.info, no save: <0
-		public short clash; // reject: 0, left: 1, right: 2
-							// solve and index as same as previous one: ~actual alt index
+		public Altx clash = Altx.No; // reject: -1, left: -2, right: -3
+									// solve and index as same as previous one: actual alt index
 		public bool rec; // whether recover this alt for error, after main lex if any
 		public sbyte synt; // make synt: as synter: 0, omit: -1, make: 1, lift left: 2, lift right: 3
 		public N asName; // as name: not default, same as name: default
@@ -72,9 +72,9 @@ public partial class SynGram<K, N>
 			return this;
 		}
 	}
-	public SynGram<K, N> clash { get { prods[^1][^1].clash = 1; return this; } }
-	public SynGram<K, N> clashRight { get { prods[^1][^1].clash = 2; return this; } }
-	public SynGram<K, N> clashPrev { get { prods[^1][^1].clash = -1; return this; } }
+	public SynGram<K, N> clash { get { prods[^1][^1].clash = (Altx)(-2); return this; } }
+	public SynGram<K, N> clashRight { get { prods[^1][^1].clash = (Altx)(-3); return this; } }
+	public SynGram<K, N> clashPrev { get { prods[^1][^1].clash = (Altx)0; return this; } }
 	public SynGram<K, N> synt { get { prods[^1][^1].synt = 1; return this; } }
 	public SynGram<K, N> syntLeft { get { prods[^1][^1].synt = 2; return this; } }
 	public SynGram<K, N> syntRight { get { prods[^1][^1].synt = 3; return this; } }
@@ -300,15 +300,15 @@ public partial class SerMaker<K, N>
 				// try to solve
 				else {
 					var go = Formx.No;
-					if (c.redus.All(a => alts[a.x].clash != 0)) {
-						int A(int a) => alts[a].clash < 0 ? ~alts[a].clash : a;
-						r = c.redus.Max(); int ra = A(r.x);
+					if (c.redus.All(a => alts[a.x].clash.Yes)) {
+						Altx A(Altx a) => alts[a.x].clash.x >= 0 ? alts[a.x].clash : a;
+						r = c.redus.Max(); var ra = A(r);
 						if (c.shifts.Empty)
 							go = SynForm.Redu(r); // reduce
 						else {
-							int ia = A(c.shifts.Max().x), ic = alts[ia].clash;
-							if (ic != 0)
-								if (ia > ra || ia == ra && ic > 1)
+							Altx ia = A(c.shifts.Max()), ic = alts[ia.x].clash;
+							if (ic.x != 0)
+								if (ia > ra || ia == ra && ic.x <= -3)
 									go = c.shift; // shift
 								else
 									go = SynForm.Redu(r); // reduce
@@ -460,10 +460,10 @@ public partial class SerMaker<K, N>
 					else if (Name(c.n) == Nordx.No)
 						throw new($"name {c} in {p.name}.{pax} not found");
 				// clash
-				if (a.clash < 0 && (ax == 0 || alts[ax - 1].clash == 0))
+				if (a.clash.x >= 0 && (ax == 0 || !alts[ax - 1].clash.Yes))
 					throw new($"{p.name}.{pax} no previous clash");
-				if (a.clash < 0)
-					a.clash = alts[ax - 1].clash < 0 ? alts[ax - 1].clash : (short)~(ax - 1);
+				if (a.clash.x >= 0)
+					a.clash = alts[ax - 1].clash.x >= 0 ? alts[ax - 1].clash : (Altx)(short)(ax - 1);
 				// recover
 				if (a.rec && ax == 0)
 					throw new($"initial {p.name}.{pax} recovery");

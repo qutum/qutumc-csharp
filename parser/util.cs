@@ -20,7 +20,7 @@ public struct X<T> : IComparable<X<T>>
 {
 	public short x;
 	public readonly bool Yes => x != -1;
-	public static readonly X<T> No = new() { x = -1 };
+	public static readonly X<T> No = (X<T>)(-1);
 
 	public static explicit operator X<T>(short x) => new() { x = x };
 	//	public static implicit operator short(X<T> x) => x.x;
