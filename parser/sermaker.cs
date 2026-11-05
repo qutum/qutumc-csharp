@@ -346,7 +346,7 @@ public partial class SerMaker<K, N>
 				synt = a.synt, label = a.label, dump = a.ToString,
 				syntName = EqualityComparer<N>.Default.Equals(a.asName, default) ? a.name : a.asName,
 				// final key index in recovery keys
-				rec = (sbyte)(a.rec ? Key(a[^1].k, recKs).x : 0),
+				rec = a.rec ? (Krecx)Key(a[^1].k, recKs).x : Krecx.No,
 			};
 		// synter forms
 		var Fs = new SynForm[forms.Count];
