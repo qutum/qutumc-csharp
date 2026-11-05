@@ -207,14 +207,14 @@ public partial class Synter<K, L, N, T, Ler>
 			if (dumper != Dumper)
 				s += dumper(d);
 			if (f.other.Yes)
-				_ = s - '\n' + "  redu " + (r = SynForm.Redu(f.other)) + " " + alts[r.x];
+				_ = s - '\n' + "  redu " + (r = SynForm.Redu(f.other)) + " " + alts[r];
 			foreach (var (g, k) in f.goKs.Yes())
 				_ = s - '\n' + Dumper(k) + (g > Formx.No ? s + " shift " + g
-						: s + " redu " + (r = SynForm.Redu(g)) + " " + alts[r.x]);
+						: s + " redu " + (r = SynForm.Redu(g)) + " " + alts[r]);
 			foreach (var (g, n) in f.goNs.Yes())
 				_ = s - '\n' + Dumper(n) + " go " + g;
 			foreach (var (a, want) in f.recs ?? [])
-				_ = s - '\n' + "recover " + a + '_' + want + ' ' + alts[a.x];
+				_ = s - '\n' + "recover " + a + '_' + want + ' ' + alts[a];
 			return s;
 		}
 		if (dump > 0 && d is T t) {
@@ -243,9 +243,9 @@ public partial class SynGram<K, N>
 			var s = new StrMake() + name + " =";
 			foreach (var c in this)
 				s = s + ' ' + SerMaker<K, N>.Dumper_(c);
-			return s + "  " + clash.x switch { -1 => "", -2 => "<", <= -3 => ">", _ => "^" }
+			return s + "  " + (short)clash switch { -1 => "", -2 => "<", <= -3 => ">", _ => "^" }
 				+ (rec ? "!!" : "") + synt switch { 0 => "", < 0 => "-", 2 => "(", 3 => ")", _ => "+" }
-				+ (lex.x >= 0 ? s + '.' + lex : s) + ' ' + label;
+				+ (lex >= 0 ? s + '.' + lex : s) + ' ' + label;
 		}
 	}
 }
@@ -276,7 +276,7 @@ public partial class SerMaker<K, N>
 	{
 		if (d is SynForm f) {
 			StrMake s = new();
-			foreach (var (a, want, heads, clo) in forms[f.index.x].Is)
+			foreach (var (a, want, heads, clo) in forms[f.index].Is)
 				_ = s - '\n' + want + "_ " + a + "  " + Dumper_((KeySet(heads), s)) + "  :" + clo;
 			return s;
 		}
@@ -299,9 +299,9 @@ public partial class SerMaker<K, N>
 				env.WriteLine(Dumper_(KeySet(keys)));
 				using var _ = EnvWriter.Indent("\t\t");
 				foreach (var a in c.redus)
-					env.WriteLine($"{(a == SynForm.Redu(go) ? "REDU" : "redu")} {a}  {alts[a.x]}");
+					env.WriteLine($"{(a == SynForm.Redu(go) ? "REDU" : "redu")} {a}  {alts[a]}");
 				foreach (var a in c.shifts)
-					env.WriteLine($"{(go > Formx.No ? "SHIFT" : "shift")} {a}  {alts[a.x]}");
+					env.WriteLine($"{(go > Formx.No ? "SHIFT" : "shift")} {a}  {alts[a]}");
 			}
 		}
 	}

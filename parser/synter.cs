@@ -66,8 +66,8 @@ public sealed partial class SynForm
 	public string err; // error info
 	public (Altx alt, Conx want)[] recs; // { recovery alt index and want ... }
 
-	public static Formx Redu(Altx alt) => (Formx)(short)(-2 - alt.x);
-	public static Altx Redu(Formx form) => (Altx)(short)(-2 - form.x);
+	public static Formx Redu(Altx alt) => (Formx)(short)(-2 - alt);
+	public static Altx Redu(Formx form) => (Altx)(short)(-2 - form);
 }
 public partial struct OrdFormx<Ord> where Ord : struct, IBinaryInteger<Ord>
 {
@@ -102,7 +102,7 @@ internal class Stack
 		s.Add((form, loc, synt));
 		if (recCs != null && form.recs != null)
 			foreach (var a in form.recs)
-				recCs[altRec(a.alt).x].Add(s.Count - 1);
+				recCs[altRec(a.alt)].Add(s.Count - 1);
 	}
 	internal void Pop(int on = 0, int size = 0)
 	{
@@ -124,7 +124,7 @@ internal class Stack
 			recCs[x] = new(s.Capacity) { 0 };
 		foreach (var ((f, _, _), x) in s.Each())
 			foreach (var a in f?.recs ?? [])
-				recCs[altRec(a.alt).x].Add(x);
+				recCs[altRec(a.alt)].Add(x);
 		return recCs;
 	}
 	internal void Clear() { s.Clear(); s.Add(default); recCs = null; }
@@ -173,7 +173,7 @@ public partial class Synter<K, L, N, T, Ler>
 			throw new($"{nameof(forms)} size {forms.Length}");
 		this.keyOrd = keyOrd; this.nameOrd = nameOrd;
 		this.alts = alts; this.forms = forms; this.recKs = recKs;
-		stack = new() { altRec = a => this.alts[a.x].rec };
+		stack = new() { altRec = a => this.alts[a].rec };
 		init = forms[0] ?? forms[1];
 		foreach (var (f, fx) in forms.Each())
 			f?.index = (Formx)(short)fx;
@@ -196,12 +196,12 @@ public partial class Synter<K, L, N, T, Ler>
 		var form = stack[^1].form;
 		var go = form.goKs[key];
 		if (go > Formx.No) { // shift
-			stack.Push(forms[go.x], -1, null);
+			stack.Push(forms[go], -1, null);
 			goto Read;
 		}
 		else if (go < Formx.No) { // reduce
-			var alt = alts[SynForm.Redu(go).x];
-			stack.Pop(size: alt.size.x);
+			var alt = alts[SynForm.Redu(go)];
+			stack.Pop(size: alt.size);
 			form = stack[^1].form;
 			go = form.goNs[nameOrd(alt.name)];
 			if (go > Formx.No) {
@@ -233,7 +233,7 @@ public partial class Synter<K, L, N, T, Ler>
 		var form = stack[^1].form;
 		var go = form.goKs[key];
 		if (go > Formx.No) { // shift
-			stack.Push(forms[go.x], ler.Loc(), null);
+			stack.Push(forms[go], ler.Loc(), null);
 			goto Read;
 		}
 		(sbyte err, Conx size, T info) redu = default;
@@ -244,7 +244,7 @@ public partial class Synter<K, L, N, T, Ler>
 			form = stack[^1].form;
 			go = form.goNs[name];
 			if (go > Formx.No) {
-				stack.Push(forms[go.x], loc, t);
+				stack.Push(forms[go], loc, t);
 				if (stack.size < stuck.min) (stuck.min, stuck.loop) = (stack.size, 1);
 				else if (++stuck.loop >= 100) goto Cyclic; // stack stuck without shift
 				goto Loop;
@@ -269,10 +269,10 @@ public partial class Synter<K, L, N, T, Ler>
 
 	(Nord name, int loc, T t) Reduce(Formx go, ref (sbyte err, Conx size, T info) redu)
 	{
-		var alt = alts[SynForm.Redu(go).x];
+		var alt = alts[SynForm.Redu(go)];
 		if (redu.err == 0)
 			redu.size = alt.size;
-		int loc = redu.size.x > 0 ? stack[^redu.size.x].loc : stack[^1].loc + 1;
+		int loc = redu.size > 0 ? stack[^redu.size].loc : stack[^1].loc + 1;
 		if (redu.err > 0 && redu.info is T e && loc > e.j.on)
 			loc = e.j.on; // recovery synt start
 		bool make = alt.synt > 0 || alt.synt == 0 && synt;
@@ -280,20 +280,20 @@ public partial class Synter<K, L, N, T, Ler>
 			name = alt.syntName, j = (loc, ler.Loc()), dump = dump >= 3 ? alt : alt.label,
 			err = redu.err, info = redu.info,
 		} : null;
-		for (var i = redu.size.x - 1; i >= 0; i--) {
-			var (_, l, synt) = stack[^(redu.size.x - i)];
+		for (var i = redu.size - 1; i >= 0; i--) {
+			var (_, l, synt) = stack[^(redu.size - i)];
 			if (synt is T head)
 				if (!make // flatten synts
 					|| alt.synt == 2 && i == 0) // lift first synt as prev
 					t = head.Append(t); // maybe slow if deep left recursive
-				else if (alt.synt == 3 && i == redu.size.x - 1) // lift last synt as next
+				else if (alt.synt == 3 && i == redu.size - 1) // lift last synt as next
 					t.Append(head);
 				else
 					t.AddHead(head);
-			else if (make && i == alt.lex.x)
+			else if (make && i == alt.lex)
 				t.info ??= ler.Lex(l);
 		}
-		stack.Pop(size: redu.size.x);
+		stack.Pop(size: redu.size);
 		return (nameOrd(alt.name), loc, t);
 	}
 
@@ -316,7 +316,7 @@ public partial class Synter<K, L, N, T, Ler>
 		if (!recover)
 			return (-1, Conx.No, null);
 		// want a recovery key right now, fake it
-		if (key != default && (rec = Fake(key, -1, stack.size - 1)).cx > 0) {
+		if (key != default && (rec = Fake(key, Krecx.No, stack.size - 1)).cx > 0) {
 			go = SynForm.Redu(rec.a);
 			e.j.via = e.j.on;
 			return (1, rec.want, e); // recover
@@ -328,34 +328,34 @@ public partial class Synter<K, L, N, T, Ler>
 			// not found, fake it
 			if (key == default) {
 				rec.cx = 1;
-				for (int x = 0; x < recCs.Length; x++)
-					if (recCs[x][^1] >= rec.cx && Fake(key, x, recCs[x][^1]) is var r && r.cx > 0)
+				for (short x = 0; x < recCs.Length; x++)
+					if (recCs[x][^1] >= rec.cx && Fake(key, (Krecx)x, recCs[x][^1]) is var r && r.cx > 0)
 						if (r.cx > rec.cx || r.want > rec.want)
 							rec = r; // latest recovery stack and most want
-				if (rec.want.x == 0)
+				if (rec.want == 0)
 					return (-1, (Conx)0, null); // can not recover, reject
 			}
-			else if (Array.BinarySearch(recKs, key) is var kx and >= 0
-					&& recCs[kx][^1] is var cx and > 0)
+			else if ((Krecx)(short)Array.BinarySearch(recKs, key) is var x && x >= 0
+					&& recCs[x][^1] is var cx and > 0)
 				foreach (var (a, want) in stack[cx].form.recs)
-					if (alts[(rec = (cx, a, want)).a.x].rec == kx) // latest alt due to reversed index
+					if (alts[(rec = (cx, a, want)).a].rec == x) // latest alt due to reversed index
 						break;
 		// recover
 		stack.Pop(on: rec.cx + 1);
 		go = SynForm.Redu(rec.a);
-		e.name = alts[rec.a.x].name;
+		e.name = alts[rec.a].name;
 		return (1, rec.want, e);
 	}
 
-	(int cx, Altx a, Conx want) Fake(Kord key, int kx, int cx)
+	(int cx, Altx a, Conx want) Fake(Kord key, Krecx kx, int cx)
 	{
 		if (key != default)
 			foreach (var (a, want) in stack[cx].form.recs ?? [])
-				if (alts[a.x].lex.Yes && want.x > 0 && want.x == alts[a.x].size.x - 1) // final key
+				if (alts[a].lex.Yes && want > 0 && want == alts[a].size - 1) // final key
 					return (cx, a, want);
 		if (key == default)
 			foreach (var (a, want) in stack[cx].form.recs ?? [])
-				if ((kx < 0 || alts[a.x].rec == kx) && want.x + stack.Count - cx - 1 > 0)
+				if ((kx < 0 || alts[a].rec == kx) && want + stack.size - cx - 1 > 0)
 					return (cx, a, want);
 		return (0, (Altx)0, (Conx)0);
 	}

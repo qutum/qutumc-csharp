@@ -8,32 +8,24 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Drawing;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 
 namespace qutum.parser;
 
-// typed int16 index
-public struct X<T> : IComparable<X<T>>
+// typed int16 index, meaningless _ is for distinguish only
+public struct X<_> : IComparable<X<_>>
 {
-	public short x;
+	short x;
 	public readonly bool Yes => x != -1;
-	public static readonly X<T> No = (X<T>)(-1);
+	public static readonly X<_> No = (X<_>)(-1);
 
-	public static explicit operator X<T>(short x) => new() { x = x };
-	//	public static implicit operator short(X<T> x) => x.x;
-
-	public static bool operator ==(X<T> a, X<T> b) => a.x == b.x;
-	public static bool operator !=(X<T> a, X<T> b) => a.x != b.x;
-	public static bool operator <(X<T> a, X<T> b) => a.x < b.x;
-	public static bool operator >(X<T> a, X<T> b) => a.x > b.x;
+	public static explicit operator X<_>(short x) => new() { x = x };
+	public static implicit operator short(X<_> x) => x.x;
 
 	public override readonly string ToString() => x.ToString();
-	public override readonly bool Equals(object that) => that is X<T> b && x == b.x;
-	public override readonly int GetHashCode() => x.GetHashCode();
-	public readonly int CompareTo(X<T> that) => x - that.x;
+	public readonly int CompareTo(X<_> that) => x - that.x;
 }
 
 // jot of data to inclusive end, [on,to], default size is 1
@@ -332,33 +324,32 @@ public struct BitSet : IEnumerable<int>
 	readonly IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 }
 
-public struct BitSet<T> : IEnumerable<X<T>>
+// meaningless _ is for distinguish only
+public struct BitSet<_> : IEnumerable<X<_>>
 {
 	public BitSet set;
 	public readonly bool Empty => set.Empty;
 
-	public BitSet<T> Use(int max) { set.Use(max); return this; }
-	public readonly BitSet<T> Or(X<T> x) { set.Or(x.x); return this; }
-	public readonly bool Or(BitSet<T> s) => set.Or(s.set);
-	public readonly BitSet<T> Or(IEnumerable<X<T>> s)
+	public BitSet<_> Use(int max) { set.Use(max); return this; }
+	public readonly BitSet<_> Or(X<_> x) { set.Or(x); return this; }
+	public readonly bool Or(BitSet<_> s) => set.Or(s.set);
+	public readonly BitSet<_> Or(IEnumerable<X<_>> s)
 	{
-		foreach (var x in s ?? [])
-			set.Or(x.x);
-		return this;
+		foreach (var x in s ?? []) set.Or(x); return this;
 	}
-	public readonly BitSet<T> NewOr(BitSet<T> s, bool may = false)
+	public readonly BitSet<_> NewOr(BitSet<_> s, bool may = false)
 	{
 		var set = this.set.NewOr(s.set, may);
 		return set.bits == this.set.bits ? this : new() { set = set };
 	}
-	public readonly bool Same(BitSet<T> s) => set.Same(s.set);
-	public static BitSet<T> One(int max, X<T> x) => new BitSet<T>().Use(max).Or(x);
+	public readonly bool Same(BitSet<_> s) => set.Same(s.set);
+	public static BitSet<_> One(int max, X<_> x) => new BitSet<_>().Use(max).Or(x);
 
-	public readonly X<T> Min() => (X<T>)short.CreateSaturating(set.Min());
-	public readonly X<T> Max() => (X<T>)short.CreateSaturating(set.Max());
-	public readonly IEnumerator<X<T>> GetEnumerator()
+	public readonly X<_> Min() => (X<_>)short.CreateSaturating(set.Min());
+	public readonly X<_> Max() => (X<_>)short.CreateSaturating(set.Max());
+	public readonly IEnumerator<X<_>> GetEnumerator()
 	{
-		foreach (int x in set) yield return (X<T>)(short)x;
+		foreach (int x in set) yield return (X<_>)(short)x;
 	}
 	readonly IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 }

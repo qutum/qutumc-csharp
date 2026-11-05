@@ -47,8 +47,9 @@ public class TestSerMaker : IDisposable
 				}
 			}, out var t));
 			IsTrue(keys.SetEquals(mer.KeySet(t.keys)));
-			AreEqual(shifts?.Min() < 0 ? 0 : redus.Min() < 0 ? SynForm.Redu((Altx)(short)~redus.Min()).x : -1,
-				int.Min(t.go.x, 0));
+			AreEqual(shifts?.Min() < 0 ? 0
+				: redus.Min() is var min and < 0 ? SynForm.Redu((Altx)(short)~min) : -1,
+				int.Min(t.go, 0));
 		}
 	}
 

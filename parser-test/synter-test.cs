@@ -97,7 +97,7 @@ public class TestSynter : IDisposable
 	}
 	const short _ = -1;
 	static readonly short r0 = R(0), r1 = R(1), r2 = R(2), r3 = R(3), r4 = R(4), r5 = R(5);
-	static short R(short alt) => SynForm.Redu((Altx)alt).x;
+	static short R(short alt) => SynForm.Redu((Altx)alt);
 
 	public void True(string read) => IsTrue(Begin(read).Check());
 	public void False(string read) => IsFalse(Begin(read).Check());
