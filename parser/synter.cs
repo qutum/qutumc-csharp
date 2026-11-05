@@ -10,6 +10,8 @@ global using Kordx = qutum.parser.X<char>;
 global using Nordx = qutum.parser.X<ushort>;
 // recovery key ordinal index
 global using Krecx = qutum.parser.X<sbyte>;
+// stack index
+global using Stax = qutum.parser.X<qutum.parser.SynStack>;
 // SynForm index
 global using Formx = qutum.parser.X<qutum.parser.SynForm>;
 // SynAlt index
@@ -86,48 +88,48 @@ public partial struct OrdFormx<Ord> where Ord : struct, IBinaryInteger<Ord>
 	}
 }
 
-internal class Stack
+internal class SynStack
 {
 	internal Func<Altx, Krecx> altRec;
-
 	// (form, lex loc i.e synt start, synt or null for lex)
 	readonly List<(SynForm form, int loc, object synt)> s = []; // index from 1
-	List<int>[] recCs; // { 0, recovery stack index... } of each recovery key
+	List<Stax>[] recTs; // { 0, recovery stack index... } of each recovery key
 
 	internal (SynForm form, int loc, object synt) this[Index x] => s[x];
-	internal int size => s.Count;
+	internal (SynForm form, int loc, object synt) this[Stax x] => s[x];
+	internal Stax size => (Stax)(short)s.Count;
 
 	internal void Push(SynForm form, int loc, object synt)
 	{
 		s.Add((form, loc, synt));
-		if (recCs != null && form.recs != null)
+		if (recTs != null && form.recs != null)
 			foreach (var a in form.recs)
-				recCs[altRec(a.alt)].Add(s.Count - 1);
+				recTs[altRec(a.alt)].Add((Stax)(short)(s.Count - 1));
 	}
 	internal void Pop(int on = 0, int size = 0)
 	{
 		if (on == 0) on = s.Count - size;
 		else if (size == 0) size = s.Count - on;
 		s.RemoveRange(on, size);
-		if (recCs != null)
-			foreach (var cs in recCs) {
+		if (recTs != null)
+			foreach (var cs in recTs) {
 				var x = cs.Count;
 				for (; on <= cs[x - 1]; x--) ;
 				cs.RemoveRange(x, cs.Count - x);
 			}
 	}
-	internal List<int>[] RecStacks(int krecSize)
+	internal List<Stax>[] RecStax(Krecx krecSize)
 	{
-		if (recCs != null) return recCs;
-		recCs = new List<int>[krecSize];
-		for (var x = 0; x < recCs.Length; x++)
-			recCs[x] = new(s.Capacity) { 0 };
+		if (recTs != null) return recTs;
+		recTs = new List<Stax>[krecSize];
+		for (var x = 0; x < recTs.Length; x++)
+			recTs[x] = new(s.Capacity) { Stax.No };
 		foreach (var ((f, _, _), x) in s.Each())
 			foreach (var a in f?.recs ?? [])
-				recCs[altRec(a.alt)].Add(x);
-		return recCs;
+				recTs[altRec(a.alt)].Add((Stax)(short)x);
+		return recTs;
 	}
-	internal void Clear() { s.Clear(); s.Add(default); recCs = null; }
+	internal void Clear() { s.Clear(); s.Add(default); recTs = null; }
 }
 
 // syntax parser
@@ -182,7 +184,7 @@ public partial class Synter<K, L, N, T, Ler>
 
 	public virtual Synter<K, L, N, T, Ler> Begin(Ler ler) { this.ler = ler; return this; }
 
-	Stack stack;
+	SynStack stack;
 
 	// accept or reject, no synt no error info no recovery
 	public virtual bool Check()
@@ -299,7 +301,7 @@ public partial class Synter<K, L, N, T, Ler>
 
 	(sbyte err, Conx size, T info) Error(SynForm form, ref Kord key, ref Formx go, T errs)
 	{
-		(int cx, Altx a, Conx want) rec = default;
+		(Stax tx, Altx a, Conx want) rec = (Stax.No, Altx.No, Conx.No);
 		if (!go.Yes && form.other.Yes) // reduce by other key ordinals
 			if (!recover || stack[^1].form.recs == null) {
 				go = form.other;
@@ -316,48 +318,51 @@ public partial class Synter<K, L, N, T, Ler>
 		if (!recover)
 			return (-1, Conx.No, null);
 		// want a recovery key right now, fake it
-		if (key != default && (rec = Fake(key, Krecx.No, stack.size - 1)).cx > 0) {
-			go = SynForm.Redu(rec.a);
-			e.j.via = e.j.on;
-			return (1, rec.want, e); // recover
+		if (key != default) {
+			rec = Fake(key, Krecx.No, (Stax)(short)(stack.size - 1));
+			if (rec.tx.Yes) {
+				go = SynForm.Redu(rec.a);
+				e.j.via = e.j.on;
+				return (1, rec.want, e); // recover
+			}
 		}
 		// recovery stack
-		var recCs = stack.RecStacks(recKs.Length);
+		var recTs = stack.RecStax((Krecx)(short)recKs.Length);
 		// read until one recovery key and shift it
-		for (; rec.cx == 0; key = ler.Next() ? keyOrd(ler) : default)
+		for (; !rec.tx.Yes; key = ler.Next() ? keyOrd(ler) : default)
 			// not found, fake it
 			if (key == default) {
-				rec.cx = 1;
-				for (short x = 0; x < recCs.Length; x++)
-					if (recCs[x][^1] >= rec.cx && Fake(key, (Krecx)x, recCs[x][^1]) is var r && r.cx > 0)
-						if (r.cx > rec.cx || r.want > rec.want)
-							rec = r; // latest recovery stack and most want
-				if (rec.want == 0)
-					return (-1, (Conx)0, null); // can not recover, reject
+				var tx = (Stax)1;
+				for (short x = 0; x < recTs.Length; x++)
+					if (recTs[x][^1] >= tx && Fake(key, (Krecx)x, recTs[x][^1]) is var r && r.tx.Yes)
+						if (r.tx > tx || r.want > rec.want)
+							tx = (rec = r).tx; // latest recovery stack and most want
+				if (!rec.tx.Yes)
+					return (-1, Conx.No, null); // can not recover, reject
 			}
-			else if ((Krecx)(short)Array.BinarySearch(recKs, key) is var x && x >= 0
-					&& recCs[x][^1] is var cx and > 0)
-				foreach (var (a, want) in stack[cx].form.recs)
-					if (alts[(rec = (cx, a, want)).a].rec == x) // latest alt due to reversed index
+			else if ((Krecx)(short)Array.BinarySearch(recKs, key) is var kx && kx >= 0
+					&& recTs[kx][^1] is var tx && tx.Yes)
+				foreach (var (a, want) in stack[tx].form.recs)
+					if (alts[(rec = (tx, a, want)).a].rec == kx) // latest alt due to reversed index
 						break;
 		// recover
-		stack.Pop(on: rec.cx + 1);
+		stack.Pop(on: rec.tx + 1);
 		go = SynForm.Redu(rec.a);
 		e.name = alts[rec.a].name;
 		return (1, rec.want, e);
 	}
 
-	(int cx, Altx a, Conx want) Fake(Kord key, Krecx kx, int cx)
+	(Stax tx, Altx a, Conx want) Fake(Kord key, Krecx kx, Stax tx)
 	{
 		if (key != default)
-			foreach (var (a, want) in stack[cx].form.recs ?? [])
+			foreach (var (a, want) in stack[tx].form.recs ?? [])
 				if (alts[a].lex.Yes && want > 0 && want == alts[a].size - 1) // final key
-					return (cx, a, want);
+					return (tx, a, want);
 		if (key == default)
-			foreach (var (a, want) in stack[cx].form.recs ?? [])
-				if ((kx < 0 || alts[a].rec == kx) && want + stack.size - cx - 1 > 0)
-					return (cx, a, want);
-		return (0, (Altx)0, (Conx)0);
+			foreach (var (a, want) in stack[tx].form.recs ?? [])
+				if ((kx < 0 || alts[a].rec == kx) && want + stack.size - tx - 1 > 0)
+					return (tx, a, want);
+		return (Stax.No, Altx.No, Conx.No);
 	}
 }
 
