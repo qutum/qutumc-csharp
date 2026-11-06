@@ -62,7 +62,7 @@ public partial class SynGram<K, N>
 			foreach (var c in cons)
 				if (c is Range)
 					a.lex = a.lex.Yes ? throw new($"{p.name}.{p.Count - 1} lex {a.lex}")
-						: (Conx)(short)(a.Count - 1);
+						: (Conx)(a.Count - 1);
 				else if (c is K k)
 					a.Add(new((Kordx)0, k));
 				else if (c is N n)
@@ -104,8 +104,8 @@ public partial class SerMaker<K, N>
 	readonly N[] names; // at name ordinal index
 	readonly Kord[] recKs; // { recovery key ordinal ... }
 
-	private Kordx Key(K k, Kord[] os) => (Kordx)(short)Array.BinarySearch(os, keyOrd(k));
-	private Nordx Name(N n) => (Nordx)(short)Array.BinarySearch(nameOs, nameOrd(n));
+	private Kordx Key(K k, Kord[] os) => (Kordx)Array.BinarySearch(os, keyOrd(k));
+	private Nordx Name(N n) => (Nordx)Array.BinarySearch(nameOs, nameOrd(n));
 
 	readonly SynGram<K, N>.Prod[] prods; // at name ordinal index
 	readonly SynGram<K, N>.Alt[] alts;
@@ -207,7 +207,7 @@ public partial class SerMaker<K, N>
 			No:;
 			}
 		var F = new Form {
-			index = (Formx)checked((short)forms.Count), Is = Is, clashs = new Clash[keys.Length],
+			index = (Formx)forms.Count, Is = Is, clashs = new Clash[keys.Length],
 			goNs = new Formx[names.Length], goKs = new Formx[keys.Length],
 		};
 		forms.Add(F);
@@ -242,7 +242,7 @@ public partial class SerMaker<K, N>
 				Items js = [];
 				foreach (var (A, W, heads, _) in f.Is) {
 					if (W < A.Count && A[W].Equals(a[want]))
-						AddItem(js, A, (Conx)(short)(W + 1), heads, default, 1);
+						AddItem(js, A, (Conx)(W + 1), heads, default, 1);
 				}
 				addGos.Add(a[want], go = AddForm(Closure(js)));
 			}
@@ -295,7 +295,7 @@ public partial class SerMaker<K, N>
 				// already solved
 				else if (clashs.TryGetValue(c, out var ok)) {
 					f.goKs[kx] = ok.go;
-					ok.keys.Or((Kordx)(short)kx);
+					ok.keys.Or((Kordx)kx);
 				}
 				// try to solve
 				else {
@@ -315,7 +315,7 @@ public partial class SerMaker<K, N>
 						}
 					}
 					f.goKs[kx] = go;
-					clashs[c] = (KordXs.One(keys.Length, (Kordx)(short)kx), go);
+					clashs[c] = (KordXs.One(keys.Length, (Kordx)kx), go);
 				}
 		// solved
 		var solvez = 0;
@@ -341,12 +341,12 @@ public partial class SerMaker<K, N>
 		var As = new SynAlt<N>[alts.Length];
 		foreach (var (a, ax) in alts.Each())
 			As[ax] = new() {
-				name = a.name, size = (Conx)(short)a.Count, lex = a.lex,
+				name = a.name, size = (Conx)a.Count, lex = a.lex,
 #pragma warning disable CS8974 // Converting method group to non-delegate type
 				synt = a.synt, label = a.label, dump = a.ToString,
 				syntName = EqualityComparer<N>.Default.Equals(a.asName, default) ? a.name : a.asName,
 				// final key index in recovery keys
-				rec = a.rec ? (Krecx)(short)Key(a[^1].k, recKs) : Krecx.No,
+				rec = a.rec ? (Krecx)(int)Key(a[^1].k, recKs) : Krecx.No,
 			};
 		// synter forms
 		var Fs = new SynForm[forms.Count];
@@ -437,7 +437,7 @@ public partial class SerMaker<K, N>
 		alts = new SynGram<K, N>.Alt[gram.prods.Sum(p => p.Count)];
 		if (alts.Length is 0 or > 32767)
 			throw new($"total {alts.Length} alterns");
-		short ax = 0; Kord ko;
+		int ax = 0; Kord ko;
 		foreach (var p in gram.prods) {
 			var np = prods[Name(p.name)];
 			foreach (var (a, pax) in p.Each()) {
@@ -463,7 +463,7 @@ public partial class SerMaker<K, N>
 				if (a.clash >= 0 && (ax == 0 || !alts[ax - 1].clash.Yes))
 					throw new($"{p.name}.{pax} no previous clash");
 				if (a.clash >= 0)
-					a.clash = alts[ax - 1].clash >= 0 ? alts[ax - 1].clash : (Altx)(short)(ax - 1);
+					a.clash = alts[ax - 1].clash >= 0 ? alts[ax - 1].clash : (Altx)(ax - 1);
 				// recover
 				if (a.rec && ax == 0)
 					throw new($"initial {p.name}.{pax} recovery");

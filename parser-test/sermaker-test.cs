@@ -32,7 +32,7 @@ public class TestSerMaker : IDisposable
 		AreEqual(first, string.Join(" ", test.first.Order()));
 	}
 
-	void ClashEq(params (HashSet<char>, short[] redus, short[] shifts)[] aims)
+	void ClashEq(params (HashSet<char>, int[] redus, int[] shifts)[] aims)
 	{
 		var tests = mer.Clashs();
 		HasCount(tests.Count, aims);
@@ -48,7 +48,7 @@ public class TestSerMaker : IDisposable
 			}, out var t));
 			IsTrue(keys.SetEquals(mer.KeySet(t.keys)));
 			AreEqual(shifts?.Min() < 0 ? 0
-				: redus.Min() is var min and < 0 ? SynForm.Redu((Altx)(short)~min) : -1,
+				: redus.Min() is var min and < 0 ? SynForm.Redu((Altx)~min) : -1,
 				int.Min(t.go, 0));
 		}
 	}

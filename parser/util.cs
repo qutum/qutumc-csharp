@@ -14,15 +14,15 @@ using System.Text;
 
 namespace qutum.parser;
 
-// typed int16 index, meaningless _ is for distinguish only
+// typed index, meaningless _ is for distinguish only
 public struct X<_> : IComparable<X<_>>
 {
-	short x;
+	int x;
 	public readonly bool Yes => x != -1;
 	public static readonly X<_> No = (X<_>)(-1);
 
-	public static explicit operator X<_>(short x) => new() { x = x };
-	public static implicit operator short(X<_> x) => x.x;
+	public static explicit operator X<_>(int x) => new() { x = x };
+	public static implicit operator int(X<_> x) => x.x;
 
 	public override readonly string ToString() => x.ToString();
 	public readonly int CompareTo(X<_> that) => x - that.x;
@@ -345,11 +345,11 @@ public struct BitSet<_> : IEnumerable<X<_>>
 	public readonly bool Same(BitSet<_> s) => set.Same(s.set);
 	public static BitSet<_> One(int max, X<_> x) => new BitSet<_>().Use(max).Or(x);
 
-	public readonly X<_> Min() => (X<_>)short.CreateSaturating(set.Min());
-	public readonly X<_> Max() => (X<_>)short.CreateSaturating(set.Max());
+	public readonly X<_> Min() => (X<_>)set.Min();
+	public readonly X<_> Max() => (X<_>)set.Max();
 	public readonly IEnumerator<X<_>> GetEnumerator()
 	{
-		foreach (int x in set) yield return (X<_>)(short)x;
+		foreach (int x in set) yield return (X<_>)x;
 	}
 	readonly IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 }

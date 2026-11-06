@@ -68,8 +68,8 @@ public sealed partial class SynForm
 	public string err; // error info
 	public (Altx alt, Conx want)[] recs; // { recovery alt index and want ... }
 
-	public static Formx Redu(Altx alt) => (Formx)(short)(-2 - alt);
-	public static Altx Redu(Formx form) => (Altx)(short)(-2 - form);
+	public static Formx Redu(Altx alt) => (Formx)(-2 - alt);
+	public static Altx Redu(Formx form) => (Altx)(-2 - form);
 }
 public partial struct OrdFormx<Ord> where Ord : struct, IBinaryInteger<Ord>
 {
@@ -97,14 +97,14 @@ internal class SynStack
 
 	internal (SynForm form, int loc, object synt) this[Index x] => s[x];
 	internal (SynForm form, int loc, object synt) this[Stax x] => s[x];
-	internal Stax size => (Stax)(short)s.Count;
+	internal Stax size => (Stax)s.Count;
 
 	internal void Push(SynForm form, int loc, object synt)
 	{
 		s.Add((form, loc, synt));
 		if (recTs != null && form.recs != null)
 			foreach (var a in form.recs)
-				recTs[altRec(a.alt)].Add((Stax)(short)(s.Count - 1));
+				recTs[altRec(a.alt)].Add((Stax)(s.Count - 1));
 	}
 	internal void Pop(int on = 0, int size = 0)
 	{
@@ -126,7 +126,7 @@ internal class SynStack
 			recTs[x] = new(s.Capacity) { Stax.No };
 		foreach (var ((f, _, _), x) in s.Each())
 			foreach (var a in f?.recs ?? [])
-				recTs[altRec(a.alt)].Add((Stax)(short)x);
+				recTs[altRec(a.alt)].Add((Stax)x);
 		return recTs;
 	}
 	internal void Clear() { s.Clear(); s.Add(default); recTs = null; }
@@ -178,7 +178,7 @@ public partial class Synter<K, L, N, T, Ler>
 		stack = new() { altRec = a => this.alts[a].rec };
 		init = forms[0] ?? forms[1];
 		foreach (var (f, fx) in forms.Each())
-			f?.index = (Formx)(short)fx;
+			f?.index = (Formx)fx;
 		InitDump();
 	}
 
@@ -319,7 +319,7 @@ public partial class Synter<K, L, N, T, Ler>
 			return (-1, Conx.No, null);
 		// want a recovery key right now, fake it
 		if (key != default) {
-			rec = Fake(key, Krecx.No, (Stax)(short)(stack.size - 1));
+			rec = Fake(key, Krecx.No, (Stax)(stack.size - 1));
 			if (rec.tx.Yes) {
 				go = SynForm.Redu(rec.a);
 				e.j.via = e.j.on;
@@ -327,20 +327,20 @@ public partial class Synter<K, L, N, T, Ler>
 			}
 		}
 		// recovery stack
-		var recTs = stack.RecStax((Krecx)(short)recKs.Length);
+		var recTs = stack.RecStax((Krecx)recKs.Length);
 		// read until one recovery key and shift it
 		for (; !rec.tx.Yes; key = ler.Next() ? keyOrd(ler) : default)
 			// not found, fake it
 			if (key == default) {
 				var tx = (Stax)1;
-				for (short x = 0; x < recTs.Length; x++)
+				for (var x = 0; x < recTs.Length; x++)
 					if (recTs[x][^1] >= tx && Fake(key, (Krecx)x, recTs[x][^1]) is var r && r.tx.Yes)
 						if (r.tx > tx || r.want > rec.want)
 							tx = (rec = r).tx; // latest recovery stack and most want
 				if (!rec.tx.Yes)
 					return (-1, Conx.No, null); // can not recover, reject
 			}
-			else if ((Krecx)(short)Array.BinarySearch(recKs, key) is var kx && kx >= 0
+			else if ((Krecx)Array.BinarySearch(recKs, key) is var kx && kx >= 0
 					&& recTs[kx][^1] is var tx && tx.Yes)
 				foreach (var (a, want) in stack[tx].form.recs)
 					if (alts[(rec = (tx, a, want)).a].rec == kx) // latest alt due to reversed index

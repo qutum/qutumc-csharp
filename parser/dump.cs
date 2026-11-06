@@ -243,7 +243,7 @@ public partial class SynGram<K, N>
 			var s = new StrMake() + name + " =";
 			foreach (var c in this)
 				s = s + ' ' + SerMaker<K, N>.Dumper_(c);
-			return s + "  " + (short)clash switch { -1 => "", -2 => "<", <= -3 => ">", _ => "^" }
+			return s + "  " + (int)clash switch { -1 => "", -2 => "<", <= -3 => ">", _ => "^" }
 				+ (rec ? "!!" : "") + synt switch { 0 => "", < 0 => "-", 2 => "(", 3 => ")", _ => "+" }
 				+ (lex >= 0 ? s + '.' + lex : s) + ' ' + label;
 		}

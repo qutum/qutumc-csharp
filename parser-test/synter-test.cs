@@ -75,12 +75,12 @@ public class TestSynter : IDisposable
 
 	internal SynterStr ser;
 
-	void NewSer(string Alts, Kord[] keys, Nord[] names, (short[] goKs, short[] goNs)[] forms)
+	void NewSer(string Alts, Kord[] keys, Nord[] names, (int[] goKs, int[] goNs)[] forms)
 	{
 		var alts = Alts.Split('\n', ' ').Select(a => new SynAlt<string> {
 			name = a[0..1],
-			size = (Conx)checked((byte)(a.Length - 2)),
-			lex = (Conx)checked((short)(a.IndexOfAny(keys, 2) - 2)),
+			size = (Conx)(a.Length - 2),
+			lex = (Conx)(a.IndexOfAny(keys, 2) - 2),
 			synt = a[1] switch { '+' => 1, '-' => -1, _ => 0 },
 			syntName = a[0..1],
 		}).ToArray();
@@ -95,9 +95,9 @@ public class TestSynter : IDisposable
 			}
 		ser = new(name => name[0], alts, Fs) { dump = 3 };
 	}
-	const short _ = -1;
-	static readonly short r0 = R(0), r1 = R(1), r2 = R(2), r3 = R(3), r4 = R(4), r5 = R(5);
-	static short R(short alt) => SynForm.Redu((Altx)alt);
+	const int _ = -1;
+	static readonly int r0 = R(0), r1 = R(1), r2 = R(2), r3 = R(3), r4 = R(4), r5 = R(5);
+	static int R(int alt) => SynForm.Redu((Altx)alt);
 
 	public void True(string read) => IsTrue(Begin(read).Check());
 	public void False(string read) => IsFalse(Begin(read).Check());
