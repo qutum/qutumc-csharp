@@ -16,7 +16,7 @@ global using Stax = qutum.parser.X<qutum.parser.SynStack>;
 global using Formx = qutum.parser.X<qutum.parser.SynForm>;
 // SynAlt index
 global using Altx = qutum.parser.X<qutum.parser.XAlt>;
-// SynAlt.Con in index
+// SynAlt.Con index
 global using Conx = qutum.parser.X<qutum.parser.XAltCon>;
 // key ordinal indices
 global using KordXs = qutum.parser.BitSet<char>;
@@ -104,7 +104,7 @@ internal class SynStack
 		s.Add((form, loc, synt));
 		if (recTs != null && form.recs != null)
 			foreach (var a in form.recs)
-				recTs[altRec(a.alt)].Add((Stax)(s.Count - 1));
+				recTs[altRec(a.alt)].Add((Stax)s.Count - 1);
 	}
 	internal void Pop(int on = 0, int size = 0)
 	{
@@ -282,7 +282,7 @@ public partial class Synter<K, L, N, T, Ler>
 			name = alt.syntName, j = (loc, ler.Loc()), dump = dump >= 3 ? alt : alt.label,
 			err = redu.err, info = redu.info,
 		} : null;
-		for (var i = redu.size - 1; i >= 0; i--) {
+		for (var i = redu.size - 1; i >= 0; i -= 1) {
 			var (_, l, synt) = stack[^(redu.size - i)];
 			if (synt is T head)
 				if (!make // flatten synts
@@ -319,7 +319,7 @@ public partial class Synter<K, L, N, T, Ler>
 			return (-1, Conx.No, null);
 		// want a recovery key right now, fake it
 		if (key != default) {
-			rec = Fake(key, Krecx.No, (Stax)(stack.size - 1));
+			rec = Fake(key, Krecx.No, stack.size - 1);
 			if (rec.tx.Yes) {
 				go = SynForm.Redu(rec.a);
 				e.j.via = e.j.on;
@@ -360,7 +360,7 @@ public partial class Synter<K, L, N, T, Ler>
 					return (tx, a, want);
 		if (key == default)
 			foreach (var (a, want) in stack[tx].form.recs ?? [])
-				if ((kx < 0 || alts[a].rec == kx) && want + stack.size - tx - 1 > 0)
+				if ((kx < 0 || alts[a].rec == kx) && (want | (stack.size - 1 - tx)) > 0)
 					return (tx, a, want);
 		return (Stax.No, Altx.No, Conx.No);
 	}

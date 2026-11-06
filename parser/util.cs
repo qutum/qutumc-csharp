@@ -23,6 +23,10 @@ public struct X<_> : IComparable<X<_>>
 
 	public static explicit operator X<_>(int x) => new() { x = x };
 	public static implicit operator int(X<_> x) => x.x;
+	public static X<_> operator +(X<_> a, X<_> b) => (X<_>)(a.x + b.x);
+	public static X<_> operator -(X<_> a, X<_> b) => (X<_>)(a.x - b.x);
+	public static X<_> operator +(X<_> a, int b) => (X<_>)(a.x + b);
+	public static X<_> operator -(X<_> a, int b) => (X<_>)(a.x - b);
 
 	public override readonly string ToString() => x.ToString();
 	public readonly int CompareTo(X<_> that) => x - that.x;

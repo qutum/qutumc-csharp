@@ -62,7 +62,7 @@ public partial class SynGram<K, N>
 			foreach (var c in cons)
 				if (c is Range)
 					a.lex = a.lex.Yes ? throw new($"{p.name}.{p.Count - 1} lex {a.lex}")
-						: (Conx)(a.Count - 1);
+						: (Conx)a.Count - 1;
 				else if (c is K k)
 					a.Add(new((Kordx)0, k));
 				else if (c is N n)
@@ -242,7 +242,7 @@ public partial class SerMaker<K, N>
 				Items js = [];
 				foreach (var (A, W, heads, _) in f.Is) {
 					if (W < A.Count && A[W].Equals(a[want]))
-						AddItem(js, A, (Conx)(W + 1), heads, default, 1);
+						AddItem(js, A, W + 1, heads, default, 1);
 				}
 				addGos.Add(a[want], go = AddForm(Closure(js)));
 			}
@@ -437,7 +437,7 @@ public partial class SerMaker<K, N>
 		alts = new SynGram<K, N>.Alt[gram.prods.Sum(p => p.Count)];
 		if (alts.Length is 0 or > 32767)
 			throw new($"total {alts.Length} alterns");
-		int ax = 0; Kord ko;
+		Altx ax = (Altx)0; Kord ko;
 		foreach (var p in gram.prods) {
 			var np = prods[Name(p.name)];
 			foreach (var (a, pax) in p.Each()) {
@@ -463,7 +463,7 @@ public partial class SerMaker<K, N>
 				if (a.clash >= 0 && (ax == 0 || !alts[ax - 1].clash.Yes))
 					throw new($"{p.name}.{pax} no previous clash");
 				if (a.clash >= 0)
-					a.clash = alts[ax - 1].clash >= 0 ? alts[ax - 1].clash : (Altx)(ax - 1);
+					a.clash = alts[ax - 1].clash >= 0 ? alts[ax - 1].clash : ax - 1;
 				// recover
 				if (a.rec && ax == 0)
 					throw new($"initial {p.name}.{pax} recovery");
@@ -477,7 +477,7 @@ public partial class SerMaker<K, N>
 					throw new($"{p.name}.{pax} leftmost not name");
 				if (a.synt == 3 && (a.Count == 0 || a[^1].K))
 					throw new($"{p.name}.{pax} rightmost not name");
-				alts[a.index = (Altx)ax++] = a;
+				alts[a.index = ax] = a; ax += 1;
 				if (np != p)
 					np.Add(a); // append alterns to same name production
 			}
