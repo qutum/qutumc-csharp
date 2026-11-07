@@ -10,8 +10,6 @@ global using Kordx = qutum.parser.X<char>;
 global using Nordx = qutum.parser.X<ushort>;
 // recovery key ordinal index
 global using Krecx = qutum.parser.X<sbyte>;
-// stack index
-global using Stax = qutum.parser.X<qutum.parser.SynStack>;
 // SynForm index
 global using Formx = qutum.parser.X<qutum.parser.SynForm>;
 // SynAlt index
@@ -34,6 +32,8 @@ namespace qutum.parser;
 using Kord = char;
 // name ordinal type
 using Nord = ushort;
+// stack index
+using Stax = X<SynStack>;
 
 // syntax tree
 public partial class Synt<N, T> : LinkTree<T> where T : Synt<N, T>
@@ -106,11 +106,10 @@ internal class SynStack
 			foreach (var a in form.recs)
 				recTs[altRec(a.alt)].Add((Stax)s.Count - 1);
 	}
-	internal void Pop(int on = 0, int size = 0)
+	internal void Pops(Index from)
 	{
-		if (on == 0) on = s.Count - size;
-		else if (size == 0) size = s.Count - on;
-		s.RemoveRange(on, size);
+		var on = from.IsFromEnd ? (Stax)s.Count - from.Value : (Stax)from.Value;
+		s.RemoveRange(on, size - on);
 		if (recTs != null)
 			foreach (var cs in recTs) {
 				var x = cs.Count;
@@ -203,7 +202,7 @@ public partial class Synter<K, L, N, T, Ler>
 		}
 		else if (go < Formx.No) { // reduce
 			var alt = alts[SynForm.Redu(go)];
-			stack.Pop(size: alt.size);
+			stack.Pops(^alt.size);
 			form = stack[^1].form;
 			go = form.goNs[nameOrd(alt.name)];
 			if (go > Formx.No) {
@@ -295,7 +294,7 @@ public partial class Synter<K, L, N, T, Ler>
 			else if (make && i == alt.lex)
 				t.info ??= ler.Lex(l);
 		}
-		stack.Pop(size: redu.size);
+		stack.Pops(^redu.size);
 		return (nameOrd(alt.name), loc, t);
 	}
 
@@ -346,7 +345,7 @@ public partial class Synter<K, L, N, T, Ler>
 					if (alts[(rec = (tx, a, want)).a].rec == kx) // latest alt due to reversed index
 						break;
 		// recover
-		stack.Pop(on: rec.tx + 1);
+		stack.Pops((int)rec.tx + 1);
 		go = SynForm.Redu(rec.a);
 		e.name = alts[rec.a].name;
 		return (1, rec.want, e);

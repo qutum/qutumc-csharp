@@ -27,7 +27,6 @@ public readonly struct Ser(Synt t, Synter s)
 		public static implicit operator Dec(double d) => new() { d = (decimal)d };
 	}
 
-	[System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE0305:Simplify collection initialization")]
 	public readonly Ser Eq(S? name = null, object d = null, Jov<Dec?> j = default, int err = 0)
 	{
 		IsNotNull(t);
