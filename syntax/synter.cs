@@ -9,9 +9,9 @@ using System;
 
 namespace qutum.syntax;
 
-using L = Lex;
+using K = Lek;
+using N = Syn;
 using Nord = ushort;
-using S = Syn;
 
 public enum Syn : Nord
 {
@@ -25,79 +25,79 @@ public enum Syn : Nord
 	exp, phr, inp, squ,
 }
 
-public class Synt : Synt<S, Synt>
+public class Synt : Synt<N, Synt>
 {
 }
 
-public partial class Synter : Synter<L, S, Synt, Lexier>
+public partial class Synter : Synter<K, N, Synt, Lexier>
 {
 	static Synter()
 	{
 		// syntax grammar
-		var gram = new SynGram<L, S>()
-		.n(S.qutum)._[S.Block].synt
-		.n(S.Block)._[S.block]._[[]]
-		.n(S.block)._[S.sen, S.with, S.Block].syntRight.label("block")
-		.n(S.nook).__[S.sen, S.with, S.nook].syntRight._[[]]
-		.n(S.jsqu).__[S.Jsqu, S.with, S.Block].syntRight.asName(S.block)
+		var gram = new SynGram<K, N>()
+		.n(N.qutum)._[N.Block].synt
+		.n(N.Block)._[N.block]._[[]]
+		.n(N.block)._[N.sen, N.with, N.Block].syntRight.label("block")
+		.n(N.nook).__[N.sen, N.with, N.nook].syntRight._[[]]
+		.n(N.jsqu).__[N.Jsqu, N.with, N.Block].syntRight.asName(N.block)
 
-		.n(S.sen, "sentence")._[S.exp, L.EOL].recover
-		.n(S.with).__[S.nookr, S.nooks, S.Junc]
-		.n(S.nookr)._[L.INDR, S.nook, L.DEDR].synt._[[]] // rightmost nooks
-		.n(S.nooks)._[L.IND, S.nook, L.DED]._[[]]
-		.n(S.Junc).__[S.junc, S.Junc]._[[]]
+		.n(N.sen, "sentence")._[N.exp, K.EOL].recover
+		.n(N.with).__[N.nookr, N.nooks, N.Junc]
+		.n(N.nookr)._[K.INDR, N.nook, K.DEDR].synt._[[]] // rightmost nooks
+		.n(N.nooks)._[K.IND, N.nook, K.DED]._[[]]
+		.n(N.Junc).__[N.junc, N.Junc]._[[]]
 
-		.n(S.junc)
-				[L.INDJ, S.jbin, .., L.EOL, S.block, L.DED].recover.synt.label("junction")
-				[L.INDJ, L.LSB, .., S.jsqu, L.DED].synt
-				[L.INDJ, S.jpost, L.EOL, S.Block, L.DED].synt
-		.n(S.jbin).__.Alts(L.Bin)
-		.n(S.Jsqu).__[S.exp, L.RSB, L.EOL].recover.label("bracket junction")
-		.n(S.jpost)._[L.POST, ..].synt._[L.POST, .., S.jpost].syntRight
+		.n(N.junc)
+				[K.INDJ, N.jbin, .., K.EOL, N.block, K.DED].recover.synt.label("junction")
+				[K.INDJ, K.LSB, .., N.jsqu, K.DED].synt
+				[K.INDJ, N.jpost, K.EOL, N.Block, K.DED].synt
+		.n(N.jbin).__.Alts(K.Bin)
+		.n(N.Jsqu).__[N.exp, K.RSB, K.EOL].recover.label("bracket junction")
+		.n(N.jpost)._[K.POST, ..].synt._[K.POST, .., N.jpost].syntRight
 
-		.n(S.inp)
-				[S.phr, L.INP].clash // trailing comma
-				[S.phr, L.INP, .., S.exp].clash.syntLeft.label("serial input")
-		.n(S.exp, "expression", false)
-				[S.exp, L.BIN1, .., S.exp].clash.syntLeft.label("bin1 operator")
-				[S.exp, L.BIN2, .., S.exp].clash.syntLeft.label("bin2 operator")
-				[S.exp, L.BIN3, .., S.exp].clash.syntLeft.label("logical operator")
-				[S.exp, L.BIN4, .., S.exp].clash.syntLeft.label("comparison operator")
-				[S.exp, L.BIN53, .., S.exp].clash.syntLeft.label("arithmetic operator")
-				[S.exp, L.BIN57, .., S.exp].clash.syntLeft.label("arithmetic operator")
-				[S.exp, L.ORB, .., S.exp].clash.syntLeft.label("bitwise operator")
-				[S.exp, L.XORB, .., S.exp].clash.syntLeft.label("bitwise operator")
-				[S.exp, L.BIN67, .., S.exp].clash.syntLeft.label("bitwise operator")
-				[S.exp, L.BIN7, .., S.exp].clash.syntLeft.label("bin7 operator")
-				[L.PRE, .., S.exp].clash.synt.label("prefix operator")
-				[S.phr].clash
-		.n(S.phr) // phrase
-				[S.exp, L.POST, ..].clash.syntLeft.label("postfix operator")
-				[S.exp, S.squ].clash // postfix square
-				[L.LIT, ..].clash.synt.label("literal")
-				[S.inp].clash
-		.n(S.inp)
-				[S.exp, S.exp].clash.syntLeft // higher for left associative
-		.n(S.phr)
-				[S.phr, L.POSTD, ..].clash.syntLeft.label("high postfix operator")
-				[L.LP, .., S.exp, L.RP].clash.recover.label("parenth") // main lex for recovery
-				[S.squ].clash
-		.n(S.squ)
-				[L.LSB, .., S.exp, L.RSB].clash.recover.synt.label("square bracket") // main lex for recovery
+		.n(N.inp)
+				[N.phr, K.INP].clash // trailing comma
+				[N.phr, K.INP, .., N.exp].clash.syntLeft.label("serial input")
+		.n(N.exp, "expression", false)
+				[N.exp, K.BIN1, .., N.exp].clash.syntLeft.label("bin1 operator")
+				[N.exp, K.BIN2, .., N.exp].clash.syntLeft.label("bin2 operator")
+				[N.exp, K.BIN3, .., N.exp].clash.syntLeft.label("logical operator")
+				[N.exp, K.BIN4, .., N.exp].clash.syntLeft.label("comparison operator")
+				[N.exp, K.BIN53, .., N.exp].clash.syntLeft.label("arithmetic operator")
+				[N.exp, K.BIN57, .., N.exp].clash.syntLeft.label("arithmetic operator")
+				[N.exp, K.ORB, .., N.exp].clash.syntLeft.label("bitwise operator")
+				[N.exp, K.XORB, .., N.exp].clash.syntLeft.label("bitwise operator")
+				[N.exp, K.BIN67, .., N.exp].clash.syntLeft.label("bitwise operator")
+				[N.exp, K.BIN7, .., N.exp].clash.syntLeft.label("bin7 operator")
+				[K.PRE, .., N.exp].clash.synt.label("prefix operator")
+				[N.phr].clash
+		.n(N.phr) // phrase
+				[N.exp, K.POST, ..].clash.syntLeft.label("postfix operator")
+				[N.exp, N.squ].clash // postfix square
+				[K.LIT, ..].clash.synt.label("literal")
+				[N.inp].clash
+		.n(N.inp)
+				[N.exp, N.exp].clash.syntLeft // higher for left associative
+		.n(N.phr)
+				[N.phr, K.POSTD, ..].clash.syntLeft.label("high postfix operator")
+				[K.LP, .., N.exp, K.RP].clash.recover.label("parenth") // main lex for recovery
+				[N.squ].clash
+		.n(N.squ)
+				[K.LSB, .., N.exp, K.RSB].clash.recover.synt.label("square bracket") // main lex for recovery
 		;
 		// make
-		var m = new SerMaker<L, S>(gram, LexIs.Ordin, NameOrd);
+		var m = new SerMaker<K, N>(gram, LexIs.Ordin, NameOrd);
 		(alts, forms, recKs) = m.Make(out var _);
 #if DEBUG
 		mer = m;
 #endif
 	}
 
-	static readonly Func<S, Nord> NameOrd = n => (Nord)n;
-	static readonly SynAlt<S>[] alts;
+	static readonly Func<N, Nord> NameOrd = n => (Nord)n;
+	static readonly SynAlt<N>[] alts;
 	static readonly SynForm[] forms;
 	static readonly char[] recKs;
-	static readonly SerMaker<L, S> mer;
+	static readonly SerMaker<K, N> mer;
 
 	public Synter() : base(Lexier.Ordin, NameOrd, alts, forms, recKs)
 	{
@@ -123,7 +123,7 @@ public partial class Synter : Synter<L, S, Synt, Lexier>
 
 file static class Extension
 {
-	public static SynGram<L, S> Alts(this SynGram<L, S> gram, L group)
+	public static SynGram<K, N> Alts(this SynGram<K, N> gram, K group)
 	{
 		foreach (var k in group.GroupEach(true))
 			if (k.IsKind() || k.IsSingle())

@@ -15,10 +15,10 @@ using System.Text;
 
 namespace qutum.syntax;
 
+using B = ByteSet;
+using K = Lek;
 using Kord = char;
-using L = Lex;
 using One = ByteSet.One;
-using S = ByteSet;
 
 /*	EXC		!	NOT
 	QUO		"	STR?
@@ -56,16 +56,16 @@ using S = ByteSet;
 
 public static class LexIs
 {
-	extension(L aim)
+	extension(K aim)
 	{
-		public IEnumerable<L> GroupEach(bool kinds = false)
+		public IEnumerable<K> GroupEach(bool kinds = false)
 		{
-			HashSet<L> ks = kinds ? [] : null;
-			foreach (var key in Enum.GetValues<L>())
+			HashSet<K> ks = kinds ? [] : null;
+			foreach (var key in Enum.GetValues<K>())
 				if (key.InGroupAll(aim)) {
 					yield return key;
 					if (kinds && key.InKind() is var k and > 0)
-						ks.Add((L)k);
+						ks.Add((K)k);
 				}
 			if (kinds)
 				foreach (var k in ks)
@@ -76,14 +76,14 @@ public static class LexIs
 		public bool IsSingle() => (ushort)aim is >= 16 and <= 255;
 	}
 
-	extension(L key)
+	extension(K key)
 	{
-		public bool InGroup(L aim) => (int)(key & aim) != 0;
-		public bool InGroupAll(L aim) => (int)(key & aim) == (int)aim;
+		public bool InGroup(K aim) => (int)(key & aim) != 0;
+		public bool InGroupAll(K aim) => (int)(key & aim) == (int)aim;
 		public byte InKind() => (byte)((ushort)key >> 8);
-		public bool InKind(L aim) => (byte)((int)key >> ((int)key >> 24)) == (byte)aim;
+		public bool InKind(K aim) => (byte)((int)key >> ((int)key >> 24)) == (byte)aim;
 
-		public bool Is(L aim) =>
+		public bool Is(K aim) =>
 			aim.IsGroup() ? key.InGroup(aim) : aim.IsKind() ? key.InKind(aim) : key == aim;
 
 		// key ordinal byte for single or which kind
@@ -92,7 +92,7 @@ public static class LexIs
 }
 
 // lexemes
-public enum Lex : int
+public enum Lek : int
 {
 	// 0 for end of read
 	// kinds, 255<<8
@@ -148,71 +148,71 @@ public enum Lex : int
 }
 
 // lexic parser
-public sealed partial class Lexier : LexierBuf<L>
+public sealed partial class Lexier : LexierBuf<K>
 {
-	static readonly LexGram<L> Grammar = new LexGram<L>()
-		.k(L.INP).w[","].k(L.QUO).w["="]
+	static readonly LexGram<K> Grammar = new LexGram<K>()
+		.k(K.INP).w[","].k(K.QUO).w["="]
 
-		.k(L.OR).w["|"].k(L.XOR).w["!="].k(L.AND).w["&"].k(L.NOT).w["!"]
+		.k(K.OR).w["|"].k(K.XOR).w["!="].k(K.AND).w["&"].k(K.NOT).w["!"]
 
-		.k(L.EQ).w["=="].k(L.UEQ).w["/="]
-		.k(L.LEQ).w["<="].k(L.GEQ).w[">="].k(L.LT).w["<"].k(L.GT).w[">"]
+		.k(K.EQ).w["=="].k(K.UEQ).w["/="]
+		.k(K.LEQ).w["<="].k(K.GEQ).w[">="].k(K.LT).w["<"].k(K.GT).w[">"]
 
-		.k(L.ADD).w["+"].k(L.SUB).w["-"]
-		.k(L.MUL).w["*"].k(L.DIV).w["/"].k(L.MOD).w["%"]
-		.k(L.DIVF).w["//"].k(L.MODF).w["%%"]
+		.k(K.ADD).w["+"].k(K.SUB).w["-"]
+		.k(K.MUL).w["*"].k(K.DIV).w["/"].k(K.MOD).w["%"]
+		.k(K.DIVF).w["//"].k(K.MODF).w["%%"]
 
-		.k(L.ORB).w["||"].k(L.XORB).w["++"].k(L.ANDB).w["&&"].k(L.NOTB).w["--"]
-		.k(L.SHL).w["<<"].k(L.SHR).w[">>"]
+		.k(K.ORB).w["||"].k(K.XORB).w["++"].k(K.ANDB).w["&&"].k(K.NOTB).w["--"]
+		.k(K.SHL).w["<<"].k(K.SHR).w[">>"]
 
-		.k(L.LP).w["("].k(L.LSB).w["["].k(L.LCB).w["{"]
-		.k(L.RP).w[")"].k(L.RSB).w["]"].k(L.RCB).w["}"]
+		.k(K.LP).w["("].k(K.LSB).w["["].k(K.LCB).w["{"]
+		.k(K.RP).w[")"].k(K.RSB).w["]"].k(K.RCB).w["}"]
 
-		.k(L.EOL).w["\n"]["\r\n"]
-		.k(L.SP).w[(One)" \t"] // [\s\t]  |+\s+|+\t+
+		.k(K.EOL).w["\n"]["\r\n"]
+		.k(K.SP).w[(One)" \t"] // [\s\t]  |+\s+|+\t+
 				.w[[]][" ", ..].loop["\t", ..].loop
 
-		.k(L.COM).w["##"] // ##  |[\A^\n]+
+		.k(K.COM).w["##"] // ##  |[\A^\n]+
 				.w[[]][S.All - "\n", ..]
-		.k(L.COMB).w["\\", .., "#"] // \\+#  +#\\+|+#|+[\A^#]+
-				.w["#", "\\", ..].loop["#"].loop[S.All - "#", ..].loop
+		.k(K.COMB).w["\\", .., "#"] // \\+#  +#\\+|+#|+[\A^#]+
+				.w["#", "\\", ..].loop["#"].loop[B.All - "#", ..].loop
 
-		.k(L.STRB).w["\\", .., "\""] // \\+"  +"\\+|+"|+[\A^"]+
-				.w["\"", "\\", ..].loop["\""].loop[S.All - "\"", ..].loop
-		.k(L.STR).w["\""] // "  *"|\n|\r\n|+[\L^"\\]+|+\\[0tnr".`\\]|+\\x\x\x|+\\u\x\x\x\x
+		.k(K.STRB).w["\\", .., "\""] // \\+"  +"\\+|+"|+[\A^"]+
+				.w["\"", "\\", ..].loop["\""].loop[B.All - "\"", ..].loop
+		.k(K.STR).w["\""] // "  *"|\n|\r\n|+[\L^"\\]+|+\\[0tnr".`\\]|+\\x\x\x|+\\u\x\x\x\x
 				.redo[(One)"\"\n"]["\r\n"]
-					[S.Line - "\"\\", ..].loop
+					[B.Line - "\"\\", ..].loop
 					["\\", (One)"0tnr\".`\\"].loop
-					["\\x", S.Hex, S.Hex].loop["\\u", S.Hex, S.Hex, S.Hex, S.Hex].loop
+					["\\x", B.Hex, B.Hex].loop["\\u", B.Hex, B.Hex, B.Hex, B.Hex].loop
 
-		.k(L.PATH).w["`"][".`"] // .?`  *`|\n|\r\n|+.|+[\L^.`\\]+|+\\[0tnr".`\\]|+\\x\x\x|+\\u\x\x\x\x
+		.k(K.PATH).w["`"][".`"] // .?`  *`|\n|\r\n|+.|+[\L^.`\\]+|+\\[0tnr".`\\]|+\\x\x\x|+\\u\x\x\x\x
 				.redo[(One)"`\n"]["\r\n"]["."].loop
-					[S.Line - ".`\\", ..].loop
+					[B.Line - ".`\\", ..].loop
 					["\\", (One)"0tnr\".`\\"].loop
-					["\\x", S.Hex, S.Hex].loop["\\u", S.Hex, S.Hex, S.Hex, S.Hex].loop
+					["\\x", B.Hex, B.Hex].loop["\\u", B.Hex, B.Hex, B.Hex, B.Hex].loop
 
-		.k(L.NAME).w[S.Alpha + "_"][S.Alpha + "_", S.Word, ..] // [\a_]\w*
-		.k(L.RUN).w["."] // .|.[\a_]\w*
-					[".", S.Alpha + "_"][".", S.Alpha + "_", S.Word, ..]
+		.k(K.NAME).w[B.Alpha + "_"][B.Alpha + "_", B.Word, ..] // [\a_]\w*
+		.k(K.RUN).w["."] // .|.[\a_]\w*
+					[".", B.Alpha + "_"][".", B.Alpha + "_", B.Word, ..]
 
-		.k(L.HEX).w["0x"]["0X"] // 0[xX]  _*\x+  |+_*\x+  |.\x+  |+_+\x+  |[pP][\+\-]?\d+|[xX][\+\-]?\x+
-				.w[S.Hex]["_", .., S.Hex]
-				.w[[]][S.Hex, ..].loop["_", .., S.Hex, ..].loop
-				.w[[]][".", S.Hex, ..]
-				.w[[]]["_", .., S.Hex, ..].loop
-				.w[[]][(One)"pP", S.Dec, ..][(One)"pP", (One)"+-", S.Dec, ..]
-					[(One)"xX", S.Hex, ..][(One)"xX", (One)"+-", S.Hex, ..]
-		.k(L.DEC) // 0|[1-9]  |+_*\d+  |.\d+  |+_+\d+  |[eE][\+\-]?\d+  |[fF]
-				.w["0"][S.Dec - "0"]
-				.w[[]][S.Dec, ..].loop["_", .., S.Dec, ..].loop
-				.w[[]][".", S.Dec, ..]
-				.w[[]]["_", .., S.Dec, ..].loop
-				.w[[]][(One)"eE", S.Dec, ..][(One)"eE", (One)"+-", S.Dec, ..]
+		.k(K.HEX).w["0x"]["0X"] // 0[xX]  _*\x+  |+_*\x+  |.\x+  |+_+\x+  |[pP][\+\-]?\d+|[xX][\+\-]?\x+
+				.w[B.Hex]["_", .., B.Hex]
+				.w[[]][B.Hex, ..].loop["_", .., B.Hex, ..].loop
+				.w[[]][".", B.Hex, ..]
+				.w[[]]["_", .., B.Hex, ..].loop
+				.w[[]][(One)"pP", B.Dec, ..][(One)"pP", (One)"+-", B.Dec, ..]
+					[(One)"xX", B.Hex, ..][(One)"xX", (One)"+-", B.Hex, ..]
+		.k(K.DEC) // 0|[1-9]  |+_*\d+  |.\d+  |+_+\d+  |[eE][\+\-]?\d+  |[fF]
+				.w["0"][B.Dec - "0"]
+				.w[[]][B.Dec, ..].loop["_", .., B.Dec, ..].loop
+				.w[[]][".", B.Dec, ..]
+				.w[[]]["_", .., B.Dec, ..].loop
+				.w[[]][(One)"eE", B.Dec, ..][(One)"eE", (One)"+-", B.Dec, ..]
 				.w[[]][(One)"fF"]
 	;
 
 	public const int IndMin = 2, IndrMin = 6;
-	public List<Lexi<L>> blanks; // [blank except single eol and indent], merged into lexis at err
+	public List<Lexi<K>> blanks; // [blank except single eol and indent], merged into lexis at err
 	public bool dump = false;
 
 	public Lexier() { G = new(Grammar); }
@@ -229,8 +229,8 @@ public sealed partial class Lexier : LexierBuf<L>
 	{
 		Dispose();
 		G.Begin(read); G.Next(); gloc = G.Loc();
-		Add(L.IND, default, inds[indz = 0] = 0); // whole read is indent 0
-		soi = size; loc = 0;
+		Add(K.IND, default, inds[indz = 0] = 0); // whole read is indent 0
+		soi = size; loc = default;
 		return this;
 	}
 
@@ -250,25 +250,25 @@ public sealed partial class Lexier : LexierBuf<L>
 
 		switch (k) {
 
-		case default(L):
+		case default(K):
 			Indent(0, (G.left.j.via, G.left.j.via)); // eor
 			break;
-		case L.IND:
+		case K.IND:
 			break;
 
-		case L.EOL:
-			if (Left.key is >= L.EOL and <= L.INDR)
+		case K.EOL:
+			if (Left.key is >= K.EOL and <= K.INDR)
 				G.Blank(k, j, null); // no eol for empty line, so no empty indent block
 			else
 				Add(G.lex);
 			break;
 
-		case L.ADD:
-		case L.SUB:
-			if ((Left.j.via < j.on || Left.key.InGroup(L.Proem | L.Blank))
-				&& j.via == G.right.j.on && !G.right.key.InGroup(L.Blank))
+		case K.ADD:
+		case K.SUB:
+			if ((Left.j.via < j.on || Left.key.InGroup(K.Proem | K.Blank))
+				&& j.via == G.right.j.on && !G.right.key.InGroup(K.Blank))
 				// left not dense and right dense, binary as prefix
-				k = k switch { L.ADD => L.POSI, L.SUB => L.NEGA, _ => throw new() };
+				k = k switch { K.ADD => K.POSI, K.SUB => K.NEGA, _ => throw new() };
 			Lexi(k, j, v);
 			break;
 
@@ -279,38 +279,38 @@ public sealed partial class Lexier : LexierBuf<L>
 		goto Next;
 	}
 
-	void Lexi(L k, Jov j, object v)
+	void Lexi(K k, Jov j, object v)
 	{
 		// indent at start of line
-		if (G.left.key == L.EOL)
+		if (G.left.key == K.EOL)
 			Indent(0, (j.on, j.on));
-		else if (G.left.key == L.IND)
+		else if (G.left.key == K.IND)
 			Indent((int)G.left.value, G.left.j);
 
 		// left dense
 		if (Left.j.via == j.on)
-			if (k.InKind(L.POST) && Left.key.InGroup(L.Phr)) // postfix densely follows phrase, higher precedence
-				k = (L)((int)k ^ (int)L.POST << 8 | (int)L.POSTD << 8);
-			else if (k.InKind(L.LIT) && Left.key.InKind(L.LIT))
+			if (k.InKind(K.POST) && Left.key.InGroup(K.Phr)) // postfix densely follows phrase, higher precedence
+				k = (K)((int)k ^ (int)K.POST << 8 | (int)K.POSTD << 8);
+			else if (k.InKind(K.LIT) && Left.key.InKind(K.LIT))
 				G.Error(k, j, "literal can not densely follow literal");
-			else if (k.InKind(L.PRE) && !Left.key.InGroup(L.Proem | L.Blank))
+			else if (k.InKind(K.PRE) && !Left.key.InGroup(K.Proem | K.Blank))
 				G.Error(k, j, "prefix operator can densely follow proem or blank only");
 
 		// junct at start of line
-		if (G.left.key is L.EOL or L.IND && k.InGroup(L.Junct)) {
-			Indent((G.left.key == L.IND ? (int)G.left.value : 0) + 3, (j.on, j.on), true); // between 2 and 4 column
+		if (G.left.key is K.EOL or K.IND && k.InGroup(K.Junct)) {
+			Indent((G.left.key == K.IND ? (int)G.left.value : 0) + 3, (j.on, j.on), true); // between 2 and 4 column
 			do
 				Add(k, j, v);
-			while (G.right.key.InKind(L.POST) // multi post as junct
+			while (G.right.key.InKind(K.POST) // multi post as junct
 				&& ((k, j, v) = G.Get(ref gloc, out var _)) is var _);
-			if (!k.InGroup(L.Proem))
-				Add(L.EOL, (j.via, j.via), null);
+			if (!k.InGroup(K.Proem))
+				Add(K.EOL, (j.via, j.via), null);
 			soi = size; // start loc of junct indent
 		}
 		else
 			Add(k, j, v);
 	}
-	void Add(L k, Jov j, object v) => Add(new() { key = k, j = j, value = v });
+	void Add(K k, Jov j, object v) => Add(new() { key = k, j = j, value = v });
 
 	// indent column from 0
 	void Indent(int ind, Jov j, bool junct = false)
@@ -321,18 +321,18 @@ public sealed partial class Lexier : LexierBuf<L>
 		// for i <= indz, drop these indents
 		for (var x = indz; i <= x; indz = --x)
 			if (x > i || c < IndrMin)
-				Add(inds[x] - inds[x - 1] < IndrMin ? L.DED : L.DEDR,
+				Add(inds[x] - inds[x - 1] < IndrMin ? K.DED : K.DEDR,
 					(j.on, j.on), inds[x]);
 			else { // indent-right remains
-				G.Error(L.INDR, j, "indent-right expected same as upper lines");
+				G.Error(K.INDR, j, "indent-right expected same as upper lines");
 				inds[i] = ind;
 				return;
 			}
 		// add indent
 		if (c >= IndMin) {
 			if (soi == size) // indent at start of indent, insert eol
-				Add(L.EOL, (j.on, j.on), null);
-			Add(c < IndrMin ? junct ? L.INDJ : L.IND : L.INDR, j, ind);
+				Add(K.EOL, (j.on, j.on), null);
+			Add(c < IndrMin ? junct ? K.INDJ : K.IND : K.INDR, j, ind);
 			indz = i;
 			if (indz >= inds.Length) Array.Resize(ref inds, inds.Length << 1);
 			inds[i] = ind;
@@ -340,30 +340,30 @@ public sealed partial class Lexier : LexierBuf<L>
 		}
 	}
 
-	Lexi<L> Left => lexs[size - 1];
+	Lexi<K> Left => lexs[size - 1];
 
 	public static Kord Ordin(Lexier ler) => ler.lexs[ler.loc].key.Ordin();
-	public override bool Is(L key, L aim) => key.Is(aim);
+	public override bool Is(K key, K aim) => key.Is(aim);
 }
 
 // lexic parser base
-internal sealed class LexierGet : Lexier<L>, Lexer<L, Lexi<L>>
+internal sealed class LexierGet : Lexier<K>, Lexer<K, Lexi<K>>
 {
 	public int buf;
-	public List<Lexi<L>> blanks; // [blank except single eol and indent], merged into lexis at err
+	public List<Lexi<K>> blanks; // [blank except single eol and indent], merged into lexis at err
 
-	public LexierGet(LexGram<L> gram) : base(gram) { errs = null; }
+	public LexierGet(LexGram<K> gram) : base(gram) { errs = null; }
 
 	public override void Dispose()
 	{
 		base.Dispose();
-		lexs = new Lexi<L>[buf + 1];
-		lexs[^1].key = L.EOL; // eol at start of read
+		lexs = new Lexi<K>[buf + 1];
+		lexs[^1].key = K.EOL; // eol at start of read
 		crlf = false; indb = -1; path.Clear();
 	}
 
-	public Lexi<L> left, lex, right;
-	public (L k, Jov j, object v) Get(ref int l, out bool ok)
+	public Lexi<K> left, lex, right;
+	public (K k, Jov j, object v) Get(ref int l, out bool ok)
 	{
 		ok = Next() || l < loc;
 		if (!ok)
@@ -372,21 +372,21 @@ internal sealed class LexierGet : Lexier<L>, Lexer<L, Lexi<L>>
 		return (lex.key, lex.j, lex.value);
 	}
 
-	protected override void Add(Lexi<L> lexi) => lexs[size++ & buf] = lexi;
-	public new void Error(L k, Jov j, object value) => base.Error(k, j, value);
-	public void Blank(L k, Jov j, object value) => blanks?.Add(
+	protected override void Add(Lexi<K> lexi) => lexs[size++ & buf] = lexi;
+	public new void Error(K k, Jov j, object value) => base.Error(k, j, value);
+	public void Blank(K k, Jov j, object value) => blanks?.Add(
 		new() { key = k, j = j, value = value, err = 1 });
 
-	protected override void WadErr(L k, int wad, bool end, int b, Jov j)
+	protected override void WadErr(K k, int wad, bool end, int b, Jov j)
 	{
-		if (k == L.PATH)
-			k = L.NAME; // TODO
+		if (k == K.PATH)
+			k = K.NAME; // TODO
 		base.WadErr(k, wad, end, b, j);
 	}
 	protected override void Eor(int via)
 	{
-		if (size == 0 || lexs[size - 1 & buf].key != L.EOL)
-			Lexi(L.EOL, (via, via), null); // eol at end of read
+		if (size == 0 || lexs[size - 1 & buf].key != K.EOL)
+			Lexi(K.EOL, (via, via), null); // eol at end of read
 		Lexi(default, (via, via), null);
 	}
 
@@ -398,7 +398,7 @@ internal sealed class LexierGet : Lexier<L>, Lexer<L, Lexi<L>>
 	int ni, nf, ne; // end of each number wad
 	readonly List<string> path = [];
 
-	protected override void Wad(L k, int wad, ref bool end, Jov j)
+	protected override void Wad(K k, int wad, ref bool end, Jov j)
 	{
 		object d = null;
 		if (lon < 0) {
@@ -407,7 +407,7 @@ internal sealed class LexierGet : Lexier<L>, Lexer<L, Lexi<L>>
 		Jov lj = (lon, j.via);
 		switch (k) {
 
-		case L.EOL:
+		case K.EOL:
 			if (!crlf && j.size == 2) { // \r\n found
 				Error(k, j, @"use LF \n eol instead of CRLF \r\n");
 				crlf = true;
@@ -415,7 +415,7 @@ internal sealed class LexierGet : Lexier<L>, Lexer<L, Lexi<L>>
 			Lexi(k, lj, null);
 			goto End;
 
-		case L.SP:
+		case K.SP:
 			if (wad == 1)
 				leadSp = j.on < 1 || read.Lex(j.on - 1) == '\n'; // maybe leading space
 			if (leadSp)
@@ -428,17 +428,17 @@ internal sealed class LexierGet : Lexier<L>, Lexer<L, Lexi<L>>
 			if (!end)
 				return;
 			if (leadSp)
-				Lexi(L.IND, lj, lj.size << (indb == '\t' ? 2 : 0)); // 4 column each \t
+				Lexi(K.IND, lj, lj.size << (indb == '\t' ? 2 : 0)); // 4 column each \t
 			else
 				Blank(k, lj, null);
 			goto End;
 
-		case L.COM:
+		case K.COM:
 			if (end)
 				Blank(k, lj, null);
 			goto End;
 
-		case L.COMB:
+		case K.COMB:
 			if (wad == 1) {
 				bz = j.via; // begin wad loc
 				return;
@@ -449,7 +449,7 @@ internal sealed class LexierGet : Lexier<L>, Lexer<L, Lexi<L>>
 			Blank(k, lj, null);
 			goto End;
 
-		case L.STRB:
+		case K.STRB:
 			if (wad == 1) {
 				bz = j.via; // begin wad loc
 				return;
@@ -459,7 +459,7 @@ internal sealed class LexierGet : Lexier<L>, Lexer<L, Lexi<L>>
 			end = true; bz = Read((bz, j.on), 0);
 			break;
 
-		case L.STR:
+		case K.STR:
 			if (wad == 1)
 				return;
 			if (end) {
@@ -472,7 +472,7 @@ internal sealed class LexierGet : Lexier<L>, Lexer<L, Lexi<L>>
 			Read(j, bz); Unesc(j);
 			return; // inside string
 
-		case L.DEC:
+		case K.DEC:
 			if (wad == 2) ni = lj.size; // end of integer wad
 			else if (wad == 4) nf = lj.size; // end of fraction wad
 			else if (wad == 5) ne = lj.size; // end of exponent wad
@@ -482,7 +482,7 @@ internal sealed class LexierGet : Lexier<L>, Lexer<L, Lexi<L>>
 			d = Dec(ref k);
 			break;
 
-		case L.HEX:
+		case K.HEX:
 			if (wad == 3) ni = lj.size; // end of integer wad
 			else if (wad == 5) nf = lj.size; // end of fraction wad
 			else if (wad == 6) ne = lj.size; // end of exponent wad
@@ -492,9 +492,9 @@ internal sealed class LexierGet : Lexier<L>, Lexer<L, Lexi<L>>
 			d = Hex(ref k);
 			break;
 
-		case L.NAME:
-		case L.RUN:
-			j.on = k == L.NAME ? lon : lon + 1;
+		case K.NAME:
+		case K.RUN:
+			j.on = k == K.NAME ? lon : lon + 1;
 			if (j.size > 40) {
 				Error(k, j, "too long");
 				lj.via = j.via = j.on + 40;
@@ -502,13 +502,13 @@ internal sealed class LexierGet : Lexier<L>, Lexer<L, Lexi<L>>
 			bz = Read(j, 0);
 			break;
 
-		case L.PATH:
+		case K.PATH:
 			if (wad == 1)
 				return;
 			var split = end || read.Lex(j.on) == '.';
 			if (split) {
 				if (bz > 40) {
-					Error(L.NAME, (j.via - 1, j.via - 1), "too long");
+					Error(K.NAME, (j.via - 1, j.via - 1), "too long");
 					bz = 40;
 				}
 				path.Add(Encoding.UTF8.GetString(bs, 0, bz));
@@ -516,10 +516,10 @@ internal sealed class LexierGet : Lexier<L>, Lexer<L, Lexi<L>>
 			}
 			if (end) {
 				if (read.Lex(j.via - 1) == '\n') {
-					Error(L.NAME, j, "eol unexpected");
+					Error(K.NAME, j, "eol unexpected");
 					BackByte(lj.via = j.via = j.on); // next lexi will be eol
 				}
-				k = read.Lex(lon) != '.' ? L.NAME : L.RUN;
+				k = read.Lex(lon) != '.' ? K.NAME : K.RUN;
 				d = path.ToArray();
 				break;
 			}
@@ -563,11 +563,11 @@ internal sealed class LexierGet : Lexier<L>, Lexer<L, Lexi<L>>
 			}
 	}
 
-	object Dec(ref L key)
+	object Dec(ref K key)
 	{
 		uint v = 0; int x = 0, dot = 0, e = 0;
 		if (ni == bz) {
-			key = L.INT; // as INT
+			key = K.INT; // as INT
 			for (; x < ni; x++)
 				if (bs[x] != '_')
 					if (v < 21_4748_364 || v == 21_4748_364 && bs[x] <= '8') v = v * 10 + bs[x] - '0';
@@ -577,7 +577,7 @@ internal sealed class LexierGet : Lexier<L>, Lexer<L, Lexi<L>>
 					}
 			return v;
 		}
-		key = L.FLOAT; // as FLOAT
+		key = K.FLOAT; // as FLOAT
 		if (bz > 65535) {
 			Error(key, (lon, lon + bz), "float out of length");
 			return 0f;
@@ -623,11 +623,11 @@ internal sealed class LexierGet : Lexier<L>, Lexer<L, Lexi<L>>
 
 	byte Hex(int x) => (byte)((bs[x] & 15) + (bs[x] << 25 >> 31 & 9));
 
-	object Hex(ref L key)
+	object Hex(ref K key)
 	{
 		uint v = 0; int x = 2, dot = 0, e = 0;
 		if (ni == bz) {
-			key = L.INT; // as INT
+			key = K.INT; // as INT
 			for (; x < ni; x++)
 				if (bs[x] != '_')
 					if (v <= 0xffff_fff) v = v << 4 | Hex(x);
@@ -637,7 +637,7 @@ internal sealed class LexierGet : Lexier<L>, Lexer<L, Lexi<L>>
 					}
 			return v;
 		}
-		key = L.FLOAT; // as FLOAT
+		key = K.FLOAT; // as FLOAT
 		if (bz > 65535) {
 			Error(key, (lon, lon + bz), "float out of length");
 			return 0f;

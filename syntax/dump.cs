@@ -11,17 +11,17 @@ using System.Linq;
 
 namespace qutum.syntax;
 
+using K = Lek;
 using Kord = char;
-using L = Lex;
 using Nord = ushort;
 
 public class Dumps
 {
-	public static L Lex(Kord o)
+	public static K Lek(Kord o)
 	{
 		if (ordins == null) {
-			var s = new L[256];
-			foreach (var k in Enum.GetValues<L>())
+			var s = new K[256];
+			foreach (var k in Enum.GetValues<K>())
 				if (k.IsKind() || k.IsSingle())
 					s[k.Ordin()] = k;
 			s[default] = default;
@@ -29,7 +29,7 @@ public class Dumps
 		}
 		return ordins[o];
 	}
-	private static L[] ordins;
+	private static K[] ordins;
 }
 
 public partial class Lexier
@@ -41,7 +41,7 @@ public partial class Lexier
 				env.WriteLine(G.Dumper());
 		return string.Join(" ",
 			(all ? errs.Concat(lexs.Seg((1, loc))).Concat(blanks ?? []).OrderBy(l => l.j.on)
-				: (IEnumerable<Lexi<L>>)lexs.Seg((1, loc)))
+				: (IEnumerable<Lexi<K>>)lexs.Seg((1, loc)))
 			.Select(t => t.Dumper(hex ? DumperHex : Dumper)).ToArray());
 	}
 
@@ -72,7 +72,7 @@ public partial class Synter
 
 	public override string Dumper(object d)
 	{
-		if (d is Kord k && k != default) return Dumps.Lex(k).ToString();
+		if (d is Kord k && k != default) return Dumps.Lek(k).ToString();
 		if (d is Nord n) return ((Syn)n).ToString();
 		return base.Dumper(d);
 	}
