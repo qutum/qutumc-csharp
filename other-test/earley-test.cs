@@ -4,6 +4,8 @@
 // Under the terms of the GNU General Public License version 3
 // http://qutum.com  http://qutum.cn
 //
+global using Jot = qutum.parser.Jot<int>;
+global using Jov = qutum.parser.Jov<int>;
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using qutum.parser;
@@ -15,25 +17,25 @@ namespace qutum.test.parser.earley;
 
 public readonly struct Ser(EsynStr t, EarleyStr s)
 {
-	public readonly Ser Eq(string name = null, Jov<int?> j = default, object d = null, int err = 0)
+	public readonly Ser Eq(string name = null, Jov? j = null, object d = null, int err = 0)
 	{
 		IsNotNull(t);
 		AreEqual(err, t.err);
 		if (name != null) AreEqual(name, t.name);
-		if (j.on != null) AreEqual(j.on, t.j.on);
-		if (j.via != null) AreEqual(j.via, t.j.via);
+		if (j?.on >= 0) AreEqual(j?.on, t.j.on);
+		if (j?.via >= 0) AreEqual(j?.via, t.j.via);
 		if (d != null) AreEqual(d, t.err == 0 ? s.ler.Lexs(t.j) : t.info);
 		return this;
 	}
 
-	public Ser h(string name = null, Jov<int?> j = default, object d = null, int err = 0)
+	public Ser h(string name = null, Jov? j = null, object d = null, int err = 0)
 		=> new Ser(t.head, s).Eq(name, j, d, err).Vine;
-	public Ser n(string name = null, Jov<int?> j = default, object d = null, int err = 0)
+	public Ser n(string name = null, Jov? j = null, object d = null, int err = 0)
 		=> new Ser(t.next, s).Eq(name, j, d, err).Vine;
 
-	public Ser H(string name = null, Jov<int?> j = default, object d = null, int err = 0)
+	public Ser H(string name = null, Jov? j = null, object d = null, int err = 0)
 		=> new Ser(t.head, s).Eq(name, j, d, err).Leaf;
-	public Ser N(string name = null, Jov<int?> j = default, object d = null, int err = 0)
+	public Ser N(string name = null, Jov? j = null, object d = null, int err = 0)
 		=> new Ser(t.next, s).Eq(name, j, d, err).Leaf;
 
 	public Ser Vine { get { IsNotNull(t.head); return this; } }
@@ -355,10 +357,10 @@ public class TestParserEarley : IDisposable
 	{
 		NewSer("S=A B \n A=a P* \n B=P* b \n P=p|q");
 		True("ab"); True("apqb"); True("apqpqb");
-		_ = Parse("apqpqpqb").H("A", (0, 1)).n("B").H("P", (1, null)).N().N().N().N().N("P", (6, null)).uuU;
+		_ = Parse("apqpqpqb").H("A", (0, 1)).n("B").H("P", (1, -1)).N().N().N().N().N("P", (6, -1)).uuU;
 		AreEqual(107, ser.matchz);
 		ser.greedy = true;
-		_ = Parse("apqpqpqb").h("A").H("P", (1, null)).N().N().N().N().N("P", (6, null)).u
+		_ = Parse("apqpqpqb").h("A").H("P", (1, -1)).N().N().N().N().N("P", (6, -1)).u
 			.N("B", d: "b").uU;
 		AreEqual(107, ser.matchz);
 	}
@@ -426,8 +428,8 @@ public class TestParserEarley : IDisposable
 		_ = Parse("+").Eq(d: '+', err: -1).Leaf.U;
 		_ = Parse("+0").Eq(d: '+', err: -1).Leaf.U;
 		_ = Parse("+,+0").Eq(d: '+', err: -1).Leaf.U;
-		_ = Parse("0+").h("S", (0, 1)).N("S", err: -4).u.n(j: (null, 2), err: -1).H("A", (0, 2), "M", 2).uU;
-		_ = Parse("0*").h("S", (0, 1)).N("S", err: -4).u.n(j: (null, 2), err: -1).H("M", (0, 2), "V", 2).uU;
+		_ = Parse("0+").h("S", (0, 1)).N("S", err: -4).u.n(j: (-1, 2), err: -1).H("A", (0, 2), "M", 2).uU;
+		_ = Parse("0*").h("S", (0, 1)).N("S", err: -4).u.n(j: (-1, 2), err: -1).H("M", (0, 2), "V", 2).uU;
 		_ = Parse("0#&$");
 		_ = _/**/	.h("S", (0, 1)).N("S", (0, 4), err: -4).u;
 		_ = _/**/.n("S", (1, 2), '#', -1);

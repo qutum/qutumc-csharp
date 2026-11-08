@@ -4,6 +4,9 @@
 // Under the terms of the GNU General Public License version 3
 // http://qutum.com  http://qutum.cn
 //
+global using Jot = qutum.parser.Jot<int>;
+global using Jov = qutum.parser.Jov<int>;
+
 using qutum.parser;
 using System;
 using System.Collections.Generic;

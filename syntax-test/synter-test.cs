@@ -9,6 +9,7 @@ using qutum.parser;
 using qutum.syntax;
 using System;
 using System.Linq;
+using System.Numerics;
 using System.Text;
 using static Microsoft.VisualStudio.TestTools.UnitTesting.Assert;
 
@@ -20,21 +21,27 @@ using S = Syn;
 public readonly struct Ser(Synt t, Synter s)
 
 {
-	public struct Dec()
+	public struct Dec() : IAdditionOperators<Dec, int, Dec>, ISubtractionOperators<Dec, Dec, Dec>,
+		IComparable<Dec>, IUnaryPlusOperators<Dec, int>
 	{
 		internal decimal d;
 		public static implicit operator Dec(decimal d) => new() { d = d };
 		public static implicit operator Dec(double d) => new() { d = (decimal)d };
+
+		public static Dec operator +(Dec a, int b) => a.d + b;
+		public static Dec operator -(Dec a, Dec b) => a.d - b.d;
+		public readonly int CompareTo(Dec that) => int.CreateSaturating(d - that.d);
+		public static int operator +(Dec a) => (int)a.d;
 	}
 
-	public readonly Ser Eq(S? name = null, object d = null, Jov<Dec?> j = default, int err = 0)
+	public readonly Ser Eq(S? name = null, object d = null, Jov<Dec>? j = null, int err = 0)
 	{
 		IsNotNull(t);
 		AreEqual(err, t.err);
 		if (name != null) AreEqual(name, t.name);
 		var (line, col) = s.ler.LineCol(t.j);
-		if (j.on != null) AreEqual($"{j.on?.d}", $"{line.on}.{col.on}");
-		if (j.via != null) AreEqual($"{j.via?.d}", $"{line.to}.{col.via}");
+		if (j?.on.d >= 0) AreEqual($"{j?.on.d}", $"{line.on}.{col.on}");
+		if (j?.via.d >= 0) AreEqual($"{j?.via.d}", $"{line.to}.{col.via}");
 		if (err != 0 && d is string aim && t.info?.ToString() is string test) {
 			var ts = test.Split(SerMaker<char, string>.ErrMore);
 			var As = aim.Split("  ");
@@ -64,14 +71,14 @@ public readonly struct Ser(Synt t, Synter s)
 		return this;
 	}
 
-	public Ser h(S? name = null, object d = null, Jov<Dec?> j = default, int err = 0)
+	public Ser h(S? name = null, object d = null, Jov<Dec>? j = null, int err = 0)
 		=> new Ser(t.head, s).Eq(name, d, j, err).Vine;
-	public Ser n(S? name = null, object d = null, Jov<Dec?> j = default, int err = 0)
+	public Ser n(S? name = null, object d = null, Jov<Dec>? j = null, int err = 0)
 		=> new Ser(t.next, s).Eq(name, d, j, err).Vine;
 
-	public Ser H(S? name = null, object d = null, Jov<Dec?> j = default, int err = 0)
+	public Ser H(S? name = null, object d = null, Jov<Dec>? j = null, int err = 0)
 		=> new Ser(t.head, s).Eq(name, d, j, err).Leaf;
-	public Ser N(S? name = null, object d = null, Jov<Dec?> j = default, int err = 0)
+	public Ser N(S? name = null, object d = null, Jov<Dec>? j = null, int err = 0)
 		=> new Ser(t.next, s).Eq(name, d, j, err).Leaf;
 
 	public Ser Vine { get { IsNotNull(t.head); return this; } }
@@ -89,7 +96,7 @@ public readonly struct Ser(Synt t, Synter s)
 
 	public Ser e(int err = -1) => n(err: err);
 
-	public Ser j(object d = null, Jov<Dec?> j = default, int err = 0)
+	public Ser j(object d = null, Jov<Dec>? j = null, int err = 0)
 		=> n(S.junc, d, j, err).h(S.block);
 }
 

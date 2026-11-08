@@ -4,6 +4,8 @@
 // Under the terms of the GNU General Public License version 3
 // http://qutum.com  http://qutum.cn
 //
+global using Jot = qutum.parser.Jot<int>;
+global using Jov = qutum.parser.Jov<int>;
 global using Formx = qutum.parser.X<qutum.parser.SynForm>;
 global using Altx = qutum.parser.X<qutum.parser.XAlt>;
 global using Conx = qutum.parser.X<qutum.parser.XAltCon>;
@@ -22,13 +24,13 @@ using Nord = ushort;
 
 public readonly struct Ser(SyntStr t, SynterStr s)
 {
-	public readonly Ser Eq(string name = null, object d = null, Jov<int?> j = default, int err = 0)
+	public readonly Ser Eq(string name = null, object d = null, Jov? j = null, int err = 0)
 	{
 		IsNotNull(t);
 		AreEqual(err, t.err);
 		if (name != null) AreEqual(name, t.name);
-		if (j.on != null) AreEqual(j.on, t.j.on);
-		if (j.via != null) AreEqual(j.via, t.j.via);
+		if (j?.on >= 0) AreEqual(j?.on, t.j.on);
+		if (j?.via >= 0) AreEqual(j?.via, t.j.via);
 		if (err != 0 && d is string aim && t.info?.ToString() is string test) {
 			var ts = test.Split(SerMaker<char, string>.ErrMore);
 			var As = aim.Split("  ");
@@ -42,14 +44,14 @@ public readonly struct Ser(SyntStr t, SynterStr s)
 		return this;
 	}
 
-	public Ser h(string name = null, object d = null, Jov<int?> j = default, int err = 0)
+	public Ser h(string name = null, object d = null, Jov? j = null, int err = 0)
 		=> new Ser(t.head, s).Eq(name, d, j, err).Vine;
-	public Ser n(string name = null, object d = null, Jov<int?> j = default, int err = 0)
+	public Ser n(string name = null, object d = null, Jov? j = null, int err = 0)
 		=> new Ser(t.next, s).Eq(name, d, j, err).Vine;
 
-	public Ser H(string name = null, object d = null, Jov<int?> j = default, int err = 0)
+	public Ser H(string name = null, object d = null, Jov? j = null, int err = 0)
 		=> new Ser(t.head, s).Eq(name, d, j, err).Leaf;
-	public Ser N(string name = null, object d = null, Jov<int?> j = default, int err = 0)
+	public Ser N(string name = null, object d = null, Jov? j = null, int err = 0)
 		=> new Ser(t.next, s).Eq(name, d, j, err).Leaf;
 
 	public readonly Ser Vine { get { IsNotNull(t.head); return this; } }

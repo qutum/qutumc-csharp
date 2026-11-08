@@ -4,18 +4,23 @@
 // Under the terms of the GNU General Public License version 3
 // http://qutum.com  http://qutum.cn
 //
+global using Jot = qutum.parser.Jot<int>;
+global using Jov = qutum.parser.Jov<int>;
+
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Text;
 
 namespace qutum.parser;
 
 // typed index, meaningless _ is for distinguish only
-public struct X<_> : IComparable<X<_>>
+public struct X<_> : IAdditionOperators<X<_>, int, X<_>>, ISubtractionOperators<X<_>, X<_>, X<_>>,
+	IComparable<X<_>>, IUnaryPlusOperators<X<_>, int>
 {
 	int x;
 	public readonly bool Yes => x != -1;
@@ -23,56 +28,48 @@ public struct X<_> : IComparable<X<_>>
 
 	public static explicit operator X<_>(int x) => new() { x = x };
 	public static implicit operator int(X<_> x) => x.x;
+
 	public static X<_> operator +(X<_> a, X<_> b) => (X<_>)(a.x + b.x);
 	public static X<_> operator -(X<_> a, X<_> b) => (X<_>)(a.x - b.x);
 	public static X<_> operator +(X<_> a, int b) => (X<_>)(a.x + b);
 	public static X<_> operator -(X<_> a, int b) => (X<_>)(a.x - b);
+	public readonly int CompareTo(X<_> that) => x - that.x;
+	public static int operator +(X<_> a) => a.x;
 
 	public override readonly string ToString() => x.ToString();
-	public readonly int CompareTo(X<_> that) => x - that.x;
 }
 
-// jot of data to inclusive end, [on,to], default size is 1
-public struct Jot
+// jot of data to inclusive end, [on,to], default size should be 1
+public struct Jot<T> where T : IAdditionOperators<T, int, T>, ISubtractionOperators<T, T, T>,
+	IComparable<T>, IUnaryPlusOperators<T, int>
 {
-	public int on; // index on the first, [on]==first
-	public int to; // inclusive index to the last, last==[to]
+	public T on; // index on the first, [on]==first
+	public T to; // inclusive index to the last, last==[to]
 
-	public readonly int size => to - on + 1;
-	public readonly bool any => on <= to;
-	public readonly Range range => on..(to + 1);
-	public readonly void Deconstruct(out int on, out int to) => (on, to) = (this.on, this.to);
-
-	public static implicit operator Jot((int on, int to) j) => new() { on = j.on, to = j.to };
-	public static implicit operator (int on, int to)(Jot j) => (j.on, j.to);
-	public static implicit operator Jot(Jov j) => (j.on, j.via - 1);
-}
-// jot of data via exclusive end, [on,via), default size is 0
-public struct Jov(int on, int via)
-{
-	public int on = on; // index on the first, [on]==first
-	public int via = via; // exclusive index via the last, last==[via-1]
-
-	public readonly int size => via - on;
-	public readonly bool any => on < via;
-	public readonly Range range => on..via;
-	public readonly void Deconstruct(out int on, out int via) => (on, via) = (this.on, this.via);
-
-	public static implicit operator Jov((int on, int via) j) => new() { on = j.on, via = j.via };
-	public static implicit operator (int on, int via)(Jov j) => (j.on, j.via);
-	public static implicit operator Jov(Jot j) => (j.on, j.to + 1);
-}
-public struct Jot<T>
-{
-	public T on, to;
+	public readonly T size => to - on + 1;
+	public readonly bool any => on.CompareTo(to) <= 0;
+	public readonly Range range => +on..+(to + 1);
 	public readonly void Deconstruct(out T on, out T to) => (on, to) = (this.on, this.to);
+
 	public static implicit operator Jot<T>((T on, T to) j) => new() { on = j.on, to = j.to };
+	public static implicit operator (T on, T to)(Jot<T> j) => (j.on, j.to);
+	public static implicit operator Jot<T>(Jov<T> j) => (j.on, j.via + -1);
 }
-public struct Jov<T>
+// jot of data via exclusive end, [on,via), default size should be 0
+public struct Jov<T> where T : IAdditionOperators<T, int, T>, ISubtractionOperators<T, T, T>,
+	IComparable<T>, IUnaryPlusOperators<T, int>
 {
-	public T on, via;
+	public T on; // index on the first, [on]==first
+	public T via; // exclusive index via the last, last==[via-1]
+
+	public readonly T size => via - on;
+	public readonly bool any => on.CompareTo(via) < 0;
+	public readonly Range range => +on..+via;
 	public readonly void Deconstruct(out T on, out T via) => (on, via) = (this.on, this.via);
+
 	public static implicit operator Jov<T>((T on, T via) j) => new() { on = j.on, via = j.via };
+	public static implicit operator (T on, T via)(Jov<T> j) => (j.on, j.via);
+	public static implicit operator Jov<T>(Jot<T> j) => (j.on, j.to + 1);
 }
 
 public static partial class Extension

@@ -5,6 +5,9 @@
 // http://qutum.com  http://qutum.cn
 //
 #pragma warning disable IDE0078 // Use pattern matching
+global using Jot = qutum.parser.Jot<int>;
+global using Jov = qutum.parser.Jov<int>;
+
 using qutum.parser.earley;
 using System;
 using System.Collections.Generic;
