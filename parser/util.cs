@@ -40,41 +40,47 @@ public struct X<_> : IAdditionOperators<X<_>, int, X<_>>, ISubtractionOperators<
 }
 
 // jot of data to inclusive end, [on,to], default size should be 1
-public struct Jot<T> where T : IAdditionOperators<T, int, T>, ISubtractionOperators<T, T, T>,
-	IComparable<T>, IUnaryPlusOperators<T, int>
+public struct Jot<X> where X : IAdditionOperators<X, int, X>, ISubtractionOperators<X, X, X>,
+	IComparable<X>, IUnaryPlusOperators<X, int>
 {
-	public T on; // index on the first, [on]==first
-	public T to; // inclusive index to the last, last==[to]
+	public X on; // index on the first, [on]==first
+	public X to; // inclusive index to the last, last==[to]
 
-	public readonly T size => to - on + 1;
+	public readonly X size => to - on + 1;
 	public readonly bool any => on.CompareTo(to) <= 0;
 	public readonly Range range => +on..+(to + 1);
-	public readonly void Deconstruct(out T on, out T to) => (on, to) = (this.on, this.to);
+	public readonly void Deconstruct(out X on, out X to) => (on, to) = (this.on, this.to);
 
-	public static implicit operator Jot<T>((T on, T to) j) => new() { on = j.on, to = j.to };
-	public static implicit operator (T on, T to)(Jot<T> j) => (j.on, j.to);
-	public static implicit operator Jot<T>(Jov<T> j) => (j.on, j.via + -1);
+	public static implicit operator Jot<X>((X on, X to) j) => new() { on = j.on, to = j.to };
+	public static implicit operator (X on, X to)(Jot<X> j) => (j.on, j.to);
+	public static implicit operator Jot<X>(Jov<X> j) => (j.on, j.via + -1);
+	public static explicit operator Jot<int>(Jot<X> j) => (+j.on, +j.to);
 }
 // jot of data via exclusive end, [on,via), default size should be 0
-public struct Jov<T> where T : IAdditionOperators<T, int, T>, ISubtractionOperators<T, T, T>,
-	IComparable<T>, IUnaryPlusOperators<T, int>
+public struct Jov<X> where X : IAdditionOperators<X, int, X>, ISubtractionOperators<X, X, X>,
+	IComparable<X>, IUnaryPlusOperators<X, int>
 {
-	public T on; // index on the first, [on]==first
-	public T via; // exclusive index via the last, last==[via-1]
+	public X on; // index on the first, [on]==first
+	public X via; // exclusive index via the last, last==[via-1]
 
-	public readonly T size => via - on;
+	public readonly X size => via - on;
 	public readonly bool any => on.CompareTo(via) < 0;
 	public readonly Range range => +on..+via;
-	public readonly void Deconstruct(out T on, out T via) => (on, via) = (this.on, this.via);
+	public readonly void Deconstruct(out X on, out X via) => (on, via) = (this.on, this.via);
 
-	public static implicit operator Jov<T>((T on, T via) j) => new() { on = j.on, via = j.via };
-	public static implicit operator (T on, T via)(Jov<T> j) => (j.on, j.via);
-	public static implicit operator Jov<T>(Jot<T> j) => (j.on, j.to + 1);
+	public static implicit operator Jov<X>((X on, X via) j) => new() { on = j.on, via = j.via };
+	public static implicit operator (X on, X via)(Jov<X> j) => (j.on, j.via);
+	public static implicit operator Jov<X>(Jot<X> j) => (j.on, j.to + 1);
+	public static explicit operator Jov<int>(Jov<X> j) => (+j.on, +j.via);
 }
 
 public static partial class Extension
 {
+	public static Jot<X<_>> X<_>(this Jot j) => ((X<_>)j.on, (X<_>)j.to);
+	public static Jov<X<_>> X<_>(this Jov j) => ((X<_>)j.on, (X<_>)j.via);
+
 	public static bool IncLess(this ref int d, int z) => ++d < z || (d = z) < z;
+	public static bool IncLess<_>(this ref X<_> d, int z) => (d += 1) < z || (d = (X<_>)z) < z;
 
 	public static ArraySegment<T> Seg<T>(this T[] s) => new(s);
 	public static ArraySegment<T> Seg<T>(this T[] s, Jov j) => new(s, j.on, j.size);

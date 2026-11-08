@@ -16,7 +16,7 @@ namespace qutum.parser.earley;
 using EarleyChar = Earley<char, char, string, EsynStr, LerStr>;
 
 // syntax tree
-public class Esyn<N, T> : LinkTree<T> where T : Esyn<N, T>
+public class Esynt<N, T> : LinkTree<T> where T : Esynt<N, T>
 {
 	public N name;
 	public Jov j; // lexs jot loc, for error may < 0
@@ -30,7 +30,7 @@ public class Esyn<N, T> : LinkTree<T> where T : Esyn<N, T>
 	public override string ToString() => Dumper(null, null);
 }
 
-public class EsynStr : Esyn<string, EsynStr>
+public class EsynStr : Esynt<string, EsynStr>
 {
 }
 
@@ -38,7 +38,7 @@ public enum Qua : byte { Opt = 0, One = 1, Any = 2, More = 3 };
 
 // syntax parser
 public class Earley<K, N, T, Ler> : Earley<K, Lexi<K>, N, T, Ler>
-	where K : struct where T : Esyn<N, T>, new() where Ler : LexerSeg<K, Lexi<K>>
+	where K : struct where T : Esynt<N, T>, new() where Ler : LexerSeg<K, Lexi<K>>
 {
 	public Earley(string gram, Ler ler) : base(gram, ler) { }
 }
@@ -50,7 +50,7 @@ public class EarleyStr : EarleyChar
 
 // syntax parser using extended Earley algorithm
 public class Earley<K, L, N, T, Ler>
-	where K : struct where T : Esyn<N, T>, new() where Ler : Lexer<K, L>
+	where K : struct where T : Esynt<N, T>, new() where Ler : Lexer<K, L>
 {
 	sealed class Prod
 	{
@@ -305,16 +305,16 @@ public class Earley<K, L, N, T, Ler>
 			var m = matchs[x]; var pair = 0;
 			if (m.a.s[m.a.recover].p is K k)
 				for (int y = m.j.via; y <= lexz - 2; y++)
-					if (ler.Is(y, k))
+					if (ler.Is((X<L>)y, k))
 						if (pair == 0) {
 							recm[ax] = -1; // closed
 							goto Cont;
 						}
 						else
 							pair--;
-					else if (ler.Is(y, m.a.recPair))
+					else if (ler.Is((X<L>)y, m.a.recPair))
 						pair++;
-					else if (ler.Is(y, m.a.recDeny)) {
+					else if (ler.Is((X<L>)y, m.a.recDeny)) {
 						recm[ax] = -1;
 						goto Cont;
 					}
@@ -351,7 +351,7 @@ public class Earley<K, L, N, T, Ler>
 				else
 					Accepted(mp.tail, t, ref omitSub);
 			else if (mp.tail == -2 && mp.a.lex)
-				t.info = ler.Lex(mp.j.via - 1);
+				t.info = ler.Lex((X<L>)((Jot)mp.j).to);
 			else if (mp.tail == -4) {
 				Debug.Assert(mp.a == m.a);
 				omitSelf = omitSub = m.a.synt == 1;
@@ -359,7 +359,7 @@ public class Earley<K, L, N, T, Ler>
 				t.AddHead(new T {
 					name = m.a.name, j = mp.j, err = -4, info = m.a.hint,
 					dump = dump < 2 ? null : $"{m.a.name} :: recover " +
-						$"{(p is Prod pp ? pp.name : p)} at {Dump(ler.Lex(mp.j.via - 1))}",
+						$"{(p is Prod pp ? pp.name : p)} at {Dump(ler.Lex((X<L>)((Jot)mp.j).to))}",
 				});
 			}
 		if (t != up) {
@@ -383,7 +383,7 @@ public class Earley<K, L, N, T, Ler>
 		var on = lexm[lexz] < matchz ? lexz : lexz - 1;
 		var t = new T {
 			name = begin.name, j = (on, lexz), err = -1,
-			info = on < lexz ? ler.Lex(on) : null
+			info = on < lexz ? ler.Lex((X<L>)on) : null
 		};
 		var errs = new bool[matchz];
 		for (int x = matchz - 1, y; (y = x) >= lexm[on]; x--) {
@@ -419,12 +419,12 @@ public class Earley<K, L, N, T, Ler>
 	{
 		return dump <= 0 || dump == 1 && !leaf ? null :
 			(dump <= 2 ? m.a.hint ?? m.a.name.ToString() : m.a.ToString())
-				+ $" :: {Dump(ler.Lexs(m.j))}";
+				+ $" :: {Dump(ler.Lexs(m.j.X<L>()))}";
 	}
 	public string Dump(object d)
 	{
 		if (d is T t)
-			return (ler as LexierBuf<K>)?.LineCol(t.j) is var (l, c)
+			return (ler as LexierBuf<K>)?.LineCol(t.j.X<Lexi<K>>()) is var (l, c)
 				? t.Dumper($"{l.on}.{c.on}", $"{l.to}.{c.via}") : t.ToString();
 		return dumper?.Invoke(d) ?? Esc(d);
 	}
@@ -525,7 +525,7 @@ public class Earley<K, L, N, T, Ler>
 		// \ prod ...
 		var prods = top.Where(t => t.name == "prod");
 		var names = prods.ToDictionary(
-			p => p.head.dump = meta.ler.Lexs(p.head.j),
+			p => p.head.dump = meta.ler.Lexs(p.head.j.X<char>()),
 			p => new Prod { name = Name(p.head.dump) }
 		);
 
@@ -539,8 +539,8 @@ public class Earley<K, L, N, T, Ler>
 						: gram[t.j.on] == '*' ? [Any] : gram[t.j.on] == '+' ? [More]
 						: ler.Keys(MetaStr.Unesc(gram, t.j)).Cast<object>()
 					// for word, search product names first, then lexer keys
-					: names.TryGetValue(t.dump = meta.ler.Lexs(t.j), out Prod p)
-						? [p] : ler.Keys(t.dump).Cast<object>())
+					: names.TryGetValue(t.dump = meta.ler.Lexs(t.j.X<char>()),
+						out Prod p) ? [p] : ler.Keys(t.dump).Cast<object>())
 					.Append(null)
 					.ToArray();
 				// build alt
@@ -564,7 +564,7 @@ public class Earley<K, L, N, T, Ler>
 					if (h.name == "hintr") r = h;
 					if (h.name == "hintd") d = h;
 					if (h.name == "hintw") { // apply hints
-						var w = meta.ler.Lexs(h.j);
+						var w = meta.ler.Lexs(h.j.X<char>());
 						for (; ax <= x; ax++) {
 							var a = As[ax];
 							a.prior = pr; a.greedy = g; a.synt = st; a.lex = l; a.errExpect = e;

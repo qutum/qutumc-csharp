@@ -120,15 +120,15 @@ public partial class LinkTree<T>
 	public virtual int dumpOrder => 1;
 }
 
-public partial class Synt<N, T>
+public partial class Synt<N, T, L>
 {
 	public object dump;
 
-	public string Dumper(StrMake s, Func<Synt<N, T>, object> dumper = null) =>
+	public string Dumper(StrMake s, Func<Synt<N, T, L>, object> dumper = null) =>
 		(s.s != null ? s : (s = new()) + j.on + ':' + j.via)
 		+ (err > 0 ? "!!" : err < 0 ? "!" : "")
-		+ (info is Synt<N, T> or null ? s : s + ' ' + info) + " : " + (dump ?? name)
-		+ (info is Synt<N, T> t ? s + '\n' + (dumper?.Invoke(t) ?? t) : s);
+		+ (info is Synt<N, T, L> or null ? s : s + ' ' + info) + " : " + (dump ?? name)
+		+ (info is Synt<N, T, L> t ? s + '\n' + (dumper?.Invoke(t) ?? t) : s);
 
 	public override string ToString() => Dumper(default);
 }
@@ -226,7 +226,7 @@ public partial class Synter<K, L, N, T, Ler>
 				t.dump = (Dumps.Str)(string)s;
 				s.s.Clear();
 			}
-			return t.Dumper((ler as LexierBuf<K>)?.LineCol(t.j) is var (l, c)
+			return t.Dumper((ler as LexierBuf<K>)?.LineCol((Jov<X<Lexi<K>>>)(object)t.j) is var (l, c)
 				? (s.s != null ? s : new()) + l.on + '.' + c.on + ':' + l.to + '.' + c.via
 				: s, Dumper);
 		}
@@ -245,7 +245,7 @@ public partial class SynGram<K, N>
 				s = s + ' ' + SerMaker<K, N>.Dumper_(c);
 			return s + "  " + (int)clash switch { -1 => "", -2 => "<", <= -3 => ">", _ => "^" }
 				+ (rec ? "!!" : "") + synt switch { 0 => "", < 0 => "-", 2 => "(", 3 => ")", _ => "+" }
-				+ (lex >= 0 ? s + '.' + lex : s) + ' ' + label;
+				+ (lex.Yes ? s + '.' + lex : s) + ' ' + label;
 		}
 	}
 }

@@ -28,7 +28,7 @@ public partial class SynGram<K, N>
 	{
 		internal Altx index; // index of whole grammar alts
 		public N name;
-		public Conx lex = Conx.No; // save main lex at this index to synt.info, no save: <0
+		public Conx lex = Conx.No; // save main lex at this index to synt.info, no save: -1
 		public Altx clash = Altx.No; // reject: -1, left: -2, right: -3
 									 // solve and index as same as previous one: actual alt index
 		public bool rec; // whether recover this alt for error, after main lex if any

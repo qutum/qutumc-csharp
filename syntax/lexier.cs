@@ -4,8 +4,9 @@
 // Under the terms of the GNU General Public License version 3
 // http://qutum.com  http://qutum.cn
 //
-global using Jot = qutum.parser.Jot<int>;
-global using Jov = qutum.parser.Jov<int>;
+global using Bytex = qutum.parser.X<byte>;
+global using Lekx = qutum.parser.X<qutum.parser.Lexi<qutum.syntax.Lek>>;
+global using JovBx = qutum.parser.Jov<qutum.parser.X<byte>>;
 
 using qutum.parser;
 using System;
@@ -173,7 +174,7 @@ public sealed partial class Lexier : LexierBuf<K>
 				.w[[]][" ", ..].loop["\t", ..].loop
 
 		.k(K.COM).w["##"] // ##  |[\A^\n]+
-				.w[[]][S.All - "\n", ..]
+				.w[[]][B.All - "\n", ..]
 		.k(K.COMB).w["\\", .., "#"] // \\+#  +#\\+|+#|+[\A^#]+
 				.w["#", "\\", ..].loop["#"].loop[B.All - "#", ..].loop
 
@@ -235,7 +236,7 @@ public sealed partial class Lexier : LexierBuf<K>
 	}
 
 	readonly LexierGet G;
-	int gloc;
+	Lekx gloc;
 	int indz; // inds size from 1
 	int[] inds = new int[50]; // {0, indent column...}
 	int soi; // start loc of indent
@@ -279,7 +280,7 @@ public sealed partial class Lexier : LexierBuf<K>
 		goto Next;
 	}
 
-	void Lexi(K k, Jov j, object v)
+	void Lexi(K k, JovBx j, object v)
 	{
 		// indent at start of line
 		if (G.left.key == K.EOL)
@@ -310,10 +311,10 @@ public sealed partial class Lexier : LexierBuf<K>
 		else
 			Add(k, j, v);
 	}
-	void Add(K k, Jov j, object v) => Add(new() { key = k, j = j, value = v });
+	void Add(K k, JovBx j, object v) => Add(new() { key = k, j = j, value = v });
 
 	// indent column from 0
-	void Indent(int ind, Jov j, bool junct = false)
+	void Indent(int ind, JovBx j, bool junct = false)
 	{
 		var i = Array.BinarySearch(inds, 1, indz, ind + IndMin); // indent with offset
 		i ^= i >> 31; // >= 1
@@ -363,48 +364,48 @@ internal sealed class LexierGet : Lexier<K>, Lexer<K, Lexi<K>>
 	}
 
 	public Lexi<K> left, lex, right;
-	public (K k, Jov j, object v) Get(ref int l, out bool ok)
+	public (K k, JovBx j, object v) Get(ref Lekx l, out bool ok)
 	{
 		ok = Next() || l < loc;
 		if (!ok)
 			return default;
-		left = lexs[l - 1 & buf]; lex = lexs[l++ & buf]; right = lexs[l & buf];
+		left = lexs[l - 1 & buf]; lex = lexs[l & buf]; l += 1; right = lexs[l & buf];
 		return (lex.key, lex.j, lex.value);
 	}
 
-	protected override void Add(Lexi<K> lexi) => lexs[size++ & buf] = lexi;
-	public new void Error(K k, Jov j, object value) => base.Error(k, j, value);
-	public void Blank(K k, Jov j, object value) => blanks?.Add(
+	protected override void Add(Lexi<K> lexi) { lexs[size & buf] = lexi; size += 1; }
+	public new void Error(K k, JovBx j, object value) => base.Error(k, j, value);
+	public void Blank(K k, JovBx j, object value) => blanks?.Add(
 		new() { key = k, j = j, value = value, err = 1 });
 
-	protected override void WadErr(K k, int wad, bool end, int b, Jov j)
+	protected override void WadErr(K k, int wad, bool end, int b, JovBx j)
 	{
 		if (k == K.PATH)
 			k = K.NAME; // TODO
 		base.WadErr(k, wad, end, b, j);
 	}
-	protected override void Eor(int via)
+	protected override void Eor(Bytex via)
 	{
 		if (size == 0 || lexs[size - 1 & buf].key != K.EOL)
 			Lexi(K.EOL, (via, via), null); // eol at end of read
 		Lexi(default, (via, via), null);
 	}
 
-	int bz; // buffer size
+	Bytex bz; // buffer size
 	byte[] bs = new byte[4096]; // long read buffer
 	bool crlf; // \r\n found
 	bool leadSp; // leading space
-	int indb; // indent byte, unknown: -1
+	short indb; // indent byte, unknown: -1
 	int ni, nf, ne; // end of each number wad
 	readonly List<string> path = [];
 
-	protected override void Wad(K k, int wad, ref bool end, Jov j)
+	protected override void Wad(K k, int wad, ref bool end, JovBx j)
 	{
 		object d = null;
-		if (lon < 0) {
-			lon = j.on; bz = 0; path.Clear();
+		if (!lon.Yes) {
+			lon = j.on; bz = default; path.Clear();
 		}
-		Jov lj = (lon, j.via);
+		JovBx lj = (lon, j.via);
 		switch (k) {
 
 		case K.EOL:
@@ -445,7 +446,7 @@ internal sealed class LexierGet : Lexier<K>, Lexer<K, Lexi<K>>
 			}
 			if (j.size != bz - lon || read.Lex(j.on) != '#') // check end wad size
 				return;
-			end = true; bz = 0;
+			end = true; bz = default;
 			Blank(k, lj, null);
 			goto End;
 
@@ -509,10 +510,10 @@ internal sealed class LexierGet : Lexier<K>, Lexer<K, Lexi<K>>
 			if (split) {
 				if (bz > 40) {
 					Error(K.NAME, (j.via - 1, j.via - 1), "too long");
-					bz = 40;
+					bz = (Bytex)40;
 				}
 				path.Add(Encoding.UTF8.GetString(bs, 0, bz));
-				bz = 0;
+				bz = default;
 			}
 			if (end) {
 				if (read.Lex(j.via - 1) == '\n') {
@@ -532,34 +533,34 @@ internal sealed class LexierGet : Lexier<K>, Lexer<K, Lexi<K>>
 			return;
 		Lexi(k, lj, d ?? (bz > 0 ? Encoding.UTF8.GetString(bs, 0, bz) : null));
 	End: // lexi already made
-		lon = -1;
+		lon = Bytex.No;
 	}
 
-	int Read(Jov j, int x)
+	Bytex Read(JovBx j, int x)
 	{
 		var n = x + j.size;
 		if (bs.Length < n)
 			Array.Resize(ref bs, n + 4095 & ~4095);
 		read.Lexs(j, bs.AsSpan(x));
-		return n;
+		return (Bytex)n;
 	}
 
-	void Unesc(Jov j)
+	void Unesc(JovBx j)
 	{
 		if (bs[bz] != '\\')
 			bz += j.size;
 		else // unescape
 			switch (bs[bz + 1]) {
-			case (byte)'0': bs[bz++] = (byte)'\0'; break;
-			case (byte)'t': bs[bz++] = (byte)'\t'; break;
-			case (byte)'n': bs[bz++] = (byte)'\n'; break;
-			case (byte)'r': bs[bz++] = (byte)'\r'; break;
-			case (byte)'x': bs[bz++] = (byte)(Hex(bz + 1) << 4 | Hex(bz + 2)); break;
+			case (byte)'0': bs[bz] = (byte)'\0'; bz += 1; break;
+			case (byte)'t': bs[bz] = (byte)'\t'; bz += 1; break;
+			case (byte)'n': bs[bz] = (byte)'\n'; bz += 1; break;
+			case (byte)'r': bs[bz] = (byte)'\r'; bz += 1; break;
+			case (byte)'x': bs[bz] = (byte)(Hex(bz + 2) << 4 | Hex(bz + 3)); bz += 1; break;
 			case (byte)'u':
 				Span<char> u = [
 					(char)(Hex(bz + 2) << 12 | Hex(bz + 3) << 8 | Hex(bz + 4) << 4 | Hex(bz + 5)) ];
 				bz += Encoding.UTF8.GetBytes(u, bs.AsSpan(bz)); break;
-			default: bs[bz++] = bs[bz]; break;
+			default: bs[bz] = bs[bz + 1]; bz += 1; break;
 			}
 	}
 

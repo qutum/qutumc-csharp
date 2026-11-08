@@ -4,6 +4,9 @@
 // Under the terms of the GNU General Public License version 3
 // http://qutum.com  http://qutum.cn
 //
+global using Bytex = qutum.parser.X<byte>;
+global using JovBx = qutum.parser.Jov<qutum.parser.X<byte>>;
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,17 +17,17 @@ namespace qutum.parser;
 public interface Lexer<K, L> : IDisposable
 {
 	bool Next();
-	// current lex location, <0 before first Next()
-	int Loc();
+	// current lex location, -1 before first Next()
+	X<L> Loc();
 	L Lex();
-	L Lex(int loc);
+	L Lex(X<L> loc);
 
 	bool Is(K aim);
-	bool Is(int loc, K aim);
+	bool Is(X<L> loc, K aim);
 	bool Is(K key, K aim);
 
-	Span<L> Lexs(Jov j, Span<L> s);
-	IEnumerable<L> Lexs(Jov j);
+	Span<L> Lexs(Jov<X<L>> j, Span<L> s);
+	IEnumerable<L> Lexs(Jov<X<L>> j);
 
 	// get single or several keys
 	IEnumerable<K> Keys(string keys);
@@ -32,31 +35,31 @@ public interface Lexer<K, L> : IDisposable
 
 public interface LexerSeg<K, L> : Lexer<K, L>
 {
-	new ArraySegment<L> Lexs(Jov j);
+	new ArraySegment<L> Lexs(Jov<X<L>> j);
 }
 
 public class LerStr(string read) : Lexer<char, char>
 {
 	protected string read = read;
-	protected int loc = -1;
+	protected X<char> loc = X<char>.No;
 
-	void IDisposable.Dispose() { read = null; loc = -1; }
+	void IDisposable.Dispose() { read = null; loc = X<char>.No; }
 
 	public bool Next() => loc.IncLess(read.Length);
-	public int Loc() => loc;
+	public X<char> Loc() => loc;
 	public char Lex() => read[loc];
-	public char Lex(int loc) => read[loc];
+	public char Lex(X<char> loc) => read[loc];
 
 	public virtual bool Is(char aim) => read[loc] == aim;
-	public virtual bool Is(int loc, char aim) => read[loc] == aim;
+	public virtual bool Is(X<char> loc, char aim) => read[loc] == aim;
 	public virtual bool Is(char key, char aim) => key == aim;
 
-	public Span<char> Lexs(Jov j, Span<char> s)
+	public Span<char> Lexs(Jov<X<char>> j, Span<char> s)
 	{
 		read.AsSpan(j.on, j.size).CopyTo(s); return s;
 	}
-	public string Lexs(Jov j) => read[j.range];
-	IEnumerable<char> Lexer<char, char>.Lexs(Jov j) => Lexs(j);
+	public string Lexs(Jov<X<char>> j) => read[j.range];
+	IEnumerable<char> Lexer<char, char>.Lexs(Jov<X<char>> j) => Lexs(j);
 
 	public IEnumerable<char> Keys(string keys) => keys;
 }
@@ -64,25 +67,25 @@ public class LerStr(string read) : Lexer<char, char>
 public class LerByte(byte[] read) : LexerSeg<byte, byte>
 {
 	protected byte[] read = read;
-	protected int loc = -1;
+	protected Bytex loc = Bytex.No;
 
-	void IDisposable.Dispose() { read = null; loc = -1; }
+	void IDisposable.Dispose() { read = null; loc = Bytex.No; }
 
 	public bool Next() => loc.IncLess(read.Length);
-	public int Loc() => loc;
+	public Bytex Loc() => loc;
 	public byte Lex() => read[loc];
-	public byte Lex(int loc) => read[loc];
+	public byte Lex(Bytex loc) => read[loc];
 
 	public virtual bool Is(byte aim) => read[loc] == aim;
-	public virtual bool Is(int loc, byte aim) => read[loc] == aim;
+	public virtual bool Is(Bytex loc, byte aim) => read[loc] == aim;
 	public virtual bool Is(byte key, byte aim) => key == aim;
 
-	public Span<byte> Lexs(Jov j, Span<byte> s)
+	public Span<byte> Lexs(JovBx j, Span<byte> s)
 	{
 		read.AsSpan(j.on, j.size).CopyTo(s); return s;
 	}
-	public ArraySegment<byte> Lexs(Jov j) => read.Seg(j);
-	IEnumerable<byte> Lexer<byte, byte>.Lexs(Jov j) => Lexs(j);
+	public ArraySegment<byte> Lexs(JovBx j) => read.Seg((Jov)j);
+	IEnumerable<byte> Lexer<byte, byte>.Lexs(JovBx j) => Lexs(j);
 
 	public IEnumerable<byte> Keys(string keys) => keys.Select(k => (byte)k);
 }
@@ -90,25 +93,25 @@ public class LerByte(byte[] read) : LexerSeg<byte, byte>
 public class LerByteSeg(ArraySegment<byte> read) : LexerSeg<byte, byte>
 {
 	protected ArraySegment<byte> read = read;
-	protected int loc = -1;
+	protected Bytex loc = Bytex.No;
 
-	void IDisposable.Dispose() { read = null; loc = -1; }
+	void IDisposable.Dispose() { read = null; loc = Bytex.No; }
 
 	public bool Next() => loc.IncLess(read.Count);
-	public int Loc() => loc;
+	public Bytex Loc() => loc;
 	public byte Lex() => read[loc];
-	public byte Lex(int loc) => read[loc];
+	public byte Lex(Bytex loc) => read[loc];
 
 	public virtual bool Is(byte aim) => read[loc] == aim;
-	public virtual bool Is(int loc, byte aim) => read[loc] == aim;
+	public virtual bool Is(Bytex loc, byte aim) => read[loc] == aim;
 	public virtual bool Is(byte key, byte aim) => key == aim;
 
-	public Span<byte> Lexs(Jov j, Span<byte> s)
+	public Span<byte> Lexs(JovBx j, Span<byte> s)
 	{
 		read.AsSpan(j.on, j.size).CopyTo(s); return s;
 	}
-	public ArraySegment<byte> Lexs(Jov j) => read.Slice(j.on, j.size);
-	IEnumerable<byte> Lexer<byte, byte>.Lexs(Jov j) => Lexs(j);
+	public ArraySegment<byte> Lexs(JovBx j) => read.Slice(j.on, j.size);
+	IEnumerable<byte> Lexer<byte, byte>.Lexs(JovBx j) => Lexs(j);
 
 	public IEnumerable<byte> Keys(string keys) => keys.Select(k => (byte)k);
 }
@@ -116,24 +119,24 @@ public class LerByteSeg(ArraySegment<byte> read) : LexerSeg<byte, byte>
 public class LerByteList(List<byte> read) : Lexer<byte, byte>
 {
 	protected List<byte> read = read;
-	protected int loc = -1;
+	protected Bytex loc = Bytex.No;
 
-	void IDisposable.Dispose() { read = null; loc = -1; }
+	void IDisposable.Dispose() { read = null; loc = Bytex.No; }
 
 	public bool Next() => loc.IncLess(read.Count);
-	public int Loc() => loc;
+	public Bytex Loc() => loc;
 	public byte Lex() => read[loc];
-	public byte Lex(int loc) => read[loc];
+	public byte Lex(Bytex loc) => read[loc];
 
 	public virtual bool Is(byte aim) => read[loc] == aim;
-	public virtual bool Is(int loc, byte aim) => read[loc] == aim;
+	public virtual bool Is(Bytex loc, byte aim) => read[loc] == aim;
 	public virtual bool Is(byte key, byte aim) => key == aim;
 
-	public Span<byte> Lexs(Jov j, Span<byte> s)
+	public Span<byte> Lexs(JovBx j, Span<byte> s)
 	{
 		read.GetRange(j.on, j.size).CopyTo(s); return s;
 	}
-	public IEnumerable<byte> Lexs(Jov j) => read.GetRange(j.on, j.size);
+	public IEnumerable<byte> Lexs(JovBx j) => read.GetRange(j.on, j.size);
 
 	public IEnumerable<byte> Keys(string keys) => keys.Select(k => (byte)k);
 }

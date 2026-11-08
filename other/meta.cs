@@ -21,7 +21,7 @@ sealed class MetaStr(string read) : LerStr(read)
 {
 	public override bool Is(char aim) => Is(read[loc], aim);
 
-	public override bool Is(int loc, char aim) => Is(read[loc], aim);
+	public override bool Is(X<char> loc, char aim) => Is(read[loc], aim);
 
 	// for meta grammar
 	public override bool Is(char k, char aim) =>
@@ -132,7 +132,7 @@ public static class MetaLex
 		var es = new object[Lexier<K>.AltByteN << 1];
 		// build prod
 		foreach (var prod in top) {
-			var k = Keys(meta.ler.Lexs(prod.head.j)).Single();
+			var k = Keys(meta.ler.Lexs(prod.head.j.X<char>())).Single();
 			g.k(k);
 			// build wad
 			foreach (var (w, wad) in prod.Skip(1).Each(1)) {
@@ -149,7 +149,7 @@ public static class MetaLex
 					var bz = bytes.Count();
 					if (bz > Lexier<K>.AltByteN)
 						throw new($"{k}.{wad}.{alt} exceeds {Lexier<K>.AltByteN} bytes :"
-							+ meta.ler.Lexs(a.j));
+							+ meta.ler.Lexs(a.j.X<char>()));
 					var ez = 0;
 					foreach (var (b, bx) in bytes.Each())
 						Byte(gram, k, wad, alt, b, es, ref ez);
@@ -195,7 +195,7 @@ public static class MetaLex
 			for (char y = '\0'; y <= 128; y++)
 				if (rs[y]) s[n++] = y;
 			if (n == 0)
-				throw new($"No byte in {k}.{wad} :{meta.ler.Lexs(b.j)}");
+				throw new($"No byte in {k}.{wad} :{meta.ler.Lexs(b.j.X<char>())}");
 			es[ez++] = (Set.One)s.AsMemory(0, n);
 			++x; // range ]
 		}

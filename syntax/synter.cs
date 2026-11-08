@@ -25,7 +25,7 @@ public enum Syn : Nord
 	exp, phr, inp, squ,
 }
 
-public class Synt : Synt<N, Synt>
+public class Synt : Synt<N, Synt, Lexi<K>>
 {
 }
 
@@ -115,7 +115,7 @@ public partial class Synter : Synter<K, N, Synt, Lexier>
 		var errs = new Synt { err = -3, info = ler.errs.Count };
 		foreach (var (err, x) in ler.errs.Each())
 			errs.Add(new() {
-				j = (~x, ~(x + 1)), err = -3, info = err.key, dump = err.ToString()
+				j = ((X<Lexi<K>>)~x, (X<Lexi<K>>)~(x + 1)), err = -3, info = err.key, dump = err.ToString()
 			});
 		return t.Append(errs.head?.up);
 	}

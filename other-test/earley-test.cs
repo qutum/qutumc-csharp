@@ -24,7 +24,7 @@ public readonly struct Ser(EsynStr t, EarleyStr s)
 		if (name != null) AreEqual(name, t.name);
 		if (j?.on >= 0) AreEqual(j?.on, t.j.on);
 		if (j?.via >= 0) AreEqual(j?.via, t.j.via);
-		if (d != null) AreEqual(d, t.err == 0 ? s.ler.Lexs(t.j) : t.info);
+		if (d != null) AreEqual(d, t.err == 0 ? s.ler.Lexs(t.j.X<char>()) : t.info);
 		return this;
 	}
 
