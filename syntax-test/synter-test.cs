@@ -56,6 +56,14 @@ public readonly struct Ser(Synt t, Synter s)
 			AreEqual(d, d is K && t.info is Lexi<K> l ? l.key : t.info);
 		return this;
 	}
+	public Ser D(K key, object value)
+	{
+		AreEqual(s.dumper(new Lexi<K>() {
+			key = key,
+			value = "".Equals(value) && t.info is Lexi<K> l && l.value == null ? null : value
+		}), s.dumper(t.info));
+		return this;
+	}
 	public Ser D(params object[] Ds)
 	{
 		var ds = new Lexi<K>[Ds.Length];
@@ -65,7 +73,7 @@ public readonly struct Ser(Synt t, Synter s)
 				ds[n++] = new() { key = l };
 			else
 				ds[n - 1].value = Ds[x];
-		AreEqual(s.dumper(ds.Seg((0, n))),
+		AreEqual(s.dumper(ds.Seg((0, n))), // TODO SerMaker dump lexis
 			s.dumper(t.j.on >= 0 ? s.ler.Lexs(t.j)
 				: s.ler.errs.GetRange(~t.j.on, -t.j.size).ToArray().Seg()));
 		return this;

@@ -265,8 +265,8 @@ public partial class SerMaker<K, N>
 			(d, s) = (keys2, s2);
 		if (d is IEnumerable<K> keys) {
 			var ss = s.s == null; if (ss) s = new();
-			foreach (var K in keys)
-				_ = s - ' ' + (K.Equals(default(K)) ? "eor" : ByteSet.Esc(K));
+			foreach (var k in keys)
+				_ = s - ' ' + (k.Equals(default(K)) ? "eor" : ByteSet.Esc(k));
 			return ss ? s : null;
 		}
 		return d.ToString();
