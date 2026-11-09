@@ -85,11 +85,6 @@ public static partial class Extension
 	public static ArraySegment<T> Seg<T>(this T[] s) => new(s);
 	public static ArraySegment<T> Seg<T>(this T[] s, Jov j) => new(s, j.on, j.size);
 
-	public static IEnumerable<T> Enum<T>(this ReadOnlyMemory<T> s)
-	{
-		for (var x = 0; x < s.Length; x++) yield return s.Span[x];
-	}
-
 	public static bool Adds<T>(this ISet<T> s, IEnumerable<T> add)
 	{
 		if (add == null) return false;

@@ -40,7 +40,7 @@ public partial class LexGram<K>
 				foreach (var alt in wad) {
 					env.Write("[");
 					foreach (var (c, cx) in alt.Each()) {
-						if (c.one.Length > 0) env.Write($"(One)\"{c.one}\"");
+						if (c.one.size > 0) env.Write($"(One)\"{c.one}\"");
 						else env.Write($"\"{c.str}\"");
 						if (c.dup) env.Write(",..");
 						if (cx < alt.Count - 1) env.Write(",");

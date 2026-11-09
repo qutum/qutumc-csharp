@@ -8,6 +8,7 @@ global using Bytex = qutum.parser.X<byte>;
 global using JovBx = qutum.parser.Jov<qutum.parser.X<byte>>;
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -181,17 +182,23 @@ public static class ByteSet
 		(All, Line, Lines, Dec, Hex, Alpha, Word, Op) = (ALL, LINE, LINES, DEC, HEX, ALPHA, WORD, OP);
 	}
 
-	public struct One
+	public struct One : IEnumerable<char>
 	{
-		public ReadOnlyMemory<char> set;
+		ReadOnlyMemory<char> set;
 
 		public static implicit operator One(ReadOnlyMemory<char> s) => new() { set = s };
 		public static implicit operator One(Memory<char> s) => new() { set = s };
 		public static implicit operator One(string s) => s.AsMemory();
-		public static One operator +(One o, One include)
-			=> o.set.Enum().Union(include.set.Enum()).ToArray().AsMemory();
-		public static One operator -(One o, One exclude)
-			=> o.set.Enum().Except(exclude.set.Enum()).ToArray().AsMemory();
+		public static One operator +(One o, One include) => o.Union(include).ToArray().AsMemory();
+		public static One operator -(One o, One exclude) => o.Except(exclude).ToArray().AsMemory();
+
+		public readonly int size => set.Length;
+		public readonly ReadOnlySpan<char> Span => set.Span;
+		public readonly IEnumerator<char> GetEnumerator()
+		{
+			for (var x = 0; x < set.Length; x++) yield return set.Span[x];
+		}
+		readonly IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 	}
 
 	public static string Esc<K>(K k)

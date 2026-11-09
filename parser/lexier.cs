@@ -43,7 +43,7 @@ public partial class LexGram<K> where K : struct
 		// byte sequence
 		public string str;
 		// one byte set
-		public ReadOnlyMemory<char> one;
+		public ByteSet.One one;
 		// duplicate last byte of sequence, or duplicate one byte of set
 		public bool dup;
 	}
@@ -63,7 +63,7 @@ public partial class LexGram<K> where K : struct
 			foreach (var c in cons)
 				if (c is Range) a[^1] = a[^1] with { dup = true };
 				else if (c is string str) a.Add(new() { str = str });
-				else if (c is ByteSet.One one) a.Add(new() { str = "", one = one.set });
+				else if (c is ByteSet.One one) a.Add(new() { str = "", one = one });
 				else throw new($"wrong altern content {c?.GetType()}");
 			return this;
 		}
@@ -332,7 +332,7 @@ public partial class Lexier<K>
 					// build alt
 					aus[wad] = [.. w.Select((a, alt) => {
 						++alt;
-						var bz = a.Sum(b => b.str.Length + (b.one.Length > 0 ? 1 : 0));
+						var bz = a.Sum(b => b.str.Length + (b.one.size > 0 ? 1 : 0));
 						if (a.Count == 0 ? alt > 1 : bz == 0)
 							throw new($"No byte in {Kw(k, wad)}.{alt}");
 						if (bz > AltByteN)
@@ -346,7 +346,7 @@ public partial class Lexier<K>
 							for (int x = 0; x < c.str.Length; x++)
 								Byte(c.str.AsMemory(x, 1), ref u, k, wad, ++bx >= bz, ok,
 									c.dup && x == c.str.Length - 1 ? dup : null);
-							if (c.one.Length > 0)
+							if (c.one.size > 0)
 								Byte(c.one, ref u, k, wad, ++bx >= bz, ok, c.dup ? dup : null);
 						}
 						return u; // the last unit of this alt
@@ -367,8 +367,7 @@ public partial class Lexier<K>
 			return begin;
 		}
 
-		void Byte(ReadOnlyMemory<char> bs,
-			ref Unit u, K k, int wad, bool end, Unit ok, Unit dup)
+		void Byte(ByteSet.One bs, ref Unit u, K k, int wad, bool end, Unit ok, Unit dup)
 		{
 			// buid next
 			var go = u; var mode = 0; // mismatch to backward
