@@ -34,11 +34,6 @@ public interface Lexer<K, L> : IDisposable
 	IEnumerable<K> Keys(string keys);
 }
 
-public interface LexerSeg<K, L> : Lexer<K, L>
-{
-	new ArraySegment<L> Lexs(Jov<X<L>> j);
-}
-
 public class LerStr(string read) : Lexer<char, char>
 {
 	protected string read = read;
@@ -65,7 +60,7 @@ public class LerStr(string read) : Lexer<char, char>
 	public IEnumerable<char> Keys(string keys) => keys;
 }
 
-public class LerByte(byte[] read) : LexerSeg<byte, byte>
+public class LerByte(byte[] read) : Lexer<byte, byte>
 {
 	protected byte[] read = read;
 	protected Bytex loc = Bytex.No;
@@ -85,59 +80,7 @@ public class LerByte(byte[] read) : LexerSeg<byte, byte>
 	{
 		read.AsSpan(j.on, j.size).CopyTo(s); return s;
 	}
-	public ArraySegment<byte> Lexs(JovBx j) => read.Seg((Jov)j);
-	IEnumerable<byte> Lexer<byte, byte>.Lexs(JovBx j) => Lexs(j);
-
-	public IEnumerable<byte> Keys(string keys) => keys.Select(k => (byte)k);
-}
-
-public class LerByteSeg(ArraySegment<byte> read) : LexerSeg<byte, byte>
-{
-	protected ArraySegment<byte> read = read;
-	protected Bytex loc = Bytex.No;
-
-	void IDisposable.Dispose() { read = null; loc = Bytex.No; }
-
-	public bool Next() => loc.IncLess(read.Count);
-	public Bytex Loc() => loc;
-	public byte Lex() => read[loc];
-	public byte Lex(Bytex loc) => read[loc];
-
-	public virtual bool Is(byte aim) => read[loc] == aim;
-	public virtual bool Is(Bytex loc, byte aim) => read[loc] == aim;
-	public virtual bool Is(byte key, byte aim) => key == aim;
-
-	public Span<byte> Lexs(JovBx j, Span<byte> s)
-	{
-		read.AsSpan(j.on, j.size).CopyTo(s); return s;
-	}
-	public ArraySegment<byte> Lexs(JovBx j) => read.Slice(j.on, j.size);
-	IEnumerable<byte> Lexer<byte, byte>.Lexs(JovBx j) => Lexs(j);
-
-	public IEnumerable<byte> Keys(string keys) => keys.Select(k => (byte)k);
-}
-
-public class LerByteList(List<byte> read) : Lexer<byte, byte>
-{
-	protected List<byte> read = read;
-	protected Bytex loc = Bytex.No;
-
-	void IDisposable.Dispose() { read = null; loc = Bytex.No; }
-
-	public bool Next() => loc.IncLess(read.Count);
-	public Bytex Loc() => loc;
-	public byte Lex() => read[loc];
-	public byte Lex(Bytex loc) => read[loc];
-
-	public virtual bool Is(byte aim) => read[loc] == aim;
-	public virtual bool Is(Bytex loc, byte aim) => read[loc] == aim;
-	public virtual bool Is(byte key, byte aim) => key == aim;
-
-	public Span<byte> Lexs(JovBx j, Span<byte> s)
-	{
-		read.GetRange(j.on, j.size).CopyTo(s); return s;
-	}
-	public IEnumerable<byte> Lexs(JovBx j) => read.GetRange(j.on, j.size);
+	public IEnumerable<byte> Lexs(JovBx j) => new Arr<Bytex, byte>(read, j);
 
 	public IEnumerable<byte> Keys(string keys) => keys.Select(k => (byte)k);
 }

@@ -5,7 +5,7 @@
 // http://qutum.com  http://qutum.cn
 //
 global using Bytex = qutum.parser.X<byte>;
-global using Lekx = qutum.parser.X<qutum.parser.Lexi<qutum.syntax.Lek>>;
+global using Lexix = qutum.parser.X<qutum.parser.Lexi<qutum.syntax.Lek>>;
 global using JovBx = qutum.parser.Jov<qutum.parser.X<byte>>;
 
 using qutum.parser;
@@ -221,7 +221,7 @@ public sealed partial class Lexier : LexierBuf<K>
 	// results keep available
 	public override void Dispose()
 	{
-		G.buf = dump ? 65535 : 7;
+		G.buf = (X<Lexi<K>>)(dump ? 65535 : 7);
 		G.lines = lines; G.errs = errs; G.blanks = blanks;
 		base.Dispose(); G.Dispose();
 		errs.Clear();
@@ -231,15 +231,15 @@ public sealed partial class Lexier : LexierBuf<K>
 		Dispose();
 		G.Begin(read); G.Next(); gloc = G.Loc();
 		Add(K.IND, default, inds[indz = 0] = 0); // whole read is indent 0
-		soi = size; loc = default;
+		indl = size; loc = default;
 		return this;
 	}
 
 	readonly LexierGet G;
-	Lekx gloc;
+	Lexix gloc;
 	int indz; // inds size from 1
 	int[] inds = new int[50]; // {0, indent column...}
-	int soi; // start loc of indent
+	Lexix indl; // indent start lexi
 
 	public override bool Next()
 	{
@@ -306,7 +306,7 @@ public sealed partial class Lexier : LexierBuf<K>
 				&& ((k, j, v) = G.Get(ref gloc, out var _)) is var _);
 			if (!k.InGroup(K.Proem))
 				Add(K.EOL, (j.via, j.via), null);
-			soi = size; // start loc of junct indent
+			indl = size; // junct indent start lexi
 		}
 		else
 			Add(k, j, v);
@@ -331,13 +331,13 @@ public sealed partial class Lexier : LexierBuf<K>
 			}
 		// add indent
 		if (c >= IndMin) {
-			if (soi == size) // indent at start of indent, insert eol
+			if (indl == size) // indent at start lexi, insert eol
 				Add(K.EOL, (j.on, j.on), null);
 			Add(c < IndrMin ? junct ? K.INDJ : K.IND : K.INDR, j, ind);
 			indz = i;
 			if (indz >= inds.Length) Array.Resize(ref inds, inds.Length << 1);
 			inds[i] = ind;
-			soi = size;
+			indl = size;
 		}
 	}
 
@@ -350,7 +350,7 @@ public sealed partial class Lexier : LexierBuf<K>
 // lexic parser base
 internal sealed class LexierGet : Lexier<K>, Lexer<K, Lexi<K>>
 {
-	public int buf;
+	public Lexix buf;
 	public List<Lexi<K>> blanks; // [blank except single eol and indent], merged into lexis at err
 
 	public LexierGet(LexGram<K> gram) : base(gram) { errs = null; }
@@ -358,13 +358,13 @@ internal sealed class LexierGet : Lexier<K>, Lexer<K, Lexi<K>>
 	public override void Dispose()
 	{
 		base.Dispose();
-		lexs = new Lexi<K>[buf + 1];
-		lexs[^1].key = K.EOL; // eol at start of read
+		lexs = new(buf + 1);
+		lexs[buf].key = K.EOL; // eol at start of read
 		crlf = false; indb = -1; path.Clear();
 	}
 
 	public Lexi<K> left, lex, right;
-	public (K k, JovBx j, object v) Get(ref Lekx l, out bool ok)
+	public (K k, JovBx j, object v) Get(ref Lexix l, out bool ok)
 	{
 		ok = Next() || l < loc;
 		if (!ok)

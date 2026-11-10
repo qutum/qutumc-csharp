@@ -89,7 +89,7 @@ public partial class Lexier<K>
 	}
 
 	public string Dumper(Func<object, object> dumper = null)
-		=> string.Join(" ", lexs.Seg((0, loc)).Select(t => t.Dumper(dumper)));
+		=> string.Join(" ", lexs.Seg(0, loc).Select(t => t.Dumper(dumper)));
 }
 
 public partial class LinkTree<T>

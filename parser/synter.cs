@@ -133,7 +133,7 @@ internal class SynStack<L>
 
 // syntax parser
 public class Synter<K, N, T, Ler> : Synter<K, Lexi<K>, N, T, Ler>
-	where K : struct where T : Synt<N, T, Lexi<K>>, new() where Ler : class, LexerSeg<K, Lexi<K>>
+	where K : struct where T : Synt<N, T, Lexi<K>>, new() where Ler : class, Lexer<K, Lexi<K>>
 {
 	public Synter(Func<Ler, Kord> keyOrd, Func<N, Nord> nameOrd,
 		SynAlt<N>[] alts, SynForm[] forms, Kord[] recKs = null)

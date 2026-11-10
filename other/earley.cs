@@ -38,7 +38,7 @@ public enum Qua : byte { Opt = 0, One = 1, Any = 2, More = 3 };
 
 // syntax parser
 public class Earley<K, N, T, Ler> : Earley<K, Lexi<K>, N, T, Ler>
-	where K : struct where T : Esynt<N, T>, new() where Ler : LexerSeg<K, Lexi<K>>
+	where K : struct where T : Esynt<N, T>, new() where Ler : Lexer<K, Lexi<K>>
 {
 	public Earley(string gram, Ler ler) : base(gram, ler) { }
 }

@@ -214,29 +214,29 @@ public partial class Lexier<K> : LexierBuf<K> where K : struct
 	protected virtual void Eor(Bytex via) { }
 }
 
-public abstract class LexierBuf<K> : LexerSeg<K, Lexi<K>> where K : struct
+public abstract class LexierBuf<K> : Lexer<K, Lexi<K>> where K : struct
 {
 	protected X<Lexi<K>> size, loc; // lexs size, current loc
-	protected Lexi<K>[] lexs;
+	protected Arr<X<Lexi<K>>, Lexi<K>> lexs;
 	public List<Bytex> lines = []; // [0, read.loc after eol...], assume read.loc is byte index
 	public List<Lexi<K>> errs = []; // [error lexi]: not null, merge to lexs: null
 
 	public virtual void Dispose()
 	{
-		size = default; loc = X<Lexi<K>>.No; lexs = [];
+		size = default; loc = X<Lexi<K>>.No; lexs = new();
 		lines.Clear(); lines.Add(default); errs?.Clear();
 	}
 
 	protected virtual void Add(Lexi<K> lex)
 	{
-		if (size == lexs.Length) Array.Resize(ref lexs, int.Max(lexs.Length << 1, 65536));
+		if (size == lexs.size) lexs.Resize((X<Lexi<K>>)int.Max(lexs.size << 1, 65536));
 		lexs[size] = lex; size += 1;
 	}
 
 	public abstract bool Next();
 	public X<Lexi<K>> Loc() => loc;
 	public Lexi<K> Lex() => lexs[loc];
-	public Lexi<K> Lex(X<Lexi<K>> loc) => lexs.AsSpan(0, size)[loc];
+	public Lexi<K> Lex(X<Lexi<K>> loc) => lexs.Span[0..+size][loc];
 
 	public bool Is(K aim) => Is(lexs[loc].key, aim);
 	public bool Is(X<Lexi<K>> loc, K aim) => Is(Lex(loc).key, aim);
@@ -245,15 +245,14 @@ public abstract class LexierBuf<K> : LexerSeg<K, Lexi<K>> where K : struct
 	public Span<Lexi<K>> Lexs(Jov<X<Lexi<K>>> j, Span<Lexi<K>> s)
 	{
 		if (j.on >= size || j.via > size) throw new IndexOutOfRangeException();
-		lexs.AsSpan(j.on, j.size).CopyTo(s);
+		lexs.Span[j.range].CopyTo(s);
 		return s;
 	}
-	public ArraySegment<Lexi<K>> Lexs(Jov<X<Lexi<K>>> j)
+	public IEnumerable<Lexi<K>> Lexs(Jov<X<Lexi<K>>> j)
 	{
 		if (j.via > size) throw new IndexOutOfRangeException();
-		return lexs.Seg((Jov)j);
+		return lexs.Seg(j);
 	}
-	IEnumerable<Lexi<K>> Lexer<K, Lexi<K>>.Lexs(Jov<X<Lexi<K>>> j) => Lexs(j);
 
 	public static IEnumerable<K> Keys_(string keys) => [Enum.Parse<K>(keys)];
 	public IEnumerable<K> Keys(string keys) => Keys_(keys);

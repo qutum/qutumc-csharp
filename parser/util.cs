@@ -19,8 +19,8 @@ using System.Text;
 namespace qutum.parser;
 
 // typed index, meaningless _ is for distinguish only
-public struct X<_> : IAdditionOperators<X<_>, int, X<_>>, ISubtractionOperators<X<_>, X<_>, X<_>>,
-	IComparable<X<_>>, IUnaryPlusOperators<X<_>, int>
+public struct X<_> : IAdditionOperators<X<_>, int, X<_>>, IBitwiseOperators<X<_>, X<_>, X<_>>,
+	IUnaryPlusOperators<X<_>, int>, IComparable<X<_>>
 {
 	int x;
 	public readonly bool Yes => x != -1;
@@ -33,21 +33,24 @@ public struct X<_> : IAdditionOperators<X<_>, int, X<_>>, ISubtractionOperators<
 	public static X<_> operator -(X<_> a, X<_> b) => (X<_>)(a.x - b.x);
 	public static X<_> operator +(X<_> a, int b) => (X<_>)(a.x + b);
 	public static X<_> operator -(X<_> a, int b) => (X<_>)(a.x - b);
-	public readonly int CompareTo(X<_> that) => x - that.x;
+	public static X<_> operator |(X<_> a, X<_> b) => (X<_>)(a.x | b.x);
+	public static X<_> operator &(X<_> a, X<_> b) => (X<_>)(a.x & b.x);
+	public static X<_> operator ^(X<_> a, X<_> b) => (X<_>)(a.x ^ b.x);
+	public static X<_> operator ~(X<_> a) => (X<_>)~a.x;
 	public static int operator +(X<_> a) => a.x;
+	public readonly int CompareTo(X<_> that) => x - that.x;
 
 	public override readonly string ToString() => x.ToString();
 }
 
 // jot of data to inclusive end, [on,to], default size should be 1
-public struct Jot<X> where X : IAdditionOperators<X, int, X>, ISubtractionOperators<X, X, X>,
-	IComparable<X>, IUnaryPlusOperators<X, int>
+public struct Jot<X> where X : IAdditionOperators<X, int, X>, IUnaryPlusOperators<X, int>
 {
 	public X on; // index on the first, [on]==first
 	public X to; // inclusive index to the last, last==[to]
 
-	public readonly X size => to - on + 1;
-	public readonly bool any => on.CompareTo(to) <= 0;
+	public readonly X size => to + -+on + 1;
+	public readonly bool any => +on <= +to;
 	public readonly Range range => +on..+(to + 1);
 	public readonly void Deconstruct(out X on, out X to) => (on, to) = (this.on, this.to);
 
@@ -57,14 +60,13 @@ public struct Jot<X> where X : IAdditionOperators<X, int, X>, ISubtractionOperat
 	public static explicit operator Jot<int>(Jot<X> j) => (+j.on, +j.to);
 }
 // jot of data via exclusive end, [on,via), default size should be 0
-public struct Jov<X> where X : IAdditionOperators<X, int, X>, ISubtractionOperators<X, X, X>,
-	IComparable<X>, IUnaryPlusOperators<X, int>
+public struct Jov<X> where X : IAdditionOperators<X, int, X>, IUnaryPlusOperators<X, int>
 {
 	public X on; // index on the first, [on]==first
 	public X via; // exclusive index via the last, last==[via-1]
 
-	public readonly X size => via - on;
-	public readonly bool any => on.CompareTo(via) < 0;
+	public readonly X size => via + -+on;
+	public readonly bool any => +on < +via;
 	public readonly Range range => +on..+via;
 	public readonly void Deconstruct(out X on, out X via) => (on, via) = (this.on, this.via);
 
@@ -74,6 +76,40 @@ public struct Jov<X> where X : IAdditionOperators<X, int, X>, ISubtractionOperat
 	public static explicit operator Jov<int>(Jov<X> j) => (+j.on, +j.via);
 }
 
+public struct Arr<X, T> : IEnumerable<T> where X : IAdditionOperators<X, int, X>, IUnaryPlusOperators<X, int>
+{
+	public T[] s;
+	public Jov<X> j;
+	public Arr() => s = [];
+	public Arr(X size) : this(+size > 0 ? new T[+size] : []) { }
+	public Arr(X size, Jov<X> j) : this(+size > 0 ? new T[+size] : [], j) { }
+	public Arr(T[] s) { this.s = s; j = (default, default(X) + s.Length); }
+	public Arr(T[] s, Jov<X> j) { this.s = s; this.j = j; _ = Span; }
+
+	public readonly X size => j.size;
+	public readonly ref T this[X x] { get => ref Span[+x]; }
+	public readonly bool full => +j.on == 0 && +j.via == s.Length;
+	public Arr<X, T> Resize(X size, bool keepJ = false) => Resize(size, keepJ ? j : (default, size));
+	public Arr<X, T> Resize(X size, Jov<X> j)
+	{
+		Array.Resize(ref s, +size); this.j = j; _ = Span; return this;
+	}
+
+	public readonly Span<T> Span => ((Span<T>)s)[j.range];
+	public readonly Arr<X, T> Seg(Jov<X> j) => new(s, (this.j.on + +j.on, this.j.on + +j.via));
+	public readonly Arr<X, T> Seg(int on, X via) => Seg((default(X) + on, via));
+
+	public readonly IEnumerator<T> GetEnumerator()
+	{
+		for (int x = +j.on, v = +j.via; x < v; x++) yield return s[x];
+	}
+	readonly IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+	public readonly IEnumerable<(T d, X x)> Each(X offset = default)
+	{
+		for (int x = +j.on, v = +j.via; x < v; x++) yield return (s[x], offset + x);
+	}
+}
+
 public static partial class Extension
 {
 	public static Jot<X<_>> X<_>(this Jot j) => ((X<_>)j.on, (X<_>)j.to);
@@ -81,9 +117,6 @@ public static partial class Extension
 
 	public static bool IncLess(this ref int d, int z) => ++d < z || (d = z) < z;
 	public static bool IncLess<_>(this ref X<_> d, int z) => (d += 1) < z || (d = (X<_>)z) < z;
-
-	public static ArraySegment<T> Seg<T>(this T[] s) => new(s);
-	public static ArraySegment<T> Seg<T>(this T[] s, Jov j) => new(s, j.on, j.size);
 
 	public static bool Adds<T>(this ISet<T> s, IEnumerable<T> add)
 	{
