@@ -43,7 +43,7 @@ public partial class LexGram<K>
 						if (c.one.size > 0) env.Write($"(One)\"{c.one}\"");
 						else env.Write($"\"{c.str}\"");
 						if (c.dup) env.Write(",..");
-						if (cx < alt.Count - 1) env.Write(",");
+						if (cx < alt.size - 1) env.Write(",");
 					}
 					env.Write(alt.loop ? "].loop" : "]");
 				}
@@ -206,7 +206,7 @@ public partial class Synter<K, L, N, T, Ler>
 			StrMake s = new(); Altx r;
 			if (dumper != Dumper)
 				s += dumper(d);
-			if (f.other.Yes)
+			if (f.other.yes)
 				_ = s - '\n' + "  redu " + (r = SynForm.Redu(f.other)) + " " + alts[r];
 			foreach (var (g, k) in f.goKs.Yes())
 				_ = s - '\n' + Dumper(k) + (g > Formx.No ? s + " shift " + g
@@ -219,14 +219,14 @@ public partial class Synter<K, L, N, T, Ler>
 		}
 		if (dump > 0 && d is T t) {
 			StrMake s = default;
-			if (t.j.on >= 0 && t.dump is not Dumps.Str && dump >= 2) {
+			if (t.j.on.zpos && t.dump is not Dumps.Str && dump >= 2) {
 				_ = (s = new()) + (t.dump ?? t.name.ToString()) + " :";
 				foreach (var lex in ler.Lexs(t.j))
 					_ = s + ' ' + lex;
 				t.dump = (Dumps.Str)(string)s;
 				s.s.Clear();
 			}
-			return t.Dumper((ler as LexierBuf<K>)?.LineCol((Jov<X<Lexi<K>>>)(object)t.j) is var (l, c)
+			return t.Dumper((ler as LexierArr<K>)?.LineCol((Jov<X<Lexi<K>>>)(object)t.j) is var (l, c)
 				? (s.s != null ? s : new()) + l.on + '.' + c.on + ':' + l.to + '.' + c.via
 				: s, Dumper);
 		}
@@ -243,9 +243,9 @@ public partial class SynGram<K, N>
 			var s = new StrMake() + name + " =";
 			foreach (var c in this)
 				s = s + ' ' + SerMaker<K, N>.Dumper_(c);
-			return s + "  " + (int)clash switch { -1 => "", -2 => "<", <= -3 => ">", _ => "^" }
+			return s + "  " + +clash switch { -1 => "", -2 => "<", <= -3 => ">", _ => "^" }
 				+ (rec ? "!!" : "") + synt switch { 0 => "", < 0 => "-", 2 => "(", 3 => ")", _ => "+" }
-				+ (lex.Yes ? s + '.' + lex : s) + ' ' + label;
+				+ (lex.yes ? s + '.' + lex : s) + ' ' + label;
 		}
 	}
 }
@@ -276,7 +276,7 @@ public partial class SerMaker<K, N>
 	{
 		if (d is SynForm f) {
 			StrMake s = new();
-			foreach (var (a, want, heads, clo) in forms[f.index].Is)
+			foreach (var (a, want, heads, clo) in forms[+f.index].Is)
 				_ = s - '\n' + want + "_ " + a + "  " + Dumper_((KeySet(heads), s)) + "  :" + clo;
 			return s;
 		}
@@ -295,7 +295,7 @@ public partial class SerMaker<K, N>
 			env.WriteLine(detail ? $"clashes: {clashs.Count} ({solvez} solved)"
 						: $"unsolved clashes: {clashs.Count} (besides {solvez} solved)");
 			foreach (var ((c, (keys, go)), cx) in clashs.Each(1)) {
-				env.Write(cx + (go.Yes ? " :: " : "  : "));
+				env.Write(cx + (go.yes ? " :: " : "  : "));
 				env.WriteLine(Dumper_(KeySet(keys)));
 				using var _ = EnvWriter.Indent("\t\t");
 				foreach (var a in c.redus)

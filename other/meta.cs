@@ -19,9 +19,9 @@ using Set = ByteSet;
 
 sealed class MetaStr(string read) : LerStr(read)
 {
-	public override bool Is(char aim) => Is(read[loc], aim);
+	public override bool Is(char aim) => Is(read[+loc], aim);
 
-	public override bool Is(X<char> loc, char aim) => Is(read[loc], aim);
+	public override bool Is(X<char> loc, char aim) => Is(read[+loc], aim);
 
 	// for meta grammar
 	public override bool Is(char k, char aim) =>
@@ -129,7 +129,7 @@ public static class MetaLex
 			throw e;
 		}
 		LexGram<K> g = new();
-		var es = new object[Lexier<K>.AltByteN << 1];
+		var es = new object[+Lexier<K>.AltBytez << 1];
 		// build prod
 		foreach (var prod in top) {
 			var k = Keys(meta.ler.Lexs(prod.head.j.X<char>())).Single();
@@ -147,8 +147,8 @@ public static class MetaLex
 					// build elems
 					var bytes = a.Where(t => t.name == "byte");
 					var bz = bytes.Count();
-					if (bz > Lexier<K>.AltByteN)
-						throw new($"{k}.{wad}.{alt} exceeds {Lexier<K>.AltByteN} bytes :"
+					if (bz > +Lexier<K>.AltBytez)
+						throw new($"{k}.{wad}.{alt} exceeds {Lexier<K>.AltBytez} bytes :"
 							+ meta.ler.Lexs(a.j.X<char>()));
 					var ez = 0;
 					foreach (var (b, bx) in bytes.Each())

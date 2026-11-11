@@ -29,8 +29,8 @@ public readonly struct Ser(SyntStr t, SynterStr s)
 		IsNotNull(t);
 		AreEqual(err, t.err);
 		if (name != null) AreEqual(name, t.name);
-		if (j?.on >= 0) AreEqual(j?.on, t.j.on);
-		if (j?.via >= 0) AreEqual(j?.via, t.j.via);
+		if (j?.on >= 0) AreEqual(j?.on, +t.j.on);
+		if (j?.via >= 0) AreEqual(j?.via, +t.j.via);
 		if (err != 0 && d is string aim && t.info?.ToString() is string test) {
 			var ts = test.Split(SerMaker<char, string>.ErrMore);
 			var As = aim.Split("  ");
@@ -77,29 +77,29 @@ public class TestSynter : IDisposable
 
 	internal SynterStr ser;
 
-	void NewSer(string Alts, Kord[] keys, Nord[] names, (int[] goKs, int[] goNs)[] forms)
+	void NewSer(string alts, Kord[] keys, Nord[] names, (int[] goKs, int[] goNs)[] forms)
 	{
-		var alts = Alts.Split('\n', ' ').Select(a => new SynAlt<string> {
+		var As = alts.Split('\n', ' ').Select(a => new SynAlt<string> {
 			name = a[0..1],
 			size = (Conx)a.Length - 2,
 			lex = (Conx)a.IndexOfAny(keys, 2) - 2,
 			synt = a[1] switch { '+' => 1, '-' => -1, _ => 0 },
 			syntName = a[0..1],
-		}).ToArray();
-		var Fs = new SynForm[forms.Length];
-		foreach (var (f, fx) in forms.Each())
-			if (f.goKs != null) {
+		}).ToArr((Altx)0);
+		Arr<Formx, SynForm> Fs = new((Formx)forms.Length);
+		foreach (var (_, fx) in Fs.Each())
+			if (forms[+fx] is var f && f.goKs != null) {
 				var F = Fs[fx] = new();
-				F.goNs.X = [];
-				Array.Sort(F.goKs.O = keys[..], F.goKs.X = [.. f.goKs.Select(x => (Formx)x)]);
+				F.goNs.F = [];
+				Array.Sort(F.goKs.O = keys[..], F.goKs.F = [.. f.goKs.Select(x => (Formx)x)]);
 				if (f.goNs != null)
-					Array.Sort(F.goNs.O = names[..], F.goNs.X = [.. f.goNs.Select(x => (Formx)x)]);
+					Array.Sort(F.goNs.O = names[..], F.goNs.F = [.. f.goNs.Select(x => (Formx)x)]);
 			}
-		ser = new(name => name[0], alts, Fs) { dump = 3 };
+		ser = new(name => name[0], new(As, Fs)) { dump = 3 };
 	}
 	const int _ = -1;
 	static readonly int r0 = R(0), r1 = R(1), r2 = R(2), r3 = R(3), r4 = R(4), r5 = R(5);
-	static int R(int alt) => SynForm.Redu((Altx)alt);
+	static int R(int alt) => +SynForm.Redu((Altx)alt);
 
 	public void True(string read) => IsTrue(Begin(read).Check());
 	public void False(string read) => IsFalse(Begin(read).Check());

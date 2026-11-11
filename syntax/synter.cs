@@ -87,19 +87,17 @@ public partial class Synter : Synter<K, N, Synt, Lexier>
 		;
 		// make
 		var m = new SerMaker<K, N>(gram, LexIs.Ordin, NameOrd);
-		(alts, forms, recKs) = m.Make(out var _);
+		New = m.Make(out var _);
 #if DEBUG
 		mer = m;
 #endif
 	}
 
 	static readonly Func<N, Nord> NameOrd = n => (Nord)n;
-	static readonly SynAlt<N>[] alts;
-	static readonly SynForm[] forms;
-	static readonly char[] recKs;
+	static readonly SynterNew<N> New;
 	static readonly SerMaker<K, N> mer;
 
-	public Synter() : base(Lexier.Ordin, NameOrd, alts, forms, recKs)
+	public Synter() : base(Lexier.Ordin, NameOrd, New)
 	{
 		recover = true;
 		synt = false;

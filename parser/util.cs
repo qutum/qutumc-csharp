@@ -18,17 +18,32 @@ using System.Text;
 
 namespace qutum.parser;
 
+#pragma warning disable CS0660 // Type defines operator == or operator != but does not override Object.Equals(object o)
+#pragma warning disable CS0661 // Type defines operator == or operator != but does not override Object.GetHashCode()
 // typed index, meaningless _ is for distinguish only
-public struct X<_> : IAdditionOperators<X<_>, int, X<_>>, IBitwiseOperators<X<_>, X<_>, X<_>>,
-	IUnaryPlusOperators<X<_>, int>, IComparable<X<_>>
+public struct X<_> : IUnaryPlusOperators<X<_>, int>, IComparisonOperators<X<_>, X<_>, bool>,
+	IAdditionOperators<X<_>, int, X<_>>, IBitwiseOperators<X<_>, X<_>, X<_>>, IComparable<X<_>>
 {
 	int x;
-	public readonly bool Yes => x != -1;
+	public readonly bool zero => x == 0;
+	public readonly bool pos => x > 0;
+	public readonly bool neg => x < 0;
+	public readonly bool zpos => x >= 0;
+	public readonly bool zneg => x <= 0;
+	public readonly bool yes => x != -1;
+	public readonly bool no => x == -1;
 	public static readonly X<_> No = (X<_>)(-1);
 
 	public static explicit operator X<_>(int x) => new() { x = x };
-	public static implicit operator int(X<_> x) => x.x;
+	public override readonly string ToString() => x.ToString();
 
+	public static int operator +(X<_> a) => a.x;
+	public static bool operator ==(X<_> a, X<_> b) => a.x == b.x;
+	public static bool operator !=(X<_> a, X<_> b) => a.x != b.x;
+	public static bool operator <(X<_> a, X<_> b) => a.x < b.x;
+	public static bool operator <=(X<_> a, X<_> b) => a.x <= b.x;
+	public static bool operator >(X<_> a, X<_> b) => a.x > b.x;
+	public static bool operator >=(X<_> a, X<_> b) => a.x >= b.x;
 	public static X<_> operator +(X<_> a, X<_> b) => (X<_>)(a.x + b.x);
 	public static X<_> operator -(X<_> a, X<_> b) => (X<_>)(a.x - b.x);
 	public static X<_> operator +(X<_> a, int b) => (X<_>)(a.x + b);
@@ -37,14 +52,13 @@ public struct X<_> : IAdditionOperators<X<_>, int, X<_>>, IBitwiseOperators<X<_>
 	public static X<_> operator &(X<_> a, X<_> b) => (X<_>)(a.x & b.x);
 	public static X<_> operator ^(X<_> a, X<_> b) => (X<_>)(a.x ^ b.x);
 	public static X<_> operator ~(X<_> a) => (X<_>)~a.x;
-	public static int operator +(X<_> a) => a.x;
 	public readonly int CompareTo(X<_> that) => x - that.x;
-
-	public override readonly string ToString() => x.ToString();
 }
+#pragma warning restore CS0661 // Type defines operator == or operator != but does not override Object.GetHashCode()
+#pragma warning restore CS0660 // Type defines operator == or operator != but does not override Object.Equals(object o)
 
 // jot of data to inclusive end, [on,to], default size should be 1
-public struct Jot<X> where X : IAdditionOperators<X, int, X>, IUnaryPlusOperators<X, int>
+public struct Jot<X> : IEnumerable<X> where X : IUnaryPlusOperators<X, int>, IAdditionOperators<X, int, X>
 {
 	public X on; // index on the first, [on]==first
 	public X to; // inclusive index to the last, last==[to]
@@ -58,9 +72,12 @@ public struct Jot<X> where X : IAdditionOperators<X, int, X>, IUnaryPlusOperator
 	public static implicit operator (X on, X to)(Jot<X> j) => (j.on, j.to);
 	public static implicit operator Jot<X>(Jov<X> j) => (j.on, j.via + -1);
 	public static explicit operator Jot<int>(Jot<X> j) => (+j.on, +j.to);
+
+	public readonly IEnumerator<X> GetEnumerator() { for (X x = on; +x <= +to; x += 1) yield return x; }
+	readonly IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 }
 // jot of data via exclusive end, [on,via), default size should be 0
-public struct Jov<X> where X : IAdditionOperators<X, int, X>, IUnaryPlusOperators<X, int>
+public struct Jov<X> : IEnumerable<X> where X : IUnaryPlusOperators<X, int>, IAdditionOperators<X, int, X>
 {
 	public X on; // index on the first, [on]==first
 	public X via; // exclusive index via the last, last==[via-1]
@@ -74,25 +91,52 @@ public struct Jov<X> where X : IAdditionOperators<X, int, X>, IUnaryPlusOperator
 	public static implicit operator (X on, X via)(Jov<X> j) => (j.on, j.via);
 	public static implicit operator Jov<X>(Jot<X> j) => (j.on, j.to + 1);
 	public static explicit operator Jov<int>(Jov<X> j) => (+j.on, +j.via);
+
+	public readonly IEnumerator<X> GetEnumerator() { for (X x = on; +x < +via; x += 1) yield return x; }
+	readonly IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 }
 
-public struct Arr<X, T> : IEnumerable<T> where X : IAdditionOperators<X, int, X>, IUnaryPlusOperators<X, int>
+public struct Arr<X, T> : IEnumerable<T> where X : IUnaryPlusOperators<X, int>, IAdditionOperators<X, int, X>
 {
 	public T[] s;
 	public Jov<X> j;
-	public Arr() => s = [];
-	public Arr(X size) : this(+size > 0 ? new T[+size] : []) { }
-	public Arr(X size, Jov<X> j) : this(+size > 0 ? new T[+size] : [], j) { }
-	public Arr(T[] s) { this.s = s; j = (default, default(X) + s.Length); }
-	public Arr(T[] s, Jov<X> j) { this.s = s; this.j = j; _ = Span; }
-
 	public readonly X size => j.size;
 	public readonly ref T this[X x] { get => ref Span[+x]; }
-	public readonly bool full => +j.on == 0 && +j.via == s.Length;
+	public readonly ref T last => ref Span[^1];
+	public readonly ref T Last(X x) => ref Span[^+x];
+	public readonly T[] S => s;
+
+	public Arr() => s = [];
+	public Arr(X size) : this(+size > 0 ? new T[+size] : []) { }
+	public Arr(T[] s) { this.s = s; j = (default, default(X) + s.Length); }
+	public Arr(X size, Jov<X> j) : this(+size > 0 ? new T[+size] : [], j) { }
+	public Arr(T[] s, Jov<X> j) { this.s = s; this.j = j; _ = Span; }
+
+	public Arr<X, T> Add(T d)
+	{
+		if (+j.via >= s.Length)
+			Array.Resize(ref s, +j.via + (s.Length < 16384 ? int.Max(s.Length, 1024) : s.Length >> 1));
+		s[+j.via] = d; j.via += 1;
+		return this;
+	}
+	public Arr<X, T> Remove(X x) => Remove((x, x + 1));
+	public Arr<X, T> Remove(Jov<X> j_)
+	{
+		if (Seg(j_) is { j: var seg } && seg.any) {
+			Array.Copy(s, +seg.via, s, +seg.on, +j.via - +seg.via);
+			j = (j.on, j.via + -+seg.size);
+		}
+		return this;
+	}
 	public Arr<X, T> Resize(X size, bool keepJ = false) => Resize(size, keepJ ? j : (default, size));
 	public Arr<X, T> Resize(X size, Jov<X> j)
 	{
 		Array.Resize(ref s, +size); this.j = j; _ = Span; return this;
+	}
+	public Arr<X, T> Clear()
+	{
+		if (s.Length <= 1024) Array.Clear(s); else s = [];
+		j = default; return this;
 	}
 
 	public readonly Span<T> Span => ((Span<T>)s)[j.range];
@@ -108,6 +152,27 @@ public struct Arr<X, T> : IEnumerable<T> where X : IAdditionOperators<X, int, X>
 	{
 		for (int x = +j.on, v = +j.via; x < v; x++) yield return (s[x], offset + x);
 	}
+
+	public readonly X BinFind(T v, bool xNo = true) =>
+		default(X) + (Array.BinarySearch(s, +j.on, +j.size, v) is var x && x < 0 && xNo ? -1 : x);
+}
+public class List<X, T> : IEnumerable<T> where X : IUnaryPlusOperators<X, int>, IAdditionOperators<X, int, X>
+{
+	Arr<X, T> s;
+	public X size => s.size;
+	public ref T this[X x] { get => ref s[x]; }
+	public ref T last => ref s.last;
+	public ref T Last(X x) => ref s.Last(x);
+
+	public List(X size = default) => s = new(size);
+	public List<X, T> Add(T d) { s.Add(d); return this; }
+	public List<X, T> Remove(X x) { s.Remove(x); return this; }
+	public List<X, T> Remove(Jov<X> j) { s.Remove(j); return this; }
+	public virtual List<X, T> Clear() { s.Clear(); return this; }
+
+	public IEnumerator<T> GetEnumerator() => s.GetEnumerator();
+	IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+	public IEnumerable<(T d, X x)> Each(X offset = default) => s.Each(offset);
 }
 
 public static partial class Extension
@@ -115,8 +180,10 @@ public static partial class Extension
 	public static Jot<X<_>> X<_>(this Jot j) => ((X<_>)j.on, (X<_>)j.to);
 	public static Jov<X<_>> X<_>(this Jov j) => ((X<_>)j.on, (X<_>)j.via);
 
+	public static X<_> Min<_>(this X<_> a, X<_> b) => a < b ? a : b;
+	public static X<_> Max<_>(this X<_> a, X<_> b) => a < b ? b : a;
 	public static bool IncLess(this ref int d, int z) => ++d < z || (d = z) < z;
-	public static bool IncLess<_>(this ref X<_> d, int z) => (d += 1) < z || (d = (X<_>)z) < z;
+	public static bool IncLess<_>(this ref X<_> d, int z) => +(d += 1) < z || +(d = (X<_>)z) < z;
 
 	public static bool Adds<T>(this ISet<T> s, IEnumerable<T> add)
 	{
@@ -130,6 +197,14 @@ public static partial class Extension
 		{
 			foreach (var d in s) yield return (d, offset++);
 		}
+		public Arr<X, T> ToArr<X>(X offset = default)
+			where X : IUnaryPlusOperators<X, int>, IAdditionOperators<X, int, X>
+		{
+			Arr<X, T> a = new(s is ICollection<T> c ? offset + c.Count : offset);
+			foreach (var d in s) a.Add(d);
+			return a;
+		}
+
 		public Dictionary<T, V> ToDict<V>(Func<T, V, V> value)
 		{
 			var kv = new Dictionary<T, V>();
@@ -365,12 +440,12 @@ public struct BitSet<_> : IEnumerable<X<_>>
 	public BitSet set;
 	public readonly bool Empty => set.Empty;
 
-	public BitSet<_> Use(int max) { set.Use(max); return this; }
-	public readonly BitSet<_> Or(X<_> x) { set.Or(x); return this; }
+	public BitSet<_> Use(X<_> max) { set.Use(+max); return this; }
+	public readonly BitSet<_> Or(X<_> x) { set.Or(+x); return this; }
 	public readonly bool Or(BitSet<_> s) => set.Or(s.set);
 	public readonly BitSet<_> Or(IEnumerable<X<_>> s)
 	{
-		foreach (var x in s ?? []) set.Or(x); return this;
+		foreach (var x in s ?? []) set.Or(+x); return this;
 	}
 	public readonly BitSet<_> NewOr(BitSet<_> s, bool may = false)
 	{
@@ -378,7 +453,7 @@ public struct BitSet<_> : IEnumerable<X<_>>
 		return set.bits == this.set.bits ? this : new() { set = set };
 	}
 	public readonly bool Same(BitSet<_> s) => set.Same(s.set);
-	public static BitSet<_> One(int max, X<_> x) => new BitSet<_>().Use(max).Or(x);
+	public static BitSet<_> One(X<_> max, X<_> x) => new BitSet<_>().Use(max).Or(x);
 
 	public readonly X<_> Min() => (X<_>)set.Min();
 	public readonly X<_> Max() => (X<_>)set.Max();

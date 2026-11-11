@@ -149,7 +149,7 @@ public enum Lek : int
 }
 
 // lexic parser
-public sealed partial class Lexier : LexierBuf<K>
+public sealed partial class Lexier : LexierArr<K>
 {
 	static readonly LexGram<K> Grammar = new LexGram<K>()
 		.k(K.INP).w[","].k(K.QUO).w["="]
@@ -221,7 +221,7 @@ public sealed partial class Lexier : LexierBuf<K>
 	// results keep available
 	public override void Dispose()
 	{
-		G.buf = (X<Lexi<K>>)(dump ? 65535 : 7);
+		G.bufz = (Lexix)(dump ? 65535 : 7);
 		G.lines = lines; G.errs = errs; G.blanks = blanks;
 		base.Dispose(); G.Dispose();
 		errs.Clear();
@@ -231,7 +231,7 @@ public sealed partial class Lexier : LexierBuf<K>
 		Dispose();
 		G.Begin(read); G.Next(); gloc = G.Loc();
 		Add(K.IND, default, inds[indz = 0] = 0); // whole read is indent 0
-		indl = size; loc = default;
+		indl = lexs.size; loc = default;
 		return this;
 	}
 
@@ -243,11 +243,11 @@ public sealed partial class Lexier : LexierBuf<K>
 
 	public override bool Next()
 	{
-		if (loc.IncLess(size)) return true;
-		var siz = size;
+		if (loc.IncLess(+lexs.size)) return true;
+		var siz = lexs.size;
 	Next:
-		if (siz < size || G.Get(ref gloc, out var ok) is var (k, j, v) && !ok)
-			return loc < size;
+		if (siz < lexs.size || G.Get(ref gloc, out var ok) is var (k, j, v) && !ok)
+			return loc < lexs.size;
 
 		switch (k) {
 
@@ -306,7 +306,7 @@ public sealed partial class Lexier : LexierBuf<K>
 				&& ((k, j, v) = G.Get(ref gloc, out var _)) is var _);
 			if (!k.InGroup(K.Proem))
 				Add(K.EOL, (j.via, j.via), null);
-			indl = size; // junct indent start lexi
+			indl = lexs.size; // junct indent start lexi
 		}
 		else
 			Add(k, j, v);
@@ -331,17 +331,17 @@ public sealed partial class Lexier : LexierBuf<K>
 			}
 		// add indent
 		if (c >= IndMin) {
-			if (indl == size) // indent at start lexi, insert eol
+			if (indl == lexs.size) // indent at start lexi, insert eol
 				Add(K.EOL, (j.on, j.on), null);
 			Add(c < IndrMin ? junct ? K.INDJ : K.IND : K.INDR, j, ind);
 			indz = i;
 			if (indz >= inds.Length) Array.Resize(ref inds, inds.Length << 1);
 			inds[i] = ind;
-			indl = size;
+			indl = lexs.size;
 		}
 	}
 
-	Lexi<K> Left => lexs[size - 1];
+	Lexi<K> Left => lexs.last;
 
 	public static Kord Ordin(Lexier ler) => ler.lexs[ler.loc].key.Ordin();
 	public override bool Is(K key, K aim) => key.Is(aim);
@@ -350,7 +350,8 @@ public sealed partial class Lexier : LexierBuf<K>
 // lexic parser base
 internal sealed class LexierGet : Lexier<K>, Lexer<K, Lexi<K>>
 {
-	public Lexix buf;
+	public Lexix bufz;
+	ref Lexi<K> Buf(Lexix x) => ref lexs.S[+x & +bufz];
 	public List<Lexi<K>> blanks; // [blank except single eol and indent], merged into lexis at err
 
 	public LexierGet(LexGram<K> gram) : base(gram) { errs = null; }
@@ -358,8 +359,8 @@ internal sealed class LexierGet : Lexier<K>, Lexer<K, Lexi<K>>
 	public override void Dispose()
 	{
 		base.Dispose();
-		lexs = new(buf + 1);
-		lexs[buf].key = K.EOL; // eol at start of read
+		lexs = new(bufz + 1, default);
+		Buf(lexs.size - 1).key = K.EOL; // eol at start of read
 		crlf = false; indb = -1; path.Clear();
 	}
 
@@ -369,11 +370,11 @@ internal sealed class LexierGet : Lexier<K>, Lexer<K, Lexi<K>>
 		ok = Next() || l < loc;
 		if (!ok)
 			return default;
-		left = lexs[l - 1 & buf]; lex = lexs[l & buf]; l += 1; right = lexs[l & buf];
+		left = Buf(l - 1); lex = Buf(l); l += 1; right = Buf(l);
 		return (lex.key, lex.j, lex.value);
 	}
 
-	protected override void Add(Lexi<K> lexi) { lexs[size & buf] = lexi; size += 1; }
+	protected override void Add(Lexi<K> lexi) { Buf(lexs.size) = lexi; lexs.j.via += 1; }
 	public new void Error(K k, JovBx j, object value) => base.Error(k, j, value);
 	public void Blank(K k, JovBx j, object value) => blanks?.Add(
 		new() { key = k, j = j, value = value, err = 1 });
@@ -386,30 +387,30 @@ internal sealed class LexierGet : Lexier<K>, Lexer<K, Lexi<K>>
 	}
 	protected override void Eor(Bytex via)
 	{
-		if (size == 0 || lexs[size - 1 & buf].key != K.EOL)
+		if (lexs.size.zero || Buf(lexs.size - 1).key != K.EOL)
 			Lexi(K.EOL, (via, via), null); // eol at end of read
 		Lexi(default, (via, via), null);
 	}
 
 	Bytex bz; // buffer size
-	byte[] bs = new byte[4096]; // long read buffer
+	Arr<Bytex, byte> bs = new((Bytex)4096); // long read buffer
 	bool crlf; // \r\n found
 	bool leadSp; // leading space
 	short indb; // indent byte, unknown: -1
-	int ni, nf, ne; // end of each number wad
+	Bytex ni, nf, ne; // end of each number wad
 	readonly List<string> path = [];
 
 	protected override void Wad(K k, int wad, ref bool end, JovBx j)
 	{
 		object d = null;
-		if (!lon.Yes) {
+		if (!lon.yes) {
 			lon = j.on; bz = default; path.Clear();
 		}
 		JovBx lj = (lon, j.via);
 		switch (k) {
 
 		case K.EOL:
-			if (!crlf && j.size == 2) { // \r\n found
+			if (!crlf && +j.size == 2) { // \r\n found
 				Error(k, j, @"use LF \n eol instead of CRLF \r\n");
 				crlf = true;
 			}
@@ -418,7 +419,7 @@ internal sealed class LexierGet : Lexier<K>, Lexer<K, Lexi<K>>
 
 		case K.SP:
 			if (wad == 1)
-				leadSp = j.on < 1 || read.Lex(j.on - 1) == '\n'; // maybe leading space
+				leadSp = +j.on < 1 || read.Lex(j.on - 1) == '\n'; // maybe leading space
 			if (leadSp)
 				if (indb < 0)
 					indb = read.Lex(j.on); // first leading space, save the indent byte
@@ -429,7 +430,7 @@ internal sealed class LexierGet : Lexier<K>, Lexer<K, Lexi<K>>
 			if (!end)
 				return;
 			if (leadSp)
-				Lexi(K.IND, lj, lj.size << (indb == '\t' ? 2 : 0)); // 4 column each \t
+				Lexi(K.IND, lj, +lj.size << (indb == '\t' ? 2 : 0)); // 4 column each \t
 			else
 				Blank(k, lj, null);
 			goto End;
@@ -457,7 +458,7 @@ internal sealed class LexierGet : Lexier<K>, Lexer<K, Lexi<K>>
 			}
 			if (j.size != bz - lon || read.Lex(j.on) != '"') // check end wad size
 				return;
-			end = true; bz = Read((bz, j.on), 0);
+			end = true; bz = Read((bz, j.on));
 			break;
 
 		case K.STR:
@@ -479,7 +480,7 @@ internal sealed class LexierGet : Lexier<K>, Lexer<K, Lexi<K>>
 			else if (wad == 5) ne = lj.size; // end of exponent wad
 			if (!end)
 				return;
-			bz = Read(lj, 0);
+			bz = Read(lj);
 			d = Dec(ref k);
 			break;
 
@@ -489,18 +490,18 @@ internal sealed class LexierGet : Lexier<K>, Lexer<K, Lexi<K>>
 			else if (wad == 6) ne = lj.size; // end of exponent wad
 			if (!end)
 				return;
-			bz = Read(lj, 0);
+			bz = Read(lj);
 			d = Hex(ref k);
 			break;
 
 		case K.NAME:
 		case K.RUN:
 			j.on = k == K.NAME ? lon : lon + 1;
-			if (j.size > 40) {
+			if (+j.size > 40) {
 				Error(k, j, "too long");
 				lj.via = j.via = j.on + 40;
 			}
-			bz = Read(j, 0);
+			bz = Read(j);
 			break;
 
 		case K.PATH:
@@ -508,11 +509,11 @@ internal sealed class LexierGet : Lexier<K>, Lexer<K, Lexi<K>>
 				return;
 			var split = end || read.Lex(j.on) == '.';
 			if (split) {
-				if (bz > 40) {
+				if (+bz > 40) {
 					Error(K.NAME, (j.via - 1, j.via - 1), "too long");
 					bz = (Bytex)40;
 				}
-				path.Add(Encoding.UTF8.GetString(bs, 0, bz));
+				path.Add(Encoding.UTF8.GetString(bs.Span[..+bz]));
 				bz = default;
 			}
 			if (end) {
@@ -531,18 +532,17 @@ internal sealed class LexierGet : Lexier<K>, Lexer<K, Lexi<K>>
 		}
 		if (!end)
 			return;
-		Lexi(k, lj, d ?? (bz > 0 ? Encoding.UTF8.GetString(bs, 0, bz) : null));
+		Lexi(k, lj, d ?? (bz.pos ? Encoding.UTF8.GetString(bs.Span[..+bz]) : null));
 	End: // lexi already made
 		lon = Bytex.No;
 	}
 
-	Bytex Read(JovBx j, int x)
+	Bytex Read(JovBx j, Bytex bon = default)
 	{
-		var n = x + j.size;
-		if (bs.Length < n)
-			Array.Resize(ref bs, n + 4095 & ~4095);
-		read.Lexs(j, bs.AsSpan(x));
-		return (Bytex)n;
+		var n = bon + j.size;
+		if (bs.size < n) bs.Resize(n + 4095 & (Bytex)~4095);
+		read.Lexs(j, bs.Span[+bon..]);
+		return n;
 	}
 
 	void Unesc(JovBx j)
@@ -559,17 +559,18 @@ internal sealed class LexierGet : Lexier<K>, Lexer<K, Lexi<K>>
 			case (byte)'u':
 				Span<char> u = [
 					(char)(Hex(bz + 2) << 12 | Hex(bz + 3) << 8 | Hex(bz + 4) << 4 | Hex(bz + 5)) ];
-				bz += Encoding.UTF8.GetBytes(u, bs.AsSpan(bz)); break;
+				bz += Encoding.UTF8.GetBytes(u, bs.Span[+bz..]); break;
 			default: bs[bz] = bs[bz + 1]; bz += 1; break;
 			}
 	}
 
 	object Dec(ref K key)
 	{
-		uint v = 0; int x = 0, dot = 0, e = 0;
+		uint v = 0; var x = (Bytex)0;
+		int dot = 0, e = 0;
 		if (ni == bz) {
 			key = K.INT; // as INT
-			for (; x < ni; x++)
+			for (; x < ni; x += 1)
 				if (bs[x] != '_')
 					if (v < 21_4748_364 || v == 21_4748_364 && bs[x] <= '8') v = v * 10 + bs[x] - '0';
 					else {
@@ -579,15 +580,15 @@ internal sealed class LexierGet : Lexier<K>, Lexer<K, Lexi<K>>
 			return v;
 		}
 		key = K.FLOAT; // as FLOAT
-		if (bz > 65535) {
+		if (+bz > 65535) {
 			Error(key, (lon, lon + bz), "float out of length");
 			return 0f;
 		}
-		for (; x < ni; x++)
+		for (; x < ni; x += 1)
 			if (bs[x] != '_')
 				if (v <= 9_9999_999) v = v * 10 + bs[x] - '0';
 				else dot++;
-		for (x = ni + 1; x < nf; x++)
+		for (x = ni + 1; x < nf; x += 1)
 			if (bs[x] != '_')
 				if (v <= 9_9999_999) (v, dot) = (v * 10 + bs[x] - '0', dot - 1);
 				else break;
@@ -595,7 +596,7 @@ internal sealed class LexierGet : Lexier<K>, Lexer<K, Lexi<K>>
 			return 0f;
 		if (nf < ne) {
 			bool neg = bs[nf + 1] == '-';
-			for (x = neg || bs[nf + 1] == '+' ? nf + 1 : nf; ++x < ne;)
+			for (x = neg || bs[nf + 1] == '+' ? nf + 1 : nf; (x += 1) < ne;)
 				if (e <= 9_9999_999) e = e * 10 + bs[x] - '0';
 				else {
 					Error(key, (lon, lon + ne), "exponent out of range");
@@ -622,14 +623,15 @@ internal sealed class LexierGet : Lexier<K>, Lexer<K, Lexi<K>>
 		1e30f, 1e31f, 1e32f, 1e33f, 1e34f, 1e35f, 1e36f, 1e37f, 1e38f, float.PositiveInfinity,
 	];
 
-	byte Hex(int x) => (byte)((bs[x] & 15) + (bs[x] << 25 >> 31 & 9));
+	byte Hex(Bytex x) => (byte)((bs[x] & 15) + (bs[x] << 25 >> 31 & 9));
 
 	object Hex(ref K key)
 	{
-		uint v = 0; int x = 2, dot = 0, e = 0;
+		uint v = 0; var x = (Bytex)2;
+		int dot = 0, e = 0;
 		if (ni == bz) {
 			key = K.INT; // as INT
-			for (; x < ni; x++)
+			for (; x < ni; x += 1)
 				if (bs[x] != '_')
 					if (v <= 0xffff_fff) v = v << 4 | Hex(x);
 					else {
@@ -639,15 +641,15 @@ internal sealed class LexierGet : Lexier<K>, Lexer<K, Lexi<K>>
 			return v;
 		}
 		key = K.FLOAT; // as FLOAT
-		if (bz > 65535) {
+		if (+bz > 65535) {
 			Error(key, (lon, lon + bz), "float out of length");
 			return 0f;
 		}
-		for (; x < ni; x++)
+		for (; x < ni; x += 1)
 			if (bs[x] != '_')
 				if (v <= 0xffff_fff) v = v << 4 | Hex(x);
 				else dot++;
-		for (x = ni + 1; x < nf; x++)
+		for (x = ni + 1; x < nf; x += 1)
 			if (bs[x] != '_')
 				if (v <= 0xffff_fff) (v, dot) = (v << 4 | Hex(x), dot - 1);
 				else break;
@@ -656,7 +658,7 @@ internal sealed class LexierGet : Lexier<K>, Lexer<K, Lexi<K>>
 		if (nf < ne) {
 			bool hex = (char)bs[nf] is 'x' or 'X';
 			bool neg = bs[nf + 1] == '-';
-			for (x = neg || bs[nf + 1] == '+' ? nf + 1 : nf; ++x < ne;)
+			for (x = neg || bs[nf + 1] == '+' ? nf + 1 : nf; (x += 1) < ne;)
 				if (hex ? e <= 0x6fff_fff : e <= 9_9999_999)
 					e = hex ? e << 4 | Hex(x) : e * 10 + bs[x] - '0';
 				else {

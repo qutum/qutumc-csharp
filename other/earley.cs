@@ -146,7 +146,7 @@ public class Earley<K, L, N, T, Ler>
 
 	int Parse(out T err, int rec)
 	{
-		for (lexz = -1; lexz <= ler.Loc(); lexz++)
+		for (lexz = -1; lexz <= +ler.Loc(); lexz++)
 			lexm.Add(0);
 		var on0 = lexz;
 		foreach (var x in begin.alts)
@@ -424,7 +424,7 @@ public class Earley<K, L, N, T, Ler>
 	public string Dump(object d)
 	{
 		if (d is T t)
-			return (ler as LexierBuf<K>)?.LineCol(t.j.X<Lexi<K>>()) is var (l, c)
+			return (ler as LexierArr<K>)?.LineCol(t.j.X<Lexi<K>>()) is var (l, c)
 				? t.Dumper($"{l.on}.{c.on}", $"{l.to}.{c.via}") : t.ToString();
 		return dumper?.Invoke(d) ?? Esc(d);
 	}

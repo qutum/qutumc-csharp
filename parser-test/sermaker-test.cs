@@ -48,8 +48,8 @@ public class TestSerMaker : IDisposable
 			}, out var t));
 			IsTrue(keys.SetEquals(mer.KeySet(t.keys)));
 			AreEqual(shifts?.Min() < 0 ? 0
-				: redus.Min() is var min and < 0 ? SynForm.Redu((Altx)~min) : -1,
-				int.Min(t.go, 0));
+				: redus.Min() is var min and < 0 ? +SynForm.Redu((Altx)~min) : -1,
+				int.Min(+t.go, 0));
 		}
 	}
 
@@ -57,9 +57,9 @@ public class TestSerMaker : IDisposable
 
 	void NewSer(bool recover = false)
 	{
-		var (a, f, r) = mer.Make(out var _);
+		var New = mer.Make(out var _);
 		ser = new() {
-			ser = new(n => n[0], a, f, r) { recover = recover, dumper = mer.Dumper }
+			ser = new(n => n[0], New) { recover = recover, dumper = mer.Dumper }
 		};
 	}
 

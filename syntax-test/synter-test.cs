@@ -73,7 +73,7 @@ public readonly struct Ser(Synt t, Synter s)
 			else
 				ds[ds.j.via - 1].value = Ds[x];
 		AreEqual(s.dumper(ds), // TODO SerMaker dump lexis
-			s.dumper(t.j.on >= 0 ? s.ler.Lexs(t.j) : [.. s.ler.errs.GetRange(~t.j.on, -t.j.size)]));
+			s.dumper(t.j.on.zpos ? s.ler.Lexs(t.j) : [.. s.ler.errs.GetRange(+~t.j.on, -+t.j.size)]));
 		return this;
 	}
 

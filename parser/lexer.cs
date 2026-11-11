@@ -43,17 +43,14 @@ public class LerStr(string read) : Lexer<char, char>
 
 	public bool Next() => loc.IncLess(read.Length);
 	public X<char> Loc() => loc;
-	public char Lex() => read[loc];
-	public char Lex(X<char> loc) => read[loc];
+	public char Lex() => read[+loc];
+	public char Lex(X<char> loc) => read[+loc];
 
-	public virtual bool Is(char aim) => read[loc] == aim;
-	public virtual bool Is(X<char> loc, char aim) => read[loc] == aim;
+	public virtual bool Is(char aim) => read[+loc] == aim;
+	public virtual bool Is(X<char> loc, char aim) => read[+loc] == aim;
 	public virtual bool Is(char key, char aim) => key == aim;
 
-	public Span<char> Lexs(Jov<X<char>> j, Span<char> s)
-	{
-		read.AsSpan(j.on, j.size).CopyTo(s); return s;
-	}
+	public Span<char> Lexs(Jov<X<char>> j, Span<char> s) { read.AsSpan(j.range).CopyTo(s); return s; }
 	public string Lexs(Jov<X<char>> j) => read[j.range];
 	IEnumerable<char> Lexer<char, char>.Lexs(Jov<X<char>> j) => Lexs(j);
 
@@ -69,17 +66,14 @@ public class LerByte(byte[] read) : Lexer<byte, byte>
 
 	public bool Next() => loc.IncLess(read.Length);
 	public Bytex Loc() => loc;
-	public byte Lex() => read[loc];
-	public byte Lex(Bytex loc) => read[loc];
+	public byte Lex() => read[+loc];
+	public byte Lex(Bytex loc) => read[+loc];
 
-	public virtual bool Is(byte aim) => read[loc] == aim;
-	public virtual bool Is(Bytex loc, byte aim) => read[loc] == aim;
+	public virtual bool Is(byte aim) => read[+loc] == aim;
+	public virtual bool Is(Bytex loc, byte aim) => read[+loc] == aim;
 	public virtual bool Is(byte key, byte aim) => key == aim;
 
-	public Span<byte> Lexs(JovBx j, Span<byte> s)
-	{
-		read.AsSpan(j.on, j.size).CopyTo(s); return s;
-	}
+	public Span<byte> Lexs(JovBx j, Span<byte> s) { ((Span<byte>)read)[j.range].CopyTo(s); return s; }
 	public IEnumerable<byte> Lexs(JovBx j) => new Arr<Bytex, byte>(read, j);
 
 	public IEnumerable<byte> Keys(string keys) => keys.Select(k => (byte)k);

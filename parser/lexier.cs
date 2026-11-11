@@ -4,6 +4,15 @@
 // Under the terms of the GNU General Public License version 3
 // http://qutum.com  http://qutum.cn
 //
+// key ordinal index
+global using Kordx = qutum.parser.X<char>;
+// name ordinal index
+global using Nordx = qutum.parser.X<ushort>;
+// alt index
+global using Altx = qutum.parser.X<qutum.parser.XAlt>;
+// alt.con index
+global using Conx = qutum.parser.X<qutum.parser.XAltCon>;
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -33,7 +42,7 @@ public partial class LexGram<K> where K : struct
 		// skip mismatched read then redo this wad
 		public bool redo;
 	}
-	public class Alt : List<Con>
+	public class Alt : List<Conx, Con>
 	{
 		// match then loop wad
 		public bool loop;
@@ -61,7 +70,7 @@ public partial class LexGram<K> where K : struct
 			Alt a = [];
 			prods[^1][^1].Add(a);
 			foreach (var c in cons)
-				if (c is Range) a[^1] = a[^1] with { dup = true };
+				if (c is Range) a.last = a.last with { dup = true };
 				else if (c is string str) a.Add(new() { str = str });
 				else if (c is ByteSet.One one) a.Add(new() { str = "", one = one });
 				else throw new($"wrong altern content {c?.GetType()}");
@@ -74,7 +83,7 @@ public partial class LexGram<K> where K : struct
 
 // lexic parser
 // K for lexic key i.e lexeme
-public partial class Lexier<K> : LexierBuf<K> where K : struct
+public partial class Lexier<K> : LexierArr<K> where K : struct
 {
 	// each unit is just before next byte or after the last byte of wad
 	sealed class Unit
@@ -97,11 +106,12 @@ public partial class Lexier<K> : LexierBuf<K> where K : struct
 	int uid;
 	protected Lexer<byte, byte> read;
 	Bytex bz; // total bytes got
+	readonly Arr<Bytex, byte> bytes = new((Bytex)AltBytez + 1); // {latest bytes}[read.loc & AltBytez]
 	JovBx bj; // jot of read for each wad
-	readonly byte[] bytes = new byte[AltByteN + 1]; // {latest bytes}[read.loc & AltByteN]
 	protected Bytex lon; // read.loc for current lexi
 
-	public const int AltByteN = 15;
+	public const int AltBytez = 15;
+	ref byte Byte(Bytex x) => ref bytes.S[+x & AltBytez];
 
 	public virtual IDisposable Begin(Lexer<byte, byte> read)
 	{
@@ -120,25 +130,25 @@ public partial class Lexier<K> : LexierBuf<K> where K : struct
 
 	public override bool Next()
 	{
-		if (loc.IncLess(size)) return true;
+		if (loc.IncLess(+lexs.size)) return true;
 		var u = begin; byte b;
 	Wad: bj.on = bj.via;
 	Next: if (bj.via >= bz)
 			if (read.Next()) {
-				b = bytes[bz & AltByteN] = read.Lex(); bz += 1;
+				b = Byte(bz) = read.Lex(); bz += 1;
 				if (b == '\n')
 					lines.Add(bz);
 			}
 			else if (u == begin || bj.via > bz) {
-				if (bz.Yes) {
+				if (bz.yes) {
 					Eor(bz); // call only once
 					bz = Bytex.No;
 				}
-				return loc < size;
+				return loc < lexs.size;
 			}
 			else // eor but lexi not end
 				goto Go;
-		b = bytes[bj.via & AltByteN];
+		b = Byte(bj.via);
 		if (u.next[b < 128 ? b : 128] is Unit v) { // one byte by one, even for utf
 			u = v; bj.via += 1;
 			if (u.next != null)
@@ -157,10 +167,10 @@ public partial class Lexier<K> : LexierBuf<K> where K : struct
 		}
 		else { // error wad
 			WadErr(u.key, u.wad, go == begin || bj.via >= bz,
-				bj.via < bz ? bytes[bj.via & AltByteN] : -1, bj);
+				bj.via < bz ? Byte(bj.via) : -1, bj);
 			bj.via += 1; // shift a byte
 		}
-		if (go == begin && loc < size)
+		if (go == begin && loc < lexs.size)
 			return true;
 		u = go;
 		goto Wad;
@@ -177,7 +187,7 @@ public partial class Lexier<K> : LexierBuf<K> where K : struct
 
 	protected void BackByte(Bytex via)
 	{
-		if (via < bz - AltByteN)
+		if (via < bz - AltBytez)
 			throw new("back too much bytes");
 		bj.via = via;
 	}
@@ -185,10 +195,10 @@ public partial class Lexier<K> : LexierBuf<K> where K : struct
 	// make each wad of a lexi
 	protected virtual void Wad(K key, int wad, ref bool end, JovBx j)
 	{
-		if (!lon.Yes) lon = j.on;
+		if (lon.no) lon = j.on;
 		if (end) {
 			JovBx lj = (lon, j.via);
-			Span<byte> s = lj.size <= 1024 ? stackalloc byte[lj.size] : new byte[lj.size];
+			Span<byte> s = +lj.size <= 1024 ? stackalloc byte[+lj.size] : new byte[+lj.size];
 			read.Lexs(lj, s);
 			Lexi(key, lj, Encoding.UTF8.GetString(s));
 			lon = Bytex.No;
@@ -198,7 +208,7 @@ public partial class Lexier<K> : LexierBuf<K> where K : struct
 	// error wad. eor: Byte < 0
 	protected virtual void WadErr(K key, int wad, bool end, int Byte, JovBx j)
 	{
-		if (!lon.Yes) lon = j.on;
+		if (lon.no) lon = j.on;
 		Error(key, j, Byte >= 0 ? (char)Byte : null);
 		if (end) lon = Bytex.No;
 	}
@@ -214,29 +224,25 @@ public partial class Lexier<K> : LexierBuf<K> where K : struct
 	protected virtual void Eor(Bytex via) { }
 }
 
-public abstract class LexierBuf<K> : Lexer<K, Lexi<K>> where K : struct
+public abstract class LexierArr<K> : Lexer<K, Lexi<K>> where K : struct
 {
-	protected X<Lexi<K>> size, loc; // lexs size, current loc
+	protected X<Lexi<K>> loc; // lexs size, current loc
 	protected Arr<X<Lexi<K>>, Lexi<K>> lexs;
 	public List<Bytex> lines = []; // [0, read.loc after eol...], assume read.loc is byte index
 	public List<Lexi<K>> errs = []; // [error lexi]: not null, merge to lexs: null
 
 	public virtual void Dispose()
 	{
-		size = default; loc = X<Lexi<K>>.No; lexs = new();
+		loc = X<Lexi<K>>.No; lexs = [];
 		lines.Clear(); lines.Add(default); errs?.Clear();
 	}
 
-	protected virtual void Add(Lexi<K> lex)
-	{
-		if (size == lexs.size) lexs.Resize((X<Lexi<K>>)int.Max(lexs.size << 1, 65536));
-		lexs[size] = lex; size += 1;
-	}
+	protected virtual void Add(Lexi<K> lex) => lexs.Add(lex);
 
 	public abstract bool Next();
 	public X<Lexi<K>> Loc() => loc;
 	public Lexi<K> Lex() => lexs[loc];
-	public Lexi<K> Lex(X<Lexi<K>> loc) => lexs.Span[0..+size][loc];
+	public Lexi<K> Lex(X<Lexi<K>> loc) => lexs[loc];
 
 	public bool Is(K aim) => Is(lexs[loc].key, aim);
 	public bool Is(X<Lexi<K>> loc, K aim) => Is(Lex(loc).key, aim);
@@ -244,15 +250,9 @@ public abstract class LexierBuf<K> : Lexer<K, Lexi<K>> where K : struct
 
 	public Span<Lexi<K>> Lexs(Jov<X<Lexi<K>>> j, Span<Lexi<K>> s)
 	{
-		if (j.on >= size || j.via > size) throw new IndexOutOfRangeException();
-		lexs.Span[j.range].CopyTo(s);
-		return s;
+		lexs.Span[j.range].CopyTo(s); return s;
 	}
-	public IEnumerable<Lexi<K>> Lexs(Jov<X<Lexi<K>>> j)
-	{
-		if (j.via > size) throw new IndexOutOfRangeException();
-		return lexs.Seg(j);
-	}
+	public IEnumerable<Lexi<K>> Lexs(Jov<X<Lexi<K>>> j) => lexs.Seg(j);
 
 	public static IEnumerable<K> Keys_(string keys) => [Enum.Parse<K>(keys)];
 	public IEnumerable<K> Keys(string keys) => Keys_(keys);
@@ -262,26 +262,26 @@ public abstract class LexierBuf<K> : Lexer<K, Lexi<K>> where K : struct
 	{
 		var line = lines.BinarySearch(readLoc);
 		line = (line ^ line >> 31) + (~line >>> 31);
-		return (line, readLoc - lines[line - 1] + 1);
+		return (line, +readLoc - +lines[line - 1] + 1);
 	}
 	public (int line, int col) LineCol(X<Lexi<K>> loc) => LineCol(Lex(loc).j.on);
 
 	// first line and column are 1, column is byte index inside line, error: ~err index
 	public (Jot line, Jov col) LineCol(Jov<X<Lexi<K>>> jot)
 	{
-		if (size == 0)
+		if (lexs.size.zero)
 			return ((1, 1), (1, 1));
-		var (on, via) = jot; int bo, bv;
-		if (on >= 0) {
-			bo = on < size ? Lex(on).j.on : Lex(on - 1).j.via;
-			bv = on < via ? int.Max(Lex(via - 1).j.via, bo) : bo;
+		var (on, via) = jot; Bytex bo, bv;
+		if (+on >= 0) {
+			bo = on < lexs.size ? Lex(on).j.on : Lex(on - 1).j.via;
+			bv = on < via ? Lex(via - 1).j.via.Max(bo) : bo;
 		}
 		else {
-			on = (X<Lexi<K>>)~on; via = (X<Lexi<K>>)~via;
-			bo = on < errs.Count ? errs[on].j.on : errs[on - 1].j.via;
-			bv = on < via ? int.Max(errs[via - 1].j.via, bo) : bo;
+			on = ~on; via = ~via;
+			bo = +on < errs.Count ? errs[+on].j.on : errs[+on - 1].j.via;
+			bv = on < via ? errs[+via - 1].j.via.Max(bo) : bo;
 		}
-		var (lo, co) = LineCol((Bytex)bo); var (lt, cv) = LineCol((Bytex)bv);
+		var (lo, co) = LineCol(bo); var (lt, cv) = LineCol(bv);
 		return ((lo, lt), (co, cv));
 	}
 }
@@ -315,7 +315,7 @@ public partial class Lexier<K>
 					var u = wus[wad];
 					if (w.Count == 0)
 						throw new($"No altern in {Kw(k, wad)}");
-					if (w[0].Count == 0) // empty alt for option wad
+					if (w[0].size.zero) // empty alt for option wad
 						if (wad == 1) throw new($"Empty altern in first wad {Kw(k, 1)}");
 						else if (w.Count == 1) throw new($"No byte in {Kw(k, wad)}");
 						else if (w.redo) throw new($"Redo empty {Kw(k, wad)}.1");
@@ -327,39 +327,39 @@ public partial class Lexier<K>
 						{ u.go = begin; u.mode = -3; }
 				}
 				// build wad
-				foreach (var (w, wad) in prod.Each(1)) {
+				foreach (var (wad, wx) in prod.Each(1)) {
 					// build alt
-					aus[wad] = [.. w.Select((a, alt) => {
-						++alt;
-						var bz = a.Sum(b => b.str.Length + (b.one.size > 0 ? 1 : 0));
-						if (a.Count == 0 ? alt > 1 : bz == 0)
-							throw new($"No byte in {Kw(k, wad)}.{alt}");
-						if (bz > AltByteN)
-							throw new($"{Kw(k, wad)}.{alt} exceeds {AltByteN} bytes");
-						var u = wus[wad];
-						var ok = !a.loop ? wus[wad + 1] // go for match
-							: wad > 1 ? u : throw new($"Can not loop first wad {Kw(k, 1)}.{alt}");
-						var dup = w.redo ? u : begin; // error for repeat
-						var bx = 0; // build units from contents
-						foreach (var c in a) {
+					aus[wx] = [.. wad.Select((alt, ax) => {
+						++ax;
+						var bz = (Bytex)alt.Sum(b => b.str.Length + (b.one.size > 0 ? 1 : 0));
+						if (alt.size.zero ? ax > 1 : bz.zero)
+							throw new($"No byte in {Kw(k, wx)}.{ax}");
+						if (+bz > AltBytez)
+							throw new($"{Kw(k, wx)}.{ax} exceeds {AltBytez} bytes");
+						var u = wus[wx];
+						var ok = !alt.loop ? wus[wx + 1] // go for match
+							: wx > 1 ? u : throw new($"Can not loop first wad {Kw(k, 1)}.{ax}");
+						var dup = wad.redo ? u : begin; // error for repeat
+						Bytex bx = default; // build units from contents
+						foreach (var c in alt) {
 							for (int x = 0; x < c.str.Length; x++)
-								Byte(c.str.AsMemory(x, 1), ref u, k, wad, ++bx >= bz, ok,
+								Byte(c.str.AsMemory(x, 1), ref u, k, wx, (bx += 1) >= bz, ok,
 									c.dup && x == c.str.Length - 1 ? dup : null);
 							if (c.one.size > 0)
-								Byte(c.one, ref u, k, wad, ++bx >= bz, ok, c.dup ? dup : null);
+								Byte(c.one, ref u, k, wx, (bx += 1) >= bz, ok, c.dup ? dup : null);
 						}
 						return u; // the last unit of this alt
 					}).Where(u => u.next != null)];
-					var u = wus[wad];
-					if (aus[wad - 1] != null)
+					var u = wus[wx];
+					if (aus[wx - 1] != null)
 						for (int x = 0; x <= 128; x++) {
 							if (u.next[x] == null) continue;
-							for (int y = wad - 1; aus[y] != null; y--)
+							for (int y = wx - 1; aus[y] != null; y--)
 								if (aus[y].Any(au => au.next[x] != null))
-									throw new($"{Kw(k, wad)} and {Kw(k, y)} clash over dup");
+									throw new($"{Kw(k, wx)} and {Kw(k, y)} clash over dup");
 						}
-					if (w[0].Count > 0)
-						aus[wad - 1] = null;
+					if (wad[0].size.pos)
+						aus[wx - 1] = null;
 				}
 			}
 			if (dump) Dump(begin, "");
@@ -426,3 +426,6 @@ public partial class Lexier<K>
 		}
 	}
 }
+
+public struct XAlt { }
+public struct XAltCon { }
