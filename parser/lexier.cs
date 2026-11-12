@@ -71,8 +71,8 @@ public partial class LexGram<K> where K : struct
 			prods[^1][^1].Add(a);
 			foreach (var c in cons)
 				if (c is Range) a.last = a.last with { dup = true };
-				else if (c is string str) a.Add(new() { str = str });
-				else if (c is ByteSet.One one) a.Add(new() { str = "", one = one });
+				else if (c is string str) a.Ad(new() { str = str });
+				else if (c is ByteSet.One one) a.Ad(new() { str = "", one = one });
 				else throw new($"wrong altern content {c?.GetType()}");
 			return this;
 		}
@@ -237,7 +237,7 @@ public abstract class LexierArr<K> : Lexer<K, Lexi<K>> where K : struct
 		lines.Clear(); lines.Add(default); errs?.Clear();
 	}
 
-	protected virtual void Add(Lexi<K> lex) => lexs.Add(lex);
+	protected virtual void Add(Lexi<K> lex) => lexs.Ad(lex);
 
 	public abstract bool Next();
 	public X<Lexi<K>> Loc() => loc;

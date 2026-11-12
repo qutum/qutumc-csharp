@@ -89,7 +89,7 @@ internal class SynStack<L> : List<Stax,
 
 	internal void Push(SynForm form, X<L> loc, object synt)
 	{
-		Add((form, loc, synt));
+		Ad((form, loc, synt));
 		if (recTs.s != null && form.recs != null)
 			foreach (var a in form.recs)
 				recTs[altRec(a.alt)].Add(size - 1);
@@ -116,7 +116,7 @@ internal class SynStack<L> : List<Stax,
 				recTs[altRec(a.alt)].Add(x);
 		return recTs;
 	}
-	public override SynStack<L> Clear() { base.Clear(); Add(default); recTs = default; return this; }
+	public override SynStack<L> Clear() { base.Clear(); Ad(default); recTs = default; return this; }
 }
 
 // syntax parser

@@ -96,6 +96,7 @@ public struct Jov<X> : IEnumerable<X> where X : IUnaryPlusOperators<X, int>, IAd
 	readonly IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 }
 
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE1006:Naming Styles")]
 public struct Arr<X, T> : IEnumerable<T> where X : IUnaryPlusOperators<X, int>, IAdditionOperators<X, int, X>
 {
 	public T[] s;
@@ -106,6 +107,7 @@ public struct Arr<X, T> : IEnumerable<T> where X : IUnaryPlusOperators<X, int>, 
 	public readonly ref T Last(X x) => ref Span[^+x];
 
 	public Arr() => s = [];
+	public Arr(IEnumerable<T> s) : this([.. s]) { }
 	public Arr(X size) : this(+size > 0 ? new T[+size] : []) { }
 	public Arr(T[] s) { this.s = s; j = (default, default(X) + s.Length); }
 	public Arr(X size, Jov<X> j) : this(+size > 0 ? new T[+size] : [], j) { }
@@ -162,7 +164,7 @@ public static class ArrExtention
 {
 	extension<X, T>(ref Arr<X, T> s) where X : IUnaryPlusOperators<X, int>, IAdditionOperators<X, int, X>
 	{
-		public Arr<X, T> Add(T d) => s = s._Add(d);
+		public Arr<X, T> Ad(T d) => s = s._Add(d); // not 'Add' to deny [..list] calling Add
 		public Arr<X, T> Remove(X x) => s = s._Remove(x);
 		public Arr<X, T> Remove(Jov<X> j) => s = s._Remove(j);
 		public Arr<X, T> Resize(X size, bool keepJ = false) => s = s._Resize(size, keepJ);
@@ -179,7 +181,8 @@ public class List<X, T> : IEnumerable<T> where X : IUnaryPlusOperators<X, int>, 
 	public ref T Last(X x) => ref s.Last(x);
 
 	public List(X size = default) => s = new(size);
-	public List<X, T> Add(T d) { s.Add(d); return this; }
+	public List(IEnumerable<T> ds) => s = new(ds);
+	public List<X, T> Ad(T d) { s.Ad(d); return this; } // not 'Add' to deny [..list] calling Add
 	public List<X, T> Remove(X x) { s.Remove(x); return this; }
 	public List<X, T> Remove(Jov<X> j) { s.Remove(j); return this; }
 	public virtual List<X, T> Clear() { s.Clear(); return this; }
@@ -218,13 +221,9 @@ public static partial class Extension
 		{
 			foreach (var d in s) yield return (d, offset++);
 		}
-		public Arr<X, T> ToArr<X>(X offset = default)
-			where X : IUnaryPlusOperators<X, int>, IAdditionOperators<X, int, X>
-		{
-			Arr<X, T> a = new(s is ICollection<T> c ? offset + c.Count : offset);
-			foreach (var d in s) a.Add(d);
-			return a;
-		}
+
+		public Arr<X, T> ToArr<X>(X _ = default)
+			where X : IUnaryPlusOperators<X, int>, IAdditionOperators<X, int, X> => new(s);
 
 		public Dictionary<T, V> ToDict<V>(Func<T, V, V> value)
 		{
@@ -485,9 +484,7 @@ public struct BitSet<_> : IEnumerable<X<_>>
 	readonly IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 }
 
-[System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE0250:Make struct 'readonly'")]
-[System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE0251:Make member 'readonly'")]
-public struct StrMake
+public readonly struct StrMake
 {
 	internal readonly StringBuilder s;
 

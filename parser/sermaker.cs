@@ -64,9 +64,9 @@ public partial class SynGram<K, N>
 					a.lex = a.lex.yes ? throw new($"{p.name}.{p.Count - 1} lex {a.lex}")
 						: a.size - 1;
 				else if (c is K k)
-					a.Add(new(default, k));
+					a.Ad(new(default, k));
 				else if (c is N n)
-					a.Add(new(default, n));
+					a.Ad(new(default, n));
 				else
 					throw new($"wrong altern content {c?.GetType()}");
 			return this;
@@ -195,7 +195,7 @@ public partial class SerMaker<K, N>
 			return head && firstAs[alt.index][want + 1].empty ? x : Itemx.No;
 		}
 		addItems[(alt, want)] = Is.size;
-		Is.Add((alt, want, heads1.NewOr(heads2), clo));
+		Is.Ad((alt, want, heads1.NewOr(heads2), clo));
 		return Itemx.No;
 	}
 	Formx AddForm(Items Is)
@@ -212,7 +212,7 @@ public partial class SerMaker<K, N>
 			index = forms.size, Is = Is, clashs = new(keys.size),
 			goNs = new(names.size), goKs = new(keys.size),
 		};
-		forms.Add(F);
+		forms.Ad(F);
 		Array.Fill(F.goKs.s, Formx.No); Array.Fill(F.goNs.s, Formx.No);
 		return F.index;
 	}
@@ -424,8 +424,8 @@ public partial class SerMaker<K, N>
 		foreach (var (p, px) in gram.prods.Each())
 			if (!ns.TryAdd(nameOrd(p.name), p.name) && !ns[nameOrd(p.name)].Equals(p.name))
 				throw new($"duplicate ordinal of {ns[nameOrd(p.name)]} and {p.name}");
-		nameOs = [.. ns.Keys];
-		names = [.. ns.Values];
+		nameOs = new(ns.Keys);
+		names = new(ns.Values);
 		if (nameOs[default] == default)
 			throw new($"default name ordinal");
 		var accept = gram.prods[0].name;
@@ -491,11 +491,11 @@ public partial class SerMaker<K, N>
 		// keys
 		if (keyOrd(default) != default)
 			throw new($"default key ordinal {keyOrd(default)}");
-		keyOs = [.. ks.Keys];
-		keys = [.. ks.Values];
+		keyOs = new(ks.Keys);
+		keys = new(ks.Values);
 		if (recs.Count > 10)
 			throw new($"recovery keys size {recs.Count}");
-		recKs = [.. recs];
+		recKs = new(recs);
 		// others
 		foreach (var a in alts)
 			foreach (var (c, x) in a.Each())
