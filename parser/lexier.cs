@@ -125,7 +125,7 @@ public partial class Lexier<K> : LexierArr<K> where K : struct
 	{
 		base.Dispose();
 		read?.Dispose(); read = null;
-		bz = default; bj = default; lon = Bytex.No;
+		bz = Bytex.Z; bj = default; lon = Bytex.No;
 	}
 
 	public override bool Next()
@@ -234,7 +234,7 @@ public abstract class LexierArr<K> : Lexer<K, Lexi<K>> where K : struct
 	public virtual void Dispose()
 	{
 		loc = X<Lexi<K>>.No; lexs = [];
-		lines.Clear(); lines.Add(default); errs?.Clear();
+		lines.Clear(); lines.Add(Bytex.Z); errs?.Clear();
 	}
 
 	protected virtual void Add(Lexi<K> lex) => lexs.Ad(lex);
@@ -340,7 +340,7 @@ public partial class Lexier<K>
 						var ok = !alt.loop ? wus[wx + 1] // go for match
 							: wx > 1 ? u : throw new($"Can not loop first wad {Kw(k, 1)}.{ax}");
 						var dup = wad.redo ? u : begin; // error for repeat
-						Bytex bx = default; // build units from contents
+						var bx = Bytex.Z; // build units from contents
 						foreach (var c in alt) {
 							for (int x = 0; x < c.str.Length; x++)
 								Byte(c.str.AsMemory(x, 1), ref u, k, wx, (bx += 1) >= bz, ok,

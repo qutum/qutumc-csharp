@@ -163,7 +163,7 @@ public partial class Synter<K, L, N, T, Ler>
 		if (+forms.size is 0 or > 32767)
 			throw new($"{nameof(forms)} size {forms.size}");
 		stack = new() { altRec = a => alts[a].rec };
-		init = forms[default] ?? forms[(Formx)1];
+		init = forms[Formx.Z] ?? forms[(Formx)1];
 		foreach (var (f, fx) in forms.Each())
 			f?.index = fx;
 		InitDump();
@@ -314,7 +314,7 @@ public partial class Synter<K, L, N, T, Ler>
 			}
 		}
 		// recovery stack
-		var recTs = stack.RecStax(recKs?.size ?? default);
+		var recTs = stack.RecStax(recKs?.size ?? Krecx.Z);
 		// read until one recovery key and shift it
 		for (; rec.tx.no; key = ler.Next() ? keyOrd(ler) : default)
 			// not found, fake it

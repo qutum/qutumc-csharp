@@ -32,6 +32,7 @@ public struct X<_> : IUnaryPlusOperators<X<_>, int>, IComparisonOperators<X<_>, 
 	public readonly bool zneg => x <= 0;
 	public readonly bool yes => x != -1;
 	public readonly bool no => x == -1;
+	public static readonly X<_> Z = default;
 	public static readonly X<_> No = (X<_>)(-1);
 
 	public static explicit operator X<_>(int x) => new() { x = x };

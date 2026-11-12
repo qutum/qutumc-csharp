@@ -85,7 +85,7 @@ public class TestSynter : IDisposable
 			lex = (Conx)a.IndexOfAny(keys, 2) - 2,
 			synt = a[1] switch { '+' => 1, '-' => -1, _ => 0 },
 			syntName = a[0..1],
-		}).ToArr((Altx)0);
+		}).ToArr(Altx.Z);
 		Arr<Formx, SynForm> Fs = new((Formx)forms.Length);
 		foreach (var (_, fx) in Fs.Each())
 			if (forms[+fx] is var f && f.goKs != null) {

@@ -64,9 +64,9 @@ public partial class SynGram<K, N>
 					a.lex = a.lex.yes ? throw new($"{p.name}.{p.Count - 1} lex {a.lex}")
 						: a.size - 1;
 				else if (c is K k)
-					a.Ad(new(default, k));
+					a.Ad(new(Kordx.Z, k));
 				else if (c is N n)
-					a.Ad(new(default, n));
+					a.Ad(new(Nordx.Z, n));
 				else
 					throw new($"wrong altern content {c?.GetType()}");
 			return this;
@@ -74,7 +74,7 @@ public partial class SynGram<K, N>
 	}
 	public SynGram<K, N> clash { get { prods[^1][^1].clash = (Altx)(-2); return this; } }
 	public SynGram<K, N> clashRight { get { prods[^1][^1].clash = (Altx)(-3); return this; } }
-	public SynGram<K, N> clashPrev { get { prods[^1][^1].clash = (Altx)0; return this; } }
+	public SynGram<K, N> clashPrev { get { prods[^1][^1].clash = Altx.Z; return this; } }
 	public SynGram<K, N> synt { get { prods[^1][^1].synt = 1; return this; } }
 	public SynGram<K, N> syntLeft { get { prods[^1][^1].synt = 2; return this; } }
 	public SynGram<K, N> syntRight { get { prods[^1][^1].synt = 3; return this; } }
@@ -115,7 +115,7 @@ public partial class SerMaker<K, N>
 	// phase 1: find first keys of each name and each alt want
 	public void Firsts()
 	{
-		if (firstAs[default].size.pos)
+		if (firstAs[Altx.Z].size.pos)
 			return;
 		for (bool loop = true; !(loop = !loop);)
 			foreach (var (p, nx) in prods.Each()) {
@@ -227,7 +227,7 @@ public partial class SerMaker<K, N>
 				return;
 			var (e, f) = firstAs[a.index][want + 1];
 			foreach (var A in prods[a[want].nx])
-				if (AddItem(Is, A, default, f, e ? heads : default, clo + 1) is var y && y.yes)
+				if (AddItem(Is, A, Conx.Z, f, e ? heads : default, clo + 1) is var y && y.yes)
 					addHeads.Add(y);
 		}
 		for (var x = 0; x < +Is.size + addHeads.Count; x++)
@@ -266,7 +266,7 @@ public partial class SerMaker<K, N>
 		if (forms.size.pos)
 			return;
 		Items init = [];
-		AddItem(init, alts[default], (Conx)0, KordXs.One(keys.size, default), default, 1);
+		AddItem(init, alts[Altx.Z], Conx.Z, KordXs.One(keys.size, Kordx.Z), default, 1);
 		AddForm(Closure(init));
 		foreach (var (f, x) in forms.Each()) {
 			if (+x >= 32767) throw new("too many forms");
@@ -371,7 +371,7 @@ public partial class SerMaker<K, N>
 	{
 		bool accept = false;
 		if (F.goKs.Full().Select(go => go.fx).Where(x => x < Formx.No).May().Max() is Formx other)
-			if (other == SynForm.Redu((Altx)0))
+			if (other == SynForm.Redu(Altx.Z))
 				accept = true;
 			else // for error and recovery, form with any reduce will always reduce on error keys
 				F.other = other;
@@ -426,7 +426,7 @@ public partial class SerMaker<K, N>
 				throw new($"duplicate ordinal of {ns[nameOrd(p.name)]} and {p.name}");
 		nameOs = new(ns.Keys);
 		names = new(ns.Values);
-		if (nameOs[default] == default)
+		if (nameOs[Nordx.Z] == default)
 			throw new($"default name ordinal");
 		var accept = gram.prods[0].name;
 
@@ -440,7 +440,7 @@ public partial class SerMaker<K, N>
 		alts = new((Altx)gram.prods.Sum(p => p.Count));
 		if (+alts.size is 0 or > 32767)
 			throw new($"total {alts.size} alterns");
-		Altx ax = (Altx)0; Kord ko;
+		var ax = Altx.Z; Kord ko;
 		foreach (var p in gram.prods) {
 			var np = prods[Name(p.name)];
 			foreach (var (a, pax) in p.Each()) {
@@ -476,7 +476,7 @@ public partial class SerMaker<K, N>
 					else
 						throw new($"{p.name}.{pax} no final lexic key");
 				// synt
-				if (a.synt == 2 && (a.size.zero || a[default].K))
+				if (a.synt == 2 && (a.size.zero || a[Conx.Z].K))
 					throw new($"{p.name}.{pax} leftmost not name");
 				if (a.synt == 3 && (a.size.zero || a.last.K))
 					throw new($"{p.name}.{pax} rightmost not name");

@@ -566,7 +566,7 @@ internal sealed class LexierGet : Lexier<K>, Lexer<K, Lexi<K>>
 
 	object Dec(ref K key)
 	{
-		uint v = 0; var x = (Bytex)0;
+		uint v = 0; var x = Bytex.Z;
 		int dot = 0, e = 0;
 		if (ni == bz) {
 			key = K.INT; // as INT
