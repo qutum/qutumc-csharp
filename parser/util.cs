@@ -111,15 +111,15 @@ public struct Arr<X, T> : IEnumerable<T> where X : IUnaryPlusOperators<X, int>, 
 	public Arr(X size, Jov<X> j) : this(+size > 0 ? new T[+size] : [], j) { }
 	public Arr(T[] s, Jov<X> j) { this.s = s; this.j = j; _ = Span; }
 
-	public Arr<X, T> Add(T d)
+	internal Arr<X, T> _Add(T d)
 	{
 		if (+j.via >= s.Length)
 			Array.Resize(ref s, +j.via + (s.Length < 16384 ? int.Max(s.Length, 1024) : s.Length >> 1));
 		s[+j.via] = d; j.via += 1;
 		return this;
 	}
-	public Arr<X, T> Remove(X x) => Remove((x, x + 1));
-	public Arr<X, T> Remove(Jov<X> j_)
+	internal Arr<X, T> _Remove(X x) => _Remove((x, x + 1));
+	internal Arr<X, T> _Remove(Jov<X> j_)
 	{
 		if (Seg(j_) is { j: var seg } && seg.any) {
 			Array.Copy(s, +seg.via, s, +seg.on, +j.via - +seg.via);
@@ -127,12 +127,12 @@ public struct Arr<X, T> : IEnumerable<T> where X : IUnaryPlusOperators<X, int>, 
 		}
 		return this;
 	}
-	public Arr<X, T> Resize(X size, bool keepJ = false) => Resize(size, keepJ ? j : (default, size));
-	public Arr<X, T> Resize(X size, Jov<X> j)
+	internal Arr<X, T> _Resize(X size, bool keepJ = false) => _Resize(size, keepJ ? j : (default, size));
+	internal Arr<X, T> _Resize(X size, Jov<X> j)
 	{
 		Array.Resize(ref s, +size); this.j = j; _ = Span; return this;
 	}
-	public Arr<X, T> Clear()
+	internal Arr<X, T> _Clear()
 	{
 		if (s.Length <= 1024) Array.Clear(s); else s = [];
 		j = default; return this;
@@ -142,19 +142,33 @@ public struct Arr<X, T> : IEnumerable<T> where X : IUnaryPlusOperators<X, int>, 
 	public readonly Arr<X, T> Seg(Jov<X> j) => new(s, (this.j.on + +j.on, this.j.on + +j.via));
 	public readonly Arr<X, T> Seg(int on, X via) => Seg((default(X) + on, via));
 
+	/// for unchanged j only
 	public readonly IEnumerator<T> GetEnumerator()
 	{
-		for (int x = +j.on; x < +j.via; x++) yield return s[x]; // j.via may changes
+		for (int x = +j.on; x < +j.via; x++) yield return s[x];
 	}
 	readonly IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+	/// for unchanged j only
 	public readonly IEnumerable<(T d, X x)> Each(X offset = default)
 	{
 		int o = +j.on; offset += -o;
-		for (int x = o; x < +j.via; x++) yield return (s[x], offset + x); // j.via may changes
+		for (int x = o; x < +j.via; x++) yield return (s[x], offset + x);
 	}
 
 	public readonly X BinFind(T v, bool xNo = true) =>
 		default(X) + (Array.BinarySearch(s, +j.on, +j.size, v) is var x && x < 0 && xNo ? -1 : x);
+}
+public static class ArrExtention
+{
+	extension<X, T>(ref Arr<X, T> s) where X : IUnaryPlusOperators<X, int>, IAdditionOperators<X, int, X>
+	{
+		public Arr<X, T> Add(T d) => s = s._Add(d);
+		public Arr<X, T> Remove(X x) => s = s._Remove(x);
+		public Arr<X, T> Remove(Jov<X> j) => s = s._Remove(j);
+		public Arr<X, T> Resize(X size, bool keepJ = false) => s = s._Resize(size, keepJ);
+		public Arr<X, T> Resize(X size, Jov<X> j) => s = s._Resize(size, j);
+		public Arr<X, T> Clear() => s = s._Clear();
+	}
 }
 public class List<X, T> : IEnumerable<T> where X : IUnaryPlusOperators<X, int>, IAdditionOperators<X, int, X>
 {
