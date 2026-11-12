@@ -12,6 +12,7 @@ namespace qutum.parser;
 
 using Kord = char;
 using Nord = ushort;
+using Itemx = X<XItem>;
 
 // syntax grammar
 public partial class SynGram<K, N>
@@ -25,7 +26,7 @@ public partial class SynGram<K, N>
 	}
 	public partial class Alt : List<Conx, Con>
 	{
-		internal Altx index; // index of whole grammar alts
+		internal Altx index; // index in whole grammar
 		public N name;
 		public Conx lex = Conx.No; // save main lex at this index to synt.info, no save: -1
 		public Altx clash = Altx.No; // reject: -1, left: -2, right: -3
@@ -107,14 +108,14 @@ public partial class SerMaker<K, N>
 	readonly Arr<Nordx, SynGram<K, N>.Prod> prods;
 	readonly Arr<Altx, SynGram<K, N>.Alt> alts;
 	readonly Arr<Nordx, (bool empty, KordXs first)> firsts;
-	readonly Arr<Altx, (bool empty, KordXs first)[]> firstAs; // at alt index and want
+	readonly Arr<Altx, Arr<Conx, (bool empty, KordXs first)>> firstAs; // at alt index and want
 	readonly Arr<Krecx, Kord> recKs; // { recovery key ordinal ... }
 	private Krecx KeyRec(K k) => recKs.BinFind(keyOrd(k));
 
 	// phase 1: find first keys of each name and each alt want
 	public void Firsts()
 	{
-		if (firstAs[default] != null)
+		if (firstAs[default].size.pos)
 			return;
 		for (bool loop = true; !(loop = !loop);)
 			foreach (var (p, nx) in prods.Each()) {
@@ -133,13 +134,13 @@ public partial class SerMaker<K, N>
 			}
 		foreach (var (_, x) in firstAs.Each()) {
 			var a = alts[x];
-			var fs = firstAs[x] = new (bool, KordXs)[+a.size + 1];
-			fs[^1].empty = true;
-			for (var w = +a.size - 1; w > 0; w--)
-				if (a[(Conx)w].K)
-					fs[w] = (false, KordXs.One(keys.size, a[(Conx)w].kx));
+			var fs = firstAs[x] = new(a.size + 1);
+			fs.last.empty = true;
+			for (var w = a.size - 1; w.pos; w -= 1)
+				if (a[w].K)
+					fs[w] = (false, KordXs.One(keys.size, a[w].kx));
 				else {
-					var (e, f) = firsts[a[(Conx)w].nx];
+					var (e, f) = firsts[a[w].nx];
 					fs[w] = !e ? (e, f) : (fs[w + 1].empty, f.NewOr(fs[w + 1].first, true));
 				}
 		}
@@ -151,14 +152,13 @@ public partial class SerMaker<K, N>
 	}
 	public IEnumerable<K> KeySet(KordXs s) => s.Select(kx => keys[kx]);
 
-	class Items : List<(
+	class Items : List<Itemx, (
 		SynGram<K, N>.Alt alt,
 		Conx want,
 		KordXs heads, // lookaheads including eor
 		int clo
 		)>
 	{
-		internal (SynGram<K, N>.Alt alt, Conx want, KordXs heads, int clo) this[Conx x] => this[+x];
 	}
 	[System.Diagnostics.CodeAnalysis.SuppressMessage("CodeQuality", "IDE0079:Remove unnecessary suppression")]
 	[System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2231:Overload operator equals")]
@@ -182,32 +182,34 @@ public partial class SerMaker<K, N>
 		internal Arr<Nordx, Formx> goNs; // form index, at name ordinal index, error: -1
 	}
 
-	readonly List<Form> forms = [];
-	readonly Dictionary<(SynGram<K, N>.Alt a, Conx want), int> addItems = [];
-	readonly List<int> addHeads = [];
-	readonly Dictionary<object, Formx> addGos = [];
+	readonly List<Formx, Form> forms = [];
+	readonly Dictionary<(SynGram<K, N>.Alt a, Conx want), Itemx> addItems = [];
+	readonly List<Itemx> addHeads = [];
+	readonly Dictionary<SynGram<K, N>.Con, Formx> addGos = [];
 
-	int AddItem(Items Is, SynGram<K, N>.Alt alt, Conx want, KordXs heads1, KordXs heads2, int clo)
+	/// <returns>to add head</returns>
+	Itemx AddItem(Items Is, SynGram<K, N>.Alt alt, Conx want, KordXs heads1, KordXs heads2, int clo)
 	{
-		if (addItems.TryGetValue((alt, want), out var x))
-			return (Is[x].heads.Or(heads1) | Is[x].heads.Or(heads2))
-				&& firstAs[alt.index][+want + 1].empty ? x : -1;
-		addItems[(alt, want)] = Is.Count;
+		if (addItems.TryGetValue((alt, want), out var x)) {
+			var head = Is[x].heads.Or(heads1) | Is[x].heads.Or(heads2);
+			return head && firstAs[alt.index][want + 1].empty ? x : Itemx.No;
+		}
+		addItems[(alt, want)] = Is.size;
 		Is.Add((alt, want, heads1.NewOr(heads2), clo));
-		return -1;
+		return Itemx.No;
 	}
 	Formx AddForm(Items Is)
 	{
 		foreach (var f in forms)
-			if (f.Is.Count == Is.Count) {
+			if (f.Is.size == Is.size) {
 				foreach (var (fi, i) in f.Is.Zip(Is))
 					if (fi.alt != i.alt || fi.want != i.want || !fi.heads.Same(i.heads))
-						goto No;
+						goto Diff;
 				return f.index;
-			No:;
+			Diff:;
 			}
 		var F = new Form {
-			index = (Formx)forms.Count, Is = Is, clashs = new(keys.size),
+			index = forms.size, Is = Is, clashs = new(keys.size),
 			goNs = new(names.size), goKs = new(keys.size),
 		};
 		forms.Add(F);
@@ -218,16 +220,18 @@ public partial class SerMaker<K, N>
 	// make a whole items
 	Items Closure(Items Is)
 	{
-		for (var x = 0; x < Is.Count + addHeads.Count; x++) {
-			var y = x < Is.Count ? x : addHeads[x - Is.Count];
-			var (a, want, heads, clo) = Is[y];
+		void Item(Itemx x)
+		{
+			var (a, want, heads, clo) = Is[x];
 			if (want >= a.size || a[want].K)
-				continue;
-			var (e, f) = firstAs[a.index][+want + 1];
+				return;
+			var (e, f) = firstAs[a.index][want + 1];
 			foreach (var A in prods[a[want].nx])
-				if ((y = AddItem(Is, A, (Conx)0, f, e ? heads : default, clo + 1)) >= 0)
+				if (AddItem(Is, A, default, f, e ? heads : default, clo + 1) is var y && y.yes)
 					addHeads.Add(y);
 		}
+		for (var x = 0; x < +Is.size + addHeads.Count; x++)
+			Item(x < +Is.size ? (Itemx)x : addHeads[x - +Is.size]);
 		addItems.Clear(); addHeads.Clear();
 		return Is;
 	}
@@ -259,14 +263,14 @@ public partial class SerMaker<K, N>
 	// phase 2: make all transition forms
 	public void Forms()
 	{
-		if (forms.Count > 0)
+		if (forms.size.pos)
 			return;
 		Items init = [];
 		AddItem(init, alts[default], (Conx)0, KordXs.One(keys.size, default), default, 1);
 		AddForm(Closure(init));
-		for (var x = 0; x < forms.Count; x++) {
-			if (x >= 32767) throw new("too many forms");
-			ShiftPush(forms[x]);
+		foreach (var (f, x) in forms.Each()) {
+			if (+x >= 32767) throw new("too many forms");
+			ShiftPush(f);
 		}
 		foreach (var f in forms)
 			foreach (var (a, want, heads, _) in f.Is)
@@ -295,7 +299,7 @@ public partial class SerMaker<K, N>
 				// already solved
 				else if (clashs.TryGetValue(c, out var ok)) {
 					f.goKs[kx] = ok.go;
-					ok.keys.Or((Kordx)kx);
+					ok.keys.Or(kx);
 				}
 				// try to solve
 				else {
@@ -315,7 +319,7 @@ public partial class SerMaker<K, N>
 						}
 					}
 					f.goKs[kx] = go;
-					clashs[c] = (KordXs.One(keys.size, (Kordx)kx), go);
+					clashs[c] = (KordXs.One(keys.size, kx), go);
 				}
 		// solved
 		var solvez = 0;
@@ -348,7 +352,7 @@ public partial class SerMaker<K, N>
 				rec = a.rec ? KeyRec(a.last.k) : Krecx.No,
 			};
 		// synter forms
-		Arr<Formx, SynForm> Fs = new((Formx)forms.Count);
+		Arr<Formx, SynForm> Fs = new(forms.size);
 		foreach (var f in forms) {
 			var F = Fs[f.index] = new();
 			F.goKs = OrdFormx<Kord>.Compact(f.goKs, keyOs);
@@ -500,3 +504,5 @@ public partial class SerMaker<K, N>
 		firstAs = new(alts.size);
 	}
 }
+
+struct XItem { }

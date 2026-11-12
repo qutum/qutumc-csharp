@@ -276,7 +276,7 @@ public partial class SerMaker<K, N>
 	{
 		if (d is SynForm f) {
 			StrMake s = new();
-			foreach (var (a, want, heads, clo) in forms[+f.index].Is)
+			foreach (var (a, want, heads, clo) in forms[f.index].Is)
 				_ = s - '\n' + want + "_ " + a + "  " + Dumper_((KeySet(heads), s)) + "  :" + clo;
 			return s;
 		}
@@ -285,10 +285,10 @@ public partial class SerMaker<K, N>
 
 	public void Dump(object d)
 	{
-		if (d is List<Form> forms)
+		if (d is Arr<Formx, Form> forms)
 			using (var env = EnvWriter.Use())
-				env.WriteLine($"forms: {forms.Count} (max {(
-					forms.Select(f => f.Is.Count).Max())} items)");
+				env.WriteLine($"forms: {forms.size} (max {(
+					forms.Select(f => f.Is.size).Max())} items)");
 		else if (d is (Dictionary<Clash, (KordXs keys, Formx go)> clashs,
 				bool detail, int solvez)) {
 			using var env = EnvWriter.Use();
