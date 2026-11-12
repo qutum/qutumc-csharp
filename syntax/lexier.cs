@@ -351,7 +351,7 @@ public sealed partial class Lexier : LexierArr<K>
 internal sealed class LexierGet : Lexier<K>, Lexer<K, Lexi<K>>
 {
 	public Lexix bufz;
-	ref Lexi<K> Buf(Lexix x) => ref lexs.S[+x & +bufz];
+	ref Lexi<K> Buf(Lexix x) => ref lexs.s[+x & +bufz];
 	public List<Lexi<K>> blanks; // [blank except single eol and indent], merged into lexis at err
 
 	public LexierGet(LexGram<K> gram) : base(gram) { errs = null; }

@@ -111,7 +111,7 @@ public partial class Lexier<K> : LexierArr<K> where K : struct
 	protected Bytex lon; // read.loc for current lexi
 
 	public const int AltBytez = 15;
-	ref byte Byte(Bytex x) => ref bytes.S[+x & AltBytez];
+	ref byte Byte(Bytex x) => ref bytes.s[+x & AltBytez];
 
 	public virtual IDisposable Begin(Lexer<byte, byte> read)
 	{

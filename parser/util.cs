@@ -104,7 +104,6 @@ public struct Arr<X, T> : IEnumerable<T> where X : IUnaryPlusOperators<X, int>, 
 	public readonly ref T this[X x] { get => ref Span[+x]; }
 	public readonly ref T last => ref Span[^1];
 	public readonly ref T Last(X x) => ref Span[^+x];
-	public readonly T[] S => s;
 
 	public Arr() => s = [];
 	public Arr(X size) : this(+size > 0 ? new T[+size] : []) { }
@@ -145,12 +144,13 @@ public struct Arr<X, T> : IEnumerable<T> where X : IUnaryPlusOperators<X, int>, 
 
 	public readonly IEnumerator<T> GetEnumerator()
 	{
-		for (int x = +j.on, v = +j.via; x < v; x++) yield return s[x];
+		for (int x = +j.on; x < +j.via; x++) yield return s[x]; // j.via may changes
 	}
 	readonly IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 	public readonly IEnumerable<(T d, X x)> Each(X offset = default)
 	{
-		for (int x = +j.on, v = +j.via; x < v; x++) yield return (s[x], offset + x);
+		int o = +j.on; offset += -o;
+		for (int x = o; x < +j.via; x++) yield return (s[x], offset + x); // j.via may changes
 	}
 
 	public readonly X BinFind(T v, bool xNo = true) =>
@@ -170,9 +170,16 @@ public class List<X, T> : IEnumerable<T> where X : IUnaryPlusOperators<X, int>, 
 	public List<X, T> Remove(Jov<X> j) { s.Remove(j); return this; }
 	public virtual List<X, T> Clear() { s.Clear(); return this; }
 
-	public IEnumerator<T> GetEnumerator() => s.GetEnumerator();
+	public IEnumerator<T> GetEnumerator()
+	{
+		for (int x = +s.j.on; x < +s.j.via; x++) yield return s.s[x]; // s.j.via may changes
+	}
 	IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
-	public IEnumerable<(T d, X x)> Each(X offset = default) => s.Each(offset);
+	public IEnumerable<(T d, X x)> Each(X offset = default)
+	{
+		int o = +s.j.on; offset += -o;
+		for (int x = o; x < +s.j.via; x++) yield return (s.s[x], offset + x); // s.j.via may changes
+	}
 }
 
 public static partial class Extension

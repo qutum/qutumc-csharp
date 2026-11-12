@@ -63,9 +63,9 @@ public partial class SynGram<K, N>
 					a.lex = a.lex.yes ? throw new($"{p.name}.{p.Count - 1} lex {a.lex}")
 						: a.size - 1;
 				else if (c is K k)
-					a.Add(new((Kordx)0, k));
+					a.Add(new(default, k));
 				else if (c is N n)
-					a.Add(new((Nordx)0, n));
+					a.Add(new(default, n));
 				else
 					throw new($"wrong altern content {c?.GetType()}");
 			return this;
@@ -211,7 +211,7 @@ public partial class SerMaker<K, N>
 			goNs = new(names.size), goKs = new(keys.size),
 		};
 		forms.Add(F);
-		Array.Fill(F.goKs.S, Formx.No); Array.Fill(F.goNs.S, Formx.No);
+		Array.Fill(F.goKs.s, Formx.No); Array.Fill(F.goNs.s, Formx.No);
 		return F.index;
 	}
 
