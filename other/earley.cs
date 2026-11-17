@@ -127,7 +127,7 @@ public class Earley<K, L, N, T, Ler>
 		bool _ = false;
 		T t = m >= 0
 			? Accepted(m, null, ref _).AppendSubOf(err)
-			: err.head.Remove().AppendSubOf(err);
+			: err.head.Cut().AppendSubOf(err);
 		Array.Fill(matchs, default, 0, matchz);
 		lexm.Clear();
 		return t;
@@ -364,14 +364,14 @@ public class Earley<K, L, N, T, Ler>
 			}
 		if (t != up) {
 			if (omitSub && t.head != null && t.head.next == null)
-				t.AddSubOf(t.head.Remove());
+				t.AddSubOf(t.head.Cut());
 			if (m.a.synt != 1 || up == null || t.head?.next != null) {
 				up?.AddHead(t);
 				t.dump = Dump(m, t.head == null);
 				omitSelf = m.a.synt == 1;
 			}
 			else if (t.head != null) {
-				up.AddHead(t.head.Remove());
+				up.AddHead(t.head.Cut());
 				omitSelf = false;
 			}
 		}

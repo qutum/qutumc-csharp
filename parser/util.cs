@@ -4,6 +4,10 @@
 // Under the terms of the GNU General Public License version 3
 // http://qutum.com  http://qutum.cn
 //
+/// <summary>
+/// Represents a typed index with a specific type.
+/// </summary>
+/// <typeparam name="X">The type of the index.</typeparam>
 global using Jot = qutum.parser.Jot<int>;
 global using Jov = qutum.parser.Jov<int>;
 
@@ -18,26 +22,38 @@ using System.Text;
 
 namespace qutum.parser;
 
+/// <summary>typed index, _ for name only, actual value is int</summary>
 #pragma warning disable CS0660 // Type defines operator == or operator != but does not override Object.Equals(object o)
 #pragma warning disable CS0661 // Type defines operator == or operator != but does not override Object.GetHashCode()
-// typed index, meaningless _ is for distinguish only
 public struct X<_> : IUnaryPlusOperators<X<_>, int>, IComparisonOperators<X<_>, X<_>, bool>,
 	IAdditionOperators<X<_>, int, X<_>>, IBitwiseOperators<X<_>, X<_>, X<_>>, IComparable<X<_>>
 {
 	int x;
+	/// <summary>== 0</summary>
 	public readonly bool zero => x == 0;
+	/// <summary>> 0</summary>
 	public readonly bool pos => x > 0;
+	/// <summary>&lt; 0</summary>
 	public readonly bool neg => x < 0;
+	/// <summary>>= 0</summary>
 	public readonly bool zpos => x >= 0;
+	/// <summary>&lt;= 0</summary>
 	public readonly bool zneg => x <= 0;
+	/// <summary>!= -1</summary>
 	public readonly bool yes => x != -1;
+	/// <summary>== -1</summary>
 	public readonly bool no => x == -1;
+	/// <summary>0</summary>
 	public static readonly X<_> Z = default;
+	/// <summary>-1</summary>
 	public static readonly X<_> No = (X<_>)(-1);
 
+	/// <summary>int value to this index</summary>
 	public static explicit operator X<_>(int x) => new() { x = x };
+	/// <summary>int string</summary>
 	public override readonly string ToString() => x.ToString();
 
+	/// <summary>this index to int value</summary>
 	public static int operator +(X<_> a) => a.x;
 	public static bool operator ==(X<_> a, X<_> b) => a.x == b.x;
 	public static bool operator !=(X<_> a, X<_> b) => a.x != b.x;
@@ -58,13 +74,18 @@ public struct X<_> : IUnaryPlusOperators<X<_>, int>, IComparisonOperators<X<_>, 
 #pragma warning restore CS0661 // Type defines operator == or operator != but does not override Object.GetHashCode()
 #pragma warning restore CS0660 // Type defines operator == or operator != but does not override Object.Equals(object o)
 
-// jot of data to inclusive end, [on,to], default size should be 1
-public struct Jot<X> : IEnumerable<X> where X : IUnaryPlusOperators<X, int>, IAdditionOperators<X, int, X>
+/// <summary>jot of data, [on,to] inclusive end, default size should be 1</summary>
+/// <typeparam name="X">typed index (or int)</typeparam>
+public struct Jot<X> : IEnum<X> where X : IUnaryPlusOperators<X, int>, IAdditionOperators<X, int, X>
 {
-	public X on; // index on the first, [on]==first
-	public X to; // inclusive index to the last, last==[to]
+	/// <summary>index on the first, [on]==first</summary>
+	public X on;
+	/// <summary>inclusive index to the last, last==[to]</summary>
+	public X to;
 
+	/// <summary>to - on + 1, default is 1</summary>
 	public readonly X size => to + -+on + 1;
+	/// <summary>size > 0, also on &lt;= to</summary>
 	public readonly bool any => +on <= +to;
 	public readonly Range range => +on..+(to + 1);
 	public readonly void Deconstruct(out X on, out X to) => (on, to) = (this.on, this.to);
@@ -74,16 +95,25 @@ public struct Jot<X> : IEnumerable<X> where X : IUnaryPlusOperators<X, int>, IAd
 	public static implicit operator Jot<X>(Jov<X> j) => (j.on, j.via + -1);
 	public static explicit operator Jot<int>(Jot<X> j) => (+j.on, +j.to);
 
-	public readonly IEnumerator<X> GetEnumerator() { for (X x = on; +x <= +to; x += 1) yield return x; }
-	readonly IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+	/// <summary>enumerate a copy of this jot</summary>
+	public readonly IEnumerator<X> GetEnumerator()
+	{
+		X x = on; for (; +x < +to; x += 1) yield return x;
+		if (+x == +to) yield return x; // no overflow
+	}
 }
-// jot of data via exclusive end, [on,via), default size should be 0
-public struct Jov<X> : IEnumerable<X> where X : IUnaryPlusOperators<X, int>, IAdditionOperators<X, int, X>
+/// <summary>jot of data, [on,via) exclusive end, default size should be 0</summary>
+/// <typeparam name="X">typed index (or int)</typeparam>
+public struct Jov<X> : IEnum<X> where X : IUnaryPlusOperators<X, int>, IAdditionOperators<X, int, X>
 {
-	public X on; // index on the first, [on]==first
-	public X via; // exclusive index via the last, last==[via-1]
+	/// <summary>index on the first, [on]==first</summary>
+	public X on;
+	/// <summary>exclusive index via the last, last==[via-1]</summary>
+	public X via;
 
+	/// <summary>via - on, default is 0</summary>
 	public readonly X size => via + -+on;
+	/// <summary>size > 0, also on &lt; via</summary>
 	public readonly bool any => +on < +via;
 	public readonly Range range => +on..+via;
 	public readonly void Deconstruct(out X on, out X via) => (on, via) = (this.on, this.via);
@@ -93,25 +123,38 @@ public struct Jov<X> : IEnumerable<X> where X : IUnaryPlusOperators<X, int>, IAd
 	public static implicit operator Jov<X>(Jot<X> j) => (j.on, j.to + 1);
 	public static explicit operator Jov<int>(Jov<X> j) => (+j.on, +j.via);
 
+	/// <summary>enumerate a copy of this jot</summary>
 	public readonly IEnumerator<X> GetEnumerator() { for (X x = on; +x < +via; x += 1) yield return x; }
-	readonly IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 }
 
+/// <summary>array jot on typed index (or int). use 'ref this' to change the jot</summary>
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE1006:Naming Styles")]
-public struct Arr<X, T> : IEnumerable<T> where X : IUnaryPlusOperators<X, int>, IAdditionOperators<X, int, X>
+public struct Arr<X, T> : IEnum<T> where X : IUnaryPlusOperators<X, int>, IAdditionOperators<X, int, X>
 {
+	/// <summary>actual array, may large than <see cref="j">jot</see></summary>
 	public T[] s;
+	/// <summary>jot</summary>
 	public Jov<X> j;
+	/// <summary>size, should &lt;= <see cref="s">actual array</see> length</summary>
 	public readonly X size => j.size;
+	/// <summary>read or write on typed index inside <see cref="j">jot</see></summary>
 	public readonly ref T this[X x] { get => ref Span[+x]; }
+	/// <summary>read or write on the last, == [^1]</summary>
 	public readonly ref T last => ref Span[^1];
+	/// <summary>read or write on backward typed index, == [^x]</summary>
 	public readonly ref T Last(X x) => ref Span[^+x];
 
-	public Arr() => s = [];
-	public Arr(IEnumerable<T> s) : this([.. s]) { }
+	/// <summary>empty array</summary>
+	public Arr() => s = []; // used for Arr<X, T> a = []
+	/// <summary>new array with size, jot is full</summary>
 	public Arr(X size) : this(+size > 0 ? new T[+size] : []) { }
+	/// <summary>new array of data, like [..s], jot is full</summary>
+	public Arr(IEnumerable<T> s) : this([.. s]) { }
+	/// <summary>new array with an actual one, jot is full</summary>
 	public Arr(T[] s) { this.s = s; j = (default, default(X) + s.Length); }
+	/// <summary>new array with size and a jot</summary>
 	public Arr(X size, Jov<X> j) : this(+size > 0 ? new T[+size] : [], j) { }
+	/// <summary>array with an actual one and a jot</summary>
 	public Arr(T[] s, Jov<X> j) { this.s = s; this.j = j; _ = Span; }
 
 	internal Arr<X, T> _Add(T d)
@@ -121,12 +164,12 @@ public struct Arr<X, T> : IEnumerable<T> where X : IUnaryPlusOperators<X, int>, 
 		s[+j.via] = d; j.via += 1;
 		return this;
 	}
-	internal Arr<X, T> _Remove(X x) => _Remove((x, x + 1));
-	internal Arr<X, T> _Remove(Jov<X> j_)
+	internal Arr<X, T> _Drop(X x) => _Drop((x, x + 1));
+	internal Arr<X, T> _Drop(Jov<X> j_)
 	{
-		if (Seg(j_) is { j: var seg } && seg.any) {
-			Array.Copy(s, +seg.via, s, +seg.on, +j.via - +seg.via);
-			j = (j.on, j.via + -+seg.size);
+		if (Jot(j_) is { j: var jj } && jj.any) {
+			Array.Copy(s, +jj.via, s, +jj.on, +j.via - +jj.via);
+			j = (j.on, j.via + -+jj.size);
 		}
 		return this;
 	}
@@ -141,23 +184,28 @@ public struct Arr<X, T> : IEnumerable<T> where X : IUnaryPlusOperators<X, int>, 
 		j = default; return this;
 	}
 
+	/// <summary>Span of array jot</summary>
 	public readonly Span<T> Span => ((Span<T>)s)[j.range];
-	public readonly Arr<X, T> Seg(Jov<X> j) => new(s, (this.j.on + +j.on, this.j.on + +j.via));
-	public readonly Arr<X, T> Seg(int on, X via) => Seg((default(X) + on, via));
+	/// <summary>array with jot inside this array jot</summary>
+	public readonly Arr<X, T> Jot(Jov<X> j) => new(s, (this.j.on + +j.on, this.j.on + +j.via));
+	/// <summary>array with jot inside this array jot</summary>
+	public readonly Arr<X, T> Jot(int on, X via) => Jot((default(X) + on, via));
 
-	/// for unchanged j only
+	/// <summary>enumerate this array of a jot copy</summary>
 	public readonly IEnumerator<T> GetEnumerator()
 	{
 		for (int x = +j.on; x < +j.via; x++) yield return s[x];
 	}
-	readonly IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
-	/// for unchanged j only
+	/// <summary>enumerate this array of a jot copy, add each index by an offset</summary>
 	public readonly IEnumerable<(T d, X x)> Each(X offset = default)
 	{
 		int o = +j.on; offset += -o;
 		for (int x = o; x < +j.via; x++) yield return (s[x], offset + x);
 	}
 
+	/// <summary>use <see cref="Array.BinarySearch{T}(T[], T)"/> to search a data in this array jot.
+	/// </summary>
+	/// <returns>typed index of BinarySearch returned, if not found and xNo is true: -1</returns>
 	public readonly X BinFind(T v, bool xNo = true) =>
 		default(X) + (Array.BinarySearch(s, +j.on, +j.size, v) is var x && x < 0 && xNo ? -1 : x);
 }
@@ -165,50 +213,73 @@ public static class ArrExtention
 {
 	extension<X, T>(ref Arr<X, T> s) where X : IUnaryPlusOperators<X, int>, IAdditionOperators<X, int, X>
 	{
-		public Arr<X, T> Ad(T d) => s = s._Add(d); // not 'Add' to deny [..list] calling Add
-		public Arr<X, T> Remove(X x) => s = s._Remove(x);
-		public Arr<X, T> Remove(Jov<X> j) => s = s._Remove(j);
+		/// <summary>add a data after the last, resize the actual array if required. use 'ref this'</summary>
+		public Arr<X, T> Ad(T d) => s = s._Add(d); // not 'Add' to deny [..data] to call each Add
+		/// <summary>drop a data, move data else. use 'ref this'</summary>
+		public Arr<X, T> Drop(X x) => s = s._Drop(x);
+		/// <summary>drop a jot of data, move data else. use 'ref this'</summary>
+		public Arr<X, T> Drop(Jov<X> j) => s = s._Drop(j);
+		/// <summary>resize the actual array, unchange the jot or set it full. use 'ref this'</summary>
 		public Arr<X, T> Resize(X size, bool keepJ = false) => s = s._Resize(size, keepJ);
+		/// <summary>resize the actual array, set jot. use 'ref this'</summary>
 		public Arr<X, T> Resize(X size, Jov<X> j) => s = s._Resize(size, j);
+		/// <summary>drop all data, zero jot. use 'ref this'</summary>
 		public Arr<X, T> Clear() => s = s._Clear();
 	}
 }
-public class List<X, T> : IEnumerable<T> where X : IUnaryPlusOperators<X, int>, IAdditionOperators<X, int, X>
+
+/// <summary>array jot on typed index (or int). no need 'ref this' vs <see cref="Arr{X, T}"/></summary>
+public class List<X, T> : IEnum<T> where X : IUnaryPlusOperators<X, int>, IAdditionOperators<X, int, X>
 {
 	Arr<X, T> s;
+	/// <summary>size, should &lt;= actual array length</summary>
 	public X size => s.size;
+	/// <summary>read or write on typed index inside jot</summary>
 	public ref T this[X x] { get => ref s[x]; }
+	/// <summary>read or write on the last, == [^1]</summary>
 	public ref T last => ref s.last;
+	/// <summary>read or write on backward typed index, == [^x]</summary>
 	public ref T Last(X x) => ref s.Last(x);
 
+	/// <summary>new array with size, jot is full</summary>
 	public List(X size = default) => s = new(size);
+	/// <summary>new array of data, like [..s], jot is full</summary>
 	public List(IEnumerable<T> ds) => s = new(ds);
-	public List<X, T> Ad(T d) { s.Ad(d); return this; } // not 'Add' to deny [..list] calling Add
-	public List<X, T> Remove(X x) { s.Remove(x); return this; }
-	public List<X, T> Remove(Jov<X> j) { s.Remove(j); return this; }
+	/// <summary>add a data after the last, resize the actual array if required</summary>
+	public List<X, T> Ad(T d) { s.Ad(d); return this; } // not 'Add' to deny [..data] to call each Add
+	/// <summary>drop a data, move data else</summary>
+	public List<X, T> Drop(X x) { s.Drop(x); return this; }
+	/// <summary>drop a jot of data, move data else</summary>
+	public List<X, T> Drop(Jov<X> j) { s.Drop(j); return this; }
+	/// <summary>drop all data, zero jot</summary>
 	public virtual List<X, T> Clear() { s.Clear(); return this; }
 
+	/// <summary>enumerate this array, jot end may change</summary>
 	public IEnumerator<T> GetEnumerator()
 	{
-		for (int x = +s.j.on; x < +s.j.via; x++) yield return s.s[x]; // s.j.via may changes
+		for (int x = +s.j.on; x < +s.j.via; x++) yield return s.s[x]; // s.j.via may change
 	}
-	IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+	/// <summary>enumerate this array, add each index by an offset, jot end may change</summary>
 	public IEnumerable<(T d, X x)> Each(X offset = default)
 	{
 		int o = +s.j.on; offset += -o;
-		for (int x = o; x < +s.j.via; x++) yield return (s.s[x], offset + x); // s.j.via may changes
+		for (int x = o; x < +s.j.via; x++) yield return (s.s[x], offset + x); // s.j.via may change
 	}
 }
 
 public static partial class Extension
 {
+	/// <summary>cast int jot to typed jot</summary>
 	public static Jot<X<_>> X<_>(this Jot j) => ((X<_>)j.on, (X<_>)j.to);
+	/// <summary>cast int jot to typed jot</summary>
 	public static Jov<X<_>> X<_>(this Jov j) => ((X<_>)j.on, (X<_>)j.via);
 
 	public static X<_> Min<_>(this X<_> a, X<_> b) => a < b ? a : b;
 	public static X<_> Max<_>(this X<_> a, X<_> b) => a < b ? b : a;
-	public static bool IncLess(this ref int d, int z) => ++d < z || (d = z) < z;
-	public static bool IncLess<_>(this ref X<_> d, int z) => +(d += 1) < z || +(d = (X<_>)z) < z;
+	/// <summary>increase by 1 if &lt; z, so max is z</summary><returns>increased &lt; z</returns>
+	public static bool IncLess(this ref int d, int z) => d < z && ++d < z;
+	/// <summary>increase by 1 if &lt; z, so max is z</summary><returns>increased &lt; z</returns>
+	public static bool IncLess<_>(this ref X<_> d, int z) => +d < z && +(d += 1) < z;
 
 	public static bool Adds<T>(this ISet<T> s, IEnumerable<T> add)
 	{
@@ -218,11 +289,13 @@ public static partial class Extension
 
 	extension<T>(IEnumerable<T> s)
 	{
+		/// <summary>enumerate data, add each index by an offset</summary>
 		public IEnumerable<(T d, int x)> Each(int offset = 0)
 		{
 			foreach (var d in s) yield return (d, offset++);
 		}
 
+		/// <summary>same as <see cref="Arr{X, T}.Arr(IEnumerable{T})"/>, _ for type inference only</summary>
 		public Arr<X, T> ToArr<X>(X _ = default)
 			where X : IUnaryPlusOperators<X, int>, IAdditionOperators<X, int, X> => new(s);
 
@@ -242,17 +315,19 @@ public static partial class Extension
 			}
 			return kv;
 		}
-		public Dictionary<T, int> ToCount() => ToDict<T, int>(s, (d, z) => z + 1);
+		public Dictionary<T, int> ToCount() => s.ToDict<T, int>((d, z) => z + 1);
 	}
 
 	extension<T>(IEnumerable<T> s) where T : struct
 	{
+		/// <summary>enumerate data, append null if data is empty</summary>
 		public IEnumerable<T?> May()
 		{
 			bool no = true;
 			foreach (var d in s) { no = false; yield return d; }
 			if (no) yield return null;
 		}
+		/// <returns>the first checked data, or null</returns>
 		public T? FirstOrNull(Func<T, bool> If)
 		{
 			foreach (var d in s) if (If(d)) return d;
@@ -261,61 +336,81 @@ public static partial class Extension
 	}
 }
 
-public partial class LinkTree<T> : IEnumerable<T> where T : LinkTree<T>
+/// <summary>tree node with four direction uncyclic links</summary>
+public partial class LinkTree<T> : IEnum<T> where T : LinkTree<T>
 {
-	public T up, prev, next, head, tail;
+	/// <summary>parent node. if null, this is root or one root of forest</summary>
+	public T up;
+	/// <summary>previous sibling node.
+	/// if not null: past.next == this, if null and up not null: up.head == this</summary>
+	public T past;
+	/// <summary>next sibling node.
+	/// if not null: next.past == this, if null and up not null: up.tail == this</summary>
+	public T next;
+	/// <summary>head of sub nodes.
+	/// if not null: head.up == this && head.past == null && tail != null, if null: tail == null</summary>
+	public T head;
+	/// <summary>tail of sub nodes.
+	/// if not null: tail.up == this && tail.next == null && head != null, if null: head == null</summary>
+	public T tail;
 
+	/// <summary>the most past sibling. if up not null: == up.head</summary>
 	public T First()
 	{
+		if (up != null)
+			return up.head;
 		var t = (T)this;
-		while (t.prev != null)
-			t = t.prev;
+		while (t.past != null)
+			t = t.past;
 		return t;
 	}
 
+	/// <summary>the most next sibling. if up not null: == up.tail</summary>
 	public T Last()
 	{
+		if (up != null)
+			return up.tail;
 		var t = (T)this;
 		while (t.next != null)
 			t = t.next;
 		return t;
 	}
 
-	// after this.tail add sub and all sub.next
-	public T Add(T sub)
+	/// <summary>add t and all siblings to after this.tail. t must be first root</summary>
+	public T Add(T t)
 	{
-		if (sub == null)
+		if (t == null)
 			return (T)this;
-		Debug.Assert(sub.up == null && sub.prev == null);
-		var end = sub;
+		Debug.Assert(t.up == null && t.past == null);
+		var end = t;
 		for (end.up = (T)this; end.next != null; end.up = (T)this)
 			end = end.next;
 		if (head == null)
-			head = sub;
+			head = t;
 		else
-			(sub.prev = tail).next = sub;
+			(t.past = tail).next = t;
 		tail = end;
 		return (T)this;
 	}
 
-	// before this.head add sub and all sub.next 
-	public T AddHead(T sub)
+	/// <summary>add t and all siblings to before this.head. t must be first root</summary>
+	public T AddHead(T t)
 	{
-		if (sub == null)
+		if (t == null)
 			return (T)this;
-		Debug.Assert(sub.up == null && sub.prev == null);
-		var end = sub;
+		Debug.Assert(t.up == null && t.past == null);
+		var end = t;
 		for (end.up = (T)this; end.next != null; end.up = (T)this)
 			end = end.next;
-		if (head == null)
+		if (tail == null)
 			tail = end;
 		else
-			(end.next = head).prev = end;
-		head = sub;
+			(end.next = head).past = end;
+		head = t;
 		return (T)this;
 	}
 
-	// after tail add subs of t
+	/// <summary>cut all t subs from t, add them to after this.tail</summary>
 	public T AddSubOf(T t)
 	{
 		if (t?.head == null)
@@ -326,17 +421,17 @@ public partial class LinkTree<T> : IEnumerable<T> where T : LinkTree<T>
 		return Add(x);
 	}
 
-	// after last this.next append next and all next.next
-	public T Append(T next)
+	/// <summary>append t and all siblings to after this.Last. this must be root, t must be first root</summary>
+	public T Append(T t)
 	{
-		if (next == null)
+		if (t == null)
 			return (T)this;
-		Debug.Assert(up == null && next.up == null && next.prev == null);
-		(next.prev = Last()).next = next;
+		Debug.Assert(up == null && t.up == null && t.past == null);
+		(t.past = Last()).next = t;
 		return (T)this;
 	}
 
-	// after last this.next append subs of t
+	/// <summary>cut all t subs from t, add them to after this.Last. this must be root</summary>
 	public T AppendSubOf(T t)
 	{
 		if (t?.head == null)
@@ -344,42 +439,42 @@ public partial class LinkTree<T> : IEnumerable<T> where T : LinkTree<T>
 		Debug.Assert(up == null);
 		var x = t.head;
 		t.head = t.tail = null;
-		(x.prev = Last()).next = x;
+		(x.past = Last()).next = x;
 		for (x.up = null; x.next != null; x.up = null)
 			x = x.next;
 		return (T)this;
 	}
 
-	// remove self from up
-	public T Remove(bool clear = true)
+	/// <summary>cut this from up and siblings, to be a single root</summary>
+	public T Cut(bool keepLink = false)
 	{
-		prev?.next = next;
-		next?.prev = prev;
-		if (up?.head == this)
-			up.head = next;
-		if (up?.tail == this)
-			up.tail = prev;
-		if (clear)
-			up = prev = next = null;
+		if (past == null)
+			up?.head = next;
+		if (next == null)
+			up?.tail = past;
+		past?.next = next;
+		next?.past = past;
+		if (!keepLink)
+			up = past = next = null;
 		return (T)this;
 	}
 
-	// enumerate subs
+	/// <summary>enumerate subs from head to tail</summary>
 	public IEnumerator<T> GetEnumerator()
 	{
 		for (var x = head; x != null; x = x.next)
 			yield return x;
 	}
-	IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
+	/// <summary>enumerate subs backward from tail to head</summary>
 	public IEnumerable<T> Backward()
 	{
-		for (var x = tail; x != null; x = x.prev)
+		for (var x = tail; x != null; x = x.past)
 			yield return x;
 	}
 }
 
-public struct BitSet : IEnumerable<int>
+public struct BitSet : IEnum<int>
 {
 	public ulong[] bits;
 	public readonly bool Empty => size == 0;
@@ -452,11 +547,10 @@ public struct BitSet : IEnumerable<int>
 			for (ulong b = bits[x]; b != 0; b >>= 1, y++)
 				if ((b & 1ul) != 0) yield return x << 6 | y;
 	}
-	readonly IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 }
 
 // meaningless _ is for distinguish only
-public struct BitSet<_> : IEnumerable<X<_>>
+public struct BitSet<_> : IEnum<X<_>>
 {
 	public BitSet set;
 	public readonly bool Empty => set.Empty;
@@ -482,7 +576,11 @@ public struct BitSet<_> : IEnumerable<X<_>>
 	{
 		foreach (int x in set) yield return (X<_>)x;
 	}
-	readonly IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+}
+
+public interface IEnum<out T> : IEnumerable<T> where T : allows ref struct
+{
+	IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 }
 
 public readonly struct StrMake

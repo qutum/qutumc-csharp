@@ -252,7 +252,7 @@ public abstract class LexierArr<K> : Lexer<K, Lexi<K>> where K : struct
 	{
 		lexs.Span[j.range].CopyTo(s); return s;
 	}
-	public IEnumerable<Lexi<K>> Lexs(Jov<X<Lexi<K>>> j) => lexs.Seg(j);
+	public IEnumerable<Lexi<K>> Lexs(Jov<X<Lexi<K>>> j) => lexs.Jot(j);
 
 	public static IEnumerable<K> Keys_(string keys) => [Enum.Parse<K>(keys)];
 	public IEnumerable<K> Keys(string keys) => Keys_(keys);

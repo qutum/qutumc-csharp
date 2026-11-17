@@ -97,7 +97,7 @@ internal class SynStack<L> : List<Stax,
 	internal void Pops(Stax? on = null, Conx? last = null)
 	{
 		var o = on ?? (size - (Stax)(+last ?? 1));
-		Remove((o, size));
+		Drop((o, size));
 		if (recTs.s != null)
 			foreach (var cs in recTs) {
 				var x = cs.Count;

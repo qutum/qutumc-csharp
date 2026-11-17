@@ -89,14 +89,14 @@ public partial class Lexier<K>
 	}
 
 	public string Dumper(Func<object, object> dumper = null)
-		=> string.Join(" ", lexs.Seg(0, loc).Select(t => t.Dumper(dumper)));
+		=> string.Join(" ", lexs.Jot(0, loc).Select(t => t.Dumper(dumper)));
 }
 
 public partial class LinkTree<T>
 {
 	public T Dump(Func<LinkTree<T>, object> dumper = null, int after = 1)
 	{
-		bool first = prev == null && (up == null || after <= 0);
+		bool first = past == null && (up == null || after <= 0);
 		bool last = next == null && (up == null || after > 0);
 		string noInd = up == null && after == 0 ? "" : null;
 		var t = head;
@@ -110,7 +110,7 @@ public partial class LinkTree<T>
 		for (; t != null; t = t.next)
 			using (var env = EnvWriter.Indent(noInd ?? (last ? "  " : "| ")))
 				t.Dump(dumper, 1);
-		if (up == null && prev == null)
+		if (up == null && past == null)
 			for (t = next; t != null; t = t.next)
 				t.Dump(dumper, after);
 		return (T)this;

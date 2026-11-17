@@ -119,7 +119,7 @@ public static class ByteSet
 		(All, Line, Lines, Dec, Hex, Alpha, Word, Op) = (ALL, LINE, LINES, DEC, HEX, ALPHA, WORD, OP);
 	}
 
-	public struct One : IEnumerable<char>
+	public struct One : IEnum<char>
 	{
 		ReadOnlyMemory<char> set;
 
@@ -135,7 +135,6 @@ public static class ByteSet
 		{
 			for (var x = 0; x < set.Length; x++) yield return set.Span[x];
 		}
-		readonly IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 	}
 
 	public static string Esc<K>(K k)
