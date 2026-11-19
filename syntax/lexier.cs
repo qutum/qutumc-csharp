@@ -341,7 +341,7 @@ public sealed partial class Lexier : LexierArr<K>
 		}
 	}
 
-	Lexi<K> Left => lexs.last;
+	Lexi<K> Left => lexs.tail;
 
 	public static Kord Ordin(Lexier ler) => ler.lexs[ler.loc].key.Ordin();
 	public override bool Is(K key, K aim) => key.Is(aim);

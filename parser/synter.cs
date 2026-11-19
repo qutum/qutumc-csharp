@@ -28,7 +28,7 @@ using Nord = ushort;
 using Stax = X<SynStack<char>>;
 
 // syntax tree
-public partial class Synt<N, T, L> : LinkTree<T> where T : Synt<N, T, L>
+public partial class Synt<N, T, L> : Tree<T> where T : Synt<N, T, L>
 {
 	public N name;
 	public Jov<X<L>> j; // jot of lexs: on >=0, jot of error lexs: on <0
@@ -80,23 +80,23 @@ public partial struct OrdFormx<Ord> where Ord : struct, IBinaryInteger<Ord>
 }
 internal class SynStack<L> : List<Stax,
 	// (form, lex loc i.e synt start, synt or null for lex)
-	(SynForm form, X<L> loc, object synt)> // index from 1
+	(SynForm form, X<L> loc, object what)> // index from 1
 {
 	internal Func<Altx, Krecx> altRec;
 	Arr<Krecx, List<Stax>> recTs; // { 0, recovery stack index... } of each recovery key
 
-	public (SynForm form, X<L> loc, object synt) Last(Conx x) => Last((Stax)(+x));
+	public (SynForm form, X<L> loc, object what) Tail(Conx x) => Tail((Stax)(+x));
 
-	internal void Push(SynForm form, X<L> loc, object synt)
+	internal void Push(SynForm form, X<L> loc, object what)
 	{
-		Ad((form, loc, synt));
+		Ad((form, loc, what));
 		if (recTs.s != null && form.recs != null)
 			foreach (var a in form.recs)
 				recTs[altRec(a.alt)].Add(size - 1);
 	}
-	internal void Pops(Stax? on = null, Conx? last = null)
+	internal void Pops(Stax? on = null, Conx? tail = null)
 	{
-		var o = on ?? (size - (Stax)(+last ?? 1));
+		var o = on ?? (size - (Stax)(+tail ?? 1));
 		Drop((o, size));
 		if (recTs.s != null)
 			foreach (var cs in recTs) {
@@ -182,7 +182,7 @@ public partial class Synter<K, L, N, T, Ler>
 		(Stax min, int loop) stuck = (stack.size, 0);
 		var key = ler.Next() ? keyOrd(ler) : default;
 	Loop:
-		var form = stack.last.form;
+		var form = stack.tail.form;
 		var go = form.goKs[key];
 		if (go > Formx.No) { // shift
 			stack.Push(forms[go], X<L>.No, null);
@@ -190,8 +190,8 @@ public partial class Synter<K, L, N, T, Ler>
 		}
 		else if (go < Formx.No) { // reduce
 			var alt = alts[SynForm.Redu(go)];
-			stack.Pops(last: alt.size);
-			form = stack.last.form;
+			stack.Pops(tail: alt.size);
+			form = stack.tail.form;
 			go = form.goNs[nameOrd(alt.name)];
 			if (go > Formx.No) {
 				stack.Push(forms[go], X<L>.No, null);
@@ -219,7 +219,7 @@ public partial class Synter<K, L, N, T, Ler>
 		(Stax min, int loop) stuck = (stack.size, 0);
 		var key = ler.Next() ? keyOrd(ler) : default;
 	Loop:
-		var form = stack.last.form;
+		var form = stack.tail.form;
 		var go = form.goKs[key];
 		if (go > Formx.No) { // shift
 			stack.Push(forms[go], ler.Loc(), null);
@@ -227,20 +227,20 @@ public partial class Synter<K, L, N, T, Ler>
 		}
 		(sbyte err, Conx size, T info) redu = default;
 	Reduce:
-		T t;
+		T synt;
 		if (go < Formx.No) { // reduce
-			(var name, var loc, t) = Reduce(go, ref redu);
-			form = stack.last.form;
+			(var name, var loc, synt) = Reduce(go, ref redu);
+			form = stack.tail.form;
 			go = form.goNs[name];
 			if (go > Formx.No) {
-				stack.Push(forms[go], loc, t);
+				stack.Push(forms[go], loc, synt);
 				if (stack.size < stuck.min) (stuck.min, stuck.loop) = (stack.size, 1);
 				else if (++stuck.loop >= 100) goto Cyclic; // stack stuck without shift
 				goto Loop;
 			}
 			else if (key == default) {
 				stack.Clear();
-				return (t ?? new()).Append(errs.head?.up); // reduce alts[0] by eor, accept
+				return (synt ?? new()).Append(errs.head?.up); // reduce alts[0] by eor, accept
 			} // reduce alts[0] by others, error
 		}
 		// error: other, recover, accept, reject
@@ -251,46 +251,46 @@ public partial class Synter<K, L, N, T, Ler>
 		return errs; // reject
 	Cyclic:
 		stack.Clear();
-		(t ??= new()).err = -2;
-		t.info = "maybe infinite loop due to cyclic grammar or recovery";
-		return errs.Add(t);
+		(synt ??= new()).err = -2;
+		synt.info = "maybe infinite loop due to cyclic grammar or recovery";
+		return errs.Add(synt);
 	}
 
-	(Nord name, X<L> loc, T t) Reduce(Formx go, ref (sbyte err, Conx size, T info) redu)
+	(Nord name, X<L> loc, T synt) Reduce(Formx go, ref (sbyte err, Conx size, T info) redu)
 	{
 		var alt = alts[SynForm.Redu(go)];
 		if (redu.err == 0)
 			redu.size = alt.size;
-		var loc = redu.size.pos ? stack.Last(redu.size).loc : stack.last.loc + 1;
+		var loc = redu.size.pos ? stack.Tail(redu.size).loc : stack.tail.loc + 1;
 		if (redu.err > 0 && redu.info is T e && loc > e.j.on)
 			loc = e.j.on; // recovery synt start
-		bool make = alt.synt > 0 || alt.synt == 0 && synt;
-		T t = make || redu.err > 0 ? new() { // for omitted recovery synt, append it
+		bool make = alt.synt > 0 || alt.synt == 0 && this.synt;
+		T synt = make || redu.err > 0 ? new() { // for omitted recovery synt, append it
 			name = alt.syntName, j = (loc, ler.Loc()), dump = dump >= 3 ? alt : alt.label,
 			err = redu.err, info = redu.info,
 		} : null;
-		for (var i = redu.size - 1; i.zpos; i--) {
-			var (_, l, synt) = stack.Last(redu.size - i);
-			if (synt is T head)
+		for (var x = redu.size - 1; x.zpos; x--) { // backward
+			var (_, l, what) = stack.Tail(redu.size - x);
+			if (what is T t)
 				if (!make // flatten synts
-					|| alt.synt == 2 && i.zero) // lift first synt as prev
-					t = head.Append(t); // maybe slow if deep left recursive
-				else if (alt.synt == 3 && i == redu.size - 1) // lift last synt as next
-					t.Append(head);
+					|| alt.synt == 2 && x.zero) // lift first synt as prev
+					synt = t.Append(synt); // maybe slow if deep left recursive
+				else if (alt.synt == 3 && x == redu.size - 1) // lift last synt as next
+					synt.Append(t);
 				else
-					t.AddHead(head);
-			else if (make && i == alt.lex)
-				t.info ??= ler.Lex(l);
+					synt.HeadAdd(t);
+			else if (make && x == alt.lex)
+				synt.info ??= ler.Lex(l);
 		}
-		stack.Pops(last: redu.size);
-		return (nameOrd(alt.name), loc, t);
+		stack.Pops(tail: redu.size);
+		return (nameOrd(alt.name), loc, synt);
 	}
 
 	(sbyte err, Conx size, T info) Error(SynForm form, ref Kord key, ref Formx go, T errs)
 	{
 		(Stax tx, Altx a, Conx want) rec = (Stax.No, Altx.No, Conx.No);
 		if (go.no && form.other.yes) // reduce by other key ordinals
-			if (!recover || stack.last.form.recs == null) {
+			if (!recover || stack.tail.form.recs == null) {
 				go = form.other;
 				return (0, Conx.No, null);
 			}
@@ -368,7 +368,7 @@ public partial struct OrdFormx<Ord>
 		where X : IUnaryPlusOperators<X, int>, IAdditionOperators<X, int, X>
 	{ // TODO better compact
 		OrdFormx<Ord> S = new();
-		int z = int.CreateTruncating(os.last), zz;
+		int z = int.CreateTruncating(os.tail), zz;
 		if (z < compact || (zz = fs.Count(x => x.yes)) >= z >>> 3) {
 			S.F = new Formx[z + 1];
 			Array.Fill(S.F, Formx.No);

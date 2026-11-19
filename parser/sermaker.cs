@@ -30,7 +30,7 @@ public partial class SynGram<K, N>
 		public N name;
 		public Conx lex = Conx.No; // save main lex at this index to synt.info, no save: -1
 		public Altx clash = Altx.No; // reject: -1, left: -2, right: -3
-									 // solve and index as same as previous one: actual alt index
+									 // solve and index as same as latest one: actual alt index
 		public bool rec; // whether recover this alt for error, after main lex if any
 		public sbyte synt; // make synt: as synter: 0, omit: -1, make: 1, lift left: 2, lift right: 3
 		public N asName; // as name: not default, same as name: default
@@ -53,7 +53,7 @@ public partial class SynGram<K, N>
 		prods.Add(new() { name = name, label = label, labelYes = labelYes }); return this;
 	}
 
-	// K : lexic key, N : syntax name, .. : previous is main lex
+	// K : lexic key, N : syntax name, .. : latest is main lex
 	public SynGram<K, N> this[params object[] cons] {
 		get {
 			var p = prods[^1];
@@ -135,7 +135,7 @@ public partial class SerMaker<K, N>
 		foreach (var (_, x) in firstAs.Each()) {
 			var a = alts[x];
 			var fs = firstAs[x] = new(a.size + 1);
-			fs.last.empty = true;
+			fs.tail.empty = true;
 			for (var w = a.size - 1; w.pos; w--)
 				if (a[w].K)
 					fs[w] = (false, KordXs.One(keys.size, a[w].kx));
@@ -349,7 +349,7 @@ public partial class SerMaker<K, N>
 				synt = a.synt, label = a.label, dump = a.ToString,
 				syntName = EqualityComparer<N>.Default.Equals(a.asName, default) ? a.name : a.asName,
 				// final key index in recovery keys
-				rec = a.rec ? KeyRec(a.last.k) : Krecx.No,
+				rec = a.rec ? KeyRec(a.tail.k) : Krecx.No,
 			};
 		// synter forms
 		Arr<Formx, SynForm> Fs = new(forms.size);
@@ -464,21 +464,21 @@ public partial class SerMaker<K, N>
 						throw new($"name {c} in {p.name}.{pax} not found");
 				// clash
 				if (a.clash.zpos && (ax.zero || alts[ax - 1].clash.no))
-					throw new($"{p.name}.{pax} no previous clash");
+					throw new($"{p.name}.{pax} no latest clash");
 				if (a.clash.zpos)
 					a.clash = alts[ax - 1].clash.zpos ? alts[ax - 1].clash : ax - 1;
 				// recover
 				if (a.rec && ax.zero)
 					throw new($"initial {p.name}.{pax} recovery");
 				if (a.rec)
-					if (a.size.pos && a.last.K)
-						recs.Add(keyOrd(a.last.k));
+					if (a.size.pos && a.tail.K)
+						recs.Add(keyOrd(a.tail.k));
 					else
 						throw new($"{p.name}.{pax} no final lexic key");
 				// synt
 				if (a.synt == 2 && (a.size.zero || a[Conx.Z].K))
 					throw new($"{p.name}.{pax} leftmost not name");
-				if (a.synt == 3 && (a.size.zero || a.last.K))
+				if (a.synt == 3 && (a.size.zero || a.tail.K))
 					throw new($"{p.name}.{pax} rightmost not name");
 				alts[a.index = ax++] = a;
 				if (np != p)

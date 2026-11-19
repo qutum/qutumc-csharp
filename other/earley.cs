@@ -16,7 +16,7 @@ namespace qutum.parser.earley;
 using EarleyChar = Earley<char, char, string, EsynStr, LerStr>;
 
 // syntax tree
-public class Esynt<N, T> : LinkTree<T> where T : Esynt<N, T>
+public class Esynt<N, T> : Tree<T> where T : Esynt<N, T>
 {
 	public N name;
 	public Jov j; // lexs jot loc, for error may < 0
@@ -356,7 +356,7 @@ public class Earley<K, L, N, T, Ler>
 				Debug.Assert(mp.a == m.a);
 				omitSelf = omitSub = m.a.synt == 1;
 				var p = m.a.s[mp.step - 1].p;
-				t.AddHead(new T {
+				t.HeadAdd(new T {
 					name = m.a.name, j = mp.j, err = -4, info = m.a.hint,
 					dump = dump < 2 ? null : $"{m.a.name} :: recover " +
 						$"{(p is Prod pp ? pp.name : p)} at {Dump(ler.Lex((X<L>)((Jot)mp.j).to))}",
@@ -366,12 +366,12 @@ public class Earley<K, L, N, T, Ler>
 			if (omitSub && t.head != null && t.head.next == null)
 				t.AddSubOf(t.head.Cut());
 			if (m.a.synt != 1 || up == null || t.head?.next != null) {
-				up?.AddHead(t);
+				up?.HeadAdd(t);
 				t.dump = Dump(m, t.head == null);
 				omitSelf = m.a.synt == 1;
 			}
 			else if (t.head != null) {
-				up.AddHead(t.head.Cut());
+				up.HeadAdd(t.head.Cut());
 				omitSelf = false;
 			}
 		}
@@ -402,7 +402,7 @@ public class Earley<K, L, N, T, Ler>
 				d = dump <= 0 ? d
 					: dump <= 2 ? $"{Esc(exp)} expected for {d}"
 					: $"{Esc(exp)} expected for {d}!{m.step} {Dump(m, true)}";
-				t.AddHead(new T {
+				t.HeadAdd(new T {
 					name = m.a.name, j = m.j,
 					err = m.step, info = exp, dump = d
 				});

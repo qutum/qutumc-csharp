@@ -53,31 +53,31 @@ public partial class LexGram<K> where K : struct
 		public string str;
 		// one byte set
 		public ByteSet.One one;
-		// duplicate last byte of sequence, or duplicate one byte of set
+		// duplicate latest byte of sequence, or duplicate latest one byte of set
 		public bool dup;
 	}
 
 	// add a product with key
 	public LexGram<K> k(K key) { prods.Add(new() { key = key }); return this; }
-	// add a wad to last product
+	// add a wad to latest product
 	public LexGram<K> w { get { prods[^1].Add([]); return this; } }
-	// add a redo wad to last Prod
+	// add a redo wad to latest Prod
 	public LexGram<K> redo { get { prods[^1].Add(new() { redo = true }); return this; } }
-	// add a altern to last wad
+	// add a altern to latest wad
 	// string : byte sequence, ByteSet.One : one byte set, .. : duplicate
 	public LexGram<K> this[params object[] cons] {
 		get {
 			Alt a = [];
 			prods[^1][^1].Add(a);
 			foreach (var c in cons)
-				if (c is Range) a.last = a.last with { dup = true };
+				if (c is Range) a.tail.dup = true;
 				else if (c is string str) a.Ad(new() { str = str });
 				else if (c is ByteSet.One one) a.Ad(new() { str = "", one = one });
 				else throw new($"wrong altern content {c?.GetType()}");
 			return this;
 		}
 	}
-	// mark last altern loop
+	// mark latest altern loop
 	public LexGram<K> loop { get { prods[^1][^1][^1].loop = true; return this; } }
 }
 
@@ -85,7 +85,7 @@ public partial class LexGram<K> where K : struct
 // K for lexic key i.e lexeme
 public partial class Lexier<K> : LexierArr<K> where K : struct
 {
-	// each unit is just before next byte or after the last byte of wad
+	// each unit is just before next byte or after latest byte of wad
 	sealed class Unit
 	{
 		internal int id;
@@ -370,7 +370,7 @@ public partial class Lexier<K>
 		{
 			// buid next
 			var go = u; var mode = 0; // mismatch to backward
-			if (end) // the last byte of alt
+			if (end) // is last byte of alt
 				{ go = ok; mode = -1; } // match wad
 			else if (dup != null) // inside duplicate bytes
 				{ go = dup; mode = -3; } // mismatch to error

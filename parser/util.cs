@@ -80,9 +80,9 @@ public struct X<_> : IUnaryPlusOperators<X<_>, int>, IComparisonOperators<X<_>, 
 /// <typeparam name="X">typed index (or int)</typeparam>
 public struct Jot<X> : IEnum<X> where X : IUnaryPlusOperators<X, int>, IAdditionOperators<X, int, X>
 {
-	/// <summary>index on the first, [on]==first</summary>
+	/// <summary>index on head, [on]==head</summary>
 	public X on;
-	/// <summary>inclusive index to the last, last==[to]</summary>
+	/// <summary>inclusive index to tail, tail==[to]</summary>
 	public X to;
 
 	/// <summary>to - on + 1, default is 1, may overflow</summary>
@@ -108,9 +108,9 @@ public struct Jot<X> : IEnum<X> where X : IUnaryPlusOperators<X, int>, IAddition
 /// <typeparam name="X">typed index (or int)</typeparam>
 public struct Jov<X> : IEnum<X> where X : IUnaryPlusOperators<X, int>, IAdditionOperators<X, int, X>
 {
-	/// <summary>index on the first, [on]==first</summary>
+	/// <summary>index on head, [on]==head</summary>
 	public X on;
-	/// <summary>exclusive index via the last, last==[via-1]</summary>
+	/// <summary>exclusive index via tail, tail==[via-1]</summary>
 	public X via;
 
 	/// <summary>via - on, default is 0, may overflow</summary>
@@ -141,10 +141,10 @@ public struct Arr<X, T> : IEnum<T> where X : IUnaryPlusOperators<X, int>, IAddit
 	public readonly X size => j.size;
 	/// <summary>read or write at typed index inside <see cref="j">jot</see></summary>
 	public readonly ref T this[X x] { get => ref Span[+x]; }
-	/// <summary>read or write on the last, == [^1]</summary>
-	public readonly ref T last => ref Span[^1];
+	/// <summary>read or write at tail, == [^1]</summary>
+	public readonly ref T tail => ref Span[^1];
 	/// <summary>read or write on backward typed index, == [^x]</summary>
-	public readonly ref T Last(X x) => ref Span[^+x];
+	public readonly ref T Tail(X x) => ref Span[^+x];
 
 	/// <summary>empty array</summary>
 	public Arr() => s = []; // used for Arr<X, T> a = []
@@ -215,7 +215,7 @@ public static class ArrExtention
 {
 	extension<X, T>(ref Arr<X, T> s) where X : IUnaryPlusOperators<X, int>, IAdditionOperators<X, int, X>
 	{
-		/// <summary>add a data after the last, resize the actual array if required. use 'ref this'</summary>
+		/// <summary>add a data after tail, resize the actual array if required. use 'ref this'</summary>
 		public Arr<X, T> Ad(T d) => s = s._Add(d); // not 'Add' to deny [..data] to call each Add
 		/// <summary>drop a data, move data else. use 'ref this'</summary>
 		public Arr<X, T> Drop(X x) => s = s._Drop(x);
@@ -238,16 +238,16 @@ public class List<X, T> : IEnum<T> where X : IUnaryPlusOperators<X, int>, IAddit
 	public X size => s.size;
 	/// <summary>read or write at typed index inside jot</summary>
 	public ref T this[X x] { get => ref s[x]; }
-	/// <summary>read or write on the last, == [^1]</summary>
-	public ref T last => ref s.last;
+	/// <summary>read or write at tail, == [^1]</summary>
+	public ref T tail => ref s.tail;
 	/// <summary>read or write on backward typed index, == [^x]</summary>
-	public ref T Last(X x) => ref s.Last(x);
+	public ref T Tail(X x) => ref s.Tail(x);
 
 	/// <summary>new array with size, jot is full</summary>
 	public List(X size = default) => s = new(size);
 	/// <summary>new array of data, like [..s], jot is full</summary>
 	public List(IEnumerable<T> ds) => s = new(ds);
-	/// <summary>add a data after the last, resize the actual array if required</summary>
+	/// <summary>add a data after tail, resize the actual array if required</summary>
 	public List<X, T> Ad(T d) { s.Ad(d); return this; } // not 'Add' to deny [..data] to call each Add
 	/// <summary>drop a data, move data else</summary>
 	public List<X, T> Drop(X x) { s.Drop(x); return this; }
@@ -329,8 +329,8 @@ public static partial class Extension
 			foreach (var d in s) { no = false; yield return d; }
 			if (no) yield return null;
 		}
-		/// <returns>the first checked data, or null</returns>
-		public T? FirstOrNull(Func<T, bool> If)
+		/// <returns>head of checked data, or null</returns>
+		public T? Head(Func<T, bool> If)
 		{
 			foreach (var d in s) if (If(d)) return d;
 			return null;
@@ -339,35 +339,34 @@ public static partial class Extension
 }
 
 /// <summary>tree node with four direction uncyclic links</summary>
-public partial class LinkTree<T> : IEnum<T> where T : LinkTree<T>
+public partial class Tree<T> : IEnum<T> where T : Tree<T>
 {
 	/// <summary>parent node. if null, this is root or one root of forest</summary>
 	public T up;
 	/// <summary>previous sibling node.
-	/// if not null: past.next == this, if null and up not null: up.head == this</summary>
-	public T past;
+	/// if not null: prev.next == this, if null and up not null: up.head == this</summary>
+	public T prev;
 	/// <summary>next sibling node.
-	/// if not null: next.past == this, if null and up not null: up.tail == this</summary>
+	/// if not null: next.prev == this, if null and up not null: up.tail == this</summary>
 	public T next;
 	/// <summary>head of sub nodes.
-	/// if not null: head.up == this && head.past == null && tail != null, if null: tail == null</summary>
+	/// if not null: head.up == this && head.prev == null && tail != null, if null: tail == null</summary>
 	public T head;
 	/// <summary>tail of sub nodes.
 	/// if not null: tail.up == this && tail.next == null && head != null, if null: head == null</summary>
 	public T tail;
 
-	/// <summary>the most past sibling. if up not null: == up.head</summary>
+	/// <returns>the most prev sibling. if up not null: == up.head</returns>
 	public T First()
 	{
 		if (up != null)
 			return up.head;
 		var t = (T)this;
-		while (t.past != null)
-			t = t.past;
+		while (t.prev != null)
+			t = t.prev;
 		return t;
 	}
-
-	/// <summary>the most next sibling. if up not null: == up.tail</summary>
+	/// <returns>the most next sibling. if up not null: == up.tail</returns>
 	public T Last()
 	{
 		if (up != null)
@@ -378,41 +377,82 @@ public partial class LinkTree<T> : IEnum<T> where T : LinkTree<T>
 		return t;
 	}
 
-	/// <summary>add t and all siblings to after this.tail. t must be first root</summary>
+	/// <summary>cut this from up and siblings, to be a single root
+	/// </summary><returns>this</returns>
+	public T Cut(bool keepLink = false)
+	{
+		if (prev == null)
+			up?.head = next;
+		if (next == null)
+			up?.tail = prev;
+		prev?.next = next;
+		next?.prev = prev;
+		if (!keepLink)
+			up = prev = next = null;
+		return (T)this;
+	}
+
+	/// <summary>append t and all siblings after this.Last. this must be root, t must be first root
+	/// </summary><returns>this</returns>
+	public T Append(T t)
+	{
+		if (t == null)
+			return (T)this;
+		Debug.Assert(up == null && t.up == null && t.prev == null);
+		(t.prev = Last()).next = t;
+		return (T)this;
+	}
+	/// <summary>cut all t subs from t, append them after this.Last. this must be root
+	/// </summary><returns>this</returns>
+	public T AppendSubOf(T t)
+	{
+		if (t?.head == null)
+			return (T)this;
+		Debug.Assert(up == null);
+		var x = t.head;
+		t.head = t.tail = null;
+		(x.prev = Last()).next = x;
+		for (x.up = null; x.next != null; x.up = null)
+			x = x.next;
+		return (T)this;
+	}
+
+	/// <summary>add t and all siblings after this.tail. t must be first root
+	/// </summary><returns>this</returns>
 	public T Add(T t)
 	{
 		if (t == null)
 			return (T)this;
-		Debug.Assert(t.up == null && t.past == null);
+		Debug.Assert(t.up == null && t.prev == null);
 		var end = t;
 		for (end.up = (T)this; end.next != null; end.up = (T)this)
 			end = end.next;
 		if (head == null)
 			head = t;
 		else
-			(t.past = tail).next = t;
+			(t.prev = tail).next = t;
 		tail = end;
 		return (T)this;
 	}
-
-	/// <summary>add t and all siblings to before this.head. t must be first root</summary>
-	public T AddHead(T t)
+	/// <summary>add t and all siblings before this.head. t must be first root
+	/// </summary><returns>this</returns>
+	public T HeadAdd(T t)
 	{
 		if (t == null)
 			return (T)this;
-		Debug.Assert(t.up == null && t.past == null);
+		Debug.Assert(t.up == null && t.prev == null);
 		var end = t;
 		for (end.up = (T)this; end.next != null; end.up = (T)this)
 			end = end.next;
 		if (tail == null)
 			tail = end;
 		else
-			(end.next = head).past = end;
+			(end.next = head).prev = end;
 		head = t;
 		return (T)this;
 	}
-
-	/// <summary>cut all t subs from t, add them to after this.tail</summary>
+	/// <summary>cut all t subs from t, add them after this.tail
+	/// </summary><returns>this</returns>
 	public T AddSubOf(T t)
 	{
 		if (t?.head == null)
@@ -423,56 +463,16 @@ public partial class LinkTree<T> : IEnum<T> where T : LinkTree<T>
 		return Add(x);
 	}
 
-	/// <summary>append t and all siblings to after this.Last. this must be root, t must be first root</summary>
-	public T Append(T t)
-	{
-		if (t == null)
-			return (T)this;
-		Debug.Assert(up == null && t.up == null && t.past == null);
-		(t.past = Last()).next = t;
-		return (T)this;
-	}
-
-	/// <summary>cut all t subs from t, add them to after this.Last. this must be root</summary>
-	public T AppendSubOf(T t)
-	{
-		if (t?.head == null)
-			return (T)this;
-		Debug.Assert(up == null);
-		var x = t.head;
-		t.head = t.tail = null;
-		(x.past = Last()).next = x;
-		for (x.up = null; x.next != null; x.up = null)
-			x = x.next;
-		return (T)this;
-	}
-
-	/// <summary>cut this from up and siblings, to be a single root</summary>
-	public T Cut(bool keepLink = false)
-	{
-		if (past == null)
-			up?.head = next;
-		if (next == null)
-			up?.tail = past;
-		past?.next = next;
-		next?.past = past;
-		if (!keepLink)
-			up = past = next = null;
-		return (T)this;
-	}
-
 	/// <summary>enumerate subs from head to tail</summary>
 	public IEnumerator<T> GetEnumerator()
 	{
-		for (var x = head; x != null; x = x.next)
-			yield return x;
+		for (var x = head; x != null; x = x.next) yield return x;
 	}
 
 	/// <summary>enumerate subs backward from tail to head</summary>
 	public IEnumerable<T> Backward()
 	{
-		for (var x = tail; x != null; x = x.past)
-			yield return x;
+		for (var x = tail; x != null; x = x.prev) yield return x;
 	}
 }
 
