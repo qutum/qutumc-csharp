@@ -45,6 +45,8 @@ public struct X<_> : IUnaryPlusOperators<X<_>, int>, IComparisonOperators<X<_>, 
 	public readonly bool no => x == -1;
 	/// <summary>0</summary>
 	public static readonly X<_> Z = default;
+	/// <summary>1</summary>
+	public static readonly X<_> One = (X<_>)1;
 	/// <summary>-1</summary>
 	public static readonly X<_> No = (X<_>)(-1);
 
@@ -141,8 +143,10 @@ public struct Arr<X, T> : IEnum<T> where X : IUnaryPlusOperators<X, int>, IAddit
 	public readonly X size => j.size;
 	/// <summary>read or write at typed index inside <see cref="j">jot</see></summary>
 	public readonly ref T this[X x] { get => ref Span[+x]; }
+	/// <summary>read or write at head, == [0]</summary>
+	public readonly ref T head => ref s[+j.on];
 	/// <summary>read or write at tail, == [^1]</summary>
-	public readonly ref T tail => ref Span[^1];
+	public readonly ref T tail => ref s[+j.via - 1];
 	/// <summary>read or write on backward typed index, == [^x]</summary>
 	public readonly ref T Tail(X x) => ref Span[^+x];
 
@@ -238,6 +242,8 @@ public class List<X, T> : IEnum<T> where X : IUnaryPlusOperators<X, int>, IAddit
 	public X size => s.size;
 	/// <summary>read or write at typed index inside jot</summary>
 	public ref T this[X x] { get => ref s[x]; }
+	/// <summary>read or write at head, == [0]</summary>
+	public ref T head => ref s.head;
 	/// <summary>read or write at tail, == [^1]</summary>
 	public ref T tail => ref s.tail;
 	/// <summary>read or write on backward typed index, == [^x]</summary>

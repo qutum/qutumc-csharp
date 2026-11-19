@@ -115,7 +115,7 @@ public partial class SerMaker<K, N>
 	// phase 1: find first keys of each name and each alt want
 	public void Firsts()
 	{
-		if (firstAs[Altx.Z].size.pos)
+		if (firstAs.head.size.pos)
 			return;
 		for (bool loop = true; !(loop = !loop);)
 			foreach (var (p, nx) in prods.Each()) {
@@ -266,7 +266,7 @@ public partial class SerMaker<K, N>
 		if (forms.size.pos)
 			return;
 		Items init = [];
-		AddItem(init, alts[Altx.Z], Conx.Z, KordXs.One(keys.size, Kordx.Z), default, 1);
+		AddItem(init, alts.head, Conx.Z, KordXs.One(keys.size, Kordx.Z), default, 1);
 		AddForm(Closure(init));
 		foreach (var (f, x) in forms.Each()) {
 			if (+x >= 32767) throw new("too many forms");
@@ -426,7 +426,7 @@ public partial class SerMaker<K, N>
 				throw new($"duplicate ordinal of {ns[nameOrd(p.name)]} and {p.name}");
 		nameOs = new(ns.Keys);
 		names = new(ns.Values);
-		if (nameOs[Nordx.Z] == default)
+		if (nameOs.head == default)
 			throw new($"default name ordinal");
 		var accept = gram.prods[0].name;
 
@@ -476,7 +476,7 @@ public partial class SerMaker<K, N>
 					else
 						throw new($"{p.name}.{pax} no final lexic key");
 				// synt
-				if (a.synt == 2 && (a.size.zero || a[Conx.Z].K))
+				if (a.synt == 2 && (a.size.zero || a.head.K))
 					throw new($"{p.name}.{pax} leftmost not name");
 				if (a.synt == 3 && (a.size.zero || a.tail.K))
 					throw new($"{p.name}.{pax} rightmost not name");

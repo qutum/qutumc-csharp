@@ -37,7 +37,7 @@ public partial class LexGram<K> where K : struct
 	{
 		public K key;
 	}
-	public class Wad : List<Alt>
+	public class Wad : List<Altx, Alt>
 	{
 		// skip mismatched read then redo this wad
 		public bool redo;
@@ -68,7 +68,7 @@ public partial class LexGram<K> where K : struct
 	public LexGram<K> this[params object[] cons] {
 		get {
 			Alt a = [];
-			prods[^1][^1].Add(a);
+			prods[^1][^1].Ad(a);
 			foreach (var c in cons)
 				if (c is Range) a.tail.dup = true;
 				else if (c is string str) a.Ad(new() { str = str });
@@ -78,7 +78,7 @@ public partial class LexGram<K> where K : struct
 		}
 	}
 	// mark latest altern loop
-	public LexGram<K> loop { get { prods[^1][^1][^1].loop = true; return this; } }
+	public LexGram<K> loop { get { prods[^1][^1].tail.loop = true; return this; } }
 }
 
 // lexic parser
@@ -302,42 +302,43 @@ public partial class Lexier<K>
 			if (dump)
 				grammar.Dump();
 			var begin = new Unit(ler);
-			var aus = new Unit[grammar.prods.Max(p => p.Count) + 1][];
 			// build prod
 			foreach (var prod in grammar.prods) {
 				var k = prod.key;
 				if (prod.Count == 0) throw new($"No wad in {k}");
+				// alts last units having next, of each wad
+				var lasts = new List<Unit>[prod.Count + 1];
 				// first unit of each wad
-				var wus = prod.Skip(1).Select((_, px) => new Unit(ler) { key = k, wad = px + 2 })
-					.Prepend(begin).Prepend(null)
-					.Append(begin).ToArray(); // current lexi end
-				foreach (var (w, wad) in prod.Each(1)) {
-					var u = wus[wad];
-					if (w.Count == 0)
-						throw new($"No altern in {Kw(k, wad)}");
-					if (w[0].size.zero) // empty alt for option wad
-						if (wad == 1) throw new($"Empty altern in first wad {Kw(k, 1)}");
-						else if (w.Count == 1) throw new($"No byte in {Kw(k, wad)}");
-						else if (w.redo) throw new($"Redo empty {Kw(k, wad)}.1");
-						else { u.go = wus[wad + 1]; u.mode = -1; }
-					else if (w.redo) // shift read then redo wad like the begin
-						if (wad == 1) throw new($"Redo first wad {Kw(k, 1)}");
-						else { u.go = u; u.mode = -3; }
+				Unit[] firsts = [null, begin, // for lexi begin
+					..prod.Each(1).Skip(1).Select(w => new Unit(ler) { key = k, wad = w.x }),
+					begin]; // for lexi end
+				foreach (var (wad, wx) in prod.Each(1)) {
+					var first = firsts[wx];
+					if (wad.size.zero)
+						throw new($"No altern in {Kw(k, wx)}");
+					if (wad.head.size.zero) // empty alt for option wad
+						if (wx == 1) throw new($"Empty altern in first wad {Kw(k, 1)}");
+						else if (+wad.size == 1) throw new($"No byte in {Kw(k, wx)}");
+						else if (wad.redo) throw new($"Redo empty {Kw(k, wx)}.1");
+						else { first.go = firsts[wx + 1]; first.mode = -1; }
+					else if (wad.redo) // shift read then redo wad like the begin
+						if (wx == 1) throw new($"Redo first wad {Kw(k, 1)}");
+						else { first.go = first; first.mode = -3; }
 					else // no backward cross wads
-						{ u.go = begin; u.mode = -3; }
+						{ first.go = begin; first.mode = -3; }
 				}
 				// build wad
 				foreach (var (wad, wx) in prod.Each(1)) {
 					// build alt
-					aus[wx] = [.. wad.Select((alt, ax) => {
-						++ax;
+					lasts[wx] = [];
+					foreach (var (alt, ax) in wad.Each(Altx.One)) {
 						var bz = (Bytex)alt.Sum(b => b.str.Length + (b.one.size > 0 ? 1 : 0));
-						if (alt.size.zero ? ax > 1 : bz.zero)
+						if (alt.size.zero ? ax > Altx.One : bz.zero)
 							throw new($"No byte in {Kw(k, wx)}.{ax}");
 						if (+bz > AltBytez)
 							throw new($"{Kw(k, wx)}.{ax} exceeds {AltBytez} bytes");
-						var u = wus[wx];
-						var ok = !alt.loop ? wus[wx + 1] // go for match
+						var u = firsts[wx];
+						var ok = !alt.loop ? firsts[wx + 1] // go for match
 							: wx > 1 ? u : throw new($"Can not loop first wad {Kw(k, 1)}.{ax}");
 						var dup = wad.redo ? u : begin; // error for repeat
 						var bx = Bytex.Z; // build units from contents
@@ -348,18 +349,19 @@ public partial class Lexier<K>
 							if (c.one.size > 0)
 								Byte(c.one, ref u, k, wx, ++bx >= bz, ok, c.dup ? dup : null);
 						}
-						return u; // the last unit of this alt
-					}).Where(u => u.next != null)];
-					var u = wus[wx];
-					if (aus[wx - 1] != null)
-						for (int x = 0; x <= 128; x++) {
-							if (u.next[x] == null) continue;
-							for (int y = wx - 1; aus[y] != null; y--)
-								if (aus[y].Any(au => au.next[x] != null))
-									throw new($"{Kw(k, wx)} and {Kw(k, y)} clash over dup");
+						if (u.next != null)
+							lasts[wx].Add(u); // alt last unit having next
+					}
+					var first = firsts[wx];
+					if (lasts[wx - 1] != null)
+						for (int b = 0; b <= 128; b++) {
+							if (first.next[b] == null) continue;
+							for (int wy = wx - 1; lasts[wy] != null; wy--)
+								if (lasts[wy].Any(last => last.next[b] != null))
+									throw new($"{Kw(k, wx)} and {Kw(k, wy)} clash over dup");
 						}
-					if (wad[0].size.pos)
-						aus[wx - 1] = null;
+					if (wad.head.size.pos)
+						lasts[wx - 1] = null; // TODO test this
 				}
 			}
 			if (dump) Dump(begin, "");
