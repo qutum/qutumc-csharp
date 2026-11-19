@@ -136,7 +136,7 @@ public partial class SerMaker<K, N>
 			var a = alts[x];
 			var fs = firstAs[x] = new(a.size + 1);
 			fs.last.empty = true;
-			for (var w = a.size - 1; w.pos; w -= 1)
+			for (var w = a.size - 1; w.pos; w--)
 				if (a[w].K)
 					fs[w] = (false, KordXs.One(keys.size, a[w].kx));
 				else {
@@ -480,7 +480,7 @@ public partial class SerMaker<K, N>
 					throw new($"{p.name}.{pax} leftmost not name");
 				if (a.synt == 3 && (a.size.zero || a.last.K))
 					throw new($"{p.name}.{pax} rightmost not name");
-				alts[a.index = ax] = a; ax += 1;
+				alts[a.index = ax++] = a;
 				if (np != p)
 					np.Add(a); // append alterns to same name production
 			}

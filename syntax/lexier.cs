@@ -370,11 +370,11 @@ internal sealed class LexierGet : Lexier<K>, Lexer<K, Lexi<K>>
 		ok = Next() || l < loc;
 		if (!ok)
 			return default;
-		left = Buf(l - 1); lex = Buf(l); l += 1; right = Buf(l);
+		left = Buf(l - 1); lex = Buf(l); right = Buf(++l);
 		return (lex.key, lex.j, lex.value);
 	}
 
-	protected override void Add(Lexi<K> lexi) { Buf(lexs.size) = lexi; lexs.j.via += 1; }
+	protected override void Add(Lexi<K> lexi) { Buf(lexs.size) = lexi; lexs.j.via++; }
 	public new void Error(K k, JovBx j, object value) => base.Error(k, j, value);
 	public void Blank(K k, JovBx j, object value) => blanks?.Add(
 		new() { key = k, j = j, value = value, err = 1 });
@@ -551,16 +551,16 @@ internal sealed class LexierGet : Lexier<K>, Lexer<K, Lexi<K>>
 			bz += j.size;
 		else // unescape
 			switch (bs[bz + 1]) {
-			case (byte)'0': bs[bz] = (byte)'\0'; bz += 1; break;
-			case (byte)'t': bs[bz] = (byte)'\t'; bz += 1; break;
-			case (byte)'n': bs[bz] = (byte)'\n'; bz += 1; break;
-			case (byte)'r': bs[bz] = (byte)'\r'; bz += 1; break;
-			case (byte)'x': bs[bz] = (byte)(Hex(bz + 2) << 4 | Hex(bz + 3)); bz += 1; break;
+			case (byte)'0': bs[bz++] = (byte)'\0'; break;
+			case (byte)'t': bs[bz++] = (byte)'\t'; break;
+			case (byte)'n': bs[bz++] = (byte)'\n'; break;
+			case (byte)'r': bs[bz++] = (byte)'\r'; break;
+			case (byte)'x': bs[bz++] = (byte)(Hex(bz + 1) << 4 | Hex(bz + 2)); break;
 			case (byte)'u':
 				Span<char> u = [
 					(char)(Hex(bz + 2) << 12 | Hex(bz + 3) << 8 | Hex(bz + 4) << 4 | Hex(bz + 5)) ];
 				bz += Encoding.UTF8.GetBytes(u, bs.Span[+bz..]); break;
-			default: bs[bz] = bs[bz + 1]; bz += 1; break;
+			default: bs[bz++] = bs[bz]; break;
 			}
 	}
 
@@ -570,7 +570,7 @@ internal sealed class LexierGet : Lexier<K>, Lexer<K, Lexi<K>>
 		int dot = 0, e = 0;
 		if (ni == bz) {
 			key = K.INT; // as INT
-			for (; x < ni; x += 1)
+			for (; x < ni; x++)
 				if (bs[x] != '_')
 					if (v < 21_4748_364 || v == 21_4748_364 && bs[x] <= '8') v = v * 10 + bs[x] - '0';
 					else {
@@ -584,11 +584,11 @@ internal sealed class LexierGet : Lexier<K>, Lexer<K, Lexi<K>>
 			Error(key, (lon, lon + bz), "float out of length");
 			return 0f;
 		}
-		for (; x < ni; x += 1)
+		for (; x < ni; x++)
 			if (bs[x] != '_')
 				if (v <= 9_9999_999) v = v * 10 + bs[x] - '0';
 				else dot++;
-		for (x = ni + 1; x < nf; x += 1)
+		for (x = ni + 1; x < nf; x++)
 			if (bs[x] != '_')
 				if (v <= 9_9999_999) (v, dot) = (v * 10 + bs[x] - '0', dot - 1);
 				else break;
@@ -596,7 +596,7 @@ internal sealed class LexierGet : Lexier<K>, Lexer<K, Lexi<K>>
 			return 0f;
 		if (nf < ne) {
 			bool neg = bs[nf + 1] == '-';
-			for (x = neg || bs[nf + 1] == '+' ? nf + 1 : nf; (x += 1) < ne;)
+			for (x = neg || bs[nf + 1] == '+' ? nf + 1 : nf; ++x < ne;)
 				if (e <= 9_9999_999) e = e * 10 + bs[x] - '0';
 				else {
 					Error(key, (lon, lon + ne), "exponent out of range");
@@ -631,7 +631,7 @@ internal sealed class LexierGet : Lexier<K>, Lexer<K, Lexi<K>>
 		int dot = 0, e = 0;
 		if (ni == bz) {
 			key = K.INT; // as INT
-			for (; x < ni; x += 1)
+			for (; x < ni; x++)
 				if (bs[x] != '_')
 					if (v <= 0xffff_fff) v = v << 4 | Hex(x);
 					else {
@@ -645,11 +645,11 @@ internal sealed class LexierGet : Lexier<K>, Lexer<K, Lexi<K>>
 			Error(key, (lon, lon + bz), "float out of length");
 			return 0f;
 		}
-		for (; x < ni; x += 1)
+		for (; x < ni; x++)
 			if (bs[x] != '_')
 				if (v <= 0xffff_fff) v = v << 4 | Hex(x);
 				else dot++;
-		for (x = ni + 1; x < nf; x += 1)
+		for (x = ni + 1; x < nf; x++)
 			if (bs[x] != '_')
 				if (v <= 0xffff_fff) (v, dot) = (v << 4 | Hex(x), dot - 1);
 				else break;
@@ -658,7 +658,7 @@ internal sealed class LexierGet : Lexier<K>, Lexer<K, Lexi<K>>
 		if (nf < ne) {
 			bool hex = (char)bs[nf] is 'x' or 'X';
 			bool neg = bs[nf + 1] == '-';
-			for (x = neg || bs[nf + 1] == '+' ? nf + 1 : nf; (x += 1) < ne;)
+			for (x = neg || bs[nf + 1] == '+' ? nf + 1 : nf; ++x < ne;)
 				if (hex ? e <= 0x6fff_fff : e <= 9_9999_999)
 					e = hex ? e << 4 | Hex(x) : e * 10 + bs[x] - '0';
 				else {

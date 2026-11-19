@@ -269,7 +269,7 @@ public partial class Synter<K, L, N, T, Ler>
 			name = alt.syntName, j = (loc, ler.Loc()), dump = dump >= 3 ? alt : alt.label,
 			err = redu.err, info = redu.info,
 		} : null;
-		for (var i = redu.size - 1; i.zpos; i -= 1) {
+		for (var i = redu.size - 1; i.zpos; i--) {
 			var (_, l, synt) = stack.Last(redu.size - i);
 			if (synt is T head)
 				if (!make // flatten synts

@@ -135,7 +135,7 @@ public partial class Lexier<K> : LexierArr<K> where K : struct
 	Wad: bj.on = bj.via;
 	Next: if (bj.via >= bz)
 			if (read.Next()) {
-				b = Byte(bz) = read.Lex(); bz += 1;
+				b = Byte(bz++) = read.Lex();
 				if (b == '\n')
 					lines.Add(bz);
 			}
@@ -150,7 +150,7 @@ public partial class Lexier<K> : LexierArr<K> where K : struct
 				goto Go;
 		b = Byte(bj.via);
 		if (u.next[b < 128 ? b : 128] is Unit v) { // one byte by one, even for utf
-			u = v; bj.via += 1;
+			u = v; bj.via++;
 			if (u.next != null)
 				goto Next;
 		}
@@ -168,7 +168,7 @@ public partial class Lexier<K> : LexierArr<K> where K : struct
 		else { // error wad
 			WadErr(u.key, u.wad, go == begin || bj.via >= bz,
 				bj.via < bz ? Byte(bj.via) : -1, bj);
-			bj.via += 1; // shift a byte
+			bj.via++; // shift a byte
 		}
 		if (go == begin && loc < lexs.size)
 			return true;
@@ -343,10 +343,10 @@ public partial class Lexier<K>
 						var bx = Bytex.Z; // build units from contents
 						foreach (var c in alt) {
 							for (int x = 0; x < c.str.Length; x++)
-								Byte(c.str.AsMemory(x, 1), ref u, k, wx, (bx += 1) >= bz, ok,
+								Byte(c.str.AsMemory(x, 1), ref u, k, wx, ++bx >= bz, ok,
 									c.dup && x == c.str.Length - 1 ? dup : null);
 							if (c.one.size > 0)
-								Byte(c.one, ref u, k, wx, (bx += 1) >= bz, ok, c.dup ? dup : null);
+								Byte(c.one, ref u, k, wx, ++bx >= bz, ok, c.dup ? dup : null);
 						}
 						return u; // the last unit of this alt
 					}).Where(u => u.next != null)];

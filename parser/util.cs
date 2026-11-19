@@ -65,6 +65,8 @@ public struct X<_> : IUnaryPlusOperators<X<_>, int>, IComparisonOperators<X<_>, 
 	public static X<_> operator -(X<_> a, X<_> b) => (X<_>)(a.x - b.x);
 	public static X<_> operator +(X<_> a, int b) => (X<_>)(a.x + b);
 	public static X<_> operator -(X<_> a, int b) => (X<_>)(a.x - b);
+	public static X<_> operator ++(X<_> a) => a += 1;
+	public static X<_> operator --(X<_> a) => a -= 1;
 	public static X<_> operator |(X<_> a, X<_> b) => (X<_>)(a.x | b.x);
 	public static X<_> operator &(X<_> a, X<_> b) => (X<_>)(a.x & b.x);
 	public static X<_> operator ^(X<_> a, X<_> b) => (X<_>)(a.x ^ b.x);
@@ -83,9 +85,9 @@ public struct Jot<X> : IEnum<X> where X : IUnaryPlusOperators<X, int>, IAddition
 	/// <summary>inclusive index to the last, last==[to]</summary>
 	public X to;
 
-	/// <summary>to - on + 1, default is 1</summary>
+	/// <summary>to - on + 1, default is 1, may overflow</summary>
 	public readonly X size => to + -+on + 1;
-	/// <summary>size > 0, also on &lt;= to</summary>
+	/// <summary>on &lt;= to, also size > 0</summary>
 	public readonly bool any => +on <= +to;
 	public readonly Range range => +on..+(to + 1);
 	public readonly void Deconstruct(out X on, out X to) => (on, to) = (this.on, this.to);
@@ -111,9 +113,9 @@ public struct Jov<X> : IEnum<X> where X : IUnaryPlusOperators<X, int>, IAddition
 	/// <summary>exclusive index via the last, last==[via-1]</summary>
 	public X via;
 
-	/// <summary>via - on, default is 0</summary>
+	/// <summary>via - on, default is 0, may overflow</summary>
 	public readonly X size => via + -+on;
-	/// <summary>size > 0, also on &lt; via</summary>
+	/// <summary>on &lt; via, also size > 0</summary>
 	public readonly bool any => +on < +via;
 	public readonly Range range => +on..+via;
 	public readonly void Deconstruct(out X on, out X via) => (on, via) = (this.on, this.via);
@@ -127,7 +129,7 @@ public struct Jov<X> : IEnum<X> where X : IUnaryPlusOperators<X, int>, IAddition
 	public readonly IEnumerator<X> GetEnumerator() { for (X x = on; +x < +via; x += 1) yield return x; }
 }
 
-/// <summary>array jot on typed index (or int). use 'ref this' to change the jot</summary>
+/// <summary>array jot at typed index (or int). use 'ref this' to change the jot</summary>
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE1006:Naming Styles")]
 public struct Arr<X, T> : IEnum<T> where X : IUnaryPlusOperators<X, int>, IAdditionOperators<X, int, X>
 {
@@ -137,7 +139,7 @@ public struct Arr<X, T> : IEnum<T> where X : IUnaryPlusOperators<X, int>, IAddit
 	public Jov<X> j;
 	/// <summary>size, should &lt;= <see cref="s">actual array</see> length</summary>
 	public readonly X size => j.size;
-	/// <summary>read or write on typed index inside <see cref="j">jot</see></summary>
+	/// <summary>read or write at typed index inside <see cref="j">jot</see></summary>
 	public readonly ref T this[X x] { get => ref Span[+x]; }
 	/// <summary>read or write on the last, == [^1]</summary>
 	public readonly ref T last => ref Span[^1];
@@ -228,13 +230,13 @@ public static class ArrExtention
 	}
 }
 
-/// <summary>array jot on typed index (or int). no need 'ref this' vs <see cref="Arr{X, T}"/></summary>
+/// <summary>array jot at typed index (or int). no need 'ref this' vs <see cref="Arr{X, T}"/></summary>
 public class List<X, T> : IEnum<T> where X : IUnaryPlusOperators<X, int>, IAdditionOperators<X, int, X>
 {
 	Arr<X, T> s;
 	/// <summary>size, should &lt;= actual array length</summary>
 	public X size => s.size;
-	/// <summary>read or write on typed index inside jot</summary>
+	/// <summary>read or write at typed index inside jot</summary>
 	public ref T this[X x] { get => ref s[x]; }
 	/// <summary>read or write on the last, == [^1]</summary>
 	public ref T last => ref s.last;
@@ -279,7 +281,7 @@ public static partial class Extension
 	/// <summary>increase by 1 if &lt; z, so max is z</summary><returns>increased &lt; z</returns>
 	public static bool IncLess(this ref int d, int z) => d < z && ++d < z;
 	/// <summary>increase by 1 if &lt; z, so max is z</summary><returns>increased &lt; z</returns>
-	public static bool IncLess<_>(this ref X<_> d, int z) => +d < z && +(d += 1) < z;
+	public static bool IncLess<_>(this ref X<_> d, int z) => +d < z && +(++d) < z;
 
 	public static bool Adds<T>(this ISet<T> s, IEnumerable<T> add)
 	{
