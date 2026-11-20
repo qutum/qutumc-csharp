@@ -10,9 +10,9 @@ using System.Linq;
 
 namespace qutum.parser;
 
+using Itemx = X<XItem>;
 using Kord = char;
 using Nord = ushort;
-using Itemx = X<XItem>;
 
 // syntax grammar
 public partial class SynGram<K, N>

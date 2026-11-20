@@ -4,13 +4,11 @@
 // Under the terms of the GNU General Public License version 3
 // http://qutum.com  http://qutum.cn
 //
-global using Jot = qutum.parser.Jot<int>;
-global using Jov = qutum.parser.Jov<int>;
-global using Formx = qutum.parser.X<qutum.parser.SynForm>;
 global using Altx = qutum.parser.X<qutum.parser.XAlt>;
-global using Conx = qutum.parser.X<qutum.parser.XAltCon>;
 global using AltXs = qutum.parser.BitSet<qutum.parser.XAlt>;
-
+global using Conx = qutum.parser.X<qutum.parser.XAltCon>;
+global using Formx = qutum.parser.X<qutum.parser.SynForm>;
+global using Jov = qutum.parser.Jov<int>;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using qutum.parser;
 using System;

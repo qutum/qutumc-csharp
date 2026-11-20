@@ -4,10 +4,6 @@
 // Under the terms of the GNU General Public License version 3
 // http://qutum.com  http://qutum.cn
 //
-/// <summary>
-/// Represents a typed index with a specific type.
-/// </summary>
-/// <typeparam name="X">The type of the index.</typeparam>
 global using Jot = qutum.parser.Jot<int>;
 global using Jov = qutum.parser.Jov<int>;
 

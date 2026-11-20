@@ -8,7 +8,6 @@ global using Bytex = qutum.parser.X<byte>;
 global using JovBx = qutum.parser.Jov<qutum.parser.X<byte>>;
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 

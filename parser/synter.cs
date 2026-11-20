@@ -4,14 +4,14 @@
 // Under the terms of the GNU General Public License version 3
 // http://qutum.com  http://qutum.cn
 //
-// recovery key ordinal index
-global using Krecx = qutum.parser.X<sbyte>;
+// alt indices
+global using AltXs = qutum.parser.BitSet<qutum.parser.XAlt>;
 // SynForm index
 global using Formx = qutum.parser.X<qutum.parser.SynForm>;
 // key ordinal indices
 global using KordXs = qutum.parser.BitSet<char>;
-// alt indices
-global using AltXs = qutum.parser.BitSet<qutum.parser.XAlt>;
+// recovery key ordinal index
+global using Krecx = qutum.parser.X<sbyte>;
 
 using System;
 using System.Collections.Generic;

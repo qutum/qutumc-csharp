@@ -4,14 +4,14 @@
 // Under the terms of the GNU General Public License version 3
 // http://qutum.com  http://qutum.cn
 //
-// key ordinal index
-global using Kordx = qutum.parser.X<char>;
-// name ordinal index
-global using Nordx = qutum.parser.X<ushort>;
 // alt index
 global using Altx = qutum.parser.X<qutum.parser.XAlt>;
 // alt.con index
 global using Conx = qutum.parser.X<qutum.parser.XAltCon>;
+// key ordinal index
+global using Kordx = qutum.parser.X<char>;
+// name ordinal index
+global using Nordx = qutum.parser.X<ushort>;
 
 using System;
 using System.Collections.Generic;

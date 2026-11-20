@@ -5,9 +5,8 @@
 // http://qutum.com  http://qutum.cn
 //
 global using Bytex = qutum.parser.X<byte>;
-global using Lexix = qutum.parser.X<qutum.parser.Lexi<qutum.syntax.Lek>>;
 global using JovBx = qutum.parser.Jov<qutum.parser.X<byte>>;
-
+global using Lexix = qutum.parser.X<qutum.parser.Lexi<qutum.syntax.Lek>>;
 using qutum.parser;
 using System;
 using System.Collections.Generic;
